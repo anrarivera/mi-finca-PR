@@ -1,18 +1,48 @@
 import { useRef, useState } from 'react'
-import { Polygon, useMapEvents } from 'react-leaflet'
+import { Polygon, Marker, Tooltip, useMapEvents } from 'react-leaflet'
 import * as L from 'leaflet'
 import { useFieldStore } from '@/store/useFieldStore'
 import type { PlacedField as PlacedFieldType } from '../types'
 
-// At Gurabo PR's latitude (~18.2°N):
-// 1 degree latitude  ≈ 364,000 feet
-// 1 degree longitude ≈ 298,000 feet
 const FT_PER_LAT_DEGREE = 364000
 const FT_PER_LNG_DEGREE = 298000
 
 type Props = {
   field: PlacedFieldType
   onEdit: (fieldId: string) => void
+}
+
+// Custom colored pin icon
+function createPinIcon(color: string, name: string): L.DivIcon {
+  return L.divIcon({
+    className: '',
+    iconAnchor: [12, 32],
+    popupAnchor: [0, -32],
+    html: `
+      <div style="display:flex; flex-direction:column; align-items:center; gap:2px;">
+        <div style="
+          background: white;
+          border: 1.5px solid ${color};
+          color: #2d4a1e;
+          font-size: 10px;
+          font-weight: 600;
+          padding: 2px 6px;
+          border-radius: 4px;
+          white-space: nowrap;
+          box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+          font-family: system-ui, sans-serif;
+          max-width: 120px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        ">${name}</div>
+        <svg width="24" height="32" viewBox="0 0 24 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 0C5.373 0 0 5.373 0 12c0 9 12 20 12 20S24 21 24 12C24 5.373 18.627 0 12 0z"
+            fill="${color}" stroke="white" stroke-width="1.5"/>
+          <circle cx="12" cy="12" r="4" fill="white"/>
+        </svg>
+      </div>
+    `,
+  })
 }
 
 export default function PlacedField({ field, onEdit }: Props) {
@@ -22,17 +52,16 @@ export default function PlacedField({ field, onEdit }: Props) {
   useMapEvents({})
 
   function getMapPositions(): L.LatLng[] {
-    // Convert field's real-world dimensions to degree offsets
     const fieldWidthDeg = field.widthFt / FT_PER_LNG_DEGREE
     const fieldHeightDeg = field.heightFt / FT_PER_LAT_DEGREE
+    return field.points.map(p => L.latLng(
+      field.farmLat + (0.5 - p.y) * fieldHeightDeg,
+      field.farmLng + (p.x - 0.5) * fieldWidthDeg,
+    ))
+  }
 
-    // Each normalized point (0-1) maps to actual degree offsets
-    // centered on the placement lat/lng
-    return field.points.map(p => {
-      const lat = field.farmLat + (0.5 - p.y) * fieldHeightDeg
-      const lng = field.farmLng + (p.x - 0.5) * fieldWidthDeg
-      return L.latLng(lat, lng)
-    })
+  function getCenterLatLng(): L.LatLng {
+    return L.latLng(field.farmLat, field.farmLng)
   }
 
   function handleClick() {
@@ -44,11 +73,21 @@ export default function PlacedField({ field, onEdit }: Props) {
     }
   }
 
-  const positions = getMapPositions()
+  // ── Pin mode ──────────────────────────────────────────────────────
+  if (field.displayMode === 'pin') {
+    return (
+      <Marker
+        position={getCenterLatLng()}
+        icon={createPinIcon(field.color, field.name)}
+        eventHandlers={{ click: handleClick }}
+      />
+    )
+  }
 
+  // ── Shape mode ────────────────────────────────────────────────────
   return (
     <Polygon
-      positions={positions}
+      positions={getMapPositions()}
       pathOptions={{
         color: field.color,
         fillColor: field.color,
@@ -61,6 +100,12 @@ export default function PlacedField({ field, onEdit }: Props) {
         mouseover: () => setIsHovered(true),
         mouseout: () => setIsHovered(false),
       }}
-    />
+    >
+      <Tooltip permanent direction="top" offset={[0, -4]}>
+        <span style={{ fontSize: 11, fontWeight: 600, color: '#2d4a1e' }}>
+          {field.name}
+        </span>
+      </Tooltip>
+    </Polygon>
   )
 }

@@ -23,5 +23,15 @@ export const useFieldStore = create<FieldStore>((set, get) => ({
   removeField: (id) =>
     set(state => ({ fields: state.fields.filter(f => f.id !== id) })),
 
-  getField: (id) => get().fields.find(f => f.id === id),
-}))
+  // In addField, the field comes in with rows and freePlants already set
+// But add defaults in getField derived usage — wrap reads defensively:
+  getField: (id) => {
+        const f = get().fields.find(f => f.id === id)
+        if (!f) return undefined
+        return {
+            ...f,
+            rows: f.rows ?? [],
+            freePlants: f.freePlants ?? [],
+        }
+    },
+  }))

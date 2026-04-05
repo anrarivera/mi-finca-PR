@@ -6,6 +6,7 @@ import DrawingPanel from './drawingPanel'
 import { useFieldStore } from '@/store/useFieldStore'
 import FieldEditor from '@/features/field/components/fieldEditor'
 import PlacedField from '@/features/field/components/placedField'
+import FieldListDrawer from '@/features/field/components/fieldListDrawer'
 
 delete (L.Icon.Default.prototype as any)._getIconUrl
 L.Icon.Default.mergeOptions({
@@ -326,12 +327,21 @@ export default function FarmMap({ center = PR_CENTER, zoom = DEFAULT_ZOOM }: Pro
         onSave={handleSave}
         onAddField={handleAddField}    // ← add this
         />
-
+      <FieldListDrawer
+        onEditField={(fieldId) => {
+            setEditingFieldId(fieldId)
+            setFieldEditorPos({
+            lat: fields.find(f => f.id === fieldId)?.farmLat ?? PR_CENTER[0],
+            lng: fields.find(f => f.id === fieldId)?.farmLng ?? PR_CENTER[1],
+            })
+            setShowFieldEditor(true)
+        }}
+      />
       <MapContainer
         center={center}
         zoom={zoom}
         className="w-full h-full"
-        zoomControl={true}
+        zoomControl={false}
         scrollWheelZoom={true}
         doubleClickZoom={false}
       >
