@@ -5,6 +5,7 @@ import EmptyFarmState from '@/features/farm/components/emptyFarmState'
 import FarmStatBar from '@/features/farm/components/farmStatBar'
 import CreateFarmModal from '@/features/farm/components/createFarmModal'
 import type { Farm } from '@/features/farm/hooks/useFarms'
+import FarmMap from '@/features/map/components/farmMap'
 
 export default function HomePage() {
   const [showModal, setShowModal] = useState(false)
@@ -46,12 +47,7 @@ export default function HomePage() {
             onAddFarm={() => setShowModal(true)}
           />
 
-          {/* Map placeholder — Leaflet map goes here in the next step */}
-          <div className="flex-1 bg-[#f0f5e8] flex items-center justify-center">
-            <p className="text-[#9aab8a] text-sm">
-              El mapa de tu finca aparecerá aquí
-            </p>
-          </div>
+          <FarmMap />
         </>
       )}
 
