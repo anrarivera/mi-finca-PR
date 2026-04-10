@@ -13,6 +13,7 @@ type Props = {
   onFinishEditing: () => void
   onSave: () => void
   onAddField: () => void    // ← add this
+  onDeleteFarm: () => void
 }
 
 export default function DrawingPanel({
@@ -27,6 +28,7 @@ export default function DrawingPanel({
   onFinishEditing,
   onSave,
   onAddField,    // ← add this
+  onDeleteFarm,
 }: Props) {
   return (
     <div className="absolute right-4 top-4 z-[1000] w-56 bg-white rounded-xl border border-[#e0e8d8] shadow-lg overflow-hidden">
@@ -133,6 +135,14 @@ export default function DrawingPanel({
               >
                 <Trash2 size={13} />
                 Limpiar y redibujar
+              </button>
+              <div className="h-px bg-[#f0f5e8]" />
+              <button
+                onClick={onDeleteFarm}
+                className="w-full flex items-center justify-center gap-2 py-2 text-xs text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+              >
+                <Trash2 size={13} />
+                Eliminar finca
               </button>
               <button
                 onClick={onAddField}

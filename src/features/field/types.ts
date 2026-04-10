@@ -1,5 +1,3 @@
-import type { CropType } from './data/cropLibrary'
-
 export type FieldShape = 'rectangle' | 'polygon'
 
 export type FieldPoint = {
@@ -10,13 +8,13 @@ export type FieldPoint = {
 export type PlantInstance = {
   id: string
   cropTypeId: string
-  x: number  // normalized 0-1
+  x: number
   y: number
 }
 
 export type FieldRow = {
   id: string
-  startX: number  // normalized 0-1
+  startX: number
   startY: number
   endX: number
   endY: number
@@ -36,6 +34,7 @@ export type CropSummary = {
 
 export type PlacedField = {
   id: string
+  farmId: string          // ← foreign key
   name: string
   color: string
   shape: FieldShape

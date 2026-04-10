@@ -6,7 +6,9 @@ type FieldStore = {
   addField: (field: PlacedField) => void
   updateField: (id: string, updates: Partial<PlacedField>) => void
   removeField: (id: string) => void
+  removeFieldsByFarmId: (farmId: string) => void
   getField: (id: string) => PlacedField | undefined
+  getFieldsByFarmId: (farmId: string) => PlacedField[]
 }
 
 export const useFieldStore = create<FieldStore>((set, get) => ({
@@ -23,15 +25,15 @@ export const useFieldStore = create<FieldStore>((set, get) => ({
   removeField: (id) =>
     set(state => ({ fields: state.fields.filter(f => f.id !== id) })),
 
-  // In addField, the field comes in with rows and freePlants already set
-// But add defaults in getField derived usage — wrap reads defensively:
+  removeFieldsByFarmId: (farmId) =>
+    set(state => ({ fields: state.fields.filter(f => f.farmId !== farmId) })),
+
   getField: (id) => {
-        const f = get().fields.find(f => f.id === id)
-        if (!f) return undefined
-        return {
-            ...f,
-            rows: f.rows ?? [],
-            freePlants: f.freePlants ?? [],
-        }
-    },
-  }))
+    const f = get().fields.find(f => f.id === id)
+    if (!f) return undefined
+    return { ...f, rows: f.rows ?? [], freePlants: f.freePlants ?? [] }
+  },
+
+  getFieldsByFarmId: (farmId) =>
+    get().fields.filter(f => f.farmId === farmId),
+}))

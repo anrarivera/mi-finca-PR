@@ -9,13 +9,17 @@ import { randomFieldColor } from '../types'
 import type { PlacedField } from '../types'
 
 type Props = {
+  farmId: string
   farmLat: number
   farmLng: number
   onClose: () => void
+  onSaved?: (fieldId: string, isNew: boolean) => void
   editingFieldId?: string | null
 }
 
-export default function FieldEditor({ farmLat, farmLng, onClose, editingFieldId }: Props) {
+export default function FieldEditor({
+  farmId, farmLat, farmLng, onClose, onSaved, editingFieldId,
+}: Props) {
   const editor = useFieldEditor()
   const { addField, updateField, removeField, getField } = useFieldStore()
 
@@ -34,6 +38,7 @@ export default function FieldEditor({ farmLat, farmLng, onClose, editingFieldId 
       x: p.x / CANVAS_W,
       y: p.y / CANVAS_H,
     }))
+
     if (editingFieldId) {
       updateField(editingFieldId, {
         name: editor.name,
@@ -44,9 +49,12 @@ export default function FieldEditor({ farmLat, farmLng, onClose, editingFieldId 
         rows: editor.rows,
         freePlants: editor.freePlants,
       })
+      onSaved?.(editingFieldId, false)
     } else {
+      const fieldId = `field_${Date.now()}`
       const newField: PlacedField = {
-        id: `field_${Date.now()}`,
+        id: fieldId,
+        farmId,                    // ← tied to farm
         name: editor.name,
         color: randomFieldColor(),
         shape: editor.shape,
@@ -62,22 +70,22 @@ export default function FieldEditor({ farmLat, farmLng, onClose, editingFieldId 
         freePlants: editor.freePlants,
       }
       addField(newField)
+      onSaved?.(fieldId, true)     // ← notify parent to add fieldId to farm
     }
     onClose()
-  }, [editor, farmLat, farmLng, editingFieldId, addField, updateField, onClose])
+  }, [editor, farmId, farmLat, farmLng, editingFieldId, addField, updateField, onClose, onSaved])
 
   function handleDelete() {
     if (!editingFieldId) return
     if (window.confirm('¿Eliminar este campo?')) {
       removeField(editingFieldId)
+      onSaved?.(editingFieldId, false)
       onClose()
     }
   }
 
   return (
     <div className="fixed inset-0 z-[2000] flex flex-col bg-white">
-
-      {/* Top bar */}
       <div className="h-12 bg-[#2d4a1e] flex items-center justify-between px-4 shrink-0">
         <div className="flex items-center gap-3">
           <span className="text-[#d4e8b0] font-semibold text-sm">
@@ -106,7 +114,6 @@ export default function FieldEditor({ farmLat, farmLng, onClose, editingFieldId 
         </div>
       </div>
 
-      {/* Main content */}
       <div className="flex flex-1 overflow-hidden">
         <FieldEditorPanel
           mode={editor.mode}
@@ -134,8 +141,6 @@ export default function FieldEditor({ farmLat, farmLng, onClose, editingFieldId 
           onStopAddFreePlant={editor.stopAddFreePlant}
           onDeleteRow={editor.deleteRow}
         />
-
-        {/* Canvas + row config panel */}
         <div className="flex-1 overflow-hidden relative">
           <FieldEditorCanvas
             shape={editor.shape}
@@ -151,20 +156,14 @@ export default function FieldEditor({ farmLat, farmLng, onClose, editingFieldId 
             selectedFreeCropId={editor.selectedFreeCropId}
             onAddPoint={editor.addPoint}
             onSetRectangle={editor.setRectangle}
-            onMovePoint={(index, p) => {
-              if (index >= 0) editor.movePoint(index, p)
-            }}
-            onSelectPoint={(i) => {
-              editor.setSelectedPointIndex(i === -1 ? null : i)
-            }}
+            onMovePoint={(index, p) => { if (index >= 0) editor.movePoint(index, p) }}
+            onSelectPoint={(i) => editor.setSelectedPointIndex(i === -1 ? null : i)}
             onMouseMove={editor.setMousePos}
             onComplete={editor.completeDrawing}
             onRowClick={editor.handleRowClick}
             onPlaceFreePlant={editor.placeFreePlant}
             onDeleteFreePlant={editor.deleteFreePlant}
           />
-
-          {/* Row config panel — appears after row is drawn */}
           {editor.mode === 'rowConfig' && editor.rowDraft && (
             <RowConfigPanel
               rowDraft={editor.rowDraft}

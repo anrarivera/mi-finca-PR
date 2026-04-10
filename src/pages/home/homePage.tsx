@@ -4,22 +4,30 @@ import { useFarmStore } from '@/store/useFarmStore'
 import EmptyFarmState from '@/features/farm/components/emptyFarmState'
 import FarmStatBar from '@/features/farm/components/farmStatBar'
 import CreateFarmModal from '@/features/farm/components/createFarmModal'
-import type { Farm } from '@/features/farm/hooks/useFarms'
 import FarmMap from '@/features/map/components/farmMap'
+import type { Farm } from '@/store/useFarmStore'
 
 export default function HomePage() {
   const [showModal, setShowModal] = useState(false)
   const { data: farms = [], isLoading } = useFarms()
-  const { activeFarm, setActiveFarm } = useFarmStore()
+  const { activeFarm, setActiveFarm, addFarm } = useFarmStore()
 
-  // Auto-select first farm if none is active yet
   if (farms.length > 0 && !activeFarm) {
     setActiveFarm(farms[0])
   }
 
   function handleCreateFarm(data: { name: string; location: string }) {
-    // Future: call POST /api/farms, then invalidate ['farms'] query
-    console.log('Creating farm:', data)
+    const newFarm: Farm = {
+      id: `farm_${Date.now()}`,
+      name: data.name,
+      location: data.location,
+      totalAreaAcres: 0,
+      createdAt: new Date().toISOString(),
+      boundary: [],
+      fieldIds: [],
+    }
+    addFarm(newFarm)
+    setActiveFarm(newFarm)
   }
 
   function handleSwitchFarm(farm: Farm) {
@@ -36,34 +44,28 @@ export default function HomePage() {
 
   return (
     <div className="flex flex-col h-full relative">
-
-      {/* ── Has farms → show stat bar + map ── */}
       {activeFarm && (
         <>
           <FarmStatBar
             farm={activeFarm}
-            allFarms={farms}
+            allFarms={[...farms, ...(useFarmStore.getState().farms)].filter(
+              (f, i, arr) => arr.findIndex(x => x.id === f.id) === i
+            )}
             onSwitchFarm={handleSwitchFarm}
             onAddFarm={() => setShowModal(true)}
           />
-
           <FarmMap />
         </>
       )}
-
-      {/* ── No farms → empty state ── */}
       {!activeFarm && farms.length === 0 && (
         <EmptyFarmState onAddFarm={() => setShowModal(true)} />
       )}
-
-      {/* ── Create Farm Modal ── */}
       {showModal && (
         <CreateFarmModal
           onClose={() => setShowModal(false)}
           onSubmit={handleCreateFarm}
         />
       )}
-
     </div>
   )
 }
