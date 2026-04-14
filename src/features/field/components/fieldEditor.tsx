@@ -1,9 +1,10 @@
-import { useCallback, useEffect } from 'react'
-import { X, Trash2 } from 'lucide-react'
+import { useCallback, useEffect, useState } from 'react'
+import { X, Trash2, ClipboardList } from 'lucide-react'
 import { useFieldEditor } from '../hooks/useFieldEditor'
 import FieldEditorCanvas from './fieldEditorCanvas'
 import FieldEditorPanel from './fieldEditorPanel'
 import RowConfigPanel from './rowConfigPanel'
+import OperationsView from './operationsView'
 import { useFieldStore } from '@/store/useFieldStore'
 import { randomFieldColor } from '../types'
 import type { PlacedField } from '../types'
@@ -21,12 +22,22 @@ export default function FieldEditor({
   farmId, farmLat, farmLng, onClose, onSaved, editingFieldId,
 }: Props) {
   const editor = useFieldEditor()
+
+  useEffect(() => {
+  if (!editingFieldId) {
+    editor.setFieldId(`field_${Date.now()}`)
+  }
+  }, [])
+  
   const { addField, updateField, removeField, getField } = useFieldStore()
+  const [showOperations, setShowOperations] = useState(false)
 
   useEffect(() => {
     if (!editingFieldId) return
     const existing = getField(editingFieldId)
-    if (existing) editor.loadField(existing)
+    if (existing) {
+      editor.loadField(existing)
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editingFieldId])
 
@@ -48,13 +59,14 @@ export default function FieldEditor({
         points: normalized,
         rows: editor.rows,
         freePlants: editor.freePlants,
+        plantingEvents: editor.plantingEvents,
       })
       onSaved?.(editingFieldId, false)
     } else {
       const fieldId = `field_${Date.now()}`
       const newField: PlacedField = {
         id: fieldId,
-        farmId,                    // ← tied to farm
+        farmId,
         name: editor.name,
         color: randomFieldColor(),
         shape: editor.shape,
@@ -68,9 +80,10 @@ export default function FieldEditor({
         displayMode: 'shape',
         rows: editor.rows,
         freePlants: editor.freePlants,
+        plantingEvents: editor.plantingEvents,
       }
       addField(newField)
-      onSaved?.(fieldId, true)     // ← notify parent to add fieldId to farm
+      onSaved?.(fieldId, true)
     }
     onClose()
   }, [editor, farmId, farmLat, farmLng, editingFieldId, addField, updateField, onClose, onSaved])
@@ -79,13 +92,16 @@ export default function FieldEditor({
     if (!editingFieldId) return
     if (window.confirm('¿Eliminar este campo?')) {
       removeField(editingFieldId)
-      onSaved?.(editingFieldId, false)
       onClose()
     }
   }
 
+  const hasCrops = editor.plantingEvents.length > 0
+
   return (
     <div className="fixed inset-0 z-[2000] flex flex-col bg-white">
+
+      {/* Top bar */}
       <div className="h-12 bg-[#2d4a1e] flex items-center justify-between px-4 shrink-0">
         <div className="flex items-center gap-3">
           <span className="text-[#d4e8b0] font-semibold text-sm">
@@ -99,6 +115,24 @@ export default function FieldEditor({
           )}
         </div>
         <div className="flex items-center gap-2">
+
+          {/* Operations button — only when crops exist */}
+          {hasCrops && (
+            <button
+              onClick={() => setShowOperations(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[#8fba4e] hover:bg-white/10 transition-colors text-xs"
+            >
+              <ClipboardList size={13} />
+              Operaciones
+              {/* Badge for due operations */}
+              {editor.plantingEvents.flatMap(e => e.operations).filter(o => o.status === 'due').length > 0 && (
+                <span className="w-4 h-4 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center">
+                  {editor.plantingEvents.flatMap(e => e.operations).filter(o => o.status === 'due').length}
+                </span>
+              )}
+            </button>
+          )}
+
           {editingFieldId && (
             <button onClick={handleDelete}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-red-300 hover:bg-red-900/30 hover:text-red-200 transition-colors text-xs"
@@ -114,6 +148,7 @@ export default function FieldEditor({
         </div>
       </div>
 
+      {/* Main content */}
       <div className="flex flex-1 overflow-hidden">
         <FieldEditorPanel
           mode={editor.mode}
@@ -175,6 +210,18 @@ export default function FieldEditor({
           )}
         </div>
       </div>
+
+      {/* Operations view — slides over everything */}
+      {showOperations && (
+        <OperationsView
+          plantingEvents={editor.plantingEvents}
+          fieldName={editor.name}
+          onClose={() => setShowOperations(false)}
+          onCompleteOperation={editor.completeOperation}
+          onSkipOperation={editor.skipOperation}
+        />
+      )}
+
     </div>
   )
 }

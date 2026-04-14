@@ -52,6 +52,7 @@ function DraggablePoint({
       mouseDownPos.current = { x: e.clientX, y: e.clientY }
       isDragging.current = false
       map.dragging.disable()
+      //Ejemplo de un cambio
 
       function onMouseMove(e: MouseEvent) {
         if (!mouseDownPos.current) return

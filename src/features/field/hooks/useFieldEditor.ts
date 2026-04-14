@@ -1,5 +1,15 @@
 import { useState, useCallback } from 'react'
-import type { FieldShape, FieldPoint, PlacedField, FieldRow, PlantInstance } from '../types'
+import type {
+  FieldShape, FieldPoint, PlacedField,
+  FieldRow, PlantInstance, PlantingEvent
+} from '../types'
+import { todayISO } from '../types'
+import {
+  processRowForEvents,
+  processFreePlantsForEvents,
+  refreshOperationStatuses,
+} from '../utils/plantingEventManager'
+import { calculateRowPlants } from '../utils/rowCalculator'
 
 export type EditorMode =
   | 'setup'
@@ -8,7 +18,6 @@ export type EditorMode =
   | 'addRow'
   | 'rowConfig'
   | 'addFreePlant'
-  | 'editBoundary'
 
 export type RowDraft = {
   startX: number
@@ -21,7 +30,6 @@ const CANVAS_W = 800
 const CANVAS_H = 600
 
 export function useFieldEditor() {
-  // ── Boundary state ────────────────────────────────────────────────
   const [mode, setMode] = useState<EditorMode>('setup')
   const [shape, setShape] = useState<FieldShape>('rectangle')
   const [name, setName] = useState('')
@@ -30,16 +38,16 @@ export function useFieldEditor() {
   const [points, setPoints] = useState<FieldPoint[]>([])
   const [mousePos, setMousePos] = useState<FieldPoint | null>(null)
   const [selectedPointIndex, setSelectedPointIndex] = useState<number | null>(null)
-
-  // ── Crop state ────────────────────────────────────────────────────
   const [rows, setRows] = useState<FieldRow[]>([])
   const [freePlants, setFreePlants] = useState<PlantInstance[]>([])
+  const [plantingEvents, setPlantingEvents] = useState<PlantingEvent[]>([])
   const [rowDraft, setRowDraft] = useState<RowDraft | null>(null)
   const [rowStartPoint, setRowStartPoint] = useState<FieldPoint | null>(null)
   const [selectedFreeCropId, setSelectedFreeCropId] = useState<string>('')
+  const [fieldId, setFieldId] = useState<string>('')
 
-  // ── Load existing field ───────────────────────────────────────────
   const loadField = useCallback((field: PlacedField) => {
+    setFieldId(field.id)
     setName(field.name)
     setShape(field.shape)
     setWidthFt(field.widthFt)
@@ -51,6 +59,7 @@ export function useFieldEditor() {
     setPoints(pixelPoints)
     setRows(field.rows ?? [])
     setFreePlants(field.freePlants ?? [])
+    setPlantingEvents(refreshOperationStatuses(field.plantingEvents ?? []))
     setMode('complete')
     setSelectedPointIndex(null)
     setMousePos(null)
@@ -58,7 +67,6 @@ export function useFieldEditor() {
     setRowStartPoint(null)
   }, [])
 
-  // ── Boundary operations ───────────────────────────────────────────
   const startDrawing = useCallback(() => {
     setMode('drawing')
     setPoints([])
@@ -81,10 +89,8 @@ export function useFieldEditor() {
     const minY = Math.min(p1.y, p2.y)
     const maxY = Math.max(p1.y, p2.y)
     setPoints([
-      { x: minX, y: minY },
-      { x: maxX, y: minY },
-      { x: maxX, y: maxY },
-      { x: minX, y: maxY },
+      { x: minX, y: minY }, { x: maxX, y: minY },
+      { x: maxX, y: maxY }, { x: minX, y: maxY },
     ])
     setMode('complete')
   }, [])
@@ -101,6 +107,7 @@ export function useFieldEditor() {
     setMousePos(null)
     setRows([])
     setFreePlants([])
+    setPlantingEvents([])
     setRowDraft(null)
     setRowStartPoint(null)
   }, [])
@@ -130,10 +137,8 @@ export function useFieldEditor() {
 
   const handleRowClick = useCallback((point: FieldPoint) => {
     if (!rowStartPoint) {
-      // First click — record start point
       setRowStartPoint(point)
     } else {
-      // Second click — complete the draft
       setRowDraft({
         startX: rowStartPoint.x / CANVAS_W,
         startY: rowStartPoint.y / CANVAS_H,
@@ -147,9 +152,13 @@ export function useFieldEditor() {
 
   const confirmRow = useCallback((row: FieldRow) => {
     setRows(prev => [...prev, row])
+    // Process planting events for this row
+    setPlantingEvents(prev =>
+      processRowForEvents(prev, fieldId, row)
+    )
     setRowDraft(null)
     setMode('complete')
-  }, [])
+  }, [fieldId])
 
   const cancelRowConfig = useCallback(() => {
     setRowDraft(null)
@@ -159,6 +168,8 @@ export function useFieldEditor() {
 
   const deleteRow = useCallback((rowId: string) => {
     setRows(prev => prev.filter(r => r.id !== rowId))
+    // Note: we keep planting events even if row is deleted
+    // The farmer may have already confirmed operations against this event
   }, [])
 
   // ── Free plant operations ─────────────────────────────────────────
@@ -169,14 +180,23 @@ export function useFieldEditor() {
 
   const placeFreePlant = useCallback((point: FieldPoint) => {
     if (!selectedFreeCropId) return
+    const today = todayISO()
     const plant: PlantInstance = {
       id: `free_${Date.now()}_${Math.random().toString(36).slice(2)}`,
       cropTypeId: selectedFreeCropId,
       x: point.x / CANVAS_W,
       y: point.y / CANVAS_H,
+      plantingDate: today,
     }
-    setFreePlants(prev => [...prev, plant])
-  }, [selectedFreeCropId])
+    setFreePlants(prev => {
+      const updated = [...prev, plant]
+      // Process planting events for this new plant
+      setPlantingEvents(events =>
+        processFreePlantsForEvents(events, fieldId, [plant], today)
+      )
+      return updated
+    })
+  }, [selectedFreeCropId, fieldId])
 
   const deleteFreePlant = useCallback((plantId: string) => {
     setFreePlants(prev => prev.filter(p => p.id !== plantId))
@@ -185,6 +205,51 @@ export function useFieldEditor() {
   const stopAddFreePlant = useCallback(() => {
     setSelectedFreeCropId('')
     setMode('complete')
+  }, [])
+
+  // ── Update operation status ───────────────────────────────────────
+  const completeOperation = useCallback((
+    eventId: string,
+    operationId: string,
+    data: {
+      completedDate: string
+      notes?: string
+      product?: string
+      quantity?: number
+      unit?: string
+    }
+  ) => {
+    setPlantingEvents(prev =>
+      prev.map(event =>
+        event.id !== eventId ? event : {
+          ...event,
+          operations: event.operations.map(op =>
+            op.id !== operationId ? op : {
+              ...op,
+              status: 'completed' as const,
+              completedDate: data.completedDate,
+              notes: data.notes,
+              product: data.product,
+              quantity: data.quantity,
+              unit: data.unit,
+            }
+          )
+        }
+      )
+    )
+  }, [])
+
+  const skipOperation = useCallback((eventId: string, operationId: string) => {
+    setPlantingEvents(prev =>
+      prev.map(event =>
+        event.id !== eventId ? event : {
+          ...event,
+          operations: event.operations.map(op =>
+            op.id !== operationId ? op : { ...op, status: 'skipped' as const }
+          )
+        }
+      )
+    )
   }, [])
 
   const reset = useCallback(() => {
@@ -198,27 +263,27 @@ export function useFieldEditor() {
     setSelectedPointIndex(null)
     setRows([])
     setFreePlants([])
+    setPlantingEvents([])
     setRowDraft(null)
     setRowStartPoint(null)
     setSelectedFreeCropId('')
+    setFieldId('')
   }, [])
 
   return {
-    // Boundary
     mode, shape, name, widthFt, heightFt,
     points, mousePos, selectedPointIndex,
+    rows, freePlants, plantingEvents, rowDraft, rowStartPoint,
+    selectedFreeCropId, fieldId,
     setShape, setName, setWidthFt, setHeightFt,
-    setMousePos, setSelectedPointIndex,
+    setMousePos, setSelectedPointIndex, setFieldId,
     startDrawing, addPoint, completeDrawing,
     setRectangle, undoLastPoint, clearDrawing,
     movePoint, deletePoint, loadField, reset,
-    // Rows
-    rows, rowDraft, rowStartPoint,
     startAddRow, handleRowClick, confirmRow,
     cancelRowConfig, deleteRow,
-    // Free plants
-    freePlants, selectedFreeCropId,
     startAddFreePlant, placeFreePlant,
     deleteFreePlant, stopAddFreePlant,
+    completeOperation, skipOperation,
   }
 }

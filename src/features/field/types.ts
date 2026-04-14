@@ -1,15 +1,15 @@
+import type { RecommendedOperationType } from './data/cropSchedules'
+
 export type FieldShape = 'rectangle' | 'polygon'
 
-export type FieldPoint = {
-  x: number
-  y: number
-}
+export type FieldPoint = { x: number; y: number }
 
 export type PlantInstance = {
   id: string
   cropTypeId: string
   x: number
   y: number
+  plantingDate: string   // ISO date string — defaults to today
 }
 
 export type FieldRow = {
@@ -22,6 +22,39 @@ export type FieldRow = {
   primaryCropTypeId: string
   companionCropTypeId: string | null
   plants: PlantInstance[]
+  plantingDate: string   // ISO date string — defaults to today
+}
+
+// ── Operations ────────────────────────────────────────────────────────
+
+export type OperationStatus = 'pending' | 'due' | 'completed' | 'skipped'
+
+export type RecommendedOperation = {
+  id: string
+  plantingEventId: string
+  templateId: string       // references RecommendedOperationTemplate.id
+  type: RecommendedOperationType
+  labelEs: string
+  recommendedDate: string  // ISO date string
+  status: OperationStatus
+  completedDate?: string
+  notes?: string
+  product?: string
+  quantity?: number
+  unit?: string
+}
+
+// A planting event groups all plants of the same crop type
+// planted on the same date in the same field
+export type PlantingEvent = {
+  id: string
+  fieldId: string
+  cropTypeId: string
+  plantingDate: string     // ISO date string
+  plantCount: number
+  rowIds: string[]
+  freePlantIds: string[]
+  operations: RecommendedOperation[]
 }
 
 export type CropSummary = {
@@ -34,7 +67,7 @@ export type CropSummary = {
 
 export type PlacedField = {
   id: string
-  farmId: string          // ← foreign key
+  farmId: string
   name: string
   color: string
   shape: FieldShape
@@ -48,6 +81,7 @@ export type PlacedField = {
   displayMode: 'pin' | 'shape'
   rows: FieldRow[]
   freePlants: PlantInstance[]
+  plantingEvents: PlantingEvent[]   // ← new
 }
 
 export const FIELD_COLORS = [
@@ -58,4 +92,8 @@ export const FIELD_COLORS = [
 
 export function randomFieldColor(): string {
   return FIELD_COLORS[Math.floor(Math.random() * FIELD_COLORS.length)]
+}
+
+export function todayISO(): string {
+  return new Date().toISOString().split('T')[0]
 }
