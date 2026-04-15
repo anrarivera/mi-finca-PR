@@ -1,14 +1,16 @@
-import { useState, useEffect } from 'react'
-import { MapContainer, TileLayer, useMapEvents, Polygon, Polyline, CircleMarker } from 'react-leaflet'
+import { useState, useEffect, useRef } from 'react'
+import { MapContainer, TileLayer, useMapEvents, useMap, Polygon, Polyline, CircleMarker } from 'react-leaflet'
 import * as L from 'leaflet'
 import { useDrawing, findNearestEdgeIndex } from '../hooks/useDrawing'
 import DrawingPanel from './drawingPanel'
-// import FieldListDrawer from '@/features/field/components/fieldListDrawer'
+import FarmDrawer from '@/features/farm/components/farmDrawer'
 import FarmFieldEditor from '@/features/field/components/farmFieldEditor'
 import PlacedField from '@/features/field/components/placedField'
+import CreateFarmModal from '@/features/farm/components/createFarmModal'
 import { useFieldStore } from '@/store/useFieldStore'
 import { useFarmStore } from '@/store/useFarmStore'
 import { isPointInPolygon, boundaryToLatLngs } from '@/features/field/utils/geoUtils'
+import type { Farm } from '@/store/useFarmStore'
 
 delete (L.Icon.Default.prototype as any)._getIconUrl
 L.Icon.Default.mergeOptions({
@@ -19,6 +21,21 @@ L.Icon.Default.mergeOptions({
 
 const PR_CENTER: [number, number] = [18.2208, -66.5901]
 const DEFAULT_ZOOM = 9
+
+// ─── Map controller — flies to a farm boundary ────────────────────────
+function MapController({ targetFarm }: { targetFarm: Farm | null }) {
+  const map = useMap()
+
+  useEffect(() => {
+    if (!targetFarm?.boundary || targetFarm.boundary.length < 3) return
+    const bounds = L.latLngBounds(
+      targetFarm.boundary.map(p => L.latLng(p.lat, p.lng))
+    )
+    map.flyToBounds(bounds, { padding: [40, 40], duration: 1.2 })
+  }, [targetFarm?.id])
+
+  return null
+}
 
 // ─── Draggable point marker ───────────────────────────────────────────
 function DraggablePoint({
@@ -34,13 +51,13 @@ function DraggablePoint({
   onSelect: (index: number) => void
   onClosePolygon: () => void
 }) {
-  const markerRef = useState<L.CircleMarker | null>(null)
-  const isDragging = { current: false }
-  const mouseDownPos = { current: null as { x: number; y: number } | null }
+  const markerRef = useRef<L.CircleMarker | null>(null)
+  const isDragging = useRef(false)
+  const mouseDownPos = useRef<{ x: number; y: number } | null>(null)
   const map = useMapEvents({})
 
   useEffect(() => {
-    const marker = markerRef[0]
+    const marker = markerRef.current
     if (!marker) return
     const el = marker.getElement()
     if (!el) return
@@ -94,7 +111,7 @@ function DraggablePoint({
 
   return (
     <CircleMarker
-      ref={(r) => { (markerRef as any)[0] = r }}
+      ref={markerRef}
       center={position}
       radius={radius}
       pathOptions={{ color: strokeColor, fillColor, fillOpacity: 1, weight: 2 }}
@@ -165,12 +182,14 @@ function DrawingLayer({
         />
       )}
       {mode === 'drawing' && previewPoints.length >= 2 && (
-        <Polyline positions={previewPoints}
+        <Polyline
+          positions={previewPoints}
           pathOptions={{ color: '#639922', weight: 2, dashArray: '6 6', opacity: 0.8 }}
         />
       )}
       {mode === 'drawing' && mousePos && points.length >= 2 && (
-        <Polyline positions={[mousePos, points[0]]}
+        <Polyline
+          positions={[mousePos, points[0]]}
           pathOptions={{ color: '#639922', weight: 1.5, dashArray: '4 8', opacity: 0.4 }}
         />
       )}
@@ -188,42 +207,6 @@ function DrawingLayer({
   )
 }
 
-// ─── Field placement layer ────────────────────────────────────────────
-function FieldPlacementLayer({
-  active,
-  farmBoundary,
-  onPlace,
-  onOutsideBoundary,
-}: {
-  active: boolean
-  farmBoundary: L.LatLng[]
-  onPlace: (lat: number, lng: number) => void
-  onOutsideBoundary: () => void
-}) {
-  const map = useMapEvents({
-    dblclick(e) {
-      if (!active) return
-      L.DomEvent.stopPropagation(e)
-      if (farmBoundary.length >= 3) {
-        if (!isPointInPolygon(e.latlng, farmBoundary)) {
-          onOutsideBoundary()
-          return
-        }
-      }
-      onPlace(e.latlng.lat, e.latlng.lng)
-    },
-  })
-
-  useEffect(() => {
-    const container = map.getContainer()
-    if (active) container.style.cursor = 'cell'
-    else container.style.cursor = ''
-    return () => { container.style.cursor = '' }
-  }, [active, map])
-
-  return null
-}
-
 // ─── Main FarmMap ─────────────────────────────────────────────────────
 type Props = {
   center?: [number, number]
@@ -233,23 +216,31 @@ type Props = {
 export default function FarmMap({ center = PR_CENTER, zoom = DEFAULT_ZOOM }: Props) {
   const drawing = useDrawing()
   const [showFieldEditor, setShowFieldEditor] = useState(false)
+  const [showModal, setShowModal] = useState(false)
+  const [flyTarget, setFlyTarget] = useState<Farm | null>(null)
 
-  const { fields, addField, removeField, removeFieldsByFarmId } = useFieldStore()
-  const { activeFarm, updateFarm, deleteFarm, addFieldIdToFarm, removeFieldIdFromFarm } = useFarmStore()
+  const { fields, removeField, removeFieldsByFarmId } = useFieldStore()
+  const {
+    farms, activeFarm, favoriteFarmId,
+    updateFarm, deleteFarm, setActiveFarm,
+    addFieldIdToFarm, removeFieldIdFromFarm, addFarm,
+  } = useFarmStore()
 
   // Only show fields belonging to the active farm
   const farmFields = activeFarm
     ? fields.filter(f => f.farmId === activeFarm.id)
     : []
 
-  // Farm boundary as LatLngs for point-in-polygon test
-  const farmBoundaryLatLngs = activeFarm?.boundary
-    ? boundaryToLatLngs(activeFarm.boundary)
-    : []
+  // On mount — fly to favorite or first farm
+  useEffect(() => {
+    if (farms.length === 0) return
+    const target = farms.find(f => f.id === favoriteFarmId) ?? farms[0]
+    setActiveFarm(target)
+    setFlyTarget(target)
+  }, [])
 
   function handleSaveFarm() {
     if (!activeFarm || drawing.points.length < 3) return
-    // Save boundary to farm store
     const boundary = drawing.points.map(p => ({ lat: p.lat, lng: p.lng }))
     updateFarm(activeFarm.id, { boundary })
   }
@@ -257,7 +248,6 @@ export default function FarmMap({ center = PR_CENTER, zoom = DEFAULT_ZOOM }: Pro
   function handleDeleteFarm() {
     if (!activeFarm) return
     if (!window.confirm(`¿Eliminar la finca "${activeFarm.name}" y todos sus campos?`)) return
-    // Delete all fields belonging to this farm
     removeFieldsByFarmId(activeFarm.id)
     deleteFarm(activeFarm.id)
   }
@@ -270,10 +260,19 @@ export default function FarmMap({ center = PR_CENTER, zoom = DEFAULT_ZOOM }: Pro
     setShowFieldEditor(true)
   }
 
-  function handleDeleteField(fieldId: string) {
-    if (!activeFarm) return
-    removeField(fieldId)
-    removeFieldIdFromFarm(activeFarm.id, fieldId)
+  function handleCreateFarm(data: { name: string; location: string }) {
+    const newFarm: Farm = {
+      id: `farm_${Date.now()}`,
+      name: data.name,
+      location: data.location,
+      totalAreaAcres: 0,
+      createdAt: new Date().toISOString(),
+      boundary: [],
+      fieldIds: [],
+    }
+    addFarm(newFarm)
+    setActiveFarm(newFarm)
+    setShowModal(false)
   }
 
   return (
@@ -316,6 +315,9 @@ export default function FarmMap({ center = PR_CENTER, zoom = DEFAULT_ZOOM }: Pro
           maxNativeZoom={19}
         />
 
+        {/* Flies to farm when flyTarget changes */}
+        <MapController targetFarm={flyTarget} />
+
         <DrawingLayer
           mode={drawing.mode}
           points={drawing.points}
@@ -327,7 +329,7 @@ export default function FarmMap({ center = PR_CENTER, zoom = DEFAULT_ZOOM }: Pro
           onInsertPoint={drawing.insertPointAfter}
         />
 
-        {/* Only show fields for active farm */}
+        {/* Fields for the active farm */}
         {farmFields.map(field => (
           <PlacedField
             key={field.id}
@@ -338,18 +340,44 @@ export default function FarmMap({ center = PR_CENTER, zoom = DEFAULT_ZOOM }: Pro
 
       </MapContainer>
 
-      {/* Field editor */}
-      {showFieldEditor && activeFarm && (
-      <FarmFieldEditor
-        farmId={activeFarm.id}
-        onClose={() => setShowFieldEditor(false)}
-        onFieldSaved={(fieldId, isNew) => {
-          if (isNew) addFieldIdToFarm(activeFarm.id, fieldId)
+      {/* Farm + field navigation drawer */}
+      <FarmDrawer
+        onAddFarm={() => setShowModal(true)}
+        onEditField={(fieldId) => {
+          setShowFieldEditor(true)
         }}
-        onFieldDeleted={(fieldId) => {
+        onDeleteField={(fieldId) => {
+          if (!activeFarm) return
+          removeField(fieldId)
           removeFieldIdFromFarm(activeFarm.id, fieldId)
         }}
+        onFlyToFarm={(farm) => {
+          setActiveFarm(farm)
+          setFlyTarget(farm)
+        }}
+        onOpenFieldEditor={() => handleOpenFieldEditor()}
       />
+
+      {/* Farm field editor — full screen */}
+      {showFieldEditor && activeFarm && (
+        <FarmFieldEditor
+          farmId={activeFarm.id}
+          onClose={() => setShowFieldEditor(false)}
+          onFieldSaved={(fieldId, isNew) => {
+            if (isNew) addFieldIdToFarm(activeFarm.id, fieldId)
+          }}
+          onFieldDeleted={(fieldId) => {
+            removeFieldIdFromFarm(activeFarm.id, fieldId)
+          }}
+        />
+      )}
+
+      {/* Create farm modal */}
+      {showModal && (
+        <CreateFarmModal
+          onClose={() => setShowModal(false)}
+          onSubmit={handleCreateFarm}
+        />
       )}
 
     </div>
