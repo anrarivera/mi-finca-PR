@@ -149,7 +149,7 @@ export default function DrawingPanel({
                 className="w-full flex items-center justify-center gap-2 py-2 text-xs text-[#639922] hover:bg-[#eaf3de] rounded-lg transition-colors"
               >
                 <Plus size={13} />
-                Añadir campo
+                Gestionar campos
               </button>
             </div>
           </>

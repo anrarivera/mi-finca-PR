@@ -3,8 +3,8 @@ import { MapContainer, TileLayer, useMapEvents, Polygon, Polyline, CircleMarker 
 import * as L from 'leaflet'
 import { useDrawing, findNearestEdgeIndex } from '../hooks/useDrawing'
 import DrawingPanel from './drawingPanel'
-import FieldListDrawer from '@/features/field/components/fieldListDrawer'
-import FieldEditor from '@/features/field/components/fieldEditor'
+// import FieldListDrawer from '@/features/field/components/fieldListDrawer'
+import FarmFieldEditor from '@/features/field/components/farmFieldEditor'
 import PlacedField from '@/features/field/components/placedField'
 import { useFieldStore } from '@/store/useFieldStore'
 import { useFarmStore } from '@/store/useFarmStore'
@@ -42,8 +42,9 @@ function DraggablePoint({
   useEffect(() => {
     const marker = markerRef[0]
     if (!marker) return
-    const safeEl = marker.getElement() as HTMLElement | undefined
-    if (!safeEl) return
+    const el = marker.getElement()
+    if (!el) return
+    const safeEl = el as HTMLElement
 
     safeEl.style.cursor = mode === 'editing' ? 'grab' : 'pointer'
 
@@ -52,7 +53,6 @@ function DraggablePoint({
       mouseDownPos.current = { x: e.clientX, y: e.clientY }
       isDragging.current = false
       map.dragging.disable()
-      //Ejemplo de un cambio
 
       function onMouseMove(e: MouseEvent) {
         if (!mouseDownPos.current) return
@@ -128,8 +128,8 @@ function DrawingLayer({
       onAddPoint(e.latlng)
     },
     dblclick(e) {
-      L.DomEvent.stopPropagation(e)
-      L.DomEvent.preventDefault(e)
+      L.DomEvent.stopPropagation(e.originalEvent)
+      L.DomEvent.preventDefault(e.originalEvent)
       if (mode !== 'editing' || points.length < 3) return
       const nearestEdge = findNearestEdgeIndex(e.latlng, points, map)
       onInsertPoint(nearestEdge, e.latlng)
@@ -233,10 +233,6 @@ type Props = {
 export default function FarmMap({ center = PR_CENTER, zoom = DEFAULT_ZOOM }: Props) {
   const drawing = useDrawing()
   const [showFieldEditor, setShowFieldEditor] = useState(false)
-  const [fieldEditorPos, setFieldEditorPos] = useState<{ lat: number; lng: number } | null>(null)
-  const [editingFieldId, setEditingFieldId] = useState<string | null>(null)
-  const [placingField, setPlacingField] = useState(false)
-  const [outsideBoundaryWarning, setOutsideBoundaryWarning] = useState(false)
 
   const { fields, addField, removeField, removeFieldsByFarmId } = useFieldStore()
   const { activeFarm, updateFarm, deleteFarm, addFieldIdToFarm, removeFieldIdFromFarm } = useFarmStore()
@@ -266,27 +262,12 @@ export default function FarmMap({ center = PR_CENTER, zoom = DEFAULT_ZOOM }: Pro
     deleteFarm(activeFarm.id)
   }
 
-  function handleAddField() {
+  function handleOpenFieldEditor() {
     if (!activeFarm?.boundary || activeFarm.boundary.length < 3) {
-      alert('Primero debes guardar el límite de tu finca.')
+      alert('Primero guarda el límite de tu finca antes de añadir campos.')
       return
     }
-    setPlacingField(true)
-    setOutsideBoundaryWarning(false)
-  }
-
-  function handleEditField(fieldId: string) {
-    const field = fields.find(f => f.id === fieldId)
-    if (!field) return
-    setEditingFieldId(fieldId)
-    setFieldEditorPos({ lat: field.farmLat, lng: field.farmLng })
     setShowFieldEditor(true)
-  }
-
-  function handleFieldSaved(fieldId: string, isNew: boolean) {
-    if (isNew && activeFarm) {
-      addFieldIdToFarm(activeFarm.id, fieldId)
-    }
   }
 
   function handleDeleteField(fieldId: string) {
@@ -309,21 +290,15 @@ export default function FarmMap({ center = PR_CENTER, zoom = DEFAULT_ZOOM }: Pro
         onStartEditing={drawing.startEditing}
         onFinishEditing={drawing.finishEditing}
         onSave={handleSaveFarm}
-        onAddField={handleAddField}
+        onAddField={handleOpenFieldEditor}
         onDeleteFarm={handleDeleteFarm}
-      />
-
-      <FieldListDrawer
-        farmId={activeFarm?.id ?? null}
-        onEditField={handleEditField}
-        onDeleteField={handleDeleteField}
       />
 
       <MapContainer
         center={center}
         zoom={zoom}
         className="w-full h-full"
-        zoomControl={true}
+        zoomControl={false}
         scrollWheelZoom={true}
         doubleClickZoom={false}
         maxZoom={22}
@@ -357,53 +332,24 @@ export default function FarmMap({ center = PR_CENTER, zoom = DEFAULT_ZOOM }: Pro
           <PlacedField
             key={field.id}
             field={field}
-            onEdit={handleEditField}
+            onEdit={handleOpenFieldEditor}
           />
         ))}
 
-        <FieldPlacementLayer
-          active={placingField}
-          farmBoundary={farmBoundaryLatLngs}
-          onPlace={(lat, lng) => {
-            setFieldEditorPos({ lat, lng })
-            setPlacingField(false)
-            setEditingFieldId(null)
-            setShowFieldEditor(true)
-          }}
-          onOutsideBoundary={() => {
-            setOutsideBoundaryWarning(true)
-            setTimeout(() => setOutsideBoundaryWarning(false), 3000)
-          }}
-        />
       </MapContainer>
 
       {/* Field editor */}
-      {showFieldEditor && fieldEditorPos && (
-        <FieldEditor
-          farmId={activeFarm?.id ?? ''}
-          farmLat={fieldEditorPos.lat}
-          farmLng={fieldEditorPos.lng}
-          editingFieldId={editingFieldId}
-          onClose={() => {
-            setShowFieldEditor(false)
-            setEditingFieldId(null)
-          }}
-          onSaved={handleFieldSaved}
-        />
-      )}
-
-      {/* Placement instruction */}
-      {placingField && (
-        <div className={`absolute bottom-6 left-1/2 -translate-x-1/2 z-[1000] px-4 py-2.5 rounded-xl text-xs font-medium shadow-lg transition-colors ${
-          outsideBoundaryWarning
-            ? 'bg-red-600 text-white'
-            : 'bg-[#2d4a1e] text-[#d4e8b0]'
-        }`}>
-          {outsideBoundaryWarning
-            ? 'Ese punto está fuera de los límites de tu finca'
-            : 'Haz doble clic dentro de tu finca para ubicar el campo'
-          }
-        </div>
+      {showFieldEditor && activeFarm && (
+      <FarmFieldEditor
+        farmId={activeFarm.id}
+        onClose={() => setShowFieldEditor(false)}
+        onFieldSaved={(fieldId, isNew) => {
+          if (isNew) addFieldIdToFarm(activeFarm.id, fieldId)
+        }}
+        onFieldDeleted={(fieldId) => {
+          removeFieldIdFromFarm(activeFarm.id, fieldId)
+        }}
+      />
       )}
 
     </div>

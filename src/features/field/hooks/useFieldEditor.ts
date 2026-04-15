@@ -1,15 +1,20 @@
 import { useState, useCallback } from 'react'
 import type {
-  FieldShape, FieldPoint, PlacedField,
-  FieldRow, PlantInstance, PlantingEvent
+  FieldShape, LatLngPoint, CanvasPoint,
+  PlacedField, FieldRow, PlantInstance, PlantingEvent
 } from '../types'
 import { todayISO } from '../types'
+import {
+  canvasToLatlng, latlngToCanvas,
+  calculateRowPlantPositions,
+  CANVAS_W, CANVAS_H,
+} from '../utils/canvasGeo'
+import type { BBox } from '../utils/canvasGeo'
 import {
   processRowForEvents,
   processFreePlantsForEvents,
   refreshOperationStatuses,
 } from '../utils/plantingEventManager'
-import { calculateRowPlants } from '../utils/rowCalculator'
 
 export type EditorMode =
   | 'setup'
@@ -20,14 +25,12 @@ export type EditorMode =
   | 'addFreePlant'
 
 export type RowDraft = {
+  // Stored as canvas pixels during drawing
   startX: number
   startY: number
   endX: number
   endY: number
 }
-
-const CANVAS_W = 800
-const CANVAS_H = 600
 
 export function useFieldEditor() {
   const [mode, setMode] = useState<EditorMode>('setup')
@@ -35,28 +38,39 @@ export function useFieldEditor() {
   const [name, setName] = useState('')
   const [widthFt, setWidthFt] = useState<number>(100)
   const [heightFt, setHeightFt] = useState<number>(100)
-  const [points, setPoints] = useState<FieldPoint[]>([])
-  const [mousePos, setMousePos] = useState<FieldPoint | null>(null)
+
+  // Canvas pixel points — used only during editing
+  const [canvasPoints, setCanvasPoints] = useState<CanvasPoint[]>([])
+  const [mousePos, setMousePos] = useState<CanvasPoint | null>(null)
   const [selectedPointIndex, setSelectedPointIndex] = useState<number | null>(null)
+
   const [rows, setRows] = useState<FieldRow[]>([])
   const [freePlants, setFreePlants] = useState<PlantInstance[]>([])
   const [plantingEvents, setPlantingEvents] = useState<PlantingEvent[]>([])
   const [rowDraft, setRowDraft] = useState<RowDraft | null>(null)
-  const [rowStartPoint, setRowStartPoint] = useState<FieldPoint | null>(null)
+  const [rowStartPoint, setRowStartPoint] = useState<CanvasPoint | null>(null)
   const [selectedFreeCropId, setSelectedFreeCropId] = useState<string>('')
   const [fieldId, setFieldId] = useState<string>('')
 
-  const loadField = useCallback((field: PlacedField) => {
+  // ── Convert canvas points to lat/lng using current bbox ───────────
+  // Called on save
+  function canvasPointsToLatLng(bbox: BBox): LatLngPoint[] {
+    return canvasPoints.map(p => canvasToLatlng(p.x, p.y, bbox))
+  }
+
+  // ── Load existing field — convert stored lat/lng back to canvas pixels
+  const loadField = useCallback((field: PlacedField, bbox: BBox) => {
     setFieldId(field.id)
     setName(field.name)
     setShape(field.shape)
     setWidthFt(field.widthFt)
     setHeightFt(field.heightFt)
-    const pixelPoints = field.points.map(p => ({
-      x: p.x * CANVAS_W,
-      y: p.y * CANVAS_H,
-    }))
-    setPoints(pixelPoints)
+
+    // Convert stored lat/lng boundary back to canvas pixels
+    const pixelPoints = (field.boundary ?? []).map(p =>
+      latlngToCanvas(p.lat, p.lng, bbox)
+    )
+    setCanvasPoints(pixelPoints)
     setRows(field.rows ?? [])
     setFreePlants(field.freePlants ?? [])
     setPlantingEvents(refreshOperationStatuses(field.plantingEvents ?? []))
@@ -67,15 +81,16 @@ export function useFieldEditor() {
     setRowStartPoint(null)
   }, [])
 
+  // ── Boundary operations ───────────────────────────────────────────
   const startDrawing = useCallback(() => {
     setMode('drawing')
-    setPoints([])
+    setCanvasPoints([])
     setSelectedPointIndex(null)
   }, [])
 
-  const addPoint = useCallback((point: FieldPoint) => {
+  const addPoint = useCallback((point: CanvasPoint) => {
     if (shape === 'rectangle') return
-    setPoints(prev => [...prev, point])
+    setCanvasPoints(prev => [...prev, point])
   }, [shape])
 
   const completeDrawing = useCallback(() => {
@@ -83,12 +98,12 @@ export function useFieldEditor() {
     setSelectedPointIndex(null)
   }, [])
 
-  const setRectangle = useCallback((p1: FieldPoint, p2: FieldPoint) => {
+  const setRectangle = useCallback((p1: CanvasPoint, p2: CanvasPoint) => {
     const minX = Math.min(p1.x, p2.x)
     const maxX = Math.max(p1.x, p2.x)
     const minY = Math.min(p1.y, p2.y)
     const maxY = Math.max(p1.y, p2.y)
-    setPoints([
+    setCanvasPoints([
       { x: minX, y: minY }, { x: maxX, y: minY },
       { x: maxX, y: maxY }, { x: minX, y: maxY },
     ])
@@ -96,13 +111,13 @@ export function useFieldEditor() {
   }, [])
 
   const undoLastPoint = useCallback(() => {
-    setPoints(prev => prev.slice(0, -1))
+    setCanvasPoints(prev => prev.slice(0, -1))
     if (mode === 'complete') setMode('drawing')
   }, [mode])
 
   const clearDrawing = useCallback(() => {
     setMode('setup')
-    setPoints([])
+    setCanvasPoints([])
     setSelectedPointIndex(null)
     setMousePos(null)
     setRows([])
@@ -112,8 +127,8 @@ export function useFieldEditor() {
     setRowStartPoint(null)
   }, [])
 
-  const movePoint = useCallback((index: number, point: FieldPoint) => {
-    setPoints(prev => {
+  const movePoint = useCallback((index: number, point: CanvasPoint) => {
+    setCanvasPoints(prev => {
       const updated = [...prev]
       updated[index] = point
       return updated
@@ -121,7 +136,7 @@ export function useFieldEditor() {
   }, [])
 
   const deletePoint = useCallback((index: number) => {
-    setPoints(prev => {
+    setCanvasPoints(prev => {
       if (prev.length <= 3) return prev
       return prev.filter((_, i) => i !== index)
     })
@@ -135,15 +150,15 @@ export function useFieldEditor() {
     setRowDraft(null)
   }, [])
 
-  const handleRowClick = useCallback((point: FieldPoint) => {
+  const handleRowClick = useCallback((point: CanvasPoint) => {
     if (!rowStartPoint) {
       setRowStartPoint(point)
     } else {
       setRowDraft({
-        startX: rowStartPoint.x / CANVAS_W,
-        startY: rowStartPoint.y / CANVAS_H,
-        endX: point.x / CANVAS_W,
-        endY: point.y / CANVAS_H,
+        startX: rowStartPoint.x,
+        startY: rowStartPoint.y,
+        endX: point.x,
+        endY: point.y,
       })
       setRowStartPoint(null)
       setMode('rowConfig')
@@ -152,10 +167,7 @@ export function useFieldEditor() {
 
   const confirmRow = useCallback((row: FieldRow) => {
     setRows(prev => [...prev, row])
-    // Process planting events for this row
-    setPlantingEvents(prev =>
-      processRowForEvents(prev, fieldId, row)
-    )
+    setPlantingEvents(prev => processRowForEvents(prev, fieldId, row))
     setRowDraft(null)
     setMode('complete')
   }, [fieldId])
@@ -168,8 +180,6 @@ export function useFieldEditor() {
 
   const deleteRow = useCallback((rowId: string) => {
     setRows(prev => prev.filter(r => r.id !== rowId))
-    // Note: we keep planting events even if row is deleted
-    // The farmer may have already confirmed operations against this event
   }, [])
 
   // ── Free plant operations ─────────────────────────────────────────
@@ -178,23 +188,22 @@ export function useFieldEditor() {
     setMode('addFreePlant')
   }, [])
 
-  const placeFreePlant = useCallback((point: FieldPoint) => {
+  const placeFreePlant = useCallback((point: CanvasPoint, bbox: BBox) => {
     if (!selectedFreeCropId) return
     const today = todayISO()
+    const geo = canvasToLatlng(point.x, point.y, bbox)
     const plant: PlantInstance = {
       id: `free_${Date.now()}_${Math.random().toString(36).slice(2)}`,
       cropTypeId: selectedFreeCropId,
-      x: point.x / CANVAS_W,
-      y: point.y / CANVAS_H,
+      lat: geo.lat,
+      lng: geo.lng,
       plantingDate: today,
     }
     setFreePlants(prev => {
-      const updated = [...prev, plant]
-      // Process planting events for this new plant
       setPlantingEvents(events =>
         processFreePlantsForEvents(events, fieldId, [plant], today)
       )
-      return updated
+      return [...prev, plant]
     })
   }, [selectedFreeCropId, fieldId])
 
@@ -207,7 +216,7 @@ export function useFieldEditor() {
     setMode('complete')
   }, [])
 
-  // ── Update operation status ───────────────────────────────────────
+  // ── Operation management ──────────────────────────────────────────
   const completeOperation = useCallback((
     eventId: string,
     operationId: string,
@@ -227,11 +236,7 @@ export function useFieldEditor() {
             op.id !== operationId ? op : {
               ...op,
               status: 'completed' as const,
-              completedDate: data.completedDate,
-              notes: data.notes,
-              product: data.product,
-              quantity: data.quantity,
-              unit: data.unit,
+              ...data,
             }
           )
         }
@@ -254,7 +259,7 @@ export function useFieldEditor() {
 
   const reset = useCallback(() => {
     setMode('setup')
-    setPoints([])
+    setCanvasPoints([])
     setName('')
     setWidthFt(100)
     setHeightFt(100)
@@ -272,7 +277,8 @@ export function useFieldEditor() {
 
   return {
     mode, shape, name, widthFt, heightFt,
-    points, mousePos, selectedPointIndex,
+    points: canvasPoints,   // expose as 'points' for canvas compatibility
+    mousePos, selectedPointIndex,
     rows, freePlants, plantingEvents, rowDraft, rowStartPoint,
     selectedFreeCropId, fieldId,
     setShape, setName, setWidthFt, setHeightFt,
@@ -280,6 +286,7 @@ export function useFieldEditor() {
     startDrawing, addPoint, completeDrawing,
     setRectangle, undoLastPoint, clearDrawing,
     movePoint, deletePoint, loadField, reset,
+    canvasPointsToLatLng,
     startAddRow, handleRowClick, confirmRow,
     cancelRowConfig, deleteRow,
     startAddFreePlant, placeFreePlant,

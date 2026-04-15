@@ -2,40 +2,48 @@ import type { RecommendedOperationType } from './data/cropSchedules'
 
 export type FieldShape = 'rectangle' | 'polygon'
 
-export type FieldPoint = { x: number; y: number }
+// All boundary points are now geographic coordinates
+export type LatLngPoint = {
+  lat: number
+  lng: number
+}
+
+// Canvas pixel point — used only internally during editing, never stored
+export type CanvasPoint = {
+  x: number
+  y: number
+}
 
 export type PlantInstance = {
   id: string
   cropTypeId: string
-  x: number
-  y: number
-  plantingDate: string   // ISO date string — defaults to today
+  lat: number   // geographic — stored permanently
+  lng: number
+  plantingDate: string
 }
 
 export type FieldRow = {
   id: string
-  startX: number
-  startY: number
-  endX: number
-  endY: number
+  startLat: number   // geographic start point
+  startLng: number
+  endLat: number     // geographic end point
+  endLng: number
   spacingFt: number
   primaryCropTypeId: string
   companionCropTypeId: string | null
   plants: PlantInstance[]
-  plantingDate: string   // ISO date string — defaults to today
+  plantingDate: string
 }
-
-// ── Operations ────────────────────────────────────────────────────────
 
 export type OperationStatus = 'pending' | 'due' | 'completed' | 'skipped'
 
 export type RecommendedOperation = {
   id: string
   plantingEventId: string
-  templateId: string       // references RecommendedOperationTemplate.id
+  templateId: string
   type: RecommendedOperationType
   labelEs: string
-  recommendedDate: string  // ISO date string
+  recommendedDate: string
   status: OperationStatus
   completedDate?: string
   notes?: string
@@ -44,13 +52,11 @@ export type RecommendedOperation = {
   unit?: string
 }
 
-// A planting event groups all plants of the same crop type
-// planted on the same date in the same field
 export type PlantingEvent = {
   id: string
   fieldId: string
   cropTypeId: string
-  plantingDate: string     // ISO date string
+  plantingDate: string
   plantCount: number
   rowIds: string[]
   freePlantIds: string[]
@@ -73,7 +79,9 @@ export type PlacedField = {
   shape: FieldShape
   widthFt: number
   heightFt: number
-  points: FieldPoint[]
+  // Boundary stored as lat/lng — the source of truth
+  boundary: LatLngPoint[]
+  // Placement center — where the user double-clicked on the farm map
   farmLat: number
   farmLng: number
   rotation: number
@@ -81,7 +89,7 @@ export type PlacedField = {
   displayMode: 'pin' | 'shape'
   rows: FieldRow[]
   freePlants: PlantInstance[]
-  plantingEvents: PlantingEvent[]   // ← new
+  plantingEvents: PlantingEvent[]
 }
 
 export const FIELD_COLORS = [

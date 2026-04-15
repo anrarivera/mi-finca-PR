@@ -1,9 +1,14 @@
 import { useState, useEffect } from 'react'
 import { Check, X } from 'lucide-react'
 import CropSelector from './cropSelector'
-import { calculateRowPlants } from '../utils/rowCalculator'
+import {
+  canvasToLatlng,
+  calculateRowPlantPositions,
+  CANVAS_W, CANVAS_H,
+} from '../utils/canvasGeo'
+import type { BBox } from '../utils/canvasGeo'
 import { todayISO } from '../types'
-import type { FieldRow } from '../types'
+import type { FieldRow, PlantInstance } from '../types'
 
 type RowDraft = {
   startX: number; startY: number
@@ -12,57 +17,66 @@ type RowDraft = {
 
 type Props = {
   rowDraft: RowDraft
-  widthFt: number
-  heightFt: number
+  bbox: BBox   // ← needed to convert canvas pixels to lat/lng
   onConfirm: (row: FieldRow) => void
   onCancel: () => void
 }
 
-export default function RowConfigPanel({
-  rowDraft, widthFt, heightFt, onConfirm, onCancel
-}: Props) {
+export default function RowConfigPanel({ rowDraft, bbox, onConfirm, onCancel }: Props) {
   const [primaryCropId, setPrimaryCropId] = useState('')
   const [companionCropId, setCompanionCropId] = useState('')
   const [spacingFt, setSpacingFt] = useState(6)
   const [plantingDate, setPlantingDate] = useState(todayISO())
   const [plantCount, setPlantCount] = useState(0)
 
+  // Convert draft canvas points to lat/lng
+  const startGeo = canvasToLatlng(rowDraft.startX, rowDraft.startY, bbox)
+  const endGeo = canvasToLatlng(rowDraft.endX, rowDraft.endY, bbox)
+
   useEffect(() => {
     if (!primaryCropId) { setPlantCount(0); return }
-    const plants = calculateRowPlants({
-      id: 'preview',
-      startX: rowDraft.startX, startY: rowDraft.startY,
-      endX: rowDraft.endX, endY: rowDraft.endY,
-      spacingFt, widthFt, heightFt,
-      primaryCropTypeId: primaryCropId,
-      companionCropTypeId: companionCropId || null,
-    })
-    setPlantCount(plants.length)
-  }, [primaryCropId, companionCropId, spacingFt, rowDraft, widthFt, heightFt])
+    const positions = calculateRowPlantPositions(
+      startGeo.lat, startGeo.lng,
+      endGeo.lat, endGeo.lng,
+      spacingFt
+    )
+    setPlantCount(positions.length)
+  }, [primaryCropId, spacingFt, rowDraft, bbox])
 
   function handleConfirm() {
     if (!primaryCropId) return
     const rowId = `row_${Date.now()}`
-    const plants = calculateRowPlants({
-      id: rowId,
-      startX: rowDraft.startX, startY: rowDraft.startY,
-      endX: rowDraft.endX, endY: rowDraft.endY,
-      spacingFt, widthFt, heightFt,
-      primaryCropTypeId: primaryCropId,
-      companionCropTypeId: companionCropId || null,
+
+    const positions = calculateRowPlantPositions(
+      startGeo.lat, startGeo.lng,
+      endGeo.lat, endGeo.lng,
+      spacingFt
+    )
+
+    const plants: PlantInstance[] = positions.map((pos, i) => {
+      const isCompanion = companionCropId && i % 2 !== 0
+      return {
+        id: `${rowId}_plant_${i}`,
+        cropTypeId: isCompanion ? companionCropId : primaryCropId,
+        lat: pos.lat,
+        lng: pos.lng,
+        plantingDate,
+      }
     })
-    // Add plantingDate to each plant
-    const plantsWithDate = plants.map(p => ({ ...p, plantingDate }))
+
     const row: FieldRow = {
       id: rowId,
-      startX: rowDraft.startX, startY: rowDraft.startY,
-      endX: rowDraft.endX, endY: rowDraft.endY,
+      startLat: startGeo.lat,
+      startLng: startGeo.lng,
+      endLat: endGeo.lat,
+      endLng: endGeo.lng,
       spacingFt,
       primaryCropTypeId: primaryCropId,
       companionCropTypeId: companionCropId || null,
-      plants: plantsWithDate,
+      plants,
       plantingDate,
     }
+
     onConfirm(row)
   }
 
@@ -81,30 +95,17 @@ export default function RowConfigPanel({
 
       <div className="p-4 flex flex-col gap-4">
 
-        {/* Planting date */}
         <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-[#5a6a4a]">
-            Fecha de siembra
-          </label>
+          <label className="text-xs font-medium text-[#5a6a4a]">Fecha de siembra</label>
           <input
-            type="date"
-            value={plantingDate}
-            max={todayISO()}
+            type="date" value={plantingDate} max={todayISO()}
             onChange={e => setPlantingDate(e.target.value)}
             className="w-full px-3 py-2 rounded-lg border border-[#d0dcc0] text-sm text-[#2d4a1e] focus:outline-none focus:border-[#639922] transition-colors"
           />
-          {plantingDate !== todayISO() && (
-            <p className="text-[10px] text-[#9aab8a]">
-              Fecha modificada — el calendario se ajustará
-            </p>
-          )}
         </div>
 
-        {/* Spacing */}
         <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-[#5a6a4a]">
-            Espaciado entre plantas
-          </label>
+          <label className="text-xs font-medium text-[#5a6a4a]">Espaciado entre plantas</label>
           <div className="flex items-center gap-2">
             <input
               type="number" min={1} max={50} value={spacingFt}
@@ -115,7 +116,6 @@ export default function RowConfigPanel({
           </div>
         </div>
 
-        {/* Primary crop */}
         <div className="flex flex-col gap-1.5">
           <label className="text-xs font-medium text-[#5a6a4a]">
             Cultivo principal <span className="text-red-400">*</span>
@@ -123,20 +123,13 @@ export default function RowConfigPanel({
           <CropSelector value={primaryCropId} onChange={setPrimaryCropId} placeholder="Seleccionar cultivo" />
         </div>
 
-        {/* Companion crop */}
         <div className="flex flex-col gap-1.5">
           <label className="text-xs font-medium text-[#5a6a4a]">
             Planta compañera <span className="text-[#9aab8a] font-normal">(opcional)</span>
           </label>
           <CropSelector value={companionCropId} onChange={setCompanionCropId} placeholder="Sin compañera" allowClear />
-          {companionCropId && (
-            <p className="text-[10px] text-[#9aab8a] leading-relaxed">
-              Las plantas se alternarán: principal → compañera → principal...
-            </p>
-          )}
         </div>
 
-        {/* Plant count preview */}
         {primaryCropId && (
           <div className="flex items-center gap-2 px-3 py-2 bg-[#eaf3de] rounded-lg">
             <div className="w-2 h-2 rounded-full bg-[#639922]" />
@@ -158,7 +151,6 @@ export default function RowConfigPanel({
             Cancelar
           </button>
         </div>
-
       </div>
     </div>
   )
