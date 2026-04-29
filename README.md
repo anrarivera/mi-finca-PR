@@ -78,20 +78,18 @@ npm --version    # should be 11+
 ## Installation
 
 1. **Clone the repository**
-
 ```bash
 git clone https://github.com/your-username/mi-finca-PR.git
 cd mi-finca-PR
 ```
 
-2. **Install dependencies**
-
+2. **Install frontend dependencies**
 ```bash
+cd frontend
 npm install
 ```
 
-3. **Start the development server**
-
+3. **Start the frontend development server**
 ```bash
 npm run dev
 ```
