@@ -1,23 +1,64 @@
 import express from 'express'
 import cors from 'cors'
 import helmet from 'helmet'
+import cookieParser from 'cookie-parser'
 import dotenv from 'dotenv'
+import { prisma } from './lib/prisma'
 
 dotenv.config()
 
 const app = express()
 const PORT = process.env.PORT || 3001
 
+// ── Middleware ─────────────────────────────────────────────────────────
 app.use(helmet())
-app.use(cors({ origin: 'http://localhost:5173' }))
+app.use(cors({
+  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  credentials: true,   // required for HttpOnly cookies
+}))
 app.use(express.json())
+app.use(cookieParser())
 
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', message: 'Mi Finca PR API is running' })
+// ── Health check ───────────────────────────────────────────────────────
+app.get('/health', async (req, res) => {
+  try {
+    // Test database connection by running a simple query
+    await prisma.$queryRaw`SELECT 1`
+    res.json({
+      success: true,
+      data: {
+        status: 'ok',
+        database: 'connected',
+        timestamp: new Date().toISOString()
+      }
+    })
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'DATABASE_ERROR',
+        message: 'Database connection failed',
+      }
+    })
+  }
 })
 
+// ── Routes (to be added) ───────────────────────────────────────────────
+// app.use('/api/v1/auth', authRouter)
+// app.use('/api/v1/farms', farmsRouter)
+
+// ── 404 handler ───────────────────────────────────────────────────────
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    error: { code: 'NOT_FOUND', message: 'Route not found' }
+  })
+})
+
+// ── Start server ───────────────────────────────────────────────────────
 app.listen(PORT, () => {
-  console.log(`🌱 Mi Finca PR API running on http://localhost:${PORT}`)
+  console.log(`\n🌱 Mi Finca PR API running on http://localhost:${PORT}`)
+  console.log(`   Health check: http://localhost:${PORT}/health\n`)
 })
 
 export default app

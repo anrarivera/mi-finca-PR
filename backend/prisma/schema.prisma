@@ -1,13 +1,262 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              String    @id @default(uuid())
+  email           String    @unique
+  passwordHash    String?
+  fullName        String
+  profilePhotoUrl String?
+  language        String    @default("es")
+  unitSystem      String    @default("imperial")
+  emailVerified   Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  farms           Farm[]
+  oauthAccounts   OAuthAccount[]
+
+  @@map("users")
+}
+
+model OAuthAccount {
+  id                String   @id @default(uuid())
+  userId            String
+  provider          String
+  providerAccountId String
+  accessToken       String?
+  refreshToken      String?
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("oauth_accounts")
+}
+
+model Farm {
+  id             String    @id @default(uuid())
+  userId         String
+  name           String
+  location       String
+  farmType       String    @default("mixed")
+  boundary       Json      @default("[]")
+  totalAreaAcres Decimal   @default(0) @db.Decimal(10, 4)
+  isFavorite     Boolean   @default(false)
+  description    String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  deletedAt      DateTime?
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fields         Field[]
+  livestockUnits LivestockUnit[]
+  sensors        Sensor[]
+  automationRules AutomationRule[]
+  operations     Operation[]
+
+  @@map("farms")
+}
+
+model Field {
+  id             String    @id @default(uuid())
+  farmId         String
+  name           String
+  color          String
+  shape          String
+  boundary       Json      @default("[]")
+  widthFt        Decimal   @db.Decimal(10, 2)
+  heightFt       Decimal   @db.Decimal(10, 2)
+  farmLat        Decimal   @db.Decimal(12, 8)
+  farmLng        Decimal   @db.Decimal(12, 8)
+  displayMode    String    @default("shape")
+  isPositioning  Boolean   @default(false)
+  isSimulated    Boolean   @default(false)
+  farmModelId    String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  deletedAt      DateTime?
+  farm           Farm      @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  rows           FieldRow[]
+  plants         PlantInstance[]
+  plantingEvents PlantingEvent[]
+  operations     Operation[]
+
+  @@map("fields")
+}
+
+model FieldRow {
+  id                  String    @id @default(uuid())
+  fieldId             String
+  startLat            Decimal   @db.Decimal(12, 8)
+  startLng            Decimal   @db.Decimal(12, 8)
+  endLat              Decimal   @db.Decimal(12, 8)
+  endLng              Decimal   @db.Decimal(12, 8)
+  spacingFt           Decimal   @db.Decimal(6, 2)
+  primaryCropTypeId   String
+  companionCropTypeId String?
+  plantingDate        DateTime  @db.Date
+  createdAt           DateTime  @default(now())
+  field               Field     @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+  plants              PlantInstance[]
+
+  @@map("field_rows")
+}
+
+model PlantInstance {
+  id              String    @id @default(uuid())
+  fieldId         String
+  rowId           String?
+  plantingEventId String?
+  cropTypeId      String
+  lat             Decimal   @db.Decimal(12, 8)
+  lng             Decimal   @db.Decimal(12, 8)
+  plantingDate    DateTime  @db.Date
+  field           Field     @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+  row             FieldRow? @relation(fields: [rowId], references: [id])
+  plantingEvent   PlantingEvent? @relation(fields: [plantingEventId], references: [id])
+
+  @@map("plant_instances")
+}
+
+model PlantingEvent {
+  id           String    @id @default(uuid())
+  fieldId      String
+  cropTypeId   String
+  plantingDate DateTime  @db.Date
+  plantCount   Int
+  isSimulated  Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  field        Field     @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+  plants       PlantInstance[]
+  operations   Operation[]
+  recommended  RecommendedOperation[]
+
+  @@map("planting_events")
+}
+
+model RecommendedOperation {
+  id                  String    @id @default(uuid())
+  plantingEventId     String?
+  livestockUnitId     String?
+  templateId          String
+  type                String
+  labelEs             String
+  recommendedDate     DateTime  @db.Date
+  status              String    @default("pending")
+  completedDate       DateTime? @db.Date
+  completedOperationId String?
+  notes               String?
+  product             String?
+  quantity            Decimal?  @db.Decimal(10, 3)
+  unit                String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  plantingEvent       PlantingEvent? @relation(fields: [plantingEventId], references: [id], onDelete: Cascade)
+  livestockUnit       LivestockUnit? @relation(fields: [livestockUnitId], references: [id])
+  completedOperation  Operation? @relation(fields: [completedOperationId], references: [id])
+
+  @@map("recommended_operations")
+}
+
+model Operation {
+  id                    String    @id @default(uuid())
+  farmId                String
+  fieldId               String?
+  plantingEventId       String?
+  livestockUnitId       String?
+  recommendedOperationId String?
+  type                  String
+  actualDate            DateTime  @db.Date
+  notes                 String?
+  product               String?
+  quantity              Decimal?  @db.Decimal(10, 3)
+  unit                  String?
+  qualityRating         Int?
+  photoUrls             Json      @default("[]")
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  farm                  Farm      @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  field                 Field?    @relation(fields: [fieldId], references: [id])
+  plantingEvent         PlantingEvent? @relation(fields: [plantingEventId], references: [id])
+  livestockUnit         LivestockUnit? @relation(fields: [livestockUnitId], references: [id])
+  recommendedOperations RecommendedOperation[]
+
+  @@map("operations")
+}
+
+model LivestockUnit {
+  id              String    @id @default(uuid())
+  farmId          String
+  name            String
+  animalType      String
+  currentCount    Int
+  acquisitionDate DateTime  @db.Date
+  farmLat         Decimal?  @db.Decimal(12, 8)
+  farmLng         Decimal?  @db.Decimal(12, 8)
+  notes           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+  farm            Farm      @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  operations      Operation[]
+  recommended     RecommendedOperation[]
+
+  @@map("livestock_units")
+}
+
+model Sensor {
+  id         String    @id @default(uuid())
+  farmId     String
+  fieldId    String?
+  name       String
+  sensorType String
+  apiKey     String    @unique @default(uuid())
+  lastSeenAt DateTime?
+  isActive   Boolean   @default(true)
+  createdAt  DateTime  @default(now())
+  farm       Farm      @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  readings   SensorReading[]
+
+  @@map("sensors")
+}
+
+model SensorReading {
+  id          String   @id @default(uuid())
+  sensorId    String
+  value       Decimal  @db.Decimal(12, 4)
+  unit        String
+  recordedAt  DateTime
+  createdAt   DateTime @default(now())
+  sensor      Sensor   @relation(fields: [sensorId], references: [id], onDelete: Cascade)
+
+  @@map("sensor_readings")
+}
+
+model AutomationRule {
+  id                 String    @id @default(uuid())
+  farmId             String
+  name               String
+  sensorCondition    Json
+  forecastCondition  Json?
+  action             Json
+  isActive           Boolean   @default(true)
+  minIntervalMinutes Int       @default(60)
+  lastTriggeredAt    DateTime?
+  createdAt          DateTime  @default(now())
+  farm               Farm      @relation(fields: [farmId], references: [id], onDelete: Cascade)
+
+  @@map("automation_rules")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@map("refresh_tokens")
 }
