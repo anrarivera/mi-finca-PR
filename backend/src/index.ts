@@ -4,6 +4,8 @@ import helmet from 'helmet'
 import cookieParser from 'cookie-parser'
 import dotenv from 'dotenv'
 import { prisma } from './lib/prisma'
+import { errorHandler } from './middleware/errorHandler'
+import authRouter from './routes/auth'
 
 dotenv.config()
 
@@ -14,7 +16,7 @@ const PORT = process.env.PORT || 3001
 app.use(helmet())
 app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:5173',
-  credentials: true,   // required for HttpOnly cookies
+  credentials: true,
 }))
 app.use(express.json())
 app.use(cookieParser())
@@ -22,32 +24,27 @@ app.use(cookieParser())
 // ── Health check ───────────────────────────────────────────────────────
 app.get('/health', async (req, res) => {
   try {
-    // Test database connection by running a simple query
     await prisma.$queryRaw`SELECT 1`
     res.json({
       success: true,
       data: {
         status: 'ok',
         database: 'connected',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       }
     })
-  } catch (error) {
+  } catch {
     res.status(500).json({
       success: false,
-      error: {
-        code: 'DATABASE_ERROR',
-        message: 'Database connection failed',
-      }
+      error: { code: 'DATABASE_ERROR', message: 'Database connection failed' }
     })
   }
 })
 
-// ── Routes (to be added) ───────────────────────────────────────────────
-// app.use('/api/v1/auth', authRouter)
-// app.use('/api/v1/farms', farmsRouter)
+// ── Routes ─────────────────────────────────────────────────────────────
+app.use('/api/v1/auth', authRouter)
 
-// ── 404 handler ───────────────────────────────────────────────────────
+// ── 404 ────────────────────────────────────────────────────────────────
 app.use((req, res) => {
   res.status(404).json({
     success: false,
@@ -55,10 +52,14 @@ app.use((req, res) => {
   })
 })
 
-// ── Start server ───────────────────────────────────────────────────────
+// ── Error handler (must be last) ───────────────────────────────────────
+app.use(errorHandler)
+
+// ── Start ──────────────────────────────────────────────────────────────
 app.listen(PORT, () => {
   console.log(`\n🌱 Mi Finca PR API running on http://localhost:${PORT}`)
-  console.log(`   Health check: http://localhost:${PORT}/health\n`)
+  console.log(`   Health:   http://localhost:${PORT}/health`)
+  console.log(`   Auth:     http://localhost:${PORT}/api/v1/auth\n`)
 })
 
 export default app
