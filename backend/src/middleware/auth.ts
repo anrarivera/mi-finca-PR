@@ -2,7 +2,6 @@ import { Request, Response, NextFunction } from 'express'
 import { verifyAccessToken, JwtPayload } from '../lib/jwt'
 import { Errors } from '../lib/errors'
 
-// Extend Express Request type to include user
 declare global {
   namespace Express {
     interface Request {
@@ -14,6 +13,11 @@ declare global {
 export function requireAuth(req: Request, res: Response, next: NextFunction) {
   try {
     const authHeader = req.headers.authorization
+    console.log('=== AUTH CHECK ===')
+    console.log('Auth header present:', !!authHeader)
+    console.log('JWT_ACCESS_SECRET set:', !!process.env.JWT_ACCESS_SECRET)
+    console.log('=================')
+
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       throw Errors.unauthorized()
     }
@@ -22,7 +26,8 @@ export function requireAuth(req: Request, res: Response, next: NextFunction) {
     const payload = verifyAccessToken(token)
     req.user = payload
     next()
-  } catch {
+  } catch (err) {
+    console.error('Auth error:', err)
     res.status(401).json({
       success: false,
       error: { code: 'UNAUTHORIZED', message: 'Invalid or expired token' }
