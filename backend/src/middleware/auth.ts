@@ -13,10 +13,6 @@ declare global {
 export function requireAuth(req: Request, res: Response, next: NextFunction) {
   try {
     const authHeader = req.headers.authorization
-    console.log('=== AUTH CHECK ===')
-    console.log('Auth header present:', !!authHeader)
-    console.log('JWT_ACCESS_SECRET set:', !!process.env.JWT_ACCESS_SECRET)
-    console.log('=================')
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       throw Errors.unauthorized()
