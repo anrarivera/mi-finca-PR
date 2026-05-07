@@ -1,6 +1,12 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { MapContainer, TileLayer, useMapEvents, useMap, Polygon, Polyline, CircleMarker } from 'react-leaflet'
 import * as L from 'leaflet'
+import {
+  useFarms,
+  useCreateFarm,
+  useUpdateFarm,
+  useDeleteFarm,
+} from '@/features/farm/hooks/useFarmsApi'
 import { useDrawing, findNearestEdgeIndex } from '../hooks/useDrawing'
 import DrawingPanel from './drawingPanel'
 import FarmDrawer from '@/features/farm/components/farmDrawer'
@@ -9,7 +15,6 @@ import PlacedField from '@/features/field/components/placedField'
 import CreateFarmModal from '@/features/farm/components/createFarmModal'
 import { useFieldStore } from '@/store/useFieldStore'
 import { useFarmStore } from '@/store/useFarmStore'
-import { isPointInPolygon, boundaryToLatLngs } from '@/features/field/utils/geoUtils'
 import type { Farm } from '@/store/useFarmStore'
 
 delete (L.Icon.Default.prototype as any)._getIconUrl
@@ -25,7 +30,6 @@ const DEFAULT_ZOOM = 9
 // ─── Map controller — flies to a farm boundary ────────────────────────
 function MapController({ targetFarm }: { targetFarm: Farm | null }) {
   const map = useMap()
-
   useEffect(() => {
     if (!targetFarm?.boundary || targetFarm.boundary.length < 3) return
     const bounds = L.latLngBounds(
@@ -33,7 +37,15 @@ function MapController({ targetFarm }: { targetFarm: Farm | null }) {
     )
     map.flyToBounds(bounds, { padding: [40, 40], duration: 1.2 })
   }, [targetFarm?.id])
+  return null
+}
 
+// ─── Map resizer ──────────────────────────────────────────────────────
+function MapResizer() {
+  const map = useMap()
+  useEffect(() => {
+    setTimeout(() => map.invalidateSize(), 100)
+  }, [map])
   return null
 }
 
@@ -135,6 +147,8 @@ function DrawingLayer({
 }) {
   const [mousePos, setMousePos] = useState<L.LatLng | null>(null)
 
+  // ── No activeFarm/drawing references here — those belong in FarmMap ──
+
   const map = useMapEvents({
     click(e) {
       if (mode !== 'drawing') return
@@ -218,15 +232,19 @@ export default function FarmMap({ center = PR_CENTER, zoom = DEFAULT_ZOOM }: Pro
   const [showFieldEditor, setShowFieldEditor] = useState(false)
   const [showModal, setShowModal] = useState(false)
   const [flyTarget, setFlyTarget] = useState<Farm | null>(null)
+  const boundaryLoaded = useRef(false)
 
-  const { fields, removeField, removeFieldsByFarmId } = useFieldStore()
+  const { fields, removeField } = useFieldStore()
+  const { isLoading: farmsLoading } = useFarms()
+  const createFarm = useCreateFarm()
+  const updateFarmApi = useUpdateFarm()
+  const deleteFarmApi = useDeleteFarm()
+
   const {
     farms, activeFarm, favoriteFarmId,
-    updateFarm, deleteFarm, setActiveFarm,
-    addFieldIdToFarm, removeFieldIdFromFarm, addFarm,
+    setActiveFarm, addFieldIdToFarm, removeFieldIdFromFarm,
   } = useFarmStore()
 
-  // Only show fields belonging to the active farm
   const farmFields = activeFarm
     ? fields.filter(f => f.farmId === activeFarm.id)
     : []
@@ -237,19 +255,54 @@ export default function FarmMap({ center = PR_CENTER, zoom = DEFAULT_ZOOM }: Pro
     const target = farms.find(f => f.id === favoriteFarmId) ?? farms[0]
     setActiveFarm(target)
     setFlyTarget(target)
-  }, [])
+  }, [farms.length])
 
-  function handleSaveFarm() {
-    if (!activeFarm || drawing.points.length < 3) return
+  // When active farm loads, restore its boundary into the drawing layer
+  useEffect(() => {
+    if (!activeFarm?.boundary || activeFarm.boundary.length < 3) return
+    if (boundaryLoaded.current) return  // only load once per farm
+    boundaryLoaded.current = true
+    const points = activeFarm.boundary.map(p => L.latLng(p.lat, p.lng))
+    drawing.loadBoundary(points)
+  }, [activeFarm?.id, activeFarm?.boundary])
+
+  // Reset boundary loaded flag when farm changes
+  useEffect(() => {
+    boundaryLoaded.current = false
+  }, [activeFarm?.id])
+
+  async function handleSaveFarm() {
+    console.log('Save clicked — activeFarm:', activeFarm?.id)
+    console.log('Drawing points:', drawing.points.length)
+
+    if (!activeFarm) {
+      alert('No hay finca activa seleccionada')
+      return
+    }
+    if (drawing.points.length < 3) {
+      alert('Dibuja al menos 3 puntos para guardar el límite')
+      return
+    }
+
     const boundary = drawing.points.map(p => ({ lat: p.lat, lng: p.lng }))
-    updateFarm(activeFarm.id, { boundary })
+    try {
+      await updateFarmApi.mutateAsync({ id: activeFarm.id, data: { boundary } })
+      console.log('Farm saved successfully')
+      drawing.finishEditing()
+    } catch (err) {
+      console.error('Failed to save farm:', err)
+      alert('Error al guardar: ' + (err instanceof Error ? err.message : 'Error desconocido'))
+    }
   }
 
-  function handleDeleteFarm() {
+  async function handleDeleteFarm() {
     if (!activeFarm) return
     if (!window.confirm(`¿Eliminar la finca "${activeFarm.name}" y todos sus campos?`)) return
-    removeFieldsByFarmId(activeFarm.id)
-    deleteFarm(activeFarm.id)
+    try {
+      await deleteFarmApi.mutateAsync(activeFarm.id)
+    } catch (err) {
+      console.error('Failed to delete farm:', err)
+    }
   }
 
   function handleOpenFieldEditor() {
@@ -260,19 +313,18 @@ export default function FarmMap({ center = PR_CENTER, zoom = DEFAULT_ZOOM }: Pro
     setShowFieldEditor(true)
   }
 
-  function handleCreateFarm(data: { name: string; location: string }) {
-    const newFarm: Farm = {
-      id: `farm_${Date.now()}`,
-      name: data.name,
-      location: data.location,
-      totalAreaAcres: 0,
-      createdAt: new Date().toISOString(),
-      boundary: [],
-      fieldIds: [],
+  async function handleCreateFarm(data: { name: string; location: string }) {
+    try {
+      await createFarm.mutateAsync({
+        name: data.name,
+        location: data.location,
+        farmType: 'mixed',
+      })
+      setShowModal(false)
+    } catch (err) {
+      console.error('Failed to create farm:', err)
+      alert('Error al crear la finca. Por favor intenta de nuevo.')
     }
-    addFarm(newFarm)
-    setActiveFarm(newFarm)
-    setShowModal(false)
   }
 
   return (
@@ -302,6 +354,7 @@ export default function FarmMap({ center = PR_CENTER, zoom = DEFAULT_ZOOM }: Pro
         doubleClickZoom={false}
         maxZoom={22}
       >
+        <MapResizer />
         <TileLayer
           url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
           attribution="Tiles &copy; Esri"
@@ -315,7 +368,6 @@ export default function FarmMap({ center = PR_CENTER, zoom = DEFAULT_ZOOM }: Pro
           maxNativeZoom={19}
         />
 
-        {/* Flies to farm when flyTarget changes */}
         <MapController targetFarm={flyTarget} />
 
         <DrawingLayer
@@ -329,7 +381,6 @@ export default function FarmMap({ center = PR_CENTER, zoom = DEFAULT_ZOOM }: Pro
           onInsertPoint={drawing.insertPointAfter}
         />
 
-        {/* Fields for the active farm */}
         {farmFields.map(field => (
           <PlacedField
             key={field.id}
@@ -337,15 +388,11 @@ export default function FarmMap({ center = PR_CENTER, zoom = DEFAULT_ZOOM }: Pro
             onEdit={handleOpenFieldEditor}
           />
         ))}
-
       </MapContainer>
 
-      {/* Farm + field navigation drawer */}
       <FarmDrawer
         onAddFarm={() => setShowModal(true)}
-        onEditField={(fieldId) => {
-          setShowFieldEditor(true)
-        }}
+        onEditField={() => setShowFieldEditor(true)}
         onDeleteField={(fieldId) => {
           if (!activeFarm) return
           removeField(fieldId)
@@ -355,10 +402,9 @@ export default function FarmMap({ center = PR_CENTER, zoom = DEFAULT_ZOOM }: Pro
           setActiveFarm(farm)
           setFlyTarget(farm)
         }}
-        onOpenFieldEditor={() => handleOpenFieldEditor()}
+        onOpenFieldEditor={handleOpenFieldEditor}
       />
 
-      {/* Farm field editor — full screen */}
       {showFieldEditor && activeFarm && (
         <FarmFieldEditor
           farmId={activeFarm.id}
@@ -372,7 +418,6 @@ export default function FarmMap({ center = PR_CENTER, zoom = DEFAULT_ZOOM }: Pro
         />
       )}
 
-      {/* Create farm modal */}
       {showModal && (
         <CreateFarmModal
           onClose={() => setShowModal(false)}

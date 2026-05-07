@@ -1,37 +1,39 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useFarmStore } from '@/store/useFarmStore'
+import { useFarms, useCreateFarm } from '@/features/farm/hooks/useFarmsApi'
 import EmptyFarmState from '@/features/farm/components/emptyFarmState'
 import CreateFarmModal from '@/features/farm/components/createFarmModal'
 import FarmMap from '@/features/map/components/farmMap'
-import type { Farm } from '@/store/useFarmStore'
 
 export default function HomePage() {
   const [showModal, setShowModal] = useState(false)
-  const {
-    farms, activeFarm, favoriteFarmId,
-    setActiveFarm, addFarm,
-  } = useFarmStore()
+  const { farms } = useFarmStore()
+  const { isLoading } = useFarms()
+  const createFarm = useCreateFarm()
 
-  // On mount — activate favorite or first farm
-  useEffect(() => {
-    if (farms.length === 0) return
-    const target = farms.find(f => f.id === favoriteFarmId) ?? farms[0]
-    setActiveFarm(target)
-  }, [])
-
-  function handleCreateFarm(data: { name: string; location: string }) {
-    const newFarm: Farm = {
-      id: `farm_${Date.now()}`,
-      name: data.name,
-      location: data.location,
-      totalAreaAcres: 0,
-      createdAt: new Date().toISOString(),
-      boundary: [],
-      fieldIds: [],
+  async function handleCreateFarm(data: { name: string; location: string }) {
+    try {
+      await createFarm.mutateAsync({
+        name: data.name,
+        location: data.location,
+        farmType: 'mixed',
+      })
+      setShowModal(false)
+    } catch (err) {
+      console.error('Failed to create farm:', err)
+      alert('Error al crear la finca. Por favor intenta de nuevo.')
     }
-    addFarm(newFarm)
-    setActiveFarm(newFarm)
-    setShowModal(false)
+  }
+
+  if (isLoading && farms.length === 0) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <span className="text-4xl">🌱</span>
+          <div className="w-6 h-6 rounded-full border-2 border-[#639922] border-t-transparent animate-spin" />
+        </div>
+      </div>
+    )
   }
 
   return (

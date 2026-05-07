@@ -14,6 +14,7 @@ type Props = {
   onSave: () => void
   onAddField: () => void    // ← add this
   onDeleteFarm: () => void
+
 }
 
 export default function DrawingPanel({
@@ -117,9 +118,9 @@ export default function DrawingPanel({
             <div className="flex flex-col gap-2">
               <button
                 onClick={onSave}
-                className="w-full flex items-center justify-center gap-2 py-2.5 bg-[#2d4a1e] text-[#d4e8b0] rounded-lg text-xs font-medium hover:bg-[#3d6128] transition-colors"
+                disabled={mode !== 'complete' && mode !== 'editing'}
+                className="w-full flex items-center justify-center gap-2 py-2 text-xs font-medium bg-[#2d4a1e] text-[#d4e8b0] rounded-lg hover:bg-[#3d6128] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                <Check size={13} />
                 Guardar finca
               </button>
               <button

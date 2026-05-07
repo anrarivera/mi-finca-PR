@@ -1,25 +1,19 @@
-import { Outlet } from 'react-router-dom'
 import TopNav from './topNav'
 import SideMenu from './sideMenu'
 
-export default function Layout() {
+type Props = {
+  children: React.ReactNode
+}
+
+export default function Layout({ children }: Props) {
   return (
-    <div className="h-screen flex flex-col">
-
-      {/* Top navbar — fixed height */}
+    <div className="flex flex-col h-screen overflow-hidden">
       <TopNav />
-
-      {/* Everything below the top navbar */}
-      <div className="flex flex-1 overflow-hidden">
-
-        {/* Side navbar — full height of remaining space */}
+      <div className="flex flex-1 overflow-hidden min-h-0">
         <SideMenu />
-
-        {/* Page content — scrollable */}
-        <main className="flex-1 overflow-y-auto p-6 bg-[#f7f9f4]">
-          <Outlet />
+        <main className="flex-1 overflow-hidden relative min-h-0">
+          {children}
         </main>
-
       </div>
     </div>
   )
