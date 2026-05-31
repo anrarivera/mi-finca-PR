@@ -35,7 +35,6 @@ export default function ResetPasswordPage() {
     try {
       await resetPassword.mutateAsync({ token, password })
       setSuccess(true)
-      setTimeout(() => navigate('/login'), 2500)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al restablecer la contraseña')
     }

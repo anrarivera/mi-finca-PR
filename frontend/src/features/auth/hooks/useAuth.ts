@@ -43,6 +43,7 @@ export function useInitAuth() {
 export function useLogin() {
   const { setAuth } = useAuthStore()
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
 
   return useMutation({
     mutationFn: async (credentials: { email: string; password: string }) => {
@@ -51,6 +52,7 @@ export function useLogin() {
     onSuccess: (data) => {
       setAuth(data.accessToken, data.user)
       queryClient.invalidateQueries({ queryKey: ['farms'] })
+      navigate('/');
     },
   })
 }
@@ -58,6 +60,7 @@ export function useLogin() {
 // ── Register ──────────────────────────────────────────────────────────
 export function useRegister() {
   const { setAuth } = useAuthStore()
+  const navigate = useNavigate()
 
   return useMutation({
     mutationFn: async (data: {
@@ -69,6 +72,7 @@ export function useRegister() {
     },
     onSuccess: (data) => {
       setAuth(data.accessToken, data.user)
+      setTimeout(() => navigate('/login'), 2500)
     },
   })
 }

@@ -1,11 +1,14 @@
 import { useState, useRef, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Settings, LogOut } from 'lucide-react'
+import { useLogout } from '@/features/auth/hooks/useAuth'
 
 export default function TopNav() {
   const [open, setOpen] = useState(false)
+  const [error, setError] = useState('')
   const dropdownRef = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
+  const logout = useLogout()
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -17,10 +20,18 @@ export default function TopNav() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  function handleLogout() {
+  async function handleLogout(e: React.FormEvent) {
     setOpen(false)
-    // logout logic will go here later
+  
     console.log('Logging out...')
+    e.preventDefault()
+    setError('')
+
+    try {
+      await logout.mutateAsync()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al cerrar sesión')
+    }
   }
 
   function handleSettings() {
@@ -55,7 +66,7 @@ export default function TopNav() {
         </button>
 
         {open && (
-          <div className="absolute right-0 top-12 w-48 bg-white rounded-xl border border-gray-200 shadow-lg overflow-hidden z-50">
+          <div className="absolute right-0 top-12 w-48 bg-white rounded-xl border border-gray-200 shadow-lg overflow-hidden z-10000">
 
             {/* User info header */}
             <div className="px-4 py-3 border-b border-gray-100">

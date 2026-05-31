@@ -17,9 +17,10 @@ router.use(requireAuth)
 router.get('/', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const farms = await prisma.farm.findMany({
+      // GET / — list farms
       where: {
         userId: req.user!.userId,
-        deletedAt: null,
+        deletedAt: { equals: null },  // ← fix
       },
       include: {
         fields: {
@@ -63,7 +64,8 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
     // Check if this will be the user's first farm
     // If so, automatically set it as favorite
     const existingCount = await prisma.farm.count({
-      where: { userId: req.user!.userId, deletedAt: null }
+      // POST / — count existing farms
+      where: { userId: req.user!.userId, deletedAt: { equals: null } } 
     })
     const shouldBeFavorite = existingCount === 0
 
@@ -108,7 +110,7 @@ router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
       where: {
         id,
         userId: req.user!.userId,  // scoped to requesting user
-        deletedAt: null,
+        deletedAt: { equals: null },
       },
       include: {
         fields: {
@@ -137,7 +139,7 @@ router.patch('/:id', async (req: Request, res: Response, next: NextFunction) => 
 
     // Verify farm belongs to this user
     const existing = await prisma.farm.findFirst({
-      where: { id, userId: req.user!.userId, deletedAt: null }
+      where: { id, userId: req.user!.userId, deletedAt: { equals: null }, }
     })
     if (!existing) throw Errors.notFound('Farm')
 
@@ -152,7 +154,7 @@ router.patch('/:id', async (req: Request, res: Response, next: NextFunction) => 
     // If setting this farm as favorite, unset all other farms first
     if (isFavorite === true) {
       await prisma.farm.updateMany({
-        where: { userId: req.user!.userId, deletedAt: null },
+        where: { userId: req.user!.userId, deletedAt: { equals: null }, },
         data: { isFavorite: false }
       })
     }
@@ -201,7 +203,7 @@ router.delete('/:id', async (req: Request, res: Response, next: NextFunction) =>
 
     // Verify farm belongs to this user
     const existing = await prisma.farm.findFirst({
-      where: { id, userId: req.user!.userId, deletedAt: null }
+      where: { id, userId: req.user!.userId, deletedAt: { equals: null }, }
     })
     if (!existing) throw Errors.notFound('Farm')
 
@@ -209,7 +211,7 @@ router.delete('/:id', async (req: Request, res: Response, next: NextFunction) =>
 
     // Soft delete all fields belonging to this farm
     await prisma.field.updateMany({
-      where: { farmId: id, deletedAt: null },
+      where: { farmId: id, deletedAt: { equals: null }, },
       data: { deletedAt: now }
     })
 
@@ -222,7 +224,7 @@ router.delete('/:id', async (req: Request, res: Response, next: NextFunction) =>
     // If deleted farm was the favorite, set the next available farm as favorite
     if (existing.isFavorite) {
       const nextFarm = await prisma.farm.findFirst({
-        where: { userId: req.user!.userId, deletedAt: null },
+        where: { userId: req.user!.userId, deletedAt: { equals: null }, },
         orderBy: { createdAt: 'asc' }
       })
       if (nextFarm) {

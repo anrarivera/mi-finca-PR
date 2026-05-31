@@ -4,12 +4,16 @@ import { useFarms, useCreateFarm } from '@/features/farm/hooks/useFarmsApi'
 import EmptyFarmState from '@/features/farm/components/emptyFarmState'
 import CreateFarmModal from '@/features/farm/components/createFarmModal'
 import FarmMap from '@/features/map/components/farmMap'
+import { useFields } from '@/features/field/hooks/useFieldsApi'
 
 export default function HomePage() {
   const [showModal, setShowModal] = useState(false)
   const { farms } = useFarmStore()
   const { isLoading } = useFarms()
   const createFarm = useCreateFarm()
+
+  const activeFarmId = useFarmStore(s => s.activeFarmId)
+  useFields(activeFarmId) // fetches + hydrates store automatically
 
   async function handleCreateFarm(data: { name: string; location: string }) {
     try {

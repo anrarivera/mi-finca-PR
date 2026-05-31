@@ -17,14 +17,13 @@ const mockFarms: Farm[] = []
 //   createdAt: '2026-01-15',
 // }]
 
-async function fetchFarms(): Promise<Farm[]> {
-  // Future: return fetch('/api/farms').then(r => r.json())
-  return new Promise((resolve) => setTimeout(() => resolve(mockFarms), 500))
-}
+// async function fetchFarms(): Promise<Farm[]> {
+//   return fetch('/api/v1/farms').then(r => r.json())
+// }
 
-export function useFarms() {
-  return useQuery({
-    queryKey: ['farms'],
-    queryFn: fetchFarms,
-  })
-}
+// export function useFarms() {
+//   return useQuery({
+//     queryKey: ['farms'],
+//     queryFn: fetchFarms,
+//   })
+// }

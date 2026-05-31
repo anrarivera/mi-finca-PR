@@ -10,6 +10,7 @@ import { useFieldStore } from '@/store/useFieldStore'
 import { useFarmStore } from '@/store/useFarmStore'
 import { randomFieldColor } from '../types'
 import type { PlacedField } from '../types'
+import { useCreateField, useDeleteField, useUpdateField } from '../hooks/useFieldsApi'
 
 type Props = {
   farmId: string
@@ -34,6 +35,10 @@ export default function FarmFieldEditor({
   const farmFields = getFieldsByFarmId(farmId)
 
   const { bbox } = useSatelliteBackground(farmBoundary)
+  const createField = useCreateField(farmId)
+  const updateField_api = useUpdateField(farmId)
+
+  const deleteField = useDeleteField(farmId)
 
   // ── Start a new field from scratch ───────────────────────────────
   function handleStartNewField() {
@@ -68,10 +73,13 @@ export default function FarmFieldEditor({
   function handleDeleteSelectedField() {
     if (!selectedFieldId) return
     if (!window.confirm('¿Eliminar este campo?')) return
-    removeField(selectedFieldId)
-    removeFieldIdFromFarm(farmId, selectedFieldId)
-    onFieldDeleted(selectedFieldId)
-    setSelectedFieldId(null)
+    deleteField.mutate(selectedFieldId, {
+      onSuccess: () => {
+        removeFieldIdFromFarm(farmId, selectedFieldId)
+        onFieldDeleted(selectedFieldId)
+        setSelectedFieldId(null)
+      },
+    })
   }
 
   // ── Cancel current drawing / editing ─────────────────────────────
@@ -83,14 +91,14 @@ export default function FarmFieldEditor({
   }
 
   // ── Save the current field ────────────────────────────────────────
-  const handleSaveField = useCallback(() => {
+  const handleSaveField = useCallback(async () => {
     if (editor.points.length < 3 || !editor.name.trim() || !bbox) return
 
     const boundaryLatLng = editor.canvasPointsToLatLng(bbox)
 
     if (editingFieldId) {
       // Update existing
-      updateField(editingFieldId, {
+      const updates = {
         name: editor.name,
         shape: editor.shape,
         widthFt: editor.widthFt,
@@ -99,19 +107,16 @@ export default function FarmFieldEditor({
         rows: editor.rows,
         freePlants: editor.freePlants,
         plantingEvents: editor.plantingEvents,
-      })
+      }
+      await updateField_api.mutateAsync({ id: editingFieldId, updates })
       onFieldSaved(editingFieldId, false)
-      // Stay in the editor — go back to showing this field selected
       setSelectedFieldId(editingFieldId)
       setEditingFieldId(null)
       setIsCreatingNew(false)
       editor.reset()
     } else {
-      // Create new
-      const fieldId = editor.fieldId || `field_${Date.now()}`
-      const newField: PlacedField = {
-        id: fieldId,
-        farmId,
+      // Create new — let DB generate the ID
+      const payload = {
         name: editor.name,
         color: randomFieldColor(),
         shape: editor.shape,
@@ -122,20 +127,20 @@ export default function FarmFieldEditor({
         farmLng: boundaryLatLng.reduce((s, p) => s + p.lng, 0) / boundaryLatLng.length,
         rotation: 0,
         isPositioning: false,
-        displayMode: 'shape',
+        displayMode: 'shape' as const,
         rows: editor.rows,
         freePlants: editor.freePlants,
         plantingEvents: editor.plantingEvents,
       }
-      addField(newField)
-      addFieldIdToFarm(farmId, fieldId)
-      onFieldSaved(fieldId, true)
-      // Stay in editor — select the newly created field
-      setSelectedFieldId(fieldId)
+      const saved = await createField.mutateAsync(payload)
+      // useCreateField.onSuccess already adds to store
+      addFieldIdToFarm(farmId, saved.id)
+      onFieldSaved(saved.id, true)
+      setSelectedFieldId(saved.id)
       setIsCreatingNew(false)
       editor.reset()
     }
-  }, [editor, bbox, farmId, editingFieldId, addField, updateField, onFieldSaved, addFieldIdToFarm, removeFieldIdFromFarm])
+  }, [editor, bbox, farmId, editingFieldId, createField, updateField_api, onFieldSaved, addFieldIdToFarm])
 
   const isActivelyDrawing = editor.mode !== 'setup'
   const activeFieldId = editingFieldId || (isActivelyDrawing ? editor.fieldId : null)

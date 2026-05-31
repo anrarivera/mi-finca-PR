@@ -25,14 +25,13 @@ export function useFarms() {
     queryKey: ['farms'],
     queryFn: async () => {
       const data = await api.get<ApiFarm[]>('/api/v1/farms')
-
+      console.log('Farms from API:', data)
       // Sync API response into Zustand store
-      const { farms: existingFarms } = useFarmStore.getState()
+      const { clearFarms } = useFarmStore.getState()
+      clearFarms();
 
-      data.forEach(apiFarm => {
-        const exists = existingFarms.find(f => f.id === apiFarm.id)
-        if (!exists) {
-          const farm: Farm = {
+       data.forEach(apiFarm => {
+          addFarm({
             id: apiFarm.id,
             name: apiFarm.name,
             location: apiFarm.location,
@@ -43,14 +42,11 @@ export function useFarms() {
             description: apiFarm.description ?? undefined,
             fieldIds: apiFarm.fieldIds,
             createdAt: apiFarm.createdAt,
-          }
-          addFarm(farm)
-        }
+          })
       })
 
       // Set active farm to favorite or first
-      const { activeFarm } = useFarmStore.getState()
-      if (!activeFarm && data.length > 0) {
+      if (data.length > 0) {
         const fav = data.find(f => f.isFavorite) ?? data[0]
         const farmInStore = useFarmStore.getState().farms.find(f => f.id === fav.id)
         if (farmInStore) setActiveFarm(farmInStore)

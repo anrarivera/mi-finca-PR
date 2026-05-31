@@ -18,7 +18,6 @@ export default function LoginPage() {
 
     try {
       await login.mutateAsync({ email, password })
-      navigate('/')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al iniciar sesión')
     }

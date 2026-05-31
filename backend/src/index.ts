@@ -7,7 +7,9 @@ import { prisma } from './lib/prisma'
 import { errorHandler } from './middleware/errorHandler'
 import authRouter from './routes/auth'
 import farmsRouter from './routes/farms'
+import fieldRoutes from './routes/fields'
 
+// After the farms routes line:
 const app = express()
 const PORT = process.env.PORT || 3001
 
@@ -43,6 +45,7 @@ app.get('/health', async (req, res) => {
 // ── Routes ─────────────────────────────────────────────────────────────
 app.use('/api/v1/auth', authRouter)
 app.use('/api/v1/farms', farmsRouter)
+app.use('/api/v1/farms/:farmId/fields', fieldRoutes)
 
 // ── 404 ────────────────────────────────────────────────────────────────
 app.use((req, res) => {
@@ -56,11 +59,13 @@ app.use((req, res) => {
 app.use(errorHandler)
 
 // ── Start ──────────────────────────────────────────────────────────────
-app.listen(PORT, () => {
-  console.log(`\n🌱 Mi Finca PR API running on http://localhost:${PORT}`)
-  console.log(`   Health:   http://localhost:${PORT}/health`)
-  console.log(`   Auth:     http://localhost:${PORT}/api/v1/auth\n`)
-  console.log(`   Farms:    http://localhost:${PORT}/api/v1/farms\n`)
-})
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(PORT, () => {
+    console.log(`\n🌱 Mi Finca PR API running on http://localhost:${PORT}`)
+    console.log(`   Health:   http://localhost:${PORT}/health`)
+    console.log(`   Auth:     http://localhost:${PORT}/api/v1/auth\n`)
+    console.log(`   Farms:    http://localhost:${PORT}/api/v1/farms\n`)
+  })
+}
 
 export default app

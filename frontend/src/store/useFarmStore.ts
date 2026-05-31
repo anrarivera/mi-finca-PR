@@ -22,6 +22,7 @@ type FarmStore = {
   addFarm: (farm: Farm) => void
   updateFarm: (id: string, updates: Partial<Farm>) => void
   deleteFarm: (id: string) => void
+  clearFarms: () => void
   setActiveFarm: (farm: Farm) => void
   clearActiveFarm: () => void
   setFavoriteFarm: (id: string) => void
@@ -61,6 +62,8 @@ export const useFarmStore = create<FarmStore>((set, get) => ({
         ? (state.farms.find(f => f.id !== id)?.id ?? null)
         : state.favoriteFarmId,
     })),
+  
+  clearFarms: () => set({ farms: [], activeFarmId: null, activeFarm: null, favoriteFarmId: null }),
 
   setActiveFarm: (farm) =>
     set({ activeFarmId: farm.id, activeFarm: farm }),
