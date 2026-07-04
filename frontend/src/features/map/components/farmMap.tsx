@@ -11,6 +11,7 @@ import { useConfirm } from '@/components/shared/confirmDialog'
 import { toast } from '@/store/useToastStore'
 import { useFieldStore } from '@/store/useFieldStore'
 import { useFarmStore, useActiveFarm } from '@/store/useFarmStore'
+import { useLivestockStore } from '@/store/useLivestockStore'
 import type { Farm } from '@/store/useFarmStore'
 
 delete (L.Icon.Default.prototype as any)._getIconUrl
@@ -287,6 +288,7 @@ export default function FarmMap({ center = PR_CENTER, zoom = DEFAULT_ZOOM }: Pro
     })
     if (!ok) return
     removeFieldsByFarmId(activeFarm.id)
+    useLivestockStore.getState().removeUnitsByFarmId(activeFarm.id)
     deleteFarm(activeFarm.id)
     toast.success(`Finca "${activeFarm.name}" eliminada`)
   }

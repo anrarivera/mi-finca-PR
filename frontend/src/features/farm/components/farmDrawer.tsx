@@ -6,6 +6,7 @@ import {
 } from 'lucide-react'
 import { useFarmStore, useActiveFarm } from '@/store/useFarmStore'
 import { useFieldStore } from '@/store/useFieldStore'
+import { useLivestockStore } from '@/store/useLivestockStore'
 import { useConfirm } from '@/components/shared/confirmDialog'
 import { toast } from '@/store/useToastStore'
 import { computeCropSummary } from '@/features/field/utils/rowCalculator'
@@ -69,6 +70,7 @@ export default function FarmDrawer({
     })
     if (!ok) return
     removeFieldsByFarmId(farm.id)
+    useLivestockStore.getState().removeUnitsByFarmId(farm.id)
     deleteFarm(farm.id)
     toast.success(`Finca "${farm.name}" eliminada`)
     if (farms.length <= 1) setLevel('farms')
