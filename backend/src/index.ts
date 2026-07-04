@@ -1,24 +1,25 @@
+import { env } from './lib/env' // must be first — validates config, loads .env
 import express from 'express'
 import cors from 'cors'
 import helmet from 'helmet'
 import cookieParser from 'cookie-parser'
-import dotenv from 'dotenv'
 import { prisma } from './lib/prisma'
 import { errorHandler } from './middleware/errorHandler'
 import authRouter from './routes/auth'
-
-dotenv.config()
+import farmsRouter from './routes/farms'
+import fieldsRouter from './routes/fields'
+import livestockRouter from './routes/livestock'
 
 const app = express()
-const PORT = process.env.PORT || 3001
+const PORT = env.PORT
 
 // ── Middleware ─────────────────────────────────────────────────────────
 app.use(helmet())
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  origin: env.FRONTEND_URL,
   credentials: true,
 }))
-app.use(express.json())
+app.use(express.json({ limit: '1mb' }))
 app.use(cookieParser())
 
 // ── Health check ───────────────────────────────────────────────────────
@@ -43,6 +44,9 @@ app.get('/health', async (req, res) => {
 
 // ── Routes ─────────────────────────────────────────────────────────────
 app.use('/api/v1/auth', authRouter)
+app.use('/api/v1/farms', farmsRouter)
+app.use('/api/v1/fields', fieldsRouter)
+app.use('/api/v1/livestock', livestockRouter)
 
 // ── 404 ────────────────────────────────────────────────────────────────
 app.use((req, res) => {

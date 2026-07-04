@@ -1,5 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express'
 import bcrypt from 'bcryptjs'
+import rateLimit from 'express-rate-limit'
+import { z } from 'zod'
 import { prisma } from '../lib/prisma'
 import {
   signAccessToken,
@@ -7,9 +9,43 @@ import {
   verifyRefreshToken,
 } from '../lib/jwt'
 import { Errors } from '../lib/errors'
+import { parseBody } from '../lib/validate'
 import { requireAuth } from '../middleware/auth'
 
 const router = Router()
+
+// ── Rate limiting — slow down credential stuffing / brute force ───────
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 20, // 20 attempts per IP per window on sensitive endpoints
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (_req, res) => {
+    res.status(429).json({
+      success: false,
+      error: {
+        code: 'RATE_LIMITED',
+        message: 'Too many attempts. Please try again later.',
+      },
+    })
+  },
+})
+
+// ── Input schemas ──────────────────────────────────────────────────────
+const registerSchema = z.object({
+  email: z.email('Invalid email address'),
+  password: z.string()
+    .min(8, 'Password must be at least 8 characters')
+    .max(128, 'Password must be at most 128 characters'),
+  fullName: z.string().trim()
+    .min(1, 'Full name is required')
+    .max(100, 'Full name must be at most 100 characters'),
+})
+
+const loginSchema = z.object({
+  email: z.email('Invalid email address'),
+  password: z.string().min(1, 'Password is required'),
+})
 
 // ── Helper — set refresh token cookie ─────────────────────────────────
 function setRefreshCookie(res: Response, token: string) {
@@ -39,20 +75,9 @@ async function saveRefreshToken(userId: string, token: string) {
 // ─────────────────────────────────────────────────────────────────────
 // POST /api/v1/auth/register
 // ─────────────────────────────────────────────────────────────────────
-router.post('/register', async (req: Request, res: Response, next: NextFunction) => {
+router.post('/register', authLimiter, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { email, password, fullName } = req.body
-
-    // Basic validation
-    if (!email || !password || !fullName) {
-      throw Errors.validation('Email, password, and full name are required')
-    }
-    if (password.length < 8) {
-      throw Errors.validation('Password must be at least 8 characters')
-    }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      throw Errors.validation('Invalid email address')
-    }
+    const { email, password, fullName } = parseBody(registerSchema, req.body)
 
     // Check if email already exists
     const existing = await prisma.user.findUnique({
@@ -110,13 +135,9 @@ router.post('/register', async (req: Request, res: Response, next: NextFunction)
 // ─────────────────────────────────────────────────────────────────────
 // POST /api/v1/auth/login
 // ─────────────────────────────────────────────────────────────────────
-router.post('/login', async (req: Request, res: Response, next: NextFunction) => {
+router.post('/login', authLimiter, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { email, password } = req.body
-
-    if (!email || !password) {
-      throw Errors.validation('Email and password are required')
-    }
+    const { email, password } = parseBody(loginSchema, req.body)
 
     // Find user
     const user = await prisma.user.findUnique({
@@ -226,8 +247,12 @@ router.post('/refresh', async (req: Request, res: Response, next: NextFunction) 
 
 // ─────────────────────────────────────────────────────────────────────
 // POST /api/v1/auth/logout
+// No requireAuth here on purpose: a user with an *expired* access token
+// must still be able to log out and revoke their refresh token. Deleting
+// a refresh token requires possessing it (HttpOnly cookie), so this is
+// safe without a valid access token.
 // ─────────────────────────────────────────────────────────────────────
-router.post('/logout', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
+router.post('/logout', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const token = req.cookies?.refreshToken
 
