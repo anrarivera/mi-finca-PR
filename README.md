@@ -44,18 +44,31 @@ Mi Finca PR is a three-phase agricultural platform:
 
 ## Tech Stack
 
+**Frontend** (`frontend/`)
+
 | Layer | Technology |
 |-------|-----------|
-| Framework | React 18 + TypeScript |
+| Framework | React 19 + TypeScript |
 | Build Tool | Vite 6 |
 | Styling | Tailwind CSS v4 |
 | Component Library | shadcn/ui (Radix) |
-| Routing | React Router v6 |
-| Global State | Zustand |
+| Routing | React Router v7 |
+| Global State | Zustand (persisted to localStorage — offline-first) |
 | Server State | TanStack Query (React Query) |
 | Forms | React Hook Form + Zod |
 | Maps | Leaflet + React-Leaflet |
 | Icons | Lucide React |
+| Tests | Vitest |
+
+**Backend** (`backend/`)
+
+| Layer | Technology |
+|-------|-----------|
+| Runtime | Node.js + Express 5 + TypeScript |
+| Database | PostgreSQL + Prisma 6 |
+| Auth | JWT (15 min access token + rotating 30-day refresh token in an HttpOnly cookie) |
+| Validation | Zod |
+| Security | helmet, CORS, bcrypt (cost 12), express-rate-limit |
 
 ---
 
@@ -79,28 +92,33 @@ npm --version    # should be 11+
 
 1. **Clone the repository**
 ```bash
-git clone https://github.com/your-username/mi-finca-PR.git
+git clone https://github.com/anrarivera/mi-finca-PR.git
 cd mi-finca-PR
 ```
 
-2. **Install frontend dependencies**
+2. **Frontend** — this is all you need for the app itself (it runs offline-first with localStorage):
 ```bash
 cd frontend
 npm install
-```
-
-3. **Start the frontend development server**
-```bash
 npm run dev
 ```
+Open [http://localhost:5173](http://localhost:5173) in your browser.
 
-4. Open [http://localhost:5173](http://localhost:5173) in your browser.
+3. **Backend (optional)** — enables accounts (register/login). Requires PostgreSQL:
+```bash
+cd backend
+npm install
+cp .env.example .env    # then edit DATABASE_URL and the JWT secrets
+npx prisma migrate dev  # create the database schema
+npm run dev             # starts http://localhost:3001
+```
 
 ---
 
 ## Environment Variables
 
-This project does not currently require environment variables for the frontend development server. When the backend is added, a `.env` file will be required. A `.env.example` will be provided at that time.
+- **Backend** — copy `backend/.env.example` to `backend/.env` and set `DATABASE_URL`, `JWT_ACCESS_SECRET`, and `JWT_REFRESH_SECRET`. The server validates its configuration at startup and tells you exactly what is missing.
+- **Frontend** — optional; copy `frontend/.env.example` to `frontend/.env` if your API is not at `http://localhost:3001`.
 
 > **Note:** Never commit `.env` files to version control. They are already included in `.gitignore`.
 
@@ -108,12 +126,32 @@ This project does not currently require environment variables for the frontend d
 
 ## Available Scripts
 
+From the repository root:
+
 | Command | Description |
 |---------|-------------|
-| `npm run dev` | Start the development server at localhost:5173 |
-| `npm run build` | Build the app for production into the `dist/` folder |
-| `npm run preview` | Preview the production build locally |
-| `npm run lint` | Run ESLint across the project |
+| `npm run dev` | Start the frontend dev server at localhost:5173 |
+| `npm run backend` | Start the backend dev server at localhost:3001 |
+| `npm run build` | Production build of frontend and backend |
+| `npm run lint` | Run ESLint across the frontend |
+| `npm test` | Run the frontend unit tests (Vitest) |
+
+Continuous integration runs lint, tests, and both builds on every pull request (`.github/workflows/ci.yml`).
+
+---
+
+## API Overview
+
+All endpoints are prefixed with `/api/v1` and return `{ success, data | error }`. Protected routes take a `Authorization: Bearer <accessToken>` header.
+
+| Area | Endpoints |
+|------|-----------|
+| Auth | `POST /auth/register`, `POST /auth/login`, `POST /auth/refresh`, `POST /auth/logout`, `GET /auth/me` |
+| Farms | `GET/POST /farms`, `PUT/DELETE /farms/:id` |
+| Fields | `GET/POST /farms/:id/fields`, `PUT/DELETE /fields/:id` |
+| Livestock | `GET/POST /livestock`, `PUT/DELETE /livestock/:id` |
+
+Deletes are soft (`deletedAt`), matching the Prisma schema. The frontend currently persists working data locally (offline-first) and uses the API for accounts; syncing farm data to the cloud is the next milestone.
 
 ---
 
@@ -121,74 +159,31 @@ This project does not currently require environment variables for the frontend d
 
 ```
 mi-finca-PR/
-├── public/                        # Static assets
-├── src/
-│   ├── components/
-│   │   └── shared/                # Reusable layout components
-│   │       ├── Layout.tsx         # App shell with TopNav and SideNav
-│   │       ├── TopNav.tsx         # Top navigation bar
-│   │       └── SideNav.tsx        # Side navigation bar
-│   │
-│   ├── features/                  # Feature modules (domain-driven)
-│   │   ├── farm/
-│   │   │   ├── components/        # Farm-level UI components
-│   │   │   │   ├── CreateFarmModal.tsx
-│   │   │   │   ├── EmptyFarmState.tsx
-│   │   │   │   ├── FarmDrawer.tsx     # Two-level farm/field navigation drawer
-│   │   │   │   ├── FarmStatBar.tsx
-│   │   │   │   └── FarmMap.tsx        # Main interactive map
-│   │   │   └── hooks/
-│   │   │       └── useFarms.ts
-│   │   │
-│   │   ├── field/
-│   │   │   ├── components/        # Field editor UI components
-│   │   │   │   ├── FarmFieldEditor.tsx    # Persistent multi-field canvas editor
-│   │   │   │   ├── FarmFieldEditorPanel.tsx
-│   │   │   │   ├── FieldEditorCanvas.tsx  # SVG drawing canvas with zoom/pan
-│   │   │   │   ├── PlacedField.tsx        # Field rendered on farm map
-│   │   │   │   ├── RowConfigPanel.tsx     # Crop row configuration
-│   │   │   │   ├── CropSelector.tsx       # Searchable crop dropdown
-│   │   │   │   └── OperationsView.tsx     # Operations check-off interface
-│   │   │   ├── data/
-│   │   │   │   ├── cropLibrary.ts         # Pre-built crop types with emojis
-│   │   │   │   └── cropSchedules.ts       # Agronomic operation templates per crop
-│   │   │   ├── hooks/
-│   │   │   │   ├── useFieldEditor.ts      # Canvas drawing and crop state
-│   │   │   │   └── useSatelliteBackground.ts
-│   │   │   ├── utils/
-│   │   │   │   ├── canvasGeo.ts           # Coordinate conversion and measurement
-│   │   │   │   ├── geoUtils.ts            # Point-in-polygon and lat/lng utilities
-│   │   │   │   ├── operationStatus.ts     # Operation health calculation
-│   │   │   │   ├── plantingEventManager.ts # Planting event creation and merging
-│   │   │   │   └── rowCalculator.ts       # Crop summary computation
-│   │   │   └── types.ts                   # Field, FieldRow, PlantInstance, PlantingEvent types
-│   │   │
-│   │   └── map/
-│   │       ├── components/
-│   │       │   ├── FarmMap.tsx            # Leaflet map with farm boundary drawing
-│   │       │   └── DrawingPanel.tsx       # Farm boundary drawing controls
-│   │       └── hooks/
-│   │           └── useDrawing.ts          # Farm boundary drawing state
-│   │
-│   ├── pages/
-│   │   └── home/
-│   │       └── HomePage.tsx               # Main page — farm map or empty state
-│   │
-│   ├── store/                             # Zustand global state
-│   │   ├── useFarmStore.ts                # Farms, active farm, favorite farm
-│   │   └── useFieldStore.ts               # Fields flat store with farmId foreign key
-│   │
-│   ├── lib/                               # Shared utilities and config
-│   │
-│   ├── App.tsx                            # Route definitions
-│   ├── main.tsx                           # App entry point, providers
-│   └── index.css                          # Tailwind + shadcn theme variables
+├── frontend/
+│   └── src/
+│       ├── components/shared/     # Layout, TopNav, SideMenu, Toast, ConfirmDialog, ErrorBoundary
+│       ├── features/              # Feature modules (domain-driven)
+│       │   ├── farm/              # CreateFarmModal, EmptyFarmState, FarmDrawer
+│       │   ├── field/             # Field editor: canvas, panels, crop data, planting events
+│       │   ├── map/               # Leaflet map + farm boundary drawing
+│       │   ├── livestock/         # Animal library, livestock management UI
+│       │   └── recommendations/   # RecommendationService + rule-based engine
+│       ├── pages/
+│       │   ├── home/              # Farm map or empty state
+│       │   ├── dashboard/         # Stats, labores, recomendaciones, animales
+│       │   ├── settings/          # Backup export/import, app info
+│       │   └── auth/              # Login / register
+│       ├── store/                 # Zustand stores (farms, fields, livestock, auth, toasts)
+│       └── lib/                   # api client, geo helpers
 │
-├── components.json                        # shadcn/ui configuration
-├── vite.config.ts                         # Vite + Tailwind plugin config
-├── tsconfig.json                          # TypeScript root config
-├── tsconfig.app.json                      # TypeScript app config with path aliases
-└── package.json
+├── backend/
+│   ├── prisma/                    # PostgreSQL schema + migrations (14 models)
+│   └── src/
+│       ├── lib/                   # env validation, jwt, prisma, errors, zod helper
+│       ├── middleware/            # requireAuth, errorHandler
+│       └── routes/                # auth, farms, fields, livestock
+│
+└── .github/workflows/ci.yml       # Lint + tests + builds on every PR
 ```
 
 ### Key Architectural Decisions
