@@ -11,6 +11,8 @@ import OperationsView from './operationsView'
 import { useSatelliteBackground } from '../hooks/useSatelliteBackground'
 import { useFieldStore } from '@/store/useFieldStore'
 import { useFarmStore } from '@/store/useFarmStore'
+import { useConfirm } from '@/components/shared/confirmDialog'
+import { toast } from '@/store/useToastStore'
 import { randomFieldColor } from '../types'
 import type { PlacedField } from '../types'
 
@@ -36,6 +38,7 @@ export default function FarmFieldEditor({
   const [editingRowIds, setEditingRowIds] = useState<string[] | null>(null)
   // Added by Claude — the single plant currently selected on the canvas
   const [selectedPlantId, setSelectedPlantId] = useState<string | null>(null)
+  const { confirm, confirmDialog } = useConfirm()
 
   const activeFarm = farms.find(f => f.id === farmId)
   const farmBoundary = activeFarm?.boundary ?? []
@@ -73,13 +76,21 @@ export default function FarmFieldEditor({
   }
 
   // ── Delete the selected field ─────────────────────────────────────
-  function handleDeleteSelectedField() {
+  async function handleDeleteSelectedField() {
     if (!selectedFieldId) return
-    if (!window.confirm('¿Eliminar este campo?')) return
+    const field = getField(selectedFieldId)
+    const ok = await confirm({
+      title: field ? `¿Eliminar el campo "${field.name}"?` : '¿Eliminar este campo?',
+      message: 'Se eliminarán sus hileras, plantas y calendario de labores.',
+      confirmLabel: 'Eliminar campo',
+      danger: true,
+    })
+    if (!ok) return
     removeField(selectedFieldId)
     removeFieldIdFromFarm(farmId, selectedFieldId)
     onFieldDeleted(selectedFieldId)
     setSelectedFieldId(null)
+    toast.success('Campo eliminado')
   }
 
   // ── Cancel current drawing / editing ─────────────────────────────
@@ -109,6 +120,7 @@ export default function FarmFieldEditor({
         plantingEvents: editor.plantingEvents,
       })
       onFieldSaved(editingFieldId, false)
+      toast.success(`Campo "${editor.name}" guardado`)
       // Stay in the editor — go back to showing this field selected
       setSelectedFieldId(editingFieldId)
       setEditingFieldId(null)
@@ -138,6 +150,7 @@ export default function FarmFieldEditor({
       addField(newField)
       addFieldIdToFarm(farmId, fieldId)
       onFieldSaved(fieldId, true)
+      toast.success(`Campo "${editor.name}" creado`)
       // Stay in editor — select the newly created field
       setSelectedFieldId(fieldId)
       setIsCreatingNew(false)
@@ -339,6 +352,8 @@ export default function FarmFieldEditor({
           />
         )
       })()}
+
+      {confirmDialog}
 
     </div>
   )

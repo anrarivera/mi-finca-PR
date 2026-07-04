@@ -183,27 +183,24 @@ export function useFieldEditor() {
   }, [])
 
   const deleteRow = useCallback((rowId: string) => {
-    setRows(prev => prev.filter(r => r.id !== rowId))
-  }, [])
+    const newRows = rows.filter(r => r.id !== rowId)
+    setRows(newRows)
+    setPlantingEvents(prev => rebuildPlantingEvents(fieldId, newRows, freePlants, prev))
+  }, [fieldId, rows, freePlants])
 
   // ── Row editing (single + bulk) ───────────────────────────────────
-  // Added by Claude — replace edited rows by id and recompute the planting
-  // calendar. The caller (RowEditPanel) regenerates each row's plants for the
-  // new crop/spacing/date along its existing geometry.
+  // Replace edited rows by id and recompute the planting calendar. The caller
+  // (RowEditPanel) regenerates each row's plants for the new crop/spacing/date
+  // along its existing geometry. State updaters must stay pure (StrictMode
+  // double-invokes them), so new rows/plants are computed from current state
+  // here rather than inside a setState callback.
   const applyRowEdits = useCallback((updated: FieldRow[]) => {
     if (updated.length === 0) return
-    setRows(prevRows => {
-      const byId = new Map(updated.map(r => [r.id, r]))
-      const newRows = prevRows.map(r => byId.get(r.id) ?? r)
-      setFreePlants(currentFree => {
-        setPlantingEvents(prevEvents =>
-          rebuildPlantingEvents(fieldId, newRows, currentFree, prevEvents)
-        )
-        return currentFree
-      })
-      return newRows
-    })
-  }, [fieldId])
+    const byId = new Map(updated.map(r => [r.id, r]))
+    const newRows = rows.map(r => byId.get(r.id) ?? r)
+    setRows(newRows)
+    setPlantingEvents(prev => rebuildPlantingEvents(fieldId, newRows, freePlants, prev))
+  }, [fieldId, rows, freePlants])
 
   // Added by Claude — move a whole row (and its plants) by a lat/lng delta.
   // Plant positions don't affect the planting calendar (it groups by crop +
@@ -219,21 +216,14 @@ export function useFieldEditor() {
     }))
   }, [])
 
-  // Added by Claude — delete one or many rows at once and recompute events.
+  // Delete one or many rows at once and recompute events.
   const deleteRows = useCallback((rowIds: string[]) => {
     if (rowIds.length === 0) return
     const ids = new Set(rowIds)
-    setRows(prevRows => {
-      const newRows = prevRows.filter(r => !ids.has(r.id))
-      setFreePlants(currentFree => {
-        setPlantingEvents(prevEvents =>
-          rebuildPlantingEvents(fieldId, newRows, currentFree, prevEvents)
-        )
-        return currentFree
-      })
-      return newRows
-    })
-  }, [fieldId])
+    const newRows = rows.filter(r => !ids.has(r.id))
+    setRows(newRows)
+    setPlantingEvents(prev => rebuildPlantingEvents(fieldId, newRows, freePlants, prev))
+  }, [fieldId, rows, freePlants])
 
   // ── Multi-row fill operations ─────────────────────────────────────
   // Added by Claude — the fill tool generates many parallel rows at once.
@@ -282,17 +272,17 @@ export function useFieldEditor() {
       lng: geo.lng,
       plantingDate: today,
     }
-    setFreePlants(prev => {
-      setPlantingEvents(events =>
-        processFreePlantsForEvents(events, fieldId, [plant], today)
-      )
-      return [...prev, plant]
-    })
+    setFreePlants(prev => [...prev, plant])
+    setPlantingEvents(prev =>
+      processFreePlantsForEvents(prev, fieldId, [plant], today)
+    )
   }, [selectedFreeCropId, fieldId])
 
   const deleteFreePlant = useCallback((plantId: string) => {
-    setFreePlants(prev => prev.filter(p => p.id !== plantId))
-  }, [])
+    const newFree = freePlants.filter(p => p.id !== plantId)
+    setFreePlants(newFree)
+    setPlantingEvents(prev => rebuildPlantingEvents(fieldId, rows, newFree, prev))
+  }, [fieldId, rows, freePlants])
 
   const stopAddFreePlant = useCallback(() => {
     setSelectedFreeCropId('')
@@ -300,39 +290,31 @@ export function useFieldEditor() {
   }, [])
 
   // ── Single-plant operations (canvas click → select a plant) ───────
-  // Added by Claude — delete or recrop one plant, whether it lives in a row or
-  // is a free plant. Events are rebuilt so counts/calendar stay accurate.
+  // Delete or recrop one plant, whether it lives in a row or is a free plant.
+  // Events are rebuilt so counts/calendar stay accurate.
   const deletePlantById = useCallback((plantId: string) => {
-    setRows(prevRows => {
-      const newRows = prevRows.map(r =>
-        r.plants.some(p => p.id === plantId)
-          ? { ...r, plants: r.plants.filter(p => p.id !== plantId) }
-          : r
-      )
-      setFreePlants(prevFree => {
-        const newFree = prevFree.filter(p => p.id !== plantId)
-        setPlantingEvents(prevE => rebuildPlantingEvents(fieldId, newRows, newFree, prevE))
-        return newFree
-      })
-      return newRows
-    })
-  }, [fieldId])
+    const newRows = rows.map(r =>
+      r.plants.some(p => p.id === plantId)
+        ? { ...r, plants: r.plants.filter(p => p.id !== plantId) }
+        : r
+    )
+    const newFree = freePlants.filter(p => p.id !== plantId)
+    setRows(newRows)
+    setFreePlants(newFree)
+    setPlantingEvents(prev => rebuildPlantingEvents(fieldId, newRows, newFree, prev))
+  }, [fieldId, rows, freePlants])
 
   const updatePlantCrop = useCallback((plantId: string, cropTypeId: string) => {
-    setRows(prevRows => {
-      const newRows = prevRows.map(r =>
-        r.plants.some(p => p.id === plantId)
-          ? { ...r, plants: r.plants.map(p => p.id === plantId ? { ...p, cropTypeId } : p) }
-          : r
-      )
-      setFreePlants(prevFree => {
-        const newFree = prevFree.map(p => p.id === plantId ? { ...p, cropTypeId } : p)
-        setPlantingEvents(prevE => rebuildPlantingEvents(fieldId, newRows, newFree, prevE))
-        return newFree
-      })
-      return newRows
-    })
-  }, [fieldId])
+    const newRows = rows.map(r =>
+      r.plants.some(p => p.id === plantId)
+        ? { ...r, plants: r.plants.map(p => p.id === plantId ? { ...p, cropTypeId } : p) }
+        : r
+    )
+    const newFree = freePlants.map(p => p.id === plantId ? { ...p, cropTypeId } : p)
+    setRows(newRows)
+    setFreePlants(newFree)
+    setPlantingEvents(prev => rebuildPlantingEvents(fieldId, newRows, newFree, prev))
+  }, [fieldId, rows, freePlants])
 
   // ── Operation management ──────────────────────────────────────────
   const completeOperation = useCallback((

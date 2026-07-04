@@ -1,7 +1,5 @@
 import { create } from 'zustand'
-// ─── Added by Claude — localStorage persistence (no backend/auth needed) ───
 import { persist } from 'zustand/middleware'
-// Claude: removed unused `PlacedField` import (TS6133 cleanup)
 
 export type Farm = {
   id: string
@@ -16,8 +14,8 @@ export type Farm = {
 type FarmStore = {
   farms: Farm[]
   activeFarmId: string | null
-  activeFarm: Farm | null
   favoriteFarmId: string | null
+  createFarm: (data: { name: string; location: string }) => Farm
   addFarm: (farm: Farm) => void
   updateFarm: (id: string, updates: Partial<Farm>) => void
   deleteFarm: (id: string) => void
@@ -29,80 +27,83 @@ type FarmStore = {
 }
 
 // ──────────────────────────────────────────────────────────────────────────
-// Added by Claude — wrapped this store in the `persist` middleware so farm
-// data survives a page refresh while the app runs frontend-only (no backend
-// or auth). State is saved to localStorage under the key below. To wipe all
-// persisted data during testing, run `localStorage.clear()` in the browser
-// console (or remove just the "mi-finca-farms" key) and refresh.
+// Farm data persists to localStorage (key "mi-finca-farms") so the app works
+// fully offline / logged-out. The active farm is stored as an id only —
+// `useActiveFarm()` derives the object from `farms`, so there is no duplicated
+// copy that can drift out of sync when a farm is updated.
 // ──────────────────────────────────────────────────────────────────────────
 export const useFarmStore = create<FarmStore>()(
   persist(
-    // Claude: dropped unused `get` param (TS6133 cleanup)
-    (set) => ({
-  farms: [],
-  activeFarmId: null,
-  activeFarm: null,
-  favoriteFarmId: null,
+    (set, get) => ({
+      farms: [],
+      activeFarmId: null,
+      favoriteFarmId: null,
 
-  addFarm: (farm) =>
-    set(state => ({
-      farms: [...state.farms, farm],
-      // Auto-set as favorite if it's the first farm
-      favoriteFarmId: state.farms.length === 0 ? farm.id : state.favoriteFarmId,
-    })),
+      // Single place where new farms are constructed — both the empty state
+      // and the map toolbar create farms through here.
+      createFarm: (data) => {
+        const farm: Farm = {
+          id: `farm_${Date.now()}`,
+          name: data.name,
+          location: data.location,
+          totalAreaAcres: 0,
+          createdAt: new Date().toISOString(),
+          boundary: [],
+          fieldIds: [],
+        }
+        get().addFarm(farm)
+        set({ activeFarmId: farm.id })
+        return farm
+      },
 
-  updateFarm: (id, updates) =>
-    set(state => ({
-      farms: state.farms.map(f => f.id === id ? { ...f, ...updates } : f),
-      activeFarm: state.activeFarmId === id
-        ? { ...state.activeFarm!, ...updates }
-        : state.activeFarm,
-    })),
+      addFarm: (farm) =>
+        set(state => ({
+          farms: [...state.farms, farm],
+          // Auto-set as favorite if it's the first farm
+          favoriteFarmId: state.farms.length === 0 ? farm.id : state.favoriteFarmId,
+        })),
 
-  deleteFarm: (id) =>
-    set(state => ({
-      farms: state.farms.filter(f => f.id !== id),
-      activeFarmId: state.activeFarmId === id ? null : state.activeFarmId,
-      activeFarm: state.activeFarmId === id ? null : state.activeFarm,
-      favoriteFarmId: state.favoriteFarmId === id
-        ? (state.farms.find(f => f.id !== id)?.id ?? null)
-        : state.favoriteFarmId,
-    })),
+      updateFarm: (id, updates) =>
+        set(state => ({
+          farms: state.farms.map(f => f.id === id ? { ...f, ...updates } : f),
+        })),
 
-  setActiveFarm: (farm) =>
-    set({ activeFarmId: farm.id, activeFarm: farm }),
+      deleteFarm: (id) =>
+        set(state => ({
+          farms: state.farms.filter(f => f.id !== id),
+          activeFarmId: state.activeFarmId === id ? null : state.activeFarmId,
+          favoriteFarmId: state.favoriteFarmId === id
+            ? (state.farms.find(f => f.id !== id)?.id ?? null)
+            : state.favoriteFarmId,
+        })),
 
-  clearActiveFarm: () =>
-    set({ activeFarmId: null, activeFarm: null }),
+      setActiveFarm: (farm) =>
+        set({ activeFarmId: farm.id }),
 
-  setFavoriteFarm: (id) =>
-    set({ favoriteFarmId: id }),
+      clearActiveFarm: () =>
+        set({ activeFarmId: null }),
 
-  addFieldIdToFarm: (farmId, fieldId) =>
-    set(state => ({
-      farms: state.farms.map(f =>
-        f.id === farmId
-          ? { ...f, fieldIds: [...f.fieldIds, fieldId] }
-          : f
-      ),
-      activeFarm: state.activeFarmId === farmId
-        ? { ...state.activeFarm!, fieldIds: [...state.activeFarm!.fieldIds, fieldId] }
-        : state.activeFarm,
-    })),
+      setFavoriteFarm: (id) =>
+        set({ favoriteFarmId: id }),
 
-  removeFieldIdFromFarm: (farmId, fieldId) =>
-    set(state => ({
-      farms: state.farms.map(f =>
-        f.id === farmId
-          ? { ...f, fieldIds: f.fieldIds.filter(id => id !== fieldId) }
-          : f
-      ),
-      activeFarm: state.activeFarmId === farmId
-        ? { ...state.activeFarm!, fieldIds: state.activeFarm!.fieldIds.filter(id => id !== fieldId) }
-        : state.activeFarm,
-    })),
+      addFieldIdToFarm: (farmId, fieldId) =>
+        set(state => ({
+          farms: state.farms.map(f =>
+            f.id === farmId
+              ? { ...f, fieldIds: [...f.fieldIds, fieldId] }
+              : f
+          ),
+        })),
+
+      removeFieldIdFromFarm: (farmId, fieldId) =>
+        set(state => ({
+          farms: state.farms.map(f =>
+            f.id === farmId
+              ? { ...f, fieldIds: f.fieldIds.filter(id => id !== fieldId) }
+              : f
+          ),
+        })),
     }),
-    // ─── Added by Claude — persist config ───
     // Only the data fields are written to localStorage; the action functions
     // above are recreated on load, so they are intentionally excluded here.
     {
@@ -110,9 +111,14 @@ export const useFarmStore = create<FarmStore>()(
       partialize: (state) => ({
         farms: state.farms,
         activeFarmId: state.activeFarmId,
-        activeFarm: state.activeFarm,
         favoriteFarmId: state.favoriteFarmId,
       }),
     }
   )
 )
+
+// Derived selector — the single source of truth for "which farm is active".
+export const useActiveFarm = (): Farm | null =>
+  useFarmStore(s =>
+    s.activeFarmId ? (s.farms.find(f => f.id === s.activeFarmId) ?? null) : null
+  )

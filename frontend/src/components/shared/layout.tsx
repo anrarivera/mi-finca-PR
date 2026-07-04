@@ -1,6 +1,7 @@
 import { Outlet } from 'react-router-dom'
 import TopNav from './topNav'
 import SideMenu from './sideMenu'
+import ToastContainer from './toast'
 
 export default function Layout() {
   return (
@@ -21,6 +22,9 @@ export default function Layout() {
         </main>
 
       </div>
+
+      {/* Global toast queue — any page/component can fire toasts */}
+      <ToastContainer />
     </div>
   )
 }

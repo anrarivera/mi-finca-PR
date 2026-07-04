@@ -7,10 +7,10 @@ import FarmDrawer from '@/features/farm/components/farmDrawer'
 import FarmFieldEditor from '@/features/field/components/farmFieldEditor'
 import PlacedField from '@/features/field/components/placedField'
 import CreateFarmModal from '@/features/farm/components/createFarmModal'
-import Toast from '@/components/shared/toast' // Added by Claude — confirmation feedback
+import { useConfirm } from '@/components/shared/confirmDialog'
+import { toast } from '@/store/useToastStore'
 import { useFieldStore } from '@/store/useFieldStore'
-import { useFarmStore } from '@/store/useFarmStore'
-// Claude: removed unused import of isPointInPolygon, boundaryToLatLngs (TS6192 cleanup)
+import { useFarmStore, useActiveFarm } from '@/store/useFarmStore'
 import type { Farm } from '@/store/useFarmStore'
 
 delete (L.Icon.Default.prototype as any)._getIconUrl
@@ -230,14 +230,15 @@ export default function FarmMap({ center = PR_CENTER, zoom = DEFAULT_ZOOM }: Pro
   const [showFieldEditor, setShowFieldEditor] = useState(false)
   const [showModal, setShowModal] = useState(false)
   const [flyTarget, setFlyTarget] = useState<Farm | null>(null)
-  const [toast, setToast] = useState<string | null>(null) // Added by Claude — confirmation feedback
+  const { confirm, confirmDialog } = useConfirm()
 
   const { fields, removeField, removeFieldsByFarmId } = useFieldStore()
   const {
-    farms, activeFarm, favoriteFarmId,
-    updateFarm, deleteFarm, setActiveFarm,
-    addFieldIdToFarm, removeFieldIdFromFarm, addFarm,
+    farms, favoriteFarmId,
+    updateFarm, deleteFarm, setActiveFarm, createFarm,
+    addFieldIdToFarm, removeFieldIdFromFarm,
   } = useFarmStore()
+  const activeFarm = useActiveFarm()
 
   // Only show fields belonging to the active farm
   const farmFields = activeFarm
@@ -273,40 +274,35 @@ export default function FarmMap({ center = PR_CENTER, zoom = DEFAULT_ZOOM }: Pro
     if (!activeFarm || drawing.points.length < 3) return
     const boundary = drawing.points.map(p => ({ lat: p.lat, lng: p.lng }))
     updateFarm(activeFarm.id, { boundary })
-    // Added by Claude — visual confirmation that the boundary was saved
-    setToast(`Límite de "${activeFarm.name}" guardado`)
+    toast.success(`Límite de "${activeFarm.name}" guardado`)
   }
 
-  function handleDeleteFarm() {
+  async function handleDeleteFarm() {
     if (!activeFarm) return
-    if (!window.confirm(`¿Eliminar la finca "${activeFarm.name}" y todos sus campos?`)) return
+    const ok = await confirm({
+      title: `¿Eliminar la finca "${activeFarm.name}"?`,
+      message: 'Se eliminarán también todos sus campos. Esta acción no se puede deshacer.',
+      confirmLabel: 'Eliminar finca',
+      danger: true,
+    })
+    if (!ok) return
     removeFieldsByFarmId(activeFarm.id)
     deleteFarm(activeFarm.id)
+    toast.success(`Finca "${activeFarm.name}" eliminada`)
   }
 
   function handleOpenFieldEditor() {
     if (!activeFarm?.boundary || activeFarm.boundary.length < 3) {
-      alert('Primero guarda el límite de tu finca antes de añadir campos.')
+      toast.info('Primero guarda el límite de tu finca antes de añadir campos.')
       return
     }
     setShowFieldEditor(true)
   }
 
   function handleCreateFarm(data: { name: string; location: string }) {
-    const newFarm: Farm = {
-      id: `farm_${Date.now()}`,
-      name: data.name,
-      location: data.location,
-      totalAreaAcres: 0,
-      createdAt: new Date().toISOString(),
-      boundary: [],
-      fieldIds: [],
-    }
-    addFarm(newFarm)
-    setActiveFarm(newFarm)
+    const farm = createFarm(data)
     setShowModal(false)
-    // Added by Claude — visual confirmation that the finca was created
-    setToast(`Finca "${newFarm.name}" creada`)
+    toast.success(`Finca "${farm.name}" creada`)
   }
 
   return (
@@ -433,8 +429,7 @@ export default function FarmMap({ center = PR_CENTER, zoom = DEFAULT_ZOOM }: Pro
         />
       )}
 
-      {/* Added by Claude — auto-dismiss confirmation toast */}
-      {toast && <Toast message={toast} onClose={() => setToast(null)} />}
+      {confirmDialog}
 
     </div>
   )

@@ -4,8 +4,10 @@ import {
   MapPin, Layers, Pencil, Trash2,
   ToggleLeft, ToggleRight, AlertCircle, Clock,
 } from 'lucide-react'
-import { useFarmStore } from '@/store/useFarmStore'
+import { useFarmStore, useActiveFarm } from '@/store/useFarmStore'
 import { useFieldStore } from '@/store/useFieldStore'
+import { useConfirm } from '@/components/shared/confirmDialog'
+import { toast } from '@/store/useToastStore'
 import { computeCropSummary } from '@/features/field/utils/rowCalculator'
 import { getFieldOperationHealth } from '@/features/field/utils/operationStatus'
 import { getCropById } from '@/features/field/data/cropLibrary'
@@ -28,11 +30,12 @@ export default function FarmDrawer({
   const [level, setLevel] = useState<'farms' | 'fields'>('farms')
 
   const {
-    farms, activeFarm, activeFarmId, favoriteFarmId,
+    farms, activeFarmId, favoriteFarmId,
     setActiveFarm, setFavoriteFarm, deleteFarm,
   } = useFarmStore()
-  // Claude: removed unused `removeField` and the `removeFieldIdFromFarm` destructure (TS6133 cleanup)
+  const activeFarm = useActiveFarm()
   const { getFieldsByFarmId, updateField, removeFieldsByFarmId } = useFieldStore()
+  const { confirm, confirmDialog } = useConfirm()
 
   // Auto-navigate to fields level when only one farm
   useEffect(() => {
@@ -57,10 +60,17 @@ export default function FarmDrawer({
     setLevel('farms')
   }
 
-  function handleDeleteFarm(farm: Farm) {
-    if (!window.confirm(`¿Eliminar la finca "${farm.name}" y todos sus campos?`)) return
+  async function handleDeleteFarm(farm: Farm) {
+    const ok = await confirm({
+      title: `¿Eliminar la finca "${farm.name}"?`,
+      message: 'Se eliminarán también todos sus campos. Esta acción no se puede deshacer.',
+      confirmLabel: 'Eliminar finca',
+      danger: true,
+    })
+    if (!ok) return
     removeFieldsByFarmId(farm.id)
     deleteFarm(farm.id)
+    toast.success(`Finca "${farm.name}" eliminada`)
     if (farms.length <= 1) setLevel('farms')
   }
 
@@ -146,6 +156,8 @@ export default function FarmDrawer({
           : null
         }
       </div>
+
+      {confirmDialog}
     </>
   )
 }
