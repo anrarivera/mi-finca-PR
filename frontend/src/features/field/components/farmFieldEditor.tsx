@@ -1,9 +1,12 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback } from 'react' // Claude: removed unused useEffect (TS6133 cleanup)
 import { X } from 'lucide-react'
 import { useFieldEditor } from '../hooks/useFieldEditor'
 import FieldEditorCanvas from './fieldEditorCanvas'
 import FarmFieldEditorPanel from './farmFieldEditorPanel'
 import RowConfigPanel from './rowConfigPanel'
+import RowFillPanel from './rowFillPanel' // Added by Claude — multi-row fill tool
+import RowEditPanel from './rowEditPanel' // Added by Claude — single/bulk row editing
+import PlantEditPanel from './plantEditPanel' // Added by Claude — single-plant edit
 import OperationsView from './operationsView'
 import { useSatelliteBackground } from '../hooks/useSatelliteBackground'
 import { useFieldStore } from '@/store/useFieldStore'
@@ -22,12 +25,17 @@ export default function FarmFieldEditor({
   farmId, onClose, onFieldSaved, onFieldDeleted,
 }: Props) {
   const editor = useFieldEditor()
-  const { fields, addField, updateField, removeField, getField, getFieldsByFarmId } = useFieldStore()
+  // Claude: removed unused `fields` (TS6133 cleanup)
+  const { addField, updateField, removeField, getField, getFieldsByFarmId } = useFieldStore()
   const { farms, addFieldIdToFarm, removeFieldIdFromFarm } = useFarmStore()
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null)
   const [editingFieldId, setEditingFieldId] = useState<string | null>(null)
   const [showOperations, setShowOperations] = useState(false)
   const [isCreatingNew, setIsCreatingNew] = useState(false)
+  // Added by Claude — rows currently open in the edit panel (single or bulk)
+  const [editingRowIds, setEditingRowIds] = useState<string[] | null>(null)
+  // Added by Claude — the single plant currently selected on the canvas
+  const [selectedPlantId, setSelectedPlantId] = useState<string | null>(null)
 
   const activeFarm = farms.find(f => f.id === farmId)
   const farmBoundary = activeFarm?.boundary ?? []
@@ -193,10 +201,13 @@ export default function FarmFieldEditor({
           onSaveField={handleSaveField}
           onCancelField={handleCancelField}
           onDeletePoint={editor.deletePoint}
-          onStartAddRow={editor.startAddRow}
+          // Added by Claude — multi-row fill tool
+          onStartFillRows={editor.startFillRows}
           onStartAddFreePlant={editor.startAddFreePlant}
           onStopAddFreePlant={editor.stopAddFreePlant}
-          onDeleteRow={editor.deleteRow}
+          // Added by Claude — row editing (single + bulk)
+          onEditRows={(ids) => setEditingRowIds(ids)}
+          onDeleteRows={editor.deleteRows}
           onSelectField={handleSelectField}
           onEditSelectedField={handleEditSelectedField}
           onDeleteSelectedField={handleDeleteSelectedField}
@@ -215,6 +226,8 @@ export default function FarmFieldEditor({
             heightFt={editor.heightFt}
             rows={editor.rows}
             freePlants={editor.freePlants}
+            // Added by Claude — live preview of the fill tool's rows
+            fillPreviewRows={editor.fillPreviewRows}
             rowStartPoint={editor.rowStartPoint}
             selectedFreeCropId={editor.selectedFreeCropId}
             bbox={bbox}
@@ -231,8 +244,13 @@ export default function FarmFieldEditor({
             onComplete={editor.completeDrawing}
             onRowClick={editor.handleRowClick}
             onPlaceFreePlant={editor.placeFreePlant}
-            onDeleteFreePlant={editor.deleteFreePlant}
             onClickField={handleSelectField}
+            // ── Added by Claude — click a row to edit it, a plant to select it ──
+            selectedRowId={editingRowIds && editingRowIds.length === 1 ? editingRowIds[0] : null}
+            selectedPlantId={selectedPlantId}
+            onSelectRow={(id) => { setSelectedPlantId(null); setEditingRowIds([id]) }}
+            onSelectPlant={(id) => { setEditingRowIds(null); setSelectedPlantId(id) }}
+            onMoveRow={editor.translateRow}
           />
 
           {editor.mode === 'rowConfig' && editor.rowDraft && bbox && (
@@ -243,6 +261,47 @@ export default function FarmFieldEditor({
               onCancel={editor.cancelRowConfig}
             />
           )}
+
+          {/* Added by Claude — multi-row fill configuration + live preview */}
+          {editor.mode === 'fillRows' && bbox && (
+            <RowFillPanel
+              boundary={editor.canvasPointsToLatLng(bbox)}
+              onPreview={editor.setFillPreviewRows}
+              onConfirm={editor.confirmFillRows}
+              onCancel={editor.cancelFillRows}
+            />
+          )}
+
+          {/* Added by Claude — single/bulk row editing. Guarded so a stale
+              selection (e.g. rows just deleted) closes instead of erroring. */}
+          {editingRowIds && bbox && editor.mode === 'complete' && (() => {
+            const editRows = editor.rows.filter(r => editingRowIds.includes(r.id))
+            if (editRows.length === 0) return null
+            return (
+              <RowEditPanel
+                rows={editRows}
+                boundary={editor.canvasPointsToLatLng(bbox)}
+                onApply={(updated) => { editor.applyRowEdits(updated); setEditingRowIds(null) }}
+                onCancel={() => setEditingRowIds(null)}
+              />
+            )
+          })()}
+
+          {/* Added by Claude — single-plant editor (click a plant on the canvas) */}
+          {selectedPlantId && editor.mode === 'complete' && (() => {
+            const plant =
+              editor.rows.flatMap(r => r.plants).find(p => p.id === selectedPlantId)
+              ?? editor.freePlants.find(p => p.id === selectedPlantId)
+            if (!plant) return null
+            return (
+              <PlantEditPanel
+                plant={plant}
+                onChangeCrop={(cropId) => editor.updatePlantCrop(plant.id, cropId)}
+                onDelete={() => { editor.deletePlantById(plant.id); setSelectedPlantId(null) }}
+                onClose={() => setSelectedPlantId(null)}
+              />
+            )
+          })()}
         </div>
       </div>
 

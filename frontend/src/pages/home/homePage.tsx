@@ -3,12 +3,15 @@ import { useFarmStore } from '@/store/useFarmStore'
 import EmptyFarmState from '@/features/farm/components/emptyFarmState'
 import CreateFarmModal from '@/features/farm/components/createFarmModal'
 import FarmMap from '@/features/map/components/farmMap'
+import Toast from '@/components/shared/toast' // Added by Claude — confirmation feedback
 import type { Farm } from '@/store/useFarmStore'
 
 export default function HomePage() {
   const [showModal, setShowModal] = useState(false)
+  const [toast, setToast] = useState<string | null>(null) // Added by Claude — confirmation feedback
   const {
-    farms, activeFarm, favoriteFarmId,
+    // Claude: removed unused `activeFarm` (TS6133 cleanup)
+    farms, favoriteFarmId,
     setActiveFarm, addFarm,
   } = useFarmStore()
 
@@ -32,6 +35,8 @@ export default function HomePage() {
     addFarm(newFarm)
     setActiveFarm(newFarm)
     setShowModal(false)
+    // Added by Claude — visual confirmation that the finca was created
+    setToast(`Finca "${newFarm.name}" creada`)
   }
 
   return (
@@ -47,6 +52,8 @@ export default function HomePage() {
           onSubmit={handleCreateFarm}
         />
       )}
+      {/* Added by Claude — auto-dismiss confirmation toast (first-farm create) */}
+      {toast && <Toast message={toast} onClose={() => setToast(null)} />}
     </div>
   )
 }

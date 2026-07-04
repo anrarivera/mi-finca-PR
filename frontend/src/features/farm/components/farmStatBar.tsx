@@ -1,5 +1,11 @@
 import { MapPin, Layers, Leaf, Maximize2, ChevronDown, Plus } from 'lucide-react'
 import type { Farm } from '../hooks/useFarms'
+// ── Claude: `Farm` has no totalFields/totalCrops fields (TS2339 cleanup) — ──
+// ── derive those counts from live field-store data instead.               ──
+import { useFieldStore } from '@/store/useFieldStore'
+import { computeCropSummary } from '@/features/field/utils/rowCalculator'
+import { getCropById } from '@/features/field/data/cropLibrary'
+// ── end Claude ──
 
 type Props = {
   farm: Farm
@@ -9,6 +15,16 @@ type Props = {
 }
 
 export default function FarmStatBar({ farm, allFarms, onSwitchFarm, onAddFarm }: Props) {
+  // ── Claude: compute Campos/Cultivos counts from the field store (TS2339 cleanup) ──
+  const allStoreFields = useFieldStore(s => s.fields)
+  const farmFields = allStoreFields.filter(f => f.farmId === farm.id)
+  const totalFields = farmFields.length
+  const totalCrops = farmFields.reduce(
+    (sum, f) => sum + computeCropSummary(f.rows ?? [], f.freePlants ?? [], getCropById).length,
+    0,
+  )
+  // ── end Claude ──
+
   return (
     <div className="w-full bg-white border-b border-[#e0e8d8] px-6 py-3 flex items-center gap-6 flex-wrap">
 
@@ -55,8 +71,9 @@ export default function FarmStatBar({ farm, allFarms, onSwitchFarm, onAddFarm }:
 
       {/* Stats */}
       <div className="flex items-center gap-5 flex-wrap">
-        <Stat icon={<Layers size={13} />} label="Campos" value={farm.totalFields} />
-        <Stat icon={<Leaf size={13} />} label="Cultivos" value={farm.totalCrops} />
+        {/* Claude: use derived counts instead of removed farm.totalFields/totalCrops (TS2339 cleanup) */}
+        <Stat icon={<Layers size={13} />} label="Campos" value={totalFields} />
+        <Stat icon={<Leaf size={13} />} label="Cultivos" value={totalCrops} />
         <Stat icon={<Maximize2 size={13} />} label="Acres" value={farm.totalAreaAcres} />
       </div>
 

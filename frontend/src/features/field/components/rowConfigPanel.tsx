@@ -4,7 +4,7 @@ import CropSelector from './cropSelector'
 import {
   canvasToLatlng,
   calculateRowPlantPositions,
-  CANVAS_W, CANVAS_H,
+  // Claude: removed unused `CANVAS_W`, `CANVAS_H` (TS6133 cleanup)
 } from '../utils/canvasGeo'
 import type { BBox } from '../utils/canvasGeo'
 import { todayISO } from '../types'

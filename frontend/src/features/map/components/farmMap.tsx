@@ -7,9 +7,10 @@ import FarmDrawer from '@/features/farm/components/farmDrawer'
 import FarmFieldEditor from '@/features/field/components/farmFieldEditor'
 import PlacedField from '@/features/field/components/placedField'
 import CreateFarmModal from '@/features/farm/components/createFarmModal'
+import Toast from '@/components/shared/toast' // Added by Claude — confirmation feedback
 import { useFieldStore } from '@/store/useFieldStore'
 import { useFarmStore } from '@/store/useFarmStore'
-import { isPointInPolygon, boundaryToLatLngs } from '@/features/field/utils/geoUtils'
+// Claude: removed unused import of isPointInPolygon, boundaryToLatLngs (TS6192 cleanup)
 import type { Farm } from '@/store/useFarmStore'
 
 delete (L.Icon.Default.prototype as any)._getIconUrl
@@ -178,6 +179,17 @@ function DrawingLayer({
             fillOpacity: mode === 'editing' ? 0.08 : 0.15,
             weight: mode === 'editing' ? 2 : 2.5,
             dashArray: mode === 'editing' ? '6 4' : undefined,
+            // ── Added by Claude ──────────────────────────────────────────
+            // The farm boundary is a non-clickable outline, but Leaflet makes
+            // every Polygon interactive by default — which applies the
+            // `leaflet-interactive` pointer (link) cursor on hover, the same
+            // cursor used for the clickable campos. Marking it non-interactive
+            // drops that cursor and lets hover/clicks pass through to any field
+            // underneath. Edit-mode still works: corners are dragged via their
+            // own markers and points are inserted through the map's dblclick
+            // handler, neither of which relies on the polygon being interactive.
+            interactive: false,
+            // ── End Claude ───────────────────────────────────────────────
           }}
         />
       )}
@@ -218,6 +230,7 @@ export default function FarmMap({ center = PR_CENTER, zoom = DEFAULT_ZOOM }: Pro
   const [showFieldEditor, setShowFieldEditor] = useState(false)
   const [showModal, setShowModal] = useState(false)
   const [flyTarget, setFlyTarget] = useState<Farm | null>(null)
+  const [toast, setToast] = useState<string | null>(null) // Added by Claude — confirmation feedback
 
   const { fields, removeField, removeFieldsByFarmId } = useFieldStore()
   const {
@@ -239,10 +252,29 @@ export default function FarmMap({ center = PR_CENTER, zoom = DEFAULT_ZOOM }: Pro
     setFlyTarget(target)
   }, [])
 
+  // ── Added by Claude — hydrate the boundary editor from the active farm ──
+  // When the active farm changes (mount, reload, or switching farms), load its
+  // saved boundary into the editor so it renders as a completed polygon. Without
+  // this, the map only showed the live drawing layer, so saved boundaries never
+  // reappeared and saving looked like it did nothing. Farms with no boundary
+  // reset the editor to the idle "Dibujar finca" state.
+  useEffect(() => {
+    if (!activeFarm) return
+    if (activeFarm.boundary && activeFarm.boundary.length >= 3) {
+      drawing.loadBoundary(activeFarm.boundary)
+    } else {
+      drawing.clearDrawing()
+    }
+    // Keyed on the farm id only — re-saving the same farm must not clobber the
+    // points the user just drew.
+  }, [activeFarm?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+
   function handleSaveFarm() {
     if (!activeFarm || drawing.points.length < 3) return
     const boundary = drawing.points.map(p => ({ lat: p.lat, lng: p.lng }))
     updateFarm(activeFarm.id, { boundary })
+    // Added by Claude — visual confirmation that the boundary was saved
+    setToast(`Límite de "${activeFarm.name}" guardado`)
   }
 
   function handleDeleteFarm() {
@@ -273,6 +305,8 @@ export default function FarmMap({ center = PR_CENTER, zoom = DEFAULT_ZOOM }: Pro
     addFarm(newFarm)
     setActiveFarm(newFarm)
     setShowModal(false)
+    // Added by Claude — visual confirmation that the finca was created
+    setToast(`Finca "${newFarm.name}" creada`)
   }
 
   return (
@@ -330,20 +364,39 @@ export default function FarmMap({ center = PR_CENTER, zoom = DEFAULT_ZOOM }: Pro
         />
 
         {/* Fields for the active farm */}
-        {farmFields.map(field => (
-          <PlacedField
-            key={field.id}
-            field={field}
-            onEdit={handleOpenFieldEditor}
-          />
-        ))}
+        {farmFields.map(field => {
+          // ── Added by Claude ──────────────────────────────────────────
+          // While the farm boundary is being drawn/edited, fields must not
+          // intercept clicks — otherwise a double-click inside a field is
+          // captured by the field (opening the editor) instead of reaching
+          // the map's boundary point-insertion handler.
+          //
+          // Leaflet's `interactive` flag is fixed when the layer is created
+          // and is ignored by later option/style updates, so just changing
+          // the prop does nothing once the layer exists. Folding the locked
+          // state into the React `key` forces a remount, recreating the
+          // Leaflet layer with the correct interactivity. Fields are
+          // double-clickable again only in 'idle' / 'complete' mode.
+          const boundaryLocked =
+            drawing.mode === 'drawing' || drawing.mode === 'editing'
+          return (
+            <PlacedField
+              key={`${field.id}-${boundaryLocked ? 'locked' : 'active'}`}
+              field={field}
+              onEdit={handleOpenFieldEditor}
+              interactive={!boundaryLocked}
+            />
+          )
+          // ── End Claude ───────────────────────────────────────────────
+        })}
 
       </MapContainer>
 
       {/* Farm + field navigation drawer */}
       <FarmDrawer
         onAddFarm={() => setShowModal(true)}
-        onEditField={(fieldId) => {
+        onEditField={() => {
+          // Claude: dropped unused `fieldId` param (TS6133 cleanup)
           setShowFieldEditor(true)
         }}
         onDeleteField={(fieldId) => {
@@ -379,6 +432,9 @@ export default function FarmMap({ center = PR_CENTER, zoom = DEFAULT_ZOOM }: Pro
           onSubmit={handleCreateFarm}
         />
       )}
+
+      {/* Added by Claude — auto-dismiss confirmation toast */}
+      {toast && <Toast message={toast} onClose={() => setToast(null)} />}
 
     </div>
   )

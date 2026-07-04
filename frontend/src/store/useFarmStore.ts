@@ -1,5 +1,7 @@
 import { create } from 'zustand'
-import type { PlacedField } from '@/features/field/types'
+// ─── Added by Claude — localStorage persistence (no backend/auth needed) ───
+import { persist } from 'zustand/middleware'
+// Claude: removed unused `PlacedField` import (TS6133 cleanup)
 
 export type Farm = {
   id: string
@@ -26,7 +28,17 @@ type FarmStore = {
   removeFieldIdFromFarm: (farmId: string, fieldId: string) => void
 }
 
-export const useFarmStore = create<FarmStore>((set, get) => ({
+// ──────────────────────────────────────────────────────────────────────────
+// Added by Claude — wrapped this store in the `persist` middleware so farm
+// data survives a page refresh while the app runs frontend-only (no backend
+// or auth). State is saved to localStorage under the key below. To wipe all
+// persisted data during testing, run `localStorage.clear()` in the browser
+// console (or remove just the "mi-finca-farms" key) and refresh.
+// ──────────────────────────────────────────────────────────────────────────
+export const useFarmStore = create<FarmStore>()(
+  persist(
+    // Claude: dropped unused `get` param (TS6133 cleanup)
+    (set) => ({
   farms: [],
   activeFarmId: null,
   activeFarm: null,
@@ -89,4 +101,18 @@ export const useFarmStore = create<FarmStore>((set, get) => ({
         ? { ...state.activeFarm!, fieldIds: state.activeFarm!.fieldIds.filter(id => id !== fieldId) }
         : state.activeFarm,
     })),
-}))
+    }),
+    // ─── Added by Claude — persist config ───
+    // Only the data fields are written to localStorage; the action functions
+    // above are recreated on load, so they are intentionally excluded here.
+    {
+      name: 'mi-finca-farms',
+      partialize: (state) => ({
+        farms: state.farms,
+        activeFarmId: state.activeFarmId,
+        activeFarm: state.activeFarm,
+        favoriteFarmId: state.favoriteFarmId,
+      }),
+    }
+  )
+)

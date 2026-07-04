@@ -40,7 +40,7 @@ type Props = {
 export default function FieldEditorPanel({
   mode, shape, name, widthFt, heightFt,
   pointCount, selectedPointIndex,
-  rows, freePlants, selectedFreeCropId,
+  rows, freePlants, // Claude: removed unused `selectedFreeCropId` (TS6133 cleanup)
   onShapeChange, onNameChange, onWidthChange, onHeightChange,
   onStartDrawing, onComplete, onUndo, onClear, onSave,
   onDeletePoint, onStartAddRow, onStartAddFreePlant,

@@ -6,14 +6,14 @@ import type {
 import { todayISO } from '../types'
 import {
   canvasToLatlng, latlngToCanvas,
-  calculateRowPlantPositions,
-  CANVAS_W, CANVAS_H,
+  // Claude: removed unused `calculateRowPlantPositions`, `CANVAS_W`, `CANVAS_H` (TS6133 cleanup)
 } from '../utils/canvasGeo'
 import type { BBox } from '../utils/canvasGeo'
 import {
   processRowForEvents,
   processFreePlantsForEvents,
   refreshOperationStatuses,
+  rebuildPlantingEvents, // Added by Claude — used when rows are edited/deleted
 } from '../utils/plantingEventManager'
 
 export type EditorMode =
@@ -23,6 +23,7 @@ export type EditorMode =
   | 'addRow'
   | 'rowConfig'
   | 'addFreePlant'
+  | 'fillRows' // Added by Claude — multi-row "fill the field" mode
 
 export type RowDraft = {
   // Stored as canvas pixels during drawing
@@ -51,6 +52,8 @@ export function useFieldEditor() {
   const [rowStartPoint, setRowStartPoint] = useState<CanvasPoint | null>(null)
   const [selectedFreeCropId, setSelectedFreeCropId] = useState<string>('')
   const [fieldId, setFieldId] = useState<string>('')
+  // Added by Claude — live preview of the rows the fill tool will create
+  const [fillPreviewRows, setFillPreviewRows] = useState<FieldRow[]>([])
 
   // ── Convert canvas points to lat/lng using current bbox ───────────
   // Called on save
@@ -125,6 +128,7 @@ export function useFieldEditor() {
     setPlantingEvents([])
     setRowDraft(null)
     setRowStartPoint(null)
+    setFillPreviewRows([]) // Added by Claude
   }, [])
 
   const movePoint = useCallback((index: number, point: CanvasPoint) => {
@@ -182,6 +186,85 @@ export function useFieldEditor() {
     setRows(prev => prev.filter(r => r.id !== rowId))
   }, [])
 
+  // ── Row editing (single + bulk) ───────────────────────────────────
+  // Added by Claude — replace edited rows by id and recompute the planting
+  // calendar. The caller (RowEditPanel) regenerates each row's plants for the
+  // new crop/spacing/date along its existing geometry.
+  const applyRowEdits = useCallback((updated: FieldRow[]) => {
+    if (updated.length === 0) return
+    setRows(prevRows => {
+      const byId = new Map(updated.map(r => [r.id, r]))
+      const newRows = prevRows.map(r => byId.get(r.id) ?? r)
+      setFreePlants(currentFree => {
+        setPlantingEvents(prevEvents =>
+          rebuildPlantingEvents(fieldId, newRows, currentFree, prevEvents)
+        )
+        return currentFree
+      })
+      return newRows
+    })
+  }, [fieldId])
+
+  // Added by Claude — move a whole row (and its plants) by a lat/lng delta.
+  // Plant positions don't affect the planting calendar (it groups by crop +
+  // date and counts plants), so no event rebuild is needed here.
+  const translateRow = useCallback((rowId: string, dLat: number, dLng: number) => {
+    setRows(prev => prev.map(r => r.id !== rowId ? r : {
+      ...r,
+      startLat: r.startLat + dLat, startLng: r.startLng + dLng,
+      endLat: r.endLat + dLat, endLng: r.endLng + dLng,
+      plants: r.plants.map(p => ({ ...p, lat: p.lat + dLat, lng: p.lng + dLng })),
+      // Added by Claude — contour rows carry a path that must move too
+      path: r.path ? r.path.map(p => ({ lat: p.lat + dLat, lng: p.lng + dLng })) : undefined,
+    }))
+  }, [])
+
+  // Added by Claude — delete one or many rows at once and recompute events.
+  const deleteRows = useCallback((rowIds: string[]) => {
+    if (rowIds.length === 0) return
+    const ids = new Set(rowIds)
+    setRows(prevRows => {
+      const newRows = prevRows.filter(r => !ids.has(r.id))
+      setFreePlants(currentFree => {
+        setPlantingEvents(prevEvents =>
+          rebuildPlantingEvents(fieldId, newRows, currentFree, prevEvents)
+        )
+        return currentFree
+      })
+      return newRows
+    })
+  }, [fieldId])
+
+  // ── Multi-row fill operations ─────────────────────────────────────
+  // Added by Claude — the fill tool generates many parallel rows at once.
+  const startFillRows = useCallback(() => {
+    setMode('fillRows')
+    setRowStartPoint(null)
+    setRowDraft(null)
+    setFillPreviewRows([])
+  }, [])
+
+  const confirmFillRows = useCallback((newRows: FieldRow[]) => {
+    if (newRows.length > 0) {
+      setRows(prev => [...prev, ...newRows])
+      // Fold every generated row into the planting-event calendar. Rows that
+      // share a crop + planting date merge into one event, just like single
+      // rows added via confirmRow.
+      setPlantingEvents(prev => {
+        let events = prev
+        for (const row of newRows) events = processRowForEvents(events, fieldId, row)
+        return events
+      })
+    }
+    setFillPreviewRows([])
+    setMode('complete')
+  }, [fieldId])
+
+  const cancelFillRows = useCallback(() => {
+    setFillPreviewRows([])
+    setMode('complete')
+  }, [])
+
   // ── Free plant operations ─────────────────────────────────────────
   const startAddFreePlant = useCallback((cropId: string) => {
     setSelectedFreeCropId(cropId)
@@ -215,6 +298,41 @@ export function useFieldEditor() {
     setSelectedFreeCropId('')
     setMode('complete')
   }, [])
+
+  // ── Single-plant operations (canvas click → select a plant) ───────
+  // Added by Claude — delete or recrop one plant, whether it lives in a row or
+  // is a free plant. Events are rebuilt so counts/calendar stay accurate.
+  const deletePlantById = useCallback((plantId: string) => {
+    setRows(prevRows => {
+      const newRows = prevRows.map(r =>
+        r.plants.some(p => p.id === plantId)
+          ? { ...r, plants: r.plants.filter(p => p.id !== plantId) }
+          : r
+      )
+      setFreePlants(prevFree => {
+        const newFree = prevFree.filter(p => p.id !== plantId)
+        setPlantingEvents(prevE => rebuildPlantingEvents(fieldId, newRows, newFree, prevE))
+        return newFree
+      })
+      return newRows
+    })
+  }, [fieldId])
+
+  const updatePlantCrop = useCallback((plantId: string, cropTypeId: string) => {
+    setRows(prevRows => {
+      const newRows = prevRows.map(r =>
+        r.plants.some(p => p.id === plantId)
+          ? { ...r, plants: r.plants.map(p => p.id === plantId ? { ...p, cropTypeId } : p) }
+          : r
+      )
+      setFreePlants(prevFree => {
+        const newFree = prevFree.map(p => p.id === plantId ? { ...p, cropTypeId } : p)
+        setPlantingEvents(prevE => rebuildPlantingEvents(fieldId, newRows, newFree, prevE))
+        return newFree
+      })
+      return newRows
+    })
+  }, [fieldId])
 
   // ── Operation management ──────────────────────────────────────────
   const completeOperation = useCallback((
@@ -273,6 +391,7 @@ export function useFieldEditor() {
     setRowStartPoint(null)
     setSelectedFreeCropId('')
     setFieldId('')
+    setFillPreviewRows([]) // Added by Claude
   }, [])
 
   return {
@@ -289,8 +408,13 @@ export function useFieldEditor() {
     canvasPointsToLatLng,
     startAddRow, handleRowClick, confirmRow,
     cancelRowConfig, deleteRow,
+    applyRowEdits, deleteRows, translateRow, // Added by Claude — row editing + move
     startAddFreePlant, placeFreePlant,
     deleteFreePlant, stopAddFreePlant,
+    deletePlantById, updatePlantCrop, // Added by Claude — single-plant edit/delete
     completeOperation, skipOperation,
+    // Added by Claude — multi-row fill tool
+    fillPreviewRows, setFillPreviewRows,
+    startFillRows, confirmFillRows, cancelFillRows,
   }
 }

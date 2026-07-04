@@ -24,6 +24,7 @@ type Props = {
   heightFt: number
   rows: FieldRow[]
   freePlants: PlantInstance[]
+  fillPreviewRows?: FieldRow[] // Added by Claude — live preview of the fill tool
   rowStartPoint: CanvasPoint | null
   selectedFreeCropId: string
   bbox: BBox | null
@@ -39,22 +40,61 @@ type Props = {
   onComplete: () => void
   onRowClick: (p: CanvasPoint) => void
   onPlaceFreePlant: (p: CanvasPoint, bbox: BBox) => void
-  onDeleteFreePlant: (id: string) => void
   onClickField: (id: string) => void
+  // ── Added by Claude — click-to-select rows / plants in complete mode ──
+  selectedRowId?: string | null
+  selectedPlantId?: string | null
+  onSelectRow?: (rowId: string) => void
+  onSelectPlant?: (plantId: string) => void
+  // Added by Claude — drag the selected row to move it (lat/lng delta)
+  onMoveRow?: (rowId: string, dLat: number, dLng: number) => void
 }
 
 export default function FieldEditorCanvas({
   shape, mode, points, mousePos, selectedPointIndex,
-  widthFt, heightFt, rows, freePlants, rowStartPoint,
+  rows, freePlants, rowStartPoint, // Claude: removed unused `widthFt`, `heightFt` (TS6133 cleanup)
+  fillPreviewRows = [], // Added by Claude — fill-tool preview rows
   selectedFreeCropId, bbox, farmBoundary,
   savedFields, activeFieldId, selectedFieldId,
   onAddPoint, onSetRectangle, onMovePoint, onSelectPoint,
   onMouseMove, onComplete, onRowClick, onPlaceFreePlant,
-  onDeleteFreePlant, onClickField
+  onClickField,
+  // Added by Claude — click-to-select rows / plants
+  selectedRowId = null, selectedPlantId = null, onSelectRow, onSelectPlant, onMoveRow,
 }: Props) {
   const [scale, setScale] = useState(1)
   const [panX, setPanX] = useState(0)
   const [panY, setPanY] = useState(0)
+  // ── Added by Claude — mirror scale/pan in refs so the wheel handler reads
+  // current values without re-subscribing, and so the zoom math is applied
+  // exactly once (React StrictMode double-invokes state *updater* functions,
+  // which is why the old nested setState-in-updater made zoom jump). ──
+  const scaleRef = useRef(scale)
+  const panXRef = useRef(panX)
+  const panYRef = useRef(panY)
+  useEffect(() => { scaleRef.current = scale }, [scale])
+  useEffect(() => { panXRef.current = panX }, [panX])
+  useEffect(() => { panYRef.current = panY }, [panY])
+
+  // ── Added by Claude — zoom toward a focal point (cx, cy in content pixels),
+  // keeping that point fixed under the cursor. The previous formula
+  // `pan - mouse*(next-prev)/prev` was only correct when pan was 0; after any
+  // pan it drifted, which is what made zooming feel wonky. ──
+  function applyZoom(factor: number, cx: number, cy: number) {
+    const prev = scaleRef.current
+    const next = Math.max(MIN_SCALE, Math.min(MAX_SCALE, prev * factor))
+    if (next === prev) return
+    const ratio = next / prev
+    const nextPanX = cx - (cx - panXRef.current) * ratio
+    const nextPanY = cy - (cy - panYRef.current) * ratio
+    scaleRef.current = next
+    panXRef.current = nextPanX
+    panYRef.current = nextPanY
+    setScale(next)
+    setPanX(nextPanX)
+    setPanY(nextPanY)
+  }
+
   const isPanning = useRef(false)
   const panStart = useRef<{ x: number; y: number; panX: number; panY: number } | null>(null)
   const spacePressed = useRef(false)
@@ -64,6 +104,8 @@ export default function FieldEditorCanvas({
   const mouseDownPos = useRef<CanvasPoint | null>(null)
   const rectStart = useRef<CanvasPoint | null>(null)
   const isDrawingRect = useRef(false)
+  const panMoved = useRef(false) // Added by Claude — distinguishes a pan-drag from a click
+  const rowDragRef = useRef<{ id: string; last: CanvasPoint } | null>(null) // Added by Claude — selected-row drag
 
   // ── Canvas scale (ft per pixel) ───────────────────────────────────
   const canvasScale = useMemo(() => {
@@ -86,6 +128,8 @@ export default function FieldEditorCanvas({
       ...row,
       startPx: latlngToCanvas(row.startLat, row.startLng, bbox),
       endPx: latlngToCanvas(row.endLat, row.endLng, bbox),
+      // Added by Claude — contour rows carry a polyline path
+      pathPx: row.path ? row.path.map(p => latlngToCanvas(p.lat, p.lng, bbox)) : null,
       plantsOnCanvas: row.plants.map(p => ({
         ...p,
         px: latlngToCanvas(p.lat, p.lng, bbox),
@@ -100,6 +144,21 @@ export default function FieldEditorCanvas({
       px: latlngToCanvas(p.lat, p.lng, bbox),
     }))
   }, [freePlants, bbox])
+
+  // ── Added by Claude — fill-tool preview rows projected to canvas ──────
+  const fillPreviewOnCanvas = useMemo(() => {
+    if (!bbox) return []
+    return fillPreviewRows.map(row => ({
+      ...row,
+      startPx: latlngToCanvas(row.startLat, row.startLng, bbox),
+      endPx: latlngToCanvas(row.endLat, row.endLng, bbox),
+      pathPx: row.path ? row.path.map(p => latlngToCanvas(p.lat, p.lng, bbox)) : null,
+      plantsOnCanvas: row.plants.map(p => ({
+        ...p,
+        px: latlngToCanvas(p.lat, p.lng, bbox),
+      })),
+    }))
+  }, [fillPreviewRows, bbox])
 
   // ── Live measurement calculations ─────────────────────────────────
   const measurements = useMemo(() => {
@@ -183,16 +242,12 @@ export default function FieldEditorCanvas({
       const rect = wrapper!.getBoundingClientRect()
       const mouseX = e.clientX - rect.left - 32
       const mouseY = e.clientY - rect.top - 24
-      setScale(prev => {
-        const next = Math.max(MIN_SCALE, Math.min(MAX_SCALE, prev * (e.deltaY > 0 ? 0.9 : 1.1)))
-        setPanX(px => px - mouseX * (next - prev) / prev)
-        setPanY(py => py - mouseY * (next - prev) / prev)
-        return next
-      })
+      // Added by Claude — correct, single-pass zoom-to-cursor (see applyZoom)
+      applyZoom(e.deltaY > 0 ? 0.9 : 1.1, mouseX, mouseY)
     }
     wrapper.addEventListener('wheel', onWheel, { passive: false })
     return () => wrapper.removeEventListener('wheel', onWheel)
-  }, [])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Coordinate helpers ────────────────────────────────────────────
   function getSVGPoint(e: React.MouseEvent | MouseEvent): CanvasPoint {
@@ -211,26 +266,68 @@ export default function FieldEditorCanvas({
 
   // ── Mouse handlers ────────────────────────────────────────────────
   function handleMouseDown(e: React.MouseEvent) {
+    // Added by Claude — reset drag-vs-click tracking for this press
+    panMoved.current = false
+
+    // Explicit pan: Space-drag or middle mouse — available in every mode
     if (spacePressed.current || e.button === 1) {
       isPanning.current = true
       panStart.current = { x: e.clientX, y: e.clientY, panX, panY }
       e.preventDefault()
       return
     }
+
     const p = getSVGPoint(e)
     mouseDownPos.current = p
+
+    // Modes where the left button places things — never pan
     if (mode === 'addFreePlant' || mode === 'addRow') return
-    if (mode !== 'drawing' && mode !== 'complete') return
-    const idx = points.findIndex(pt => isNearPoint(pt, p, 12))
-    if (idx !== -1) { isDragging.current = false; dragIndex.current = idx; return }
-    if (shape === 'rectangle' && mode === 'drawing') {
-      rectStart.current = p
-      isDrawingRect.current = true
+
+    // Drawing: polygon adds points on click; rectangle drags out a box
+    if (mode === 'drawing') {
+      if (shape === 'rectangle') {
+        rectStart.current = p
+        isDrawingRect.current = true
+      }
+      return
+    }
+
+    // Complete: dragging an existing vertex takes priority over panning
+    if (mode === 'complete') {
+      const idx = points.findIndex(pt => isNearPoint(pt, p, 12))
+      if (idx !== -1) { isDragging.current = false; dragIndex.current = idx; return }
+    }
+
+    // Added by Claude — left-button drag pans the canvas in the viewing modes
+    // (setup, or complete on empty space). A press that doesn't move past the
+    // threshold is still treated as a click (e.g. selecting a field) — see the
+    // panMoved guard in handleMouseMove and the click handlers.
+    if (e.button === 0) {
+      isPanning.current = true
+      panStart.current = { x: e.clientX, y: e.clientY, panX, panY }
+      e.preventDefault()
     }
   }
 
   function handleMouseMove(e: React.MouseEvent) {
+    // Added by Claude — dragging the selected row translates it (and its plants)
+    if (rowDragRef.current && onMoveRow && bbox) {
+      const p = getSVGPoint(e)
+      const last = rowDragRef.current.last
+      const dLng = ((p.x - last.x) / CANVAS_W) * (bbox.east - bbox.west)
+      const dLat = -((p.y - last.y) / CANVAS_H) * (bbox.north - bbox.south)
+      if (dLat !== 0 || dLng !== 0) onMoveRow(rowDragRef.current.id, dLat, dLng)
+      rowDragRef.current.last = p
+      return
+    }
     if (isPanning.current && panStart.current) {
+      // Added by Claude — once movement passes a small threshold, flag it as a
+      // real drag so the click that follows mouseup is ignored by selection.
+      if (!panMoved.current) {
+        const dx = Math.abs(e.clientX - panStart.current.x)
+        const dy = Math.abs(e.clientY - panStart.current.y)
+        if (dx > 3 || dy > 3) panMoved.current = true
+      }
       setPanX(panStart.current.panX + e.clientX - panStart.current.x)
       setPanY(panStart.current.panY + e.clientY - panStart.current.y)
       return
@@ -248,6 +345,7 @@ export default function FieldEditorCanvas({
   }
 
   function handleMouseUp(e: React.MouseEvent) {
+    if (rowDragRef.current) { rowDragRef.current = null; return } // Added by Claude
     if (isPanning.current) { isPanning.current = false; panStart.current = null; return }
     const p = getSVGPoint(e)
     if (isDrawingRect.current && rectStart.current) {
@@ -267,7 +365,8 @@ export default function FieldEditorCanvas({
   }
 
   function handleClick(e: React.MouseEvent) {
-    if (isPanning.current) return
+    // Added by Claude — ignore the click that concludes a pan-drag
+    if (isPanning.current || panMoved.current) return
     const p = getSVGPoint(e)
     if (mode === 'addRow') { onRowClick(p); return }
     if (mode === 'addFreePlant') { if (bbox) onPlaceFreePlant(p, bbox); return }
@@ -281,9 +380,20 @@ export default function FieldEditorCanvas({
     e.stopPropagation()
   }
 
-  function zoomIn() { setScale(p => Math.min(MAX_SCALE, p * 1.3)) }
-  function zoomOut() { setScale(p => Math.max(MIN_SCALE, p / 1.3)) }
-  function resetZoom() { setScale(1); setPanX(0); setPanY(0) }
+  // ── Added by Claude — zoom buttons now zoom toward the visible center via
+  // applyZoom (previously they scaled about the top-left origin, which shoved
+  // the content off-screen). resetZoom keeps the refs in sync too. ──
+  function zoomCenter(factor: number) {
+    const w = wrapperRef.current
+    if (!w) return applyZoom(factor, 0, 0)
+    applyZoom(factor, (w.clientWidth - 32) / 2, (w.clientHeight - 24) / 2)
+  }
+  function zoomIn() { zoomCenter(1.3) }
+  function zoomOut() { zoomCenter(1 / 1.3) }
+  function resetZoom() {
+    scaleRef.current = 1; panXRef.current = 0; panYRef.current = 0
+    setScale(1); setPanX(0); setPanY(0)
+  }
 
   // ── Derived SVG strings ───────────────────────────────────────────
   const polygonStr = points.map(p => `${p.x},${p.y}`).join(' ')
@@ -303,6 +413,8 @@ export default function FieldEditorCanvas({
     : spacePressed.current ? 'grab'
     : mode === 'drawing' || mode === 'addRow' ? 'crosshair'
     : mode === 'addFreePlant' ? 'cell'
+    // Added by Claude — viewing modes are draggable to pan, so hint with grab
+    : (mode === 'setup' || mode === 'complete') ? 'grab'
     : 'default'
 
   // ── Measurement badge position (follows mouse) ────────────────────
@@ -475,6 +587,7 @@ export default function FieldEditorCanvas({
             <g key={field.id}
               onClick={(e) => {
                 e.stopPropagation()
+                if (panMoved.current) return // Added by Claude — ignore click that ended a pan-drag
                 if (mode === 'setup') onClickField(field.id)
               }}
               style={{ cursor: mode === 'setup' ? 'pointer' : 'default' }}
@@ -517,7 +630,7 @@ export default function FieldEditorCanvas({
           )
         })}
         {/* Completed field boundary */}
-        {(mode === 'complete' || mode === 'addRow' || mode === 'addFreePlant') && points.length >= 3 && (
+        {(mode === 'complete' || mode === 'addRow' || mode === 'addFreePlant' || mode === 'fillRows') && points.length >= 3 && (
           <polygon
             points={polygonStr}
             fill="#8fba4e" fillOpacity={0.2}
@@ -585,20 +698,115 @@ export default function FieldEditorCanvas({
           )
         })}
 
-        {/* Rows */}
-        {rowsOnCanvas.map(row => (
+        {/* Rows — Added by Claude: click the line to select the whole row,
+            click a plant to select just that plant. */}
+        {rowsOnCanvas.map(row => {
+          const rowSelected = selectedRowId === row.id
+          return (
           <g key={row.id}>
-            <line
-              x1={row.startPx.x} y1={row.startPx.y}
-              x2={row.endPx.x} y2={row.endPx.y}
-              stroke="#c0d8a0" strokeWidth={1.5 / scale}
-              strokeDasharray={`${4 / scale} ${4 / scale}`}
-            />
+            {/* Visible row — closed ring (polygon), open contour run (polyline),
+                or a straight row (line). (Added by Claude) */}
+            {(() => {
+              const stroke = rowSelected ? '#2d4a1e' : '#c0d8a0'
+              const strokeWidth = (rowSelected ? 2.5 : 1.5) / scale
+              const dash = rowSelected ? undefined : `${4 / scale} ${4 / scale}`
+              if (row.pathPx) {
+                const pts = row.pathPx.map(p => `${p.x},${p.y}`).join(' ')
+                return row.pathClosed
+                  ? <polygon points={pts} fill="none" stroke={stroke} strokeWidth={strokeWidth} strokeDasharray={dash} />
+                  : <polyline points={pts} fill="none" stroke={stroke} strokeWidth={strokeWidth} strokeDasharray={dash} />
+              }
+              return (
+                <line
+                  x1={row.startPx.x} y1={row.startPx.y} x2={row.endPx.x} y2={row.endPx.y}
+                  stroke={stroke} strokeWidth={strokeWidth} strokeDasharray={dash}
+                />
+              )
+            })()}
+            {/* Transparent wide hit-area: click to select; drag (once selected)
+                to move the whole row. (Added by Claude) */}
+            {mode === 'complete' && onSelectRow && (() => {
+              const hitProps = {
+                stroke: 'transparent',
+                strokeWidth: 14 / scale,
+                fill: 'none' as const,
+                style: { cursor: rowSelected && onMoveRow ? 'move' : 'pointer' },
+                onMouseDown: (e: React.MouseEvent) => {
+                  if (rowSelected && onMoveRow) {
+                    e.stopPropagation() // take over from pan; start a row drag
+                    rowDragRef.current = { id: row.id, last: getSVGPoint(e) }
+                  }
+                },
+                onClick: (e: React.MouseEvent) => {
+                  e.stopPropagation()
+                  if (panMoved.current) return
+                  onSelectRow(row.id)
+                },
+              }
+              if (row.pathPx) {
+                const pts = row.pathPx.map(p => `${p.x},${p.y}`).join(' ')
+                return row.pathClosed
+                  ? <polygon points={pts} {...hitProps} />
+                  : <polyline points={pts} {...hitProps} />
+              }
+              return <line x1={row.startPx.x} y1={row.startPx.y} x2={row.endPx.x} y2={row.endPx.y} {...hitProps} />
+            })()}
+            {row.plantsOnCanvas.map(plant => {
+              const plantSelected = selectedPlantId === plant.id
+              return (
+              <g key={plant.id}>
+                {plantSelected && (
+                  <circle cx={plant.px.x} cy={plant.px.y} r={11 / scale}
+                    fill="none" stroke="#2d4a1e" strokeWidth={2 / scale} />
+                )}
+                {/* Plant hit-area (drawn under the emoji, takes click priority
+                    over the row via stopPropagation) */}
+                {mode === 'complete' && onSelectPlant && (
+                  <circle cx={plant.px.x} cy={plant.px.y} r={10 / scale}
+                    fill="transparent" style={{ cursor: 'pointer' }}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      if (panMoved.current) return
+                      onSelectPlant(plant.id)
+                    }}
+                  />
+                )}
+                <text
+                  x={plant.px.x} y={plant.px.y}
+                  textAnchor="middle" dominantBaseline="central"
+                  fontSize={14 / scale}
+                  style={{ userSelect: 'none', pointerEvents: 'none' }}
+                >
+                  {getCropById(plant.cropTypeId)?.emoji ?? '🌱'}
+                </text>
+              </g>
+            )})}
+          </g>
+        )})}
+
+        {/* ── Added by Claude — fill-tool preview (semi-transparent) ── */}
+        {mode === 'fillRows' && fillPreviewOnCanvas.map(row => (
+          <g key={row.id} opacity={0.75}>
+            {(() => {
+              const sw = 2 / scale, dash = `${5 / scale} ${4 / scale}`
+              if (row.pathPx) {
+                const pts = row.pathPx.map(p => `${p.x},${p.y}`).join(' ')
+                return row.pathClosed
+                  ? <polygon points={pts} fill="none" stroke="#639922" strokeWidth={sw} strokeDasharray={dash} />
+                  : <polyline points={pts} fill="none" stroke="#639922" strokeWidth={sw} strokeDasharray={dash} />
+              }
+              return (
+                <line
+                  x1={row.startPx.x} y1={row.startPx.y} x2={row.endPx.x} y2={row.endPx.y}
+                  stroke="#639922" strokeWidth={sw} strokeDasharray={dash}
+                />
+              )
+            })()}
             {row.plantsOnCanvas.map(plant => (
               <text key={plant.id}
                 x={plant.px.x} y={plant.px.y}
                 textAnchor="middle" dominantBaseline="central"
-                fontSize={14 / scale} style={{ userSelect: 'none' }}
+                fontSize={13 / scale} style={{ userSelect: 'none' }}
               >
                 {getCropById(plant.cropTypeId)?.emoji ?? '🌱'}
               </text>
@@ -606,26 +814,34 @@ export default function FieldEditorCanvas({
           </g>
         ))}
 
-        {/* Free plants */}
-        {freePlantsOnCanvas.map(plant => (
+        {/* Free plants — Added by Claude: click to select (then edit/delete
+            via the plant panel) instead of deleting on click. */}
+        {freePlantsOnCanvas.map(plant => {
+          const plantSelected = selectedPlantId === plant.id
+          return (
           <g key={plant.id}>
+            {plantSelected && (
+              <circle cx={plant.px.x} cy={plant.px.y} r={11 / scale}
+                fill="none" stroke="#2d4a1e" strokeWidth={2 / scale} />
+            )}
             <circle cx={plant.px.x} cy={plant.px.y} r={10 / scale}
               fill="transparent" stroke="transparent" strokeWidth={8 / scale}
-              style={{ cursor: 'pointer' }}
+              style={{ cursor: mode === 'complete' ? 'pointer' : 'default' }}
               onClick={(e) => {
                 e.stopPropagation()
-                if (mode === 'complete') onDeleteFreePlant(plant.id)
+                if (panMoved.current) return // ignore click that ended a pan-drag
+                if (mode === 'complete' && onSelectPlant) onSelectPlant(plant.id)
               }}
             />
             <text x={plant.px.x} y={plant.px.y}
               textAnchor="middle" dominantBaseline="central"
               fontSize={14 / scale}
-              style={{ userSelect: 'none', cursor: mode === 'complete' ? 'pointer' : 'default' }}
+              style={{ userSelect: 'none', pointerEvents: 'none' }}
             >
               {getCropById(plant.cropTypeId)?.emoji ?? '🌱'}
             </text>
           </g>
-        ))}
+        )})}
 
         {/* Row drawing preview */}
         {mode === 'addRow' && rowStartPoint && mousePos && (
@@ -802,7 +1018,7 @@ export default function FieldEditorCanvas({
       {/* Pan hint */}
       <div className="absolute bottom-4 left-10 z-20">
         <span className="text-[9px] text-[#9aab8a] bg-white/70 px-2 py-1 rounded">
-          Scroll para zoom · Espacio + arrastrar para mover
+          Arrastrar para mover · Scroll para zoom · Espacio + arrastrar también mueve
         </span>
       </div>
 

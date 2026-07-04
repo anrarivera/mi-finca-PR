@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import {
   Plus, Pencil, Check, Trash2, RotateCcw,
-  Rows3, Leaf, ChevronDown, ChevronUp,
+  Leaf, ChevronDown, ChevronUp,
   Square, Pentagon, X, ClipboardList,
+  LayoutGrid, // Added by Claude — multi-row fill tool
 } from 'lucide-react'
 import type { FieldShape, FieldRow, PlantInstance, PlacedField } from '../types'
 import type { EditorMode } from '../hooks/useFieldEditor'
@@ -38,10 +39,12 @@ type Props = {
   onSaveField: () => void
   onCancelField: () => void
   onDeletePoint: (i: number) => void
-  onStartAddRow: () => void
+  onStartFillRows: () => void // Added by Claude — multi-row fill tool
   onStartAddFreePlant: (cropId: string) => void
   onStopAddFreePlant: () => void
-  onDeleteRow: (id: string) => void
+  // ── Added by Claude — row editing (single + bulk) replaces single-row add ──
+  onEditRows: (ids: string[]) => void
+  onDeleteRows: (ids: string[]) => void
   onSelectField: (id: string) => void
   onEditSelectedField: () => void
   onDeleteSelectedField: () => void
@@ -51,20 +54,26 @@ type Props = {
 export default function FarmFieldEditorPanel({
   mode, shape, name, widthFt, heightFt,
   pointCount, selectedPointIndex,
-  rows, freePlants, selectedFreeCropId,
+  rows, // Claude: removed unused `freePlants`, `selectedFreeCropId` (TS6133 cleanup)
   allFields, selectedFieldId, isCreatingNew,
   onShapeChange, onNameChange, onWidthChange, onHeightChange,
   onStartNewField, onStartDrawing, onComplete, onUndo,
   onSaveField, onCancelField, onDeletePoint,
-  onStartAddRow, onStartAddFreePlant, onStopAddFreePlant, onDeleteRow,
+  onStartFillRows, onStartAddFreePlant, onStopAddFreePlant,
+  onEditRows, onDeleteRows,
   onSelectField, onEditSelectedField, onDeleteSelectedField, onOpenOperations,
 }: Props) {
   const [freeCropPick, setFreeCropPick] = useState('')
   const [showRows, setShowRows] = useState(true)
+  // Added by Claude — which rows are checked for bulk edit/delete
+  const [selectedRowIds, setSelectedRowIds] = useState<string[]>([])
+  const toggleRowSelected = (id: string) =>
+    setSelectedRowIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+  const clearRowSelection = () => setSelectedRowIds([])
 
   const selectedField = allFields.find(f => f.id === selectedFieldId)
   const isIdle = mode === 'setup' && !selectedFieldId && !isCreatingNew
-  const isEditingSelected = (mode !== 'setup' || isCreatingNew) && !isIdle
+  // Claude: removed unused `isEditingSelected` (TS6133 cleanup)
 
   // ── IDLE — show field list ────────────────────────────────────────
   if (isIdle) {
@@ -389,26 +398,67 @@ export default function FarmFieldEditorPanel({
               </div>
             )}
 
-            {/* Row list */}
+            {/* ── Row list — Added by Claude: checkboxes + per-row & bulk edit/delete ── */}
             {rows.length > 0 && (
               <div className="flex flex-col gap-2">
-                <button onClick={() => setShowRows(p => !p)}
-                  className="flex items-center justify-between text-xs font-medium text-[#5a6a4a]"
-                >
-                  <span>Hileras ({rows.length})</span>
-                  {showRows ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-                </button>
+                <div className="flex items-center justify-between">
+                  <button onClick={() => setShowRows(p => !p)}
+                    className="flex items-center gap-1.5 text-xs font-medium text-[#5a6a4a]"
+                  >
+                    <span>Hileras ({rows.length})</span>
+                    {showRows ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                  </button>
+                  {showRows && (
+                    <button
+                      onClick={() => setSelectedRowIds(
+                        selectedRowIds.length === rows.length ? [] : rows.map(r => r.id)
+                      )}
+                      className="text-[10px] text-[#639922] hover:text-[#2d4a1e] transition-colors"
+                    >
+                      {selectedRowIds.length === rows.length ? 'Ninguno' : 'Todos'}
+                    </button>
+                  )}
+                </div>
+
+                {/* Bulk action bar — shown when ≥1 row is selected */}
+                {showRows && selectedRowIds.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => onEditRows(selectedRowIds)}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-[10px] text-[#639922] border border-[#c8dca8] rounded-lg hover:bg-[#eaf3de] transition-colors"
+                    >
+                      <Pencil size={10} /> Editar ({selectedRowIds.length})
+                    </button>
+                    <button onClick={() => { onDeleteRows(selectedRowIds); clearRowSelection() }}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-[10px] text-[#9aab8a] border border-[#e0e8d8] rounded-lg hover:text-red-500 hover:border-red-200 hover:bg-red-50 transition-colors"
+                    >
+                      <Trash2 size={10} /> Eliminar ({selectedRowIds.length})
+                    </button>
+                  </div>
+                )}
+
                 {showRows && (
                   <div className="flex flex-col gap-1.5">
                     {rows.map((row, i) => {
                       const primary = getCropById(row.primaryCropTypeId)
                       const companion = row.companionCropTypeId
                         ? getCropById(row.companionCropTypeId) : null
+                      const checked = selectedRowIds.includes(row.id)
                       return (
                         <div key={row.id}
-                          className="flex items-center justify-between px-2.5 py-2 bg-white border border-[#e8f0e0] rounded-lg"
+                          className={`flex items-center gap-2 px-2.5 py-2 bg-white border rounded-lg transition-colors ${
+                            checked ? 'border-[#639922] bg-[#f5f8f0]' : 'border-[#e8f0e0]'
+                          }`}
                         >
-                          <div className="flex items-center gap-1.5">
+                          {/* Select checkbox */}
+                          <button onClick={() => toggleRowSelected(row.id)}
+                            className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors ${
+                              checked ? 'bg-[#639922] border-[#639922]' : 'border-[#c0d0b0] hover:border-[#639922]'
+                            }`}
+                          >
+                            {checked && <Check size={10} className="text-white" />}
+                          </button>
+
+                          <div className="flex items-center gap-1.5 flex-1 min-w-0">
                             <span className="text-xs text-[#9aab8a]">#{i + 1}</span>
                             <span className="text-sm">{primary?.emoji}</span>
                             {companion && (
@@ -417,12 +467,21 @@ export default function FarmFieldEditorPanel({
                                 <span className="text-sm">{companion.emoji}</span>
                               </>
                             )}
-                            <span className="text-[10px] text-[#9aab8a]">
+                            <span className="text-[10px] text-[#9aab8a] truncate">
                               · {row.plants.length} plantas
                             </span>
                           </div>
-                          <button onClick={() => onDeleteRow(row.id)}
-                            className="text-[#c0d0b0] hover:text-red-400 transition-colors"
+
+                          {/* Per-row edit + delete */}
+                          <button onClick={() => onEditRows([row.id])}
+                            className="text-[#c0d0b0] hover:text-[#639922] transition-colors shrink-0"
+                            title="Editar hilera"
+                          >
+                            <Pencil size={11} />
+                          </button>
+                          <button onClick={() => { onDeleteRows([row.id]); setSelectedRowIds(prev => prev.filter(x => x !== row.id)) }}
+                            className="text-[#c0d0b0] hover:text-red-400 transition-colors shrink-0"
+                            title="Eliminar hilera"
                           >
                             <X size={11} />
                           </button>
@@ -435,10 +494,12 @@ export default function FarmFieldEditorPanel({
             )}
 
             <div className="flex flex-col gap-2 pt-2 border-t border-[#f0f5e8]">
-              <button onClick={onStartAddRow}
+              {/* Added by Claude — single-row "Añadir hilera" removed; the fill
+                  tool with Número de hileras = 1 covers making one row. */}
+              <button onClick={onStartFillRows}
                 className="w-full flex items-center justify-center gap-2 py-2 text-xs text-[#639922] border border-[#c8dca8] rounded-lg hover:bg-[#eaf3de] transition-colors"
               >
-                <Rows3 size={13} /> Añadir hilera
+                <LayoutGrid size={13} /> Rellenar con hileras
               </button>
 
               <div className="flex flex-col gap-1.5">
@@ -489,6 +550,16 @@ export default function FarmFieldEditorPanel({
               Cancelar
             </button>
           </>
+        )}
+
+        {/* ── FILL ROWS mode ── (Added by Claude) */}
+        {mode === 'fillRows' && (
+          <div className="flex items-center gap-2 px-3 py-2 bg-[#eaf3de] rounded-lg">
+            <div className="w-2 h-2 rounded-full bg-[#639922] animate-pulse shrink-0" />
+            <span className="text-xs text-[#3b6d11] font-medium">
+              Ajusta el relleno en el panel de la derecha
+            </span>
+          </div>
         )}
 
         {/* ── ADD FREE PLANT mode ── */}

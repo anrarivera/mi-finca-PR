@@ -1,4 +1,6 @@
 import { create } from 'zustand'
+// ─── Added by Claude — localStorage persistence (no backend/auth needed) ───
+import { persist } from 'zustand/middleware'
 import type { PlacedField } from '@/features/field/types'
 
 type FieldStore = {
@@ -11,7 +13,16 @@ type FieldStore = {
   getFieldsByFarmId: (farmId: string) => PlacedField[]
 }
 
-export const useFieldStore = create<FieldStore>((set, get) => ({
+// ──────────────────────────────────────────────────────────────────────────
+// Added by Claude — wrapped this store in the `persist` middleware so field
+// data survives a page refresh while the app runs frontend-only (no backend
+// or auth). State is saved to localStorage under the key below. To wipe all
+// persisted data during testing, run `localStorage.clear()` in the browser
+// console (or remove just the "mi-finca-fields" key) and refresh.
+// ──────────────────────────────────────────────────────────────────────────
+export const useFieldStore = create<FieldStore>()(
+  persist(
+    (set, get) => ({
   fields: [],
 
   addField: (field) =>
@@ -36,4 +47,15 @@ export const useFieldStore = create<FieldStore>((set, get) => ({
 
   getFieldsByFarmId: (farmId) =>
     get().fields.filter(f => f.farmId === farmId),
-}))
+    }),
+    // ─── Added by Claude — persist config ───
+    // Only the `fields` data is written to localStorage; the action functions
+    // above are recreated on load, so they are intentionally excluded here.
+    {
+      name: 'mi-finca-fields',
+      partialize: (state) => ({
+        fields: state.fields,
+      }),
+    }
+  )
+)

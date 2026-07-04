@@ -197,6 +197,63 @@ export function processFreePlantsForEvents(
   return events
 }
 
+// ──────────────────────────────────────────────────────────────────────────
+// Added by Claude — recompute a field's planting events from scratch.
+//
+// Used after rows are edited or deleted, where the crop/date grouping may have
+// changed and an incremental update isn't enough. Operation completion status
+// (completed / skipped, plus the captured notes/product/quantity) is carried
+// over from the previous events, matched by (cropTypeId, plantingDate) then
+// templateId, so checking off operations isn't lost by an unrelated edit.
+// ──────────────────────────────────────────────────────────────────────────
+export function rebuildPlantingEvents(
+  fieldId: string,
+  rows: FieldRow[],
+  freePlants: PlantInstance[],
+  previousEvents: PlantingEvent[]
+): PlantingEvent[] {
+  let events: PlantingEvent[] = []
+  for (const row of rows) {
+    events = processRowForEvents(events, fieldId, row)
+  }
+
+  // Free plants are grouped per planting date by processFreePlantsForEvents.
+  const freeByDate: Record<string, PlantInstance[]> = {}
+  for (const p of freePlants) {
+    (freeByDate[p.plantingDate] ??= []).push(p)
+  }
+  for (const [date, plants] of Object.entries(freeByDate)) {
+    events = processFreePlantsForEvents(events, fieldId, plants, date)
+  }
+
+  // Carry over completion status from the previous events where the
+  // crop + date grouping still exists.
+  return events.map(ev => {
+    const old = previousEvents.find(
+      e => e.cropTypeId === ev.cropTypeId && e.plantingDate === ev.plantingDate
+    )
+    if (!old) return ev
+    return {
+      ...ev,
+      operations: ev.operations.map(op => {
+        const oldOp = old.operations.find(o => o.templateId === op.templateId)
+        if (oldOp && (oldOp.status === 'completed' || oldOp.status === 'skipped')) {
+          return {
+            ...op,
+            status: oldOp.status,
+            completedDate: oldOp.completedDate,
+            notes: oldOp.notes,
+            product: oldOp.product,
+            quantity: oldOp.quantity,
+            unit: oldOp.unit,
+          }
+        }
+        return op
+      }),
+    }
+  })
+}
+
 // Update operation statuses based on today's date
 export function refreshOperationStatuses(
   events: PlantingEvent[]

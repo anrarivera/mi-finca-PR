@@ -157,6 +157,19 @@ export function useDrawing() {
     setSelectedPointIndex(null)
   }, [])
 
+  // ── Added by Claude — hydrate the editor from a previously saved boundary ──
+  // Loads persisted lat/lng points back into the drawing state as a completed
+  // polygon, so a saved finca's boundary renders on the map (and stays
+  // editable) after a reload or when switching between farms.
+  const loadBoundary = useCallback((boundary: { lat: number; lng: number }[]) => {
+    if (boundary.length < 3) return
+    const latlngs = boundary.map(p => L.latLng(p.lat, p.lng))
+    setPoints(latlngs)
+    setAreaAcres(parseFloat(calculateAcres(latlngs).toFixed(2)))
+    setMode('complete')
+    setSelectedPointIndex(null)
+  }, [])
+
   const movePoint = useCallback((index: number, newLatLng: L.LatLng) => {
     setPoints(prev => {
       const updated = [...prev]
@@ -198,6 +211,7 @@ export function useDrawing() {
     startEditing,
     finishEditing,
     clearDrawing,
+    loadBoundary, // Added by Claude — hydrate from saved boundary
     movePoint,
     selectPoint,
     deselectPoint,

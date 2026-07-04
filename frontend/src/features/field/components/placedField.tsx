@@ -7,6 +7,13 @@ import type { PlacedField as PlacedFieldType } from '../types'
 type Props = {
   field: PlacedFieldType
   onEdit: (fieldId: string) => void
+  // ── Added by Claude ──────────────────────────────────────────────────
+  // While the farm boundary is being drawn/edited, fields must stop
+  // intercepting pointer events so the map's boundary handlers (e.g. the
+  // double-click that inserts a new boundary point) win even when the cursor
+  // is over a field. Defaults to interactive so normal viewing is unchanged.
+  interactive?: boolean
+  // ── End Claude ───────────────────────────────────────────────────────
 }
 
 function createPinIcon(color: string, name: string): L.DivIcon {
@@ -29,7 +36,7 @@ function createPinIcon(color: string, name: string): L.DivIcon {
   })
 }
 
-export default function PlacedField({ field, onEdit }: Props) {
+export default function PlacedField({ field, onEdit, interactive = true /* Added by Claude */ }: Props) {
   const { updateField } = useFieldStore()
   const [isHovered, setIsHovered] = useState(false)
   const isDragging = useRef(false)
@@ -50,6 +57,8 @@ export default function PlacedField({ field, onEdit }: Props) {
       <Marker
         position={L.latLng(field.farmLat, field.farmLng)}
         icon={createPinIcon(field.color, field.name)}
+        // Added by Claude — off while the farm boundary is being drawn/edited
+        interactive={interactive}
         eventHandlers={{ click: handleClick }}
       />
     )
@@ -62,6 +71,8 @@ export default function PlacedField({ field, onEdit }: Props) {
       <Marker
         position={L.latLng(field.farmLat, field.farmLng)}
         icon={createPinIcon(field.color, field.name)}
+        // Added by Claude — off while the farm boundary is being drawn/edited
+        interactive={interactive}
         eventHandlers={{ click: handleClick }}
       />
     )
@@ -78,6 +89,13 @@ export default function PlacedField({ field, onEdit }: Props) {
         fillOpacity: isHovered ? 0.5 : field.isPositioning ? 0.3 : 0.4,
         weight: field.isPositioning ? 2.5 : 2,
         dashArray: field.isPositioning ? '6 4' : undefined,
+        // ── Added by Claude ────────────────────────────────────────────
+        // Drop the field's interactivity (its click handler + link cursor)
+        // while the farm boundary is being drawn/edited, so a double-click
+        // inside a field passes through to the map and inserts a boundary
+        // point instead of opening the field editor.
+        interactive,
+        // ── End Claude ─────────────────────────────────────────────────
       }}
       eventHandlers={{
         click: handleClick,

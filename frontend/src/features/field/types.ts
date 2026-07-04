@@ -33,6 +33,12 @@ export type FieldRow = {
   companionCropTypeId: string | null
   plants: PlantInstance[]
   plantingDate: string
+  // Added by Claude — present for contour rows: the polyline the row follows.
+  // When set, the row is drawn/edited along this path instead of the straight
+  // start→end segment. `pathClosed` is true for full rings, false for the open
+  // segments produced where a ring only partly fits (e.g. an L's narrow arm).
+  path?: LatLngPoint[]
+  pathClosed?: boolean
 }
 
 export type OperationStatus = 'pending' | 'due' | 'completed' | 'skipped'

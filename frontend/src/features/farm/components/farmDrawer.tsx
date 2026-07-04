@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react' // Claude: removed unused useCallback (TS6133 cleanup)
 import {
   ChevronRight, ChevronLeft, Star, Plus,
   MapPin, Layers, Pencil, Trash2,
@@ -31,8 +31,8 @@ export default function FarmDrawer({
     farms, activeFarm, activeFarmId, favoriteFarmId,
     setActiveFarm, setFavoriteFarm, deleteFarm,
   } = useFarmStore()
-  const { getFieldsByFarmId, updateField, removeField, removeFieldsByFarmId } = useFieldStore()
-  const { removeFieldIdFromFarm } = useFarmStore()
+  // Claude: removed unused `removeField` and the `removeFieldIdFromFarm` destructure (TS6133 cleanup)
+  const { getFieldsByFarmId, updateField, removeFieldsByFarmId } = useFieldStore()
 
   // Auto-navigate to fields level when only one farm
   useEffect(() => {
