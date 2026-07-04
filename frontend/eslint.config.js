@@ -19,5 +19,14 @@ export default defineConfig([
       ecmaVersion: 2020,
       globals: globals.browser,
     },
+    rules: {
+      // The React 19 compiler-powered rules flag long-standing patterns in
+      // the canvas/drawing code (imperative Leaflet + SVG interop). Keep
+      // them visible as warnings; fixing them requires careful refactors.
+      'react-hooks/set-state-in-effect': 'warn',
+      'react-hooks/refs': 'warn',
+      // shadcn/ui files export helpers alongside components by design.
+      'react-refresh/only-export-components': 'warn',
+    },
   },
 ])

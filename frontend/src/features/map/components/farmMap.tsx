@@ -14,7 +14,7 @@ import { useFarmStore, useActiveFarm } from '@/store/useFarmStore'
 import { useLivestockStore } from '@/store/useLivestockStore'
 import type { Farm } from '@/store/useFarmStore'
 
-delete (L.Icon.Default.prototype as any)._getIconUrl
+delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)._getIconUrl
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
   iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
@@ -80,7 +80,7 @@ function DraggablePoint({
         if (dx > 4 || dy > 4) {
           isDragging.current = true
           safeEl.style.cursor = 'grabbing'
-          const containerPoint = map.mouseEventToContainerPoint(e as any)
+          const containerPoint = map.mouseEventToContainerPoint(e)
           const latlng = map.containerPointToLatLng(containerPoint)
           onMove(index, latlng)
         }
