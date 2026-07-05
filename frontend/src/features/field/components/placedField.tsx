@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Polygon, Marker, Tooltip, useMapEvents } from 'react-leaflet'
 import * as L from 'leaflet'
 import { useFieldStore } from '@/store/useFieldStore'
@@ -7,6 +7,13 @@ import type { PlacedField as PlacedFieldType } from '../types'
 type Props = {
   field: PlacedFieldType
   onEdit: (fieldId: string) => void
+  // ── Added by Claude ──────────────────────────────────────────────────
+  // While the farm boundary is being drawn/edited, fields must stop
+  // intercepting pointer events so the map's boundary handlers (e.g. the
+  // double-click that inserts a new boundary point) win even when the cursor
+  // is over a field. Defaults to interactive so normal viewing is unchanged.
+  interactive?: boolean
+  // ── End Claude ───────────────────────────────────────────────────────
 }
 
 function createPinIcon(color: string, name: string): L.DivIcon {
@@ -29,11 +36,26 @@ function createPinIcon(color: string, name: string): L.DivIcon {
   })
 }
 
-export default function PlacedField({ field, onEdit }: Props) {
+export default function PlacedField({ field, onEdit, interactive = true /* Added by Claude */ }: Props) {
   const { updateField } = useFieldStore()
   const [isHovered, setIsHovered] = useState(false)
   const isDragging = useRef(false)
+  const layerRef = useRef<L.Polygon | L.Marker | null>(null)
   useMapEvents({})
+
+  // ── Added by Claude ─────────────────────────────────────────────────
+  // Leaflet fixes the `interactive` option at layer creation, so layers are
+  // always CREATED interactive and pointer events are toggled on the live
+  // DOM element instead. This avoids the previous workaround of folding the
+  // locked state into the React key, which destroyed and recreated every
+  // field layer each time boundary draw/edit mode was toggled.
+  useEffect(() => {
+    const el = layerRef.current?.getElement() as HTMLElement | undefined
+    if (!el) return
+    el.style.pointerEvents = interactive ? '' : 'none'
+    if (!interactive) setIsHovered(false) // a blocked layer never gets mouseout
+  }, [interactive, field.displayMode, field.boundary])
+  // ── End Claude ──────────────────────────────────────────────────────
 
   function handleClick() {
     if (isDragging.current) return
@@ -48,6 +70,7 @@ export default function PlacedField({ field, onEdit }: Props) {
   if (field.displayMode === 'pin') {
     return (
       <Marker
+        ref={layerRef as React.Ref<L.Marker>}
         position={L.latLng(field.farmLat, field.farmLng)}
         icon={createPinIcon(field.color, field.name)}
         eventHandlers={{ click: handleClick }}
@@ -60,6 +83,7 @@ export default function PlacedField({ field, onEdit }: Props) {
     // Fallback to pin if boundary not yet set
     return (
       <Marker
+        ref={layerRef as React.Ref<L.Marker>}
         position={L.latLng(field.farmLat, field.farmLng)}
         icon={createPinIcon(field.color, field.name)}
         eventHandlers={{ click: handleClick }}
@@ -71,6 +95,7 @@ export default function PlacedField({ field, onEdit }: Props) {
 
   return (
     <Polygon
+      ref={layerRef as React.Ref<L.Polygon>}
       positions={positions}
       pathOptions={{
         color: field.color,

@@ -29,3 +29,18 @@ export function requireAuth(req: Request, res: Response, next: NextFunction) {
     })
   }
 }
+
+// Sets req.user when a valid bearer token is present, but never rejects —
+// for routes that serve public data enriched with the caller's own records
+// (e.g. GET /crops returns built-ins plus the user's custom crops).
+export function optionalAuth(req: Request, _res: Response, next: NextFunction) {
+  const authHeader = req.headers.authorization
+  if (authHeader?.startsWith('Bearer ')) {
+    try {
+      req.user = verifyAccessToken(authHeader.split(' ')[1])
+    } catch {
+      // invalid/expired token → treat as anonymous
+    }
+  }
+  next()
+}

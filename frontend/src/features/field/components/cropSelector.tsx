@@ -1,7 +1,9 @@
-import { useState, useRef, useEffect } from 'react'
-import { Search, ChevronDown, X } from 'lucide-react'
+import { useState, useRef, useEffect, useMemo } from 'react'
+import { Search, ChevronDown, X, Plus } from 'lucide-react'
 import { CROP_LIBRARY } from '../data/cropLibrary'
 import type { CropType } from '../data/cropLibrary'
+import { useCropStore } from '@/store/useCropStore'
+import CustomCropModal from './customCropModal'
 
 type Props = {
   value: string | null
@@ -15,18 +17,27 @@ export default function CropSelector({
 }: Props) {
   const [isOpen, setIsOpen] = useState(false)
   const [search, setSearch] = useState('')
+  const [showCreate, setShowCreate] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  const selectedCrop = value ? CROP_LIBRARY.find(c => c.id === value) : null
+  // Subscribing (rather than getState()) so a crop created through the
+  // modal below shows up in the open dropdown immediately.
+  const customCrops = useCropStore(s => s.customCrops)
+  const allCrops = useMemo(
+    () => [...CROP_LIBRARY, ...customCrops.map(c => c.crop)],
+    [customCrops]
+  )
+
+  const selectedCrop = value ? allCrops.find(c => c.id === value) : null
 
   const filtered = search.trim()
-    ? CROP_LIBRARY.filter(c =>
+    ? allCrops.filter(c =>
         c.nameEs.toLowerCase().includes(search.toLowerCase()) ||
         c.name.toLowerCase().includes(search.toLowerCase()) ||
         c.category.toLowerCase().includes(search.toLowerCase())
       )
-    : CROP_LIBRARY
+    : allCrops
 
   // Group filtered results by category
   const grouped = filtered.reduce((acc, crop) => {
@@ -139,7 +150,22 @@ export default function CropSelector({
             )}
           </div>
 
+          {/* Create custom crop (issue #1) */}
+          <button
+            onClick={() => { setShowCreate(true); setIsOpen(false); setSearch('') }}
+            className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-[#639922] bg-[#fafcf8] hover:bg-[#eaf3de] transition-colors border-t border-[#f0f5e8]"
+          >
+            <Plus size={12} /> Crear cultivo personalizado
+          </button>
+
         </div>
+      )}
+
+      {showCreate && (
+        <CustomCropModal
+          onClose={() => setShowCreate(false)}
+          onCreated={cropId => { setShowCreate(false); onChange(cropId) }}
+        />
       )}
     </div>
   )

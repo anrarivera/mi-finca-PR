@@ -33,6 +33,12 @@ export type FieldRow = {
   companionCropTypeId: string | null
   plants: PlantInstance[]
   plantingDate: string
+  // Added by Claude — present for contour rows: the polyline the row follows.
+  // When set, the row is drawn/edited along this path instead of the straight
+  // start→end segment. `pathClosed` is true for full rings, false for the open
+  // segments produced where a ring only partly fits (e.g. an L's narrow arm).
+  path?: LatLngPoint[]
+  pathClosed?: boolean
 }
 
 export type OperationStatus = 'pending' | 'due' | 'completed' | 'skipped'
@@ -102,6 +108,13 @@ export function randomFieldColor(): string {
   return FIELD_COLORS[Math.floor(Math.random() * FIELD_COLORS.length)]
 }
 
+// Local calendar date (not UTC): Puerto Rico is UTC-4, so using
+// toISOString() here would flip to "tomorrow" every evening at 8pm,
+// stamping plants with a future planting date and marking operations
+// due a day early.
 export function todayISO(): string {
-  return new Date().toISOString().split('T')[0]
+  const d = new Date()
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  return `${d.getFullYear()}-${mm}-${dd}`
 }

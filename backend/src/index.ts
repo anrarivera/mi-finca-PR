@@ -1,59 +1,8 @@
-import express from 'express'
-import cors from 'cors'
-import helmet from 'helmet'
-import cookieParser from 'cookie-parser'
-import dotenv from 'dotenv'
-import { prisma } from './lib/prisma'
-import { errorHandler } from './middleware/errorHandler'
-import authRouter from './routes/auth'
+import { env } from './lib/env' // must be first — validates config, loads .env
+import { createApp } from './app'
 
-dotenv.config()
-
-const app = express()
-const PORT = process.env.PORT || 3001
-
-// ── Middleware ─────────────────────────────────────────────────────────
-app.use(helmet())
-app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
-  credentials: true,
-}))
-app.use(express.json())
-app.use(cookieParser())
-
-// ── Health check ───────────────────────────────────────────────────────
-app.get('/health', async (req, res) => {
-  try {
-    await prisma.$queryRaw`SELECT 1`
-    res.json({
-      success: true,
-      data: {
-        status: 'ok',
-        database: 'connected',
-        timestamp: new Date().toISOString(),
-      }
-    })
-  } catch {
-    res.status(500).json({
-      success: false,
-      error: { code: 'DATABASE_ERROR', message: 'Database connection failed' }
-    })
-  }
-})
-
-// ── Routes ─────────────────────────────────────────────────────────────
-app.use('/api/v1/auth', authRouter)
-
-// ── 404 ────────────────────────────────────────────────────────────────
-app.use((req, res) => {
-  res.status(404).json({
-    success: false,
-    error: { code: 'NOT_FOUND', message: 'Route not found' }
-  })
-})
-
-// ── Error handler (must be last) ───────────────────────────────────────
-app.use(errorHandler)
+const app = createApp()
+const PORT = env.PORT
 
 // ── Start ──────────────────────────────────────────────────────────────
 app.listen(PORT, () => {

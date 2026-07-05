@@ -7,12 +7,14 @@ import FarmDrawer from '@/features/farm/components/farmDrawer'
 import FarmFieldEditor from '@/features/field/components/farmFieldEditor'
 import PlacedField from '@/features/field/components/placedField'
 import CreateFarmModal from '@/features/farm/components/createFarmModal'
+import { useConfirm } from '@/components/shared/confirmDialog'
+import { toast } from '@/store/useToastStore'
 import { useFieldStore } from '@/store/useFieldStore'
-import { useFarmStore } from '@/store/useFarmStore'
-import { isPointInPolygon, boundaryToLatLngs } from '@/features/field/utils/geoUtils'
+import { useFarmStore, useActiveFarm } from '@/store/useFarmStore'
+import { deleteFarmCascade } from '@/store/farmActions'
 import type { Farm } from '@/store/useFarmStore'
 
-delete (L.Icon.Default.prototype as any)._getIconUrl
+delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)._getIconUrl
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
   iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
@@ -78,7 +80,7 @@ function DraggablePoint({
         if (dx > 4 || dy > 4) {
           isDragging.current = true
           safeEl.style.cursor = 'grabbing'
-          const containerPoint = map.mouseEventToContainerPoint(e as any)
+          const containerPoint = map.mouseEventToContainerPoint(e)
           const latlng = map.containerPointToLatLng(containerPoint)
           onMove(index, latlng)
         }
@@ -178,6 +180,17 @@ function DrawingLayer({
             fillOpacity: mode === 'editing' ? 0.08 : 0.15,
             weight: mode === 'editing' ? 2 : 2.5,
             dashArray: mode === 'editing' ? '6 4' : undefined,
+            // ── Added by Claude ──────────────────────────────────────────
+            // The farm boundary is a non-clickable outline, but Leaflet makes
+            // every Polygon interactive by default — which applies the
+            // `leaflet-interactive` pointer (link) cursor on hover, the same
+            // cursor used for the clickable campos. Marking it non-interactive
+            // drops that cursor and lets hover/clicks pass through to any field
+            // underneath. Edit-mode still works: corners are dragged via their
+            // own markers and points are inserted through the map's dblclick
+            // handler, neither of which relies on the polygon being interactive.
+            interactive: false,
+            // ── End Claude ───────────────────────────────────────────────
           }}
         />
       )}
@@ -218,61 +231,81 @@ export default function FarmMap({ center = PR_CENTER, zoom = DEFAULT_ZOOM }: Pro
   const [showFieldEditor, setShowFieldEditor] = useState(false)
   const [showModal, setShowModal] = useState(false)
   const [flyTarget, setFlyTarget] = useState<Farm | null>(null)
+  const { confirm, confirmDialog } = useConfirm()
 
-  const { fields, removeField, removeFieldsByFarmId } = useFieldStore()
+  const { fields, removeField } = useFieldStore()
   const {
-    farms, activeFarm, favoriteFarmId,
-    updateFarm, deleteFarm, setActiveFarm,
-    addFieldIdToFarm, removeFieldIdFromFarm, addFarm,
+    farms, favoriteFarmId,
+    updateFarm, setActiveFarm, createFarm,
+    addFieldIdToFarm, removeFieldIdFromFarm,
   } = useFarmStore()
+  const activeFarm = useActiveFarm()
 
   // Only show fields belonging to the active farm
   const farmFields = activeFarm
     ? fields.filter(f => f.farmId === activeFarm.id)
     : []
 
-  // On mount — fly to favorite or first farm
+  // On mount — fly to the persisted active farm if it still exists, falling
+  // back to the favorite/first farm. Never stomp a valid saved selection.
   useEffect(() => {
     if (farms.length === 0) return
-    const target = farms.find(f => f.id === favoriteFarmId) ?? farms[0]
-    setActiveFarm(target)
+    const current = activeFarm
+    const target = current ?? farms.find(f => f.id === favoriteFarmId) ?? farms[0]
+    if (!current) setActiveFarm(target)
     setFlyTarget(target)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // ── Added by Claude — hydrate the boundary editor from the active farm ──
+  // When the active farm changes (mount, reload, or switching farms), load its
+  // saved boundary into the editor so it renders as a completed polygon. Without
+  // this, the map only showed the live drawing layer, so saved boundaries never
+  // reappeared and saving looked like it did nothing. Farms with no boundary
+  // reset the editor to the idle "Dibujar finca" state.
+  useEffect(() => {
+    if (!activeFarm) return
+    if (activeFarm.boundary && activeFarm.boundary.length >= 3) {
+      drawing.loadBoundary(activeFarm.boundary)
+    } else {
+      drawing.clearDrawing()
+    }
+    // Keyed on the farm id only — re-saving the same farm must not clobber the
+    // points the user just drew.
+  }, [activeFarm?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleSaveFarm() {
     if (!activeFarm || drawing.points.length < 3) return
     const boundary = drawing.points.map(p => ({ lat: p.lat, lng: p.lng }))
     updateFarm(activeFarm.id, { boundary })
+    toast.success(`Límite de "${activeFarm.name}" guardado`)
   }
 
-  function handleDeleteFarm() {
+  async function handleDeleteFarm() {
     if (!activeFarm) return
-    if (!window.confirm(`¿Eliminar la finca "${activeFarm.name}" y todos sus campos?`)) return
-    removeFieldsByFarmId(activeFarm.id)
-    deleteFarm(activeFarm.id)
+    const ok = await confirm({
+      title: `¿Eliminar la finca "${activeFarm.name}"?`,
+      message: 'Se eliminarán también todos sus campos. Esta acción no se puede deshacer.',
+      confirmLabel: 'Eliminar finca',
+      danger: true,
+    })
+    if (!ok) return
+    deleteFarmCascade(activeFarm.id)
+    toast.success(`Finca "${activeFarm.name}" eliminada`)
   }
 
   function handleOpenFieldEditor() {
     if (!activeFarm?.boundary || activeFarm.boundary.length < 3) {
-      alert('Primero guarda el límite de tu finca antes de añadir campos.')
+      toast.info('Primero guarda el límite de tu finca antes de añadir campos.')
       return
     }
     setShowFieldEditor(true)
   }
 
   function handleCreateFarm(data: { name: string; location: string }) {
-    const newFarm: Farm = {
-      id: `farm_${Date.now()}`,
-      name: data.name,
-      location: data.location,
-      totalAreaAcres: 0,
-      createdAt: new Date().toISOString(),
-      boundary: [],
-      fieldIds: [],
-    }
-    addFarm(newFarm)
-    setActiveFarm(newFarm)
+    const farm = createFarm(data)
     setShowModal(false)
+    toast.success(`Finca "${farm.name}" creada`)
   }
 
   return (
@@ -329,12 +362,17 @@ export default function FarmMap({ center = PR_CENTER, zoom = DEFAULT_ZOOM }: Pro
           onInsertPoint={drawing.insertPointAfter}
         />
 
-        {/* Fields for the active farm */}
+        {/* Fields for the active farm. While the farm boundary is being
+            drawn/edited, fields stop intercepting pointer events (handled
+            inside PlacedField on the live layer — no remount) so a
+            double-click inside a field reaches the map's boundary
+            point-insertion handler instead of opening the field editor. */}
         {farmFields.map(field => (
           <PlacedField
             key={field.id}
             field={field}
             onEdit={handleOpenFieldEditor}
+            interactive={drawing.mode !== 'drawing' && drawing.mode !== 'editing'}
           />
         ))}
 
@@ -343,7 +381,8 @@ export default function FarmMap({ center = PR_CENTER, zoom = DEFAULT_ZOOM }: Pro
       {/* Farm + field navigation drawer */}
       <FarmDrawer
         onAddFarm={() => setShowModal(true)}
-        onEditField={(fieldId) => {
+        onEditField={() => {
+          // Claude: dropped unused `fieldId` param (TS6133 cleanup)
           setShowFieldEditor(true)
         }}
         onDeleteField={(fieldId) => {
@@ -379,6 +418,8 @@ export default function FarmMap({ center = PR_CENTER, zoom = DEFAULT_ZOOM }: Pro
           onSubmit={handleCreateFarm}
         />
       )}
+
+      {confirmDialog}
 
     </div>
   )

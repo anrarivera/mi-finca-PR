@@ -1,11 +1,14 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, type MouseEvent as ReactMouseEvent } from 'react' // Claude: removed unused useCallback (TS6133 cleanup)
 import {
   ChevronRight, ChevronLeft, Star, Plus,
   MapPin, Layers, Pencil, Trash2,
   ToggleLeft, ToggleRight, AlertCircle, Clock,
 } from 'lucide-react'
-import { useFarmStore } from '@/store/useFarmStore'
+import { useFarmStore, useActiveFarm } from '@/store/useFarmStore'
 import { useFieldStore } from '@/store/useFieldStore'
+import { deleteFarmCascade } from '@/store/farmActions'
+import { useConfirm } from '@/components/shared/confirmDialog'
+import { toast } from '@/store/useToastStore'
 import { computeCropSummary } from '@/features/field/utils/rowCalculator'
 import { getFieldOperationHealth } from '@/features/field/utils/operationStatus'
 import { getCropById } from '@/features/field/data/cropLibrary'
@@ -28,11 +31,12 @@ export default function FarmDrawer({
   const [level, setLevel] = useState<'farms' | 'fields'>('farms')
 
   const {
-    farms, activeFarm, activeFarmId, favoriteFarmId,
-    setActiveFarm, setFavoriteFarm, deleteFarm,
+    farms, activeFarmId, favoriteFarmId,
+    setActiveFarm, setFavoriteFarm,
   } = useFarmStore()
-  const { getFieldsByFarmId, updateField, removeField, removeFieldsByFarmId } = useFieldStore()
-  const { removeFieldIdFromFarm } = useFarmStore()
+  const activeFarm = useActiveFarm()
+  const { getFieldsByFarmId, updateField } = useFieldStore()
+  const { confirm, confirmDialog } = useConfirm()
 
   // Auto-navigate to fields level when only one farm
   useEffect(() => {
@@ -57,10 +61,16 @@ export default function FarmDrawer({
     setLevel('farms')
   }
 
-  function handleDeleteFarm(farm: Farm) {
-    if (!window.confirm(`¿Eliminar la finca "${farm.name}" y todos sus campos?`)) return
-    removeFieldsByFarmId(farm.id)
-    deleteFarm(farm.id)
+  async function handleDeleteFarm(farm: Farm) {
+    const ok = await confirm({
+      title: `¿Eliminar la finca "${farm.name}"?`,
+      message: 'Se eliminarán también todos sus campos. Esta acción no se puede deshacer.',
+      confirmLabel: 'Eliminar finca',
+      danger: true,
+    })
+    if (!ok) return
+    deleteFarmCascade(farm.id)
+    toast.success(`Finca "${farm.name}" eliminada`)
     if (farms.length <= 1) setLevel('farms')
   }
 
@@ -146,6 +156,8 @@ export default function FarmDrawer({
           : null
         }
       </div>
+
+      {confirmDialog}
     </>
   )
 }
@@ -426,8 +438,20 @@ function FieldCard({
   const summary = computeCropSummary(field.rows ?? [], field.freePlants ?? [], getCropById)
   const health = getFieldOperationHealth(field.plantingEvents ?? [])
 
+  // Double-clicking the card opens the field editor (issue #7). Clicks that
+  // land on the card's own buttons are ignored so their actions don't also
+  // trigger an edit.
+  const handleDoubleClick = (e: ReactMouseEvent) => {
+    if ((e.target as HTMLElement).closest('button')) return
+    onEdit()
+  }
+
   return (
-    <div className="px-4 py-3 hover:bg-[#fafcf8] transition-colors">
+    <div
+      onDoubleClick={handleDoubleClick}
+      title="Doble clic para editar el campo"
+      className="px-4 py-3 hover:bg-[#fafcf8] transition-colors cursor-pointer select-none"
+    >
 
       {/* Field name + color + operation badges */}
       <div className="flex items-center justify-between mb-1">

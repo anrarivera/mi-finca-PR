@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react'
 import * as L from 'leaflet'
+import { geodesicAreaAcres } from '@/lib/geo'
 
 export type DrawingMode = 'idle' | 'drawing' | 'complete' | 'editing'
 
@@ -10,25 +11,8 @@ export type DrawingState = {
   selectedPointIndex: number | null
 }
 
-function calculateGeodesicArea(latlngs: L.LatLng[]): number {
-  const R = 6378137
-  let area = 0
-  const len = latlngs.length
-  for (let i = 0; i < len; i++) {
-    const p1 = latlngs[i]
-    const p2 = latlngs[(i + 1) % len]
-    const dLng = ((p2.lng - p1.lng) * Math.PI) / 180
-    const lat1 = (p1.lat * Math.PI) / 180
-    const lat2 = (p2.lat * Math.PI) / 180
-    area += dLng * (2 + Math.sin(lat1) + Math.sin(lat2))
-  }
-  return Math.abs((area * R * R) / 2)
-}
-
 function calculateAcres(latlngs: L.LatLng[]): number {
-  if (latlngs.length < 3) return 0
-  const sqMeters = calculateGeodesicArea(latlngs)
-  return sqMeters * 0.000247105
+  return geodesicAreaAcres(latlngs.map(p => ({ lat: p.lat, lng: p.lng })))
 }
 
 // Find which edge of the polygon is closest to a given point
@@ -157,6 +141,19 @@ export function useDrawing() {
     setSelectedPointIndex(null)
   }, [])
 
+  // ── Added by Claude — hydrate the editor from a previously saved boundary ──
+  // Loads persisted lat/lng points back into the drawing state as a completed
+  // polygon, so a saved finca's boundary renders on the map (and stays
+  // editable) after a reload or when switching between farms.
+  const loadBoundary = useCallback((boundary: { lat: number; lng: number }[]) => {
+    if (boundary.length < 3) return
+    const latlngs = boundary.map(p => L.latLng(p.lat, p.lng))
+    setPoints(latlngs)
+    setAreaAcres(parseFloat(calculateAcres(latlngs).toFixed(2)))
+    setMode('complete')
+    setSelectedPointIndex(null)
+  }, [])
+
   const movePoint = useCallback((index: number, newLatLng: L.LatLng) => {
     setPoints(prev => {
       const updated = [...prev]
@@ -198,6 +195,7 @@ export function useDrawing() {
     startEditing,
     finishEditing,
     clearDrawing,
+    loadBoundary, // Added by Claude — hydrate from saved boundary
     movePoint,
     selectPoint,
     deselectPoint,
