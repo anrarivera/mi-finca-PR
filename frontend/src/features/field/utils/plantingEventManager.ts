@@ -1,6 +1,7 @@
 import type {
   PlantingEvent, RecommendedOperation, FieldRow, PlantInstance
 } from '../types'
+import { todayISO } from '../types'
 import { getScheduleForCrop } from '../data/cropSchedules'
 
 function addDays(dateStr: string, days: number): string {
@@ -17,7 +18,7 @@ function generateOperations(
   const schedule = getScheduleForCrop(cropTypeId)
   if (!schedule) return []
 
-  const today = new Date().toISOString().split('T')[0]
+  const today = todayISO()
 
   return schedule.operations.map(template => {
     const recommendedDate = addDays(plantingDate, template.offsetDays)
@@ -258,7 +259,7 @@ export function rebuildPlantingEvents(
 export function refreshOperationStatuses(
   events: PlantingEvent[]
 ): PlantingEvent[] {
-  const today = new Date().toISOString().split('T')[0]
+  const today = todayISO()
   return events.map(event => ({
     ...event,
     operations: event.operations.map(op => {

@@ -9,6 +9,7 @@ import { useFieldStore } from '@/store/useFieldStore'
 import { useLivestockStore } from '@/store/useLivestockStore'
 import { computeCropSummary } from '@/features/field/utils/rowCalculator'
 import { getFieldOperationHealth } from '@/features/field/utils/operationStatus'
+import { todayISO } from '@/features/field/types'
 import { getCropById } from '@/features/field/data/cropLibrary'
 import { geodesicAreaAcres } from '@/lib/geo'
 import { recommendationService } from '@/features/recommendations/ruleEngine'
@@ -150,7 +151,7 @@ export default function DashboardPage() {
               ) : (
                 <div className="divide-y divide-[#f0f5e8]">
                   {stats.nextOps.map(({ op, fieldName, crop }) => {
-                    const overdue = op.recommendedDate < new Date().toISOString().slice(0, 10)
+                    const overdue = op.recommendedDate < todayISO()
                     return (
                       <div key={op.id} className="flex items-center gap-3 px-5 py-2.5">
                         <span className="text-lg" aria-hidden>{crop?.emoji ?? '🌱'}</span>

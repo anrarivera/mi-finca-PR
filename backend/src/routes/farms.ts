@@ -17,9 +17,12 @@ router.use(requireAuth)
 
 const latLngSchema = z.object({ lat: z.number(), lng: z.number() })
 
+// No .default() in these schemas: defaults survive .partial() in zod, so a
+// PUT that omitted a defaulted field would silently reset it (e.g. wipe a
+// field's boundary to []). Create routes apply defaults explicitly instead.
 const farmBodySchema = z.object({
   name: z.string().trim().min(1).max(120),
-  location: z.string().trim().max(120).default(''),
+  location: z.string().trim().max(120).optional(),
   farmType: z.string().trim().max(40).optional(),
   boundary: z.array(latLngSchema).max(1000).optional(),
   totalAreaAcres: z.number().min(0).optional(),
@@ -31,7 +34,7 @@ const fieldBodySchema = z.object({
   name: z.string().trim().min(1).max(120),
   color: z.string().trim().max(20),
   shape: z.enum(['rectangle', 'polygon']),
-  boundary: z.array(latLngSchema).max(1000).default([]),
+  boundary: z.array(latLngSchema).max(1000).optional(),
   widthFt: z.number().min(0),
   heightFt: z.number().min(0),
   farmLat: z.number().min(-90).max(90),
@@ -71,7 +74,7 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
       data: {
         userId: req.user!.userId,
         name: body.name,
-        location: body.location,
+        location: body.location ?? '',
         farmType: body.farmType ?? 'mixed',
         boundary: body.boundary ?? [],
         totalAreaAcres: body.totalAreaAcres ?? 0,
@@ -142,7 +145,7 @@ router.post('/:id/fields', async (req: Request, res: Response, next: NextFunctio
         name: body.name,
         color: body.color,
         shape: body.shape,
-        boundary: body.boundary,
+        boundary: body.boundary ?? [],
         widthFt: body.widthFt,
         heightFt: body.heightFt,
         farmLat: body.farmLat,
