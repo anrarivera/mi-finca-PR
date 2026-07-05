@@ -4,12 +4,14 @@ import {
   Leaf, ChevronDown, ChevronUp,
   Square, Pentagon, X, ClipboardList,
   LayoutGrid, // Added by Claude — multi-row fill tool
+  AlertCircle, Clock,
 } from 'lucide-react'
 import type { FieldShape, FieldRow, PlantInstance, PlacedField } from '../types'
 import type { EditorMode } from '../hooks/useFieldEditor'
 import CropSelector from './cropSelector'
 import { getCropById } from '../data/cropLibrary'
 import { computeCropSummary } from '../utils/rowCalculator'
+import { getFieldOperationHealth } from '../utils/operationStatus'
 
 type Props = {
   // Current editor state
@@ -105,6 +107,7 @@ export default function FarmFieldEditorPanel({
                 const summary = computeCropSummary(
                   field.rows ?? [], field.freePlants ?? [], getCropById
                 )
+                const health = getFieldOperationHealth(field.plantingEvents ?? [])
                 return (
                   <button
                     key={field.id}
@@ -113,13 +116,29 @@ export default function FarmFieldEditorPanel({
                       selectedFieldId === field.id ? 'bg-[#eaf3de]' : ''
                     }`}
                   >
-                    <div className="flex items-center gap-2 mb-1">
-                      <div className="w-3 h-3 rounded-full shrink-0"
-                        style={{ backgroundColor: field.color }}
-                      />
-                      <span className="text-sm font-medium text-[#2d4a1e] truncate">
-                        {field.name}
-                      </span>
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="w-3 h-3 rounded-full shrink-0"
+                          style={{ backgroundColor: field.color }}
+                        />
+                        <span className="text-sm font-medium text-[#2d4a1e] truncate">
+                          {field.name}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        {health.overdue > 0 && (
+                          <div className="flex items-center gap-0.5 px-1.5 py-0.5 bg-red-50 rounded-full">
+                            <AlertCircle size={8} className="text-red-500" />
+                            <span className="text-[9px] text-red-600 font-bold">{health.overdue}</span>
+                          </div>
+                        )}
+                        {health.dueSoon > 0 && (
+                          <div className="flex items-center gap-0.5 px-1.5 py-0.5 bg-amber-50 rounded-full">
+                            <Clock size={8} className="text-amber-500" />
+                            <span className="text-[9px] text-amber-600 font-bold">{health.dueSoon}</span>
+                          </div>
+                        )}
+                      </div>
                     </div>
                     <p className="text-[10px] text-[#9aab8a] mb-1">
                       {field.widthFt}ft × {field.heightFt}ft

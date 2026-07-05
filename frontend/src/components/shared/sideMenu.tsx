@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { Settings, LogOut, LayoutDashboard, Map, Calculator } from 'lucide-react'
+import { Settings, LogOut, LayoutDashboard, Map, Calculator, Package } from 'lucide-react'
 import { useAuthStore } from '@/store/useAuthStore'
 import { toast } from '@/store/useToastStore'
 
@@ -32,6 +32,14 @@ export default function SideMenu() {
           className={itemClass}
         >
           <LayoutDashboard size={20} />
+        </button>
+        <button
+          onClick={() => navigate('/inventario')}
+          aria-label="Inventario"
+          title="Inventario"
+          className={itemClass}
+        >
+          <Package size={20} />
         </button>
         <button
           onClick={() => navigate('/simulador')}

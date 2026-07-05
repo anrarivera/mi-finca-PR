@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react' // Claude: removed unused useCallback (TS6133 cleanup)
+import { useState, useEffect, type MouseEvent as ReactMouseEvent } from 'react' // Claude: removed unused useCallback (TS6133 cleanup)
 import {
   ChevronRight, ChevronLeft, Star, Plus,
   MapPin, Layers, Pencil, Trash2,
@@ -438,8 +438,20 @@ function FieldCard({
   const summary = computeCropSummary(field.rows ?? [], field.freePlants ?? [], getCropById)
   const health = getFieldOperationHealth(field.plantingEvents ?? [])
 
+  // Double-clicking the card opens the field editor (issue #7). Clicks that
+  // land on the card's own buttons are ignored so their actions don't also
+  // trigger an edit.
+  const handleDoubleClick = (e: ReactMouseEvent) => {
+    if ((e.target as HTMLElement).closest('button')) return
+    onEdit()
+  }
+
   return (
-    <div className="px-4 py-3 hover:bg-[#fafcf8] transition-colors">
+    <div
+      onDoubleClick={handleDoubleClick}
+      title="Doble clic para editar el campo"
+      className="px-4 py-3 hover:bg-[#fafcf8] transition-colors cursor-pointer select-none"
+    >
 
       {/* Field name + color + operation badges */}
       <div className="flex items-center justify-between mb-1">

@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { Settings, LogOut, LogIn, UserPlus } from 'lucide-react'
 import { useAuthStore } from '@/store/useAuthStore'
 import { toast } from '@/store/useToastStore'
+import NotificationBell from './notificationBell'
 
 function initialsFromName(fullName: string): string {
   return fullName
@@ -59,6 +60,8 @@ export default function TopNav() {
         </span>
       </Link>
 
+      <div className="flex items-center gap-2">
+      <NotificationBell />
       {user ? (
         /* Profile button + dropdown */
         <div className="relative" ref={dropdownRef}>
@@ -122,6 +125,7 @@ export default function TopNav() {
           </Link>
         </div>
       )}
+      </div>
     </nav>
   )
 }

@@ -3,6 +3,7 @@ import { Routes, Route } from 'react-router-dom'
 import Layout from './components/shared/layout'
 import HomePage from '@/pages/home/homePage'
 import DashboardPage from '@/pages/dashboard/dashboardPage'
+import InventoryPage from '@/pages/inventory/inventoryPage'
 import SimulatorPage from '@/pages/simulator/simulatorPage'
 import SettingsPage from '@/pages/settings/settingsPage'
 import LoginPage from '@/pages/auth/loginPage'
@@ -22,6 +23,7 @@ function App() {
       <Route element={<Layout />}>
         <Route path="/" element={<HomePage />} />
         <Route path="/dashboard" element={<DashboardPage />} />
+        <Route path="/inventario" element={<InventoryPage />} />
         <Route path="/simulador" element={<SimulatorPage />} />
         <Route path="/settings" element={<SettingsPage />} />
       </Route>

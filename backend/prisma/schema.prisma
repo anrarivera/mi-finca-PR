@@ -8,20 +8,73 @@ datasource db {
 }
 
 model User {
-  id              String    @id @default(uuid())
-  email           String    @unique
-  passwordHash    String?
-  fullName        String
-  profilePhotoUrl String?
-  language        String    @default("es")
-  unitSystem      String    @default("imperial")
-  emailVerified   Boolean   @default(false)
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  farms           Farm[]
-  oauthAccounts   OAuthAccount[]
+  id                String    @id @default(uuid())
+  email             String    @unique
+  passwordHash      String?
+  fullName          String
+  profilePhotoUrl   String?
+  language          String    @default("es")
+  unitSystem        String    @default("imperial")
+  emailVerified     Boolean   @default(false)
+  notificationPrefs Json      @default("{}")
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  farms             Farm[]
+  oauthAccounts     OAuthAccount[]
+  cropTypes         CropType[]
+  actionTokens      ActionToken[]
 
   @@map("users")
+}
+
+// ── Crop knowledge (issue #1) ────────────────────────────────────────────
+// Built-in crops are seeded with isBuiltIn=true and no owner; farmer-defined
+// crops ("recipes") carry the creating user's id. The schedule holds the
+// operation templates as JSON — same shape the frontend uses.
+
+model CropType {
+  id        String   @id @default(uuid())
+  userId    String?
+  name      String
+  nameEs    String
+  emoji     String   @default("🌱")
+  category  String   @default("Personalizados")
+  isBuiltIn Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  schedule  CropSchedule?
+
+  @@map("crop_types")
+}
+
+model CropSchedule {
+  id                     String   @id @default(uuid())
+  cropTypeId             String   @unique
+  harvestWindowStartDays Int
+  harvestWindowEndDays   Int
+  operations             Json     @default("[]")
+  cropType               CropType @relation(fields: [cropTypeId], references: [id], onDelete: Cascade)
+
+  @@map("crop_schedules")
+}
+
+// ── One-time email action tokens (issues #9/#10) ─────────────────────────
+// verify_email / reset_password / change_email. Only a hash of the token is
+// stored; the raw value goes out via the mailer and is single-use.
+
+model ActionToken {
+  id        String    @id @default(uuid())
+  userId    String
+  type      String
+  tokenHash String    @unique
+  newEmail  String?
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("action_tokens")
 }
 
 model OAuthAccount {

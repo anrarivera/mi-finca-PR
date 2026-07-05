@@ -152,6 +152,16 @@ export const CROP_SCHEDULES: CropSchedule[] = [
   },
 ]
 
+// Custom crop recipes (issue #1) live in useCropStore; merging them here
+// means planting a custom crop generates its operations calendar exactly
+// like a built-in. The store type-imports CropSchedule from this file, so
+// this runtime import is not circular.
+import { useCropStore } from '@/store/useCropStore'
+
 export function getScheduleForCrop(cropTypeId: string): CropSchedule | undefined {
-  return CROP_SCHEDULES.find(s => s.cropTypeId === cropTypeId)
+  return (
+    CROP_SCHEDULES.find(s => s.cropTypeId === cropTypeId) ??
+    useCropStore.getState().customCrops.find(c => c.crop.id === cropTypeId)?.schedule ??
+    undefined
+  )
 }

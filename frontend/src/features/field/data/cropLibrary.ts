@@ -54,12 +54,25 @@ export const CROP_LIBRARY: CropType[] = [
   { id: 'basil', name: 'Basil', nameEs: 'Albahaca', emoji: '🌿', category: 'Compañeras' },
 ]
 
+// Custom crops (issue #1) live in useCropStore; every lookup below merges
+// them with the built-in library so a farmer-defined crop is plantable
+// everywhere a built-in is. The store type-imports CropType from this file,
+// so this runtime import is not circular.
+import { useCropStore } from '@/store/useCropStore'
+
+export function getAllCrops(): CropType[] {
+  return [...CROP_LIBRARY, ...useCropStore.getState().customCrops.map(c => c.crop)]
+}
+
 export function getCropById(id: string): CropType | undefined {
-  return CROP_LIBRARY.find(c => c.id === id)
+  return (
+    CROP_LIBRARY.find(c => c.id === id) ??
+    useCropStore.getState().customCrops.find(c => c.crop.id === id)?.crop
+  )
 }
 
 export function getCropsByCategory(): Record<string, CropType[]> {
-  return CROP_LIBRARY.reduce((acc, crop) => {
+  return getAllCrops().reduce((acc, crop) => {
     if (!acc[crop.category]) acc[crop.category] = []
     acc[crop.category].push(crop)
     return acc
