@@ -10,10 +10,8 @@ import {
 } from '../utils/canvasGeo'
 import type { BBox } from '../utils/canvasGeo'
 import {
-  processRowForEvents,
-  processFreePlantsForEvents,
   refreshOperationStatuses,
-  rebuildPlantingEvents, // Added by Claude — used when rows are edited/deleted
+  rebuildPlantingEvents,
 } from '../utils/plantingEventManager'
 
 export type EditorMode =
@@ -179,12 +177,18 @@ export function useFieldEditor() {
     }
   }, [rowStartPoint])
 
+  // Every mutation below funnels through rebuildPlantingEvents — one
+  // canonical path that derives events (and their plant counts) from the
+  // plants that actually exist, carrying over completed-operation history.
   const confirmRow = useCallback((row: FieldRow) => {
-    setPlanting(prev => ({
-      ...prev,
-      rows: [...prev.rows, row],
-      plantingEvents: processRowForEvents(prev.plantingEvents, fieldId, row),
-    }))
+    setPlanting(prev => {
+      const rows = [...prev.rows, row]
+      return {
+        ...prev,
+        rows,
+        plantingEvents: rebuildPlantingEvents(fieldId, rows, prev.freePlants, prev.plantingEvents),
+      }
+    })
     setRowDraft(null)
     setMode('complete')
   }, [fieldId])
@@ -265,13 +269,13 @@ export function useFieldEditor() {
 
   const confirmFillRows = useCallback((newRows: FieldRow[]) => {
     if (newRows.length > 0) {
-      // Fold every generated row into the planting-event calendar. Rows that
-      // share a crop + planting date merge into one event, just like single
-      // rows added via confirmRow.
       setPlanting(prev => {
-        let events = prev.plantingEvents
-        for (const row of newRows) events = processRowForEvents(events, fieldId, row)
-        return { ...prev, rows: [...prev.rows, ...newRows], plantingEvents: events }
+        const rows = [...prev.rows, ...newRows]
+        return {
+          ...prev,
+          rows,
+          plantingEvents: rebuildPlantingEvents(fieldId, rows, prev.freePlants, prev.plantingEvents),
+        }
       })
     }
     setFillPreviewRows([])
@@ -300,11 +304,14 @@ export function useFieldEditor() {
       lng: geo.lng,
       plantingDate: today,
     }
-    setPlanting(prev => ({
-      ...prev,
-      freePlants: [...prev.freePlants, plant],
-      plantingEvents: processFreePlantsForEvents(prev.plantingEvents, fieldId, [plant], today),
-    }))
+    setPlanting(prev => {
+      const freePlants = [...prev.freePlants, plant]
+      return {
+        ...prev,
+        freePlants,
+        plantingEvents: rebuildPlantingEvents(fieldId, prev.rows, freePlants, prev.plantingEvents),
+      }
+    })
   }, [selectedFreeCropId, fieldId])
 
   const deleteFreePlant = useCallback((plantId: string) => {

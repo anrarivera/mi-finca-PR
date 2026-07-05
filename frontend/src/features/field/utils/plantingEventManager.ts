@@ -104,15 +104,20 @@ function upsertRowCrop(
 
   const existing = findPlantingEvent(events, cropTypeId, row.plantingDate)
   if (existing) {
-    return events.map(e =>
-      e.id === existing.id
-        ? {
-            ...healEventOperations(e),
+    return events.map(e => {
+      if (e.id !== existing.id) return e
+      const { event: healedEvent, wasHistory } = healEventOperations(e)
+      // A history-only event's plantCount/rowIds describe plants that were
+      // REMOVED — replanting must reset them from the new row, not stack on
+      // top of the stale numbers.
+      return wasHistory
+        ? { ...healedEvent, plantCount: plants.length, rowIds: [row.id], freePlantIds: [] }
+        : {
+            ...healedEvent,
             plantCount: e.plantCount + plants.length,
             rowIds: e.rowIds.includes(row.id) ? e.rowIds : [...e.rowIds, row.id],
           }
-        : e
-    )
+    })
   }
   return [
     ...events,
@@ -124,18 +129,25 @@ function upsertRowCrop(
 // removed) hold just their completed/skipped operations. When new plants
 // merge back into such an event — a replant with the same crop and date —
 // the missing schedule operations must be restored, or the new planting
-// would have no pending calendar at all.
-function healEventOperations(event: PlantingEvent): PlantingEvent {
+// would have no pending calendar at all. `wasHistory` tells the caller the
+// event's plant counts refer to removed plants and must be reset.
+function healEventOperations(event: PlantingEvent): {
+  event: PlantingEvent
+  wasHistory: boolean
+} {
   const schedule = generateOperations(event.id, event.cropTypeId, event.plantingDate)
   const missing = schedule.filter(
     op => !event.operations.some(o => o.templateId === op.templateId)
   )
-  if (missing.length === 0) return event
+  if (missing.length === 0) return { event, wasHistory: false }
   return {
-    ...event,
-    operations: [...event.operations, ...missing].sort((a, b) =>
-      a.recommendedDate.localeCompare(b.recommendedDate)
-    ),
+    wasHistory: true,
+    event: {
+      ...event,
+      operations: [...event.operations, ...missing].sort((a, b) =>
+        a.recommendedDate.localeCompare(b.recommendedDate)
+      ),
+    },
   }
 }
 
@@ -175,11 +187,20 @@ export function processFreePlantsForEvents(
   Object.entries(byCrop).forEach(([cropTypeId, cropPlants]) => {
     const existing = findPlantingEvent(events, cropTypeId, plantingDate)
     if (existing) {
-      events = events.map(e =>
-        e.id === existing.id
-          ? mergeFreePlantsIntoEvent(healEventOperations(e), cropPlants)
-          : e
-      )
+      events = events.map(e => {
+        if (e.id !== existing.id) return e
+        const { event: healedEvent, wasHistory } = healEventOperations(e)
+        // See upsertRowCrop: a history event's counts describe removed
+        // plants and must be reset, not accumulated.
+        return wasHistory
+          ? {
+              ...healedEvent,
+              plantCount: cropPlants.length,
+              rowIds: [],
+              freePlantIds: cropPlants.map(p => p.id),
+            }
+          : mergeFreePlantsIntoEvent(healedEvent, cropPlants)
+      })
     } else {
       const newEvent = createPlantingEvent(
         fieldId,

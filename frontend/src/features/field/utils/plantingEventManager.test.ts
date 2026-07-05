@@ -218,6 +218,16 @@ describe('rebuildPlantingEvents', () => {
     // …and the stripped schedule operations are back.
     expect(merged[0].operations.length).toBe(event.operations.length)
     expect(merged[0].operations.some(op => op.status !== 'completed' && op.status !== 'skipped')).toBe(true)
+    // The count reflects the plants that exist NOW (3), not the ghost's
+    // removed plants stacked with the new ones (5 + 3 = 8).
+    expect(merged[0].plantCount).toBe(3)
+    expect(merged[0].rowIds).toEqual(['r2'])
+
+    // The rebuild path (what the editor hook actually uses) agrees.
+    const rebuilt = rebuildPlantingEvents('f1', [replant], [], [ghost])
+    expect(rebuilt).toHaveLength(1)
+    expect(rebuilt[0].plantCount).toBe(3)
+    expect(rebuilt[0].operations.find(op => op.type === 'harvest')!.status).toBe('completed')
   })
 
   it('keeps history when a planting date is corrected', () => {
