@@ -11,7 +11,7 @@ import { useConfirm } from '@/components/shared/confirmDialog'
 import { toast } from '@/store/useToastStore'
 import { useFieldStore } from '@/store/useFieldStore'
 import { useFarmStore, useActiveFarm } from '@/store/useFarmStore'
-import { useLivestockStore } from '@/store/useLivestockStore'
+import { deleteFarmCascade } from '@/store/farmActions'
 import type { Farm } from '@/store/useFarmStore'
 
 delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)._getIconUrl
@@ -233,10 +233,10 @@ export default function FarmMap({ center = PR_CENTER, zoom = DEFAULT_ZOOM }: Pro
   const [flyTarget, setFlyTarget] = useState<Farm | null>(null)
   const { confirm, confirmDialog } = useConfirm()
 
-  const { fields, removeField, removeFieldsByFarmId } = useFieldStore()
+  const { fields, removeField } = useFieldStore()
   const {
     farms, favoriteFarmId,
-    updateFarm, deleteFarm, setActiveFarm, createFarm,
+    updateFarm, setActiveFarm, createFarm,
     addFieldIdToFarm, removeFieldIdFromFarm,
   } = useFarmStore()
   const activeFarm = useActiveFarm()
@@ -290,9 +290,7 @@ export default function FarmMap({ center = PR_CENTER, zoom = DEFAULT_ZOOM }: Pro
       danger: true,
     })
     if (!ok) return
-    removeFieldsByFarmId(activeFarm.id)
-    useLivestockStore.getState().removeUnitsByFarmId(activeFarm.id)
-    deleteFarm(activeFarm.id)
+    deleteFarmCascade(activeFarm.id)
     toast.success(`Finca "${activeFarm.name}" eliminada`)
   }
 
@@ -364,32 +362,19 @@ export default function FarmMap({ center = PR_CENTER, zoom = DEFAULT_ZOOM }: Pro
           onInsertPoint={drawing.insertPointAfter}
         />
 
-        {/* Fields for the active farm */}
-        {farmFields.map(field => {
-          // ── Added by Claude ──────────────────────────────────────────
-          // While the farm boundary is being drawn/edited, fields must not
-          // intercept clicks — otherwise a double-click inside a field is
-          // captured by the field (opening the editor) instead of reaching
-          // the map's boundary point-insertion handler.
-          //
-          // Leaflet's `interactive` flag is fixed when the layer is created
-          // and is ignored by later option/style updates, so just changing
-          // the prop does nothing once the layer exists. Folding the locked
-          // state into the React `key` forces a remount, recreating the
-          // Leaflet layer with the correct interactivity. Fields are
-          // double-clickable again only in 'idle' / 'complete' mode.
-          const boundaryLocked =
-            drawing.mode === 'drawing' || drawing.mode === 'editing'
-          return (
-            <PlacedField
-              key={`${field.id}-${boundaryLocked ? 'locked' : 'active'}`}
-              field={field}
-              onEdit={handleOpenFieldEditor}
-              interactive={!boundaryLocked}
-            />
-          )
-          // ── End Claude ───────────────────────────────────────────────
-        })}
+        {/* Fields for the active farm. While the farm boundary is being
+            drawn/edited, fields stop intercepting pointer events (handled
+            inside PlacedField on the live layer — no remount) so a
+            double-click inside a field reaches the map's boundary
+            point-insertion handler instead of opening the field editor. */}
+        {farmFields.map(field => (
+          <PlacedField
+            key={field.id}
+            field={field}
+            onEdit={handleOpenFieldEditor}
+            interactive={drawing.mode !== 'drawing' && drawing.mode !== 'editing'}
+          />
+        ))}
 
       </MapContainer>
 

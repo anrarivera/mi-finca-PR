@@ -107,7 +107,7 @@ function upsertRowCrop(
     return events.map(e =>
       e.id === existing.id
         ? {
-            ...e,
+            ...healEventOperations(e),
             plantCount: e.plantCount + plants.length,
             rowIds: e.rowIds.includes(row.id) ? e.rowIds : [...e.rowIds, row.id],
           }
@@ -118,6 +118,25 @@ function upsertRowCrop(
     ...events,
     createPlantingEvent(fieldId, cropTypeId, row.plantingDate, plants.length, [row.id], []),
   ]
+}
+
+// History-only events (kept by rebuildPlantingEvents after their plants were
+// removed) hold just their completed/skipped operations. When new plants
+// merge back into such an event — a replant with the same crop and date —
+// the missing schedule operations must be restored, or the new planting
+// would have no pending calendar at all.
+function healEventOperations(event: PlantingEvent): PlantingEvent {
+  const schedule = generateOperations(event.id, event.cropTypeId, event.plantingDate)
+  const missing = schedule.filter(
+    op => !event.operations.some(o => o.templateId === op.templateId)
+  )
+  if (missing.length === 0) return event
+  return {
+    ...event,
+    operations: [...event.operations, ...missing].sort((a, b) =>
+      a.recommendedDate.localeCompare(b.recommendedDate)
+    ),
+  }
 }
 
 // Called when a row is confirmed — returns updated events array.
@@ -158,7 +177,7 @@ export function processFreePlantsForEvents(
     if (existing) {
       events = events.map(e =>
         e.id === existing.id
-          ? mergeFreePlantsIntoEvent(e, cropPlants)
+          ? mergeFreePlantsIntoEvent(healEventOperations(e), cropPlants)
           : e
       )
     } else {

@@ -6,7 +6,7 @@ import {
 } from 'lucide-react'
 import { useFarmStore, useActiveFarm } from '@/store/useFarmStore'
 import { useFieldStore } from '@/store/useFieldStore'
-import { useLivestockStore } from '@/store/useLivestockStore'
+import { deleteFarmCascade } from '@/store/farmActions'
 import { useConfirm } from '@/components/shared/confirmDialog'
 import { toast } from '@/store/useToastStore'
 import { computeCropSummary } from '@/features/field/utils/rowCalculator'
@@ -32,10 +32,10 @@ export default function FarmDrawer({
 
   const {
     farms, activeFarmId, favoriteFarmId,
-    setActiveFarm, setFavoriteFarm, deleteFarm,
+    setActiveFarm, setFavoriteFarm,
   } = useFarmStore()
   const activeFarm = useActiveFarm()
-  const { getFieldsByFarmId, updateField, removeFieldsByFarmId } = useFieldStore()
+  const { getFieldsByFarmId, updateField } = useFieldStore()
   const { confirm, confirmDialog } = useConfirm()
 
   // Auto-navigate to fields level when only one farm
@@ -69,9 +69,7 @@ export default function FarmDrawer({
       danger: true,
     })
     if (!ok) return
-    removeFieldsByFarmId(farm.id)
-    useLivestockStore.getState().removeUnitsByFarmId(farm.id)
-    deleteFarm(farm.id)
+    deleteFarmCascade(farm.id)
     toast.success(`Finca "${farm.name}" eliminada`)
     if (farms.length <= 1) setLevel('farms')
   }

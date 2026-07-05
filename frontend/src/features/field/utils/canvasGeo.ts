@@ -240,8 +240,23 @@ function offsetInwardCCW(poly: FtPoint[], dist: number): FtPoint[] {
   return out
 }
 
-// Min distance (ft) from a feet-space point to a feet-space polygon's edges.
-function distToPolyFt(p: FtPoint, poly: FtPoint[]): number {
+// ── Generic planar geometry core ──────────────────────────────────────
+// Exactly one ray-cast and one point-to-edges implementation: the
+// feet-space pipeline uses them directly, and the lat/lng helpers below
+// (pointInPolygon, distanceToBoundaryFt) delegate after a coordinate map.
+
+function rayCast(p: { x: number; y: number }, poly: Array<{ x: number; y: number }>): boolean {
+  let inside = false
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const intersect =
+      poly[i].y > p.y !== poly[j].y > p.y &&
+      p.x < ((poly[j].x - poly[i].x) * (p.y - poly[i].y)) / (poly[j].y - poly[i].y) + poly[i].x
+    if (intersect) inside = !inside
+  }
+  return inside
+}
+
+function distToEdges(p: { x: number; y: number }, poly: Array<{ x: number; y: number }>): number {
   let min = Infinity
   for (let i = 0; i < poly.length; i++) {
     const a = poly[i], b = poly[(i + 1) % poly.length]
@@ -255,15 +270,13 @@ function distToPolyFt(p: FtPoint, poly: FtPoint[]): number {
   return min
 }
 
+// Min distance (ft) from a feet-space point to a feet-space polygon's edges.
+function distToPolyFt(p: FtPoint, poly: FtPoint[]): number {
+  return distToEdges(p, poly)
+}
+
 function pointInPolyFt(p: FtPoint, poly: FtPoint[]): boolean {
-  let inside = false
-  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
-    const intersect =
-      poly[i].y > p.y !== poly[j].y > p.y &&
-      p.x < ((poly[j].x - poly[i].x) * (p.y - poly[i].y)) / (poly[j].y - poly[i].y) + poly[i].x
-    if (intersect) inside = !inside
-  }
-  return inside
+  return rayCast(p, poly)
 }
 
 // Walk a closed polygon emitting a point roughly every `step` feet.
@@ -374,16 +387,10 @@ export function pointInPolygon(
   pt: { lat: number; lng: number },
   polygon: Array<{ lat: number; lng: number }>
 ): boolean {
-  let inside = false
-  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-    const iy = polygon[i].lat, ix = polygon[i].lng
-    const jy = polygon[j].lat, jx = polygon[j].lng
-    const intersect =
-      iy > pt.lat !== jy > pt.lat &&
-      pt.lng < ((jx - ix) * (pt.lat - iy)) / (jy - iy) + ix
-    if (intersect) inside = !inside
-  }
-  return inside
+  return rayCast(
+    { x: pt.lng, y: pt.lat },
+    polygon.map(p => ({ x: p.lng, y: p.lat }))
+  )
 }
 
 // ── Field-relative orientation ────────────────────────────────────────
@@ -490,20 +497,10 @@ export function distanceToBoundaryFt(
 ): number {
   if (polygon.length < 2) return Infinity
   const lat0 = polygon[0].lat, lng0 = polygon[0].lng
-  const p = toFt(pt, lat0, lng0)
-  let min = Infinity
-  for (let i = 0; i < polygon.length; i++) {
-    const a = toFt(polygon[i], lat0, lng0)
-    const b = toFt(polygon[(i + 1) % polygon.length], lat0, lng0)
-    const dx = b.x - a.x, dy = b.y - a.y
-    const lenSq = dx * dx + dy * dy
-    let t = lenSq === 0 ? 0 : ((p.x - a.x) * dx + (p.y - a.y) * dy) / lenSq
-    t = Math.max(0, Math.min(1, t))
-    const cx = a.x + t * dx, cy = a.y + t * dy
-    const d = Math.hypot(p.x - cx, p.y - cy)
-    if (d < min) min = d
-  }
-  return min
+  return distToEdges(
+    toFt(pt, lat0, lng0),
+    polygon.map(q => toFt(q, lat0, lng0))
+  )
 }
 
 // Added by Claude — the most parallel rows that fit along the chosen axis,

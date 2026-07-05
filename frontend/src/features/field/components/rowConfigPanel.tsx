@@ -7,8 +7,9 @@ import {
   // Claude: removed unused `CANVAS_W`, `CANVAS_H` (TS6133 cleanup)
 } from '../utils/canvasGeo'
 import type { BBox } from '../utils/canvasGeo'
+import { buildRowPlants } from '../utils/plantFactory'
 import { todayISO } from '../types'
-import type { FieldRow, PlantInstance } from '../types'
+import type { FieldRow } from '../types'
 
 type RowDraft = {
   startX: number; startY: number
@@ -53,16 +54,7 @@ export default function RowConfigPanel({ rowDraft, bbox, onConfirm, onCancel }: 
       spacingFt
     )
 
-    const plants: PlantInstance[] = positions.map((pos, i) => {
-      const isCompanion = companionCropId && i % 2 !== 0
-      return {
-        id: `${rowId}_plant_${i}`,
-        cropTypeId: isCompanion ? companionCropId : primaryCropId,
-        lat: pos.lat,
-        lng: pos.lng,
-        plantingDate,
-      }
-    })
+    const plants = buildRowPlants(rowId, positions, primaryCropId, companionCropId || null, plantingDate)
 
     const row: FieldRow = {
       id: rowId,

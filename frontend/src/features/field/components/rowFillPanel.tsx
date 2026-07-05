@@ -21,8 +21,9 @@ import {
   getFieldDimensions,
   maxRowsThatFit,
 } from '../utils/canvasGeo'
+import { buildRowPlants } from '../utils/plantFactory'
 import { todayISO } from '../types'
-import type { FieldRow, PlantInstance } from '../types'
+import type { FieldRow } from '../types'
 
 type Props = {
   boundary: Array<{ lat: number; lng: number }>
@@ -35,12 +36,12 @@ const DEFAULT_MARGIN = 10
 const DEFAULT_ROW_SPACING = 12
 
 export default function RowFillPanel({ boundary, onPreview, onConfirm, onCancel }: Props) {
-  // Stable key so geometry recomputes only when the boundary actually changes.
-  const boundaryKey = JSON.stringify(boundary)
+  // The parent passes a memoized boundary (stable reference per geometry
+  // change), so it can be used directly as a dependency — no stringify keys.
 
   // Field's oriented dimensions (long/short side), used for the size hint and
   // to seed a sensible default row count.
-  const dims = useMemo(() => getFieldDimensions(boundary), [boundaryKey]) // eslint-disable-line react-hooks/exhaustive-deps
+  const dims = useMemo(() => getFieldDimensions(boundary), [boundary])
 
   const [primaryCropId, setPrimaryCropId] = useState('')
   const [companionCropId, setCompanionCropId] = useState('')
@@ -64,7 +65,7 @@ export default function RowFillPanel({ boundary, onPreview, onConfirm, onCancel 
   // Added by Claude — the most rows that fit; the count input is capped to it.
   const maxRows = useMemo(
     () => maxRowsThatFit(boundary, orientation, marginFt, rowSpacingFt),
-    [boundaryKey, orientation, marginFt, rowSpacingFt], // eslint-disable-line react-hooks/exhaustive-deps
+    [boundary, orientation, marginFt, rowSpacingFt],
   )
   // Keep the requested count within what currently fits (e.g. after the user
   // widens the spacing or margin, or flips the orientation).
@@ -77,16 +78,11 @@ export default function RowFillPanel({ boundary, onPreview, onConfirm, onCancel 
     const stamp = Date.now()
     const out: FieldRow[] = []
 
-    // Helper — assign primary/companion crops alternately along a list of points.
+    // Assign primary/companion crops alternately; empty until a crop is
+    // chosen so the preview shows line layout only.
     const makePlants = (rowId: string, positions: Array<{ lat: number; lng: number }>) =>
       primaryCropId
-        ? positions.map((pos, i) => ({
-            id: `${rowId}_plant_${i}`,
-            cropTypeId: !!companionCropId && i % 2 !== 0 ? companionCropId : primaryCropId,
-            lat: pos.lat,
-            lng: pos.lng,
-            plantingDate,
-          }))
+        ? buildRowPlants(rowId, positions, primaryCropId, companionCropId || null, plantingDate)
         : []
 
     // ── Contour mode: rows follow the field shape (rings / partial rings) ──
@@ -135,18 +131,7 @@ export default function RowFillPanel({ boundary, onPreview, onConfirm, onCancel 
       if (positions.length < 2) return
 
       const rowId = `row_${stamp}_${idx}`
-      const plants: PlantInstance[] = primaryCropId
-        ? positions.map((pos, i) => {
-            const isCompanion = !!companionCropId && i % 2 !== 0
-            return {
-              id: `${rowId}_plant_${i}`,
-              cropTypeId: isCompanion ? companionCropId : primaryCropId,
-              lat: pos.lat,
-              lng: pos.lng,
-              plantingDate,
-            }
-          })
-        : [] // no crop chosen yet — preview the line layout only
+      const plants = makePlants(rowId, positions)
 
       out.push({
         id: rowId,
@@ -162,9 +147,8 @@ export default function RowFillPanel({ boundary, onPreview, onConfirm, onCancel 
       })
     })
     return out
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
-    boundaryKey, pattern, orientation, count, marginFt, rowSpacingFt, maxLength, rowLengthFt,
+    boundary, pattern, orientation, count, marginFt, rowSpacingFt, maxLength, rowLengthFt,
     spacingFt, primaryCropId, companionCropId, plantingDate,
   ])
 

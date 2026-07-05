@@ -12,6 +12,7 @@ import { useState } from 'react'
 import { Check, X } from 'lucide-react'
 import CropSelector from './cropSelector'
 import { calculateRowPlantPositions, pointInPolygon, placePlantsAlongPath } from '../utils/canvasGeo'
+import { buildRowPlants } from '../utils/plantFactory'
 import { todayISO } from '../types'
 import type { FieldRow, PlantInstance } from '../types'
 
@@ -91,17 +92,7 @@ export default function RowEditPanel({ rows, boundary, onApply, onCancel }: Prop
           ).filter(pos => pointInPolygon(pos, boundary))
       if (positions.length < 2) return base // keep existing plants if it fails
 
-      const plants: PlantInstance[] = positions.map((pos, i) => {
-        const isCompanion = !!companion && i % 2 !== 0
-        return {
-          id: `${r.id}_plant_${i}`,
-          cropTypeId: isCompanion ? (companion as string) : primary,
-          lat: pos.lat,
-          lng: pos.lng,
-          plantingDate: date,
-        }
-      })
-      return { ...base, plants }
+      return { ...base, plants: buildRowPlants(r.id, positions, primary, companion, date) }
     })
   }
 

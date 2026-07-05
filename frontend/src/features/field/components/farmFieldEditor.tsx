@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react' // Claude: removed unused useEffect (TS6133 cleanup)
+import { useState, useCallback, useMemo } from 'react'
 import { X } from 'lucide-react'
 import { useFieldEditor } from '../hooks/useFieldEditor'
 import FieldEditorCanvas from './fieldEditorCanvas'
@@ -45,6 +45,15 @@ export default function FarmFieldEditor({
   const farmFields = getFieldsByFarmId(farmId)
 
   const { bbox } = useSatelliteBackground(farmBoundary)
+
+  // Stable lat/lng boundary of the field being edited — built once per
+  // points/bbox change instead of inline on every render, so the row panels
+  // receive a referentially stable prop they can use directly as a dep.
+  const editingBoundary = useMemo(
+    () => (bbox ? editor.canvasPointsToLatLng(bbox) : []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [editor.points, bbox]
+  )
 
   // ── Start a new field from scratch ───────────────────────────────
   function handleStartNewField() {
@@ -280,7 +289,7 @@ export default function FarmFieldEditor({
           {/* Added by Claude — multi-row fill configuration + live preview */}
           {editor.mode === 'fillRows' && bbox && (
             <RowFillPanel
-              boundary={editor.canvasPointsToLatLng(bbox)}
+              boundary={editingBoundary}
               onPreview={editor.setFillPreviewRows}
               onConfirm={editor.confirmFillRows}
               onCancel={editor.cancelFillRows}
@@ -298,7 +307,7 @@ export default function FarmFieldEditor({
                 // the newly selected row(s) instead of showing stale values.
                 key={editingRowIds.join('|')}
                 rows={editRows}
-                boundary={editor.canvasPointsToLatLng(bbox)}
+                boundary={editingBoundary}
                 onApply={(updated) => { editor.applyRowEdits(updated); setEditingRowIds(null) }}
                 onCancel={() => setEditingRowIds(null)}
               />

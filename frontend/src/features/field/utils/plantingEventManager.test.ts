@@ -192,6 +192,34 @@ describe('rebuildPlantingEvents', () => {
     expect(rebuilt).toHaveLength(0)
   })
 
+  it('restores the schedule when replanting into a history-only event', () => {
+    // Harvest a row, delete it (event survives as history with only its
+    // completed ops), then plant a NEW row with the same crop + date: the
+    // merged event must regain its pending schedule operations.
+    const row = makeRow('r1', 'plantain', '2020-01-01', 5)
+    const [event] = processRowForEvents([], 'f1', row)
+    const harvested: PlantingEvent = {
+      ...event,
+      operations: event.operations.map(op =>
+        op.type === 'harvest'
+          ? { ...op, status: 'completed' as const, completedDate: '2020-10-01', quantity: 100 }
+          : op
+      ),
+    }
+    const [ghost] = rebuildPlantingEvents('f1', [], [], [harvested])
+    expect(ghost.operations.every(op => op.status === 'completed' || op.status === 'skipped')).toBe(true)
+
+    const replant = makeRow('r2', 'plantain', '2020-01-01', 3)
+    const merged = processRowForEvents([ghost], 'f1', replant)
+    expect(merged).toHaveLength(1)
+    // Completed harvest record survives…
+    const harvest = merged[0].operations.find(op => op.type === 'harvest' && op.status === 'completed')!
+    expect(harvest.quantity).toBe(100)
+    // …and the stripped schedule operations are back.
+    expect(merged[0].operations.length).toBe(event.operations.length)
+    expect(merged[0].operations.some(op => op.status !== 'completed' && op.status !== 'skipped')).toBe(true)
+  })
+
   it('keeps history when a planting date is corrected', () => {
     const row = makeRow('r1', 'plantain', '2026-05-01', 5)
     const [event] = processRowForEvents([], 'f1', row)

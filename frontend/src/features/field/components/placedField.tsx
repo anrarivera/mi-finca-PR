@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Polygon, Marker, Tooltip, useMapEvents } from 'react-leaflet'
 import * as L from 'leaflet'
 import { useFieldStore } from '@/store/useFieldStore'
@@ -40,7 +40,22 @@ export default function PlacedField({ field, onEdit, interactive = true /* Added
   const { updateField } = useFieldStore()
   const [isHovered, setIsHovered] = useState(false)
   const isDragging = useRef(false)
+  const layerRef = useRef<L.Polygon | L.Marker | null>(null)
   useMapEvents({})
+
+  // ── Added by Claude ─────────────────────────────────────────────────
+  // Leaflet fixes the `interactive` option at layer creation, so layers are
+  // always CREATED interactive and pointer events are toggled on the live
+  // DOM element instead. This avoids the previous workaround of folding the
+  // locked state into the React key, which destroyed and recreated every
+  // field layer each time boundary draw/edit mode was toggled.
+  useEffect(() => {
+    const el = layerRef.current?.getElement() as HTMLElement | undefined
+    if (!el) return
+    el.style.pointerEvents = interactive ? '' : 'none'
+    if (!interactive) setIsHovered(false) // a blocked layer never gets mouseout
+  }, [interactive, field.displayMode, field.boundary])
+  // ── End Claude ──────────────────────────────────────────────────────
 
   function handleClick() {
     if (isDragging.current) return
@@ -55,10 +70,9 @@ export default function PlacedField({ field, onEdit, interactive = true /* Added
   if (field.displayMode === 'pin') {
     return (
       <Marker
+        ref={layerRef as React.Ref<L.Marker>}
         position={L.latLng(field.farmLat, field.farmLng)}
         icon={createPinIcon(field.color, field.name)}
-        // Added by Claude — off while the farm boundary is being drawn/edited
-        interactive={interactive}
         eventHandlers={{ click: handleClick }}
       />
     )
@@ -69,10 +83,9 @@ export default function PlacedField({ field, onEdit, interactive = true /* Added
     // Fallback to pin if boundary not yet set
     return (
       <Marker
+        ref={layerRef as React.Ref<L.Marker>}
         position={L.latLng(field.farmLat, field.farmLng)}
         icon={createPinIcon(field.color, field.name)}
-        // Added by Claude — off while the farm boundary is being drawn/edited
-        interactive={interactive}
         eventHandlers={{ click: handleClick }}
       />
     )
@@ -82,6 +95,7 @@ export default function PlacedField({ field, onEdit, interactive = true /* Added
 
   return (
     <Polygon
+      ref={layerRef as React.Ref<L.Polygon>}
       positions={positions}
       pathOptions={{
         color: field.color,
@@ -89,13 +103,6 @@ export default function PlacedField({ field, onEdit, interactive = true /* Added
         fillOpacity: isHovered ? 0.5 : field.isPositioning ? 0.3 : 0.4,
         weight: field.isPositioning ? 2.5 : 2,
         dashArray: field.isPositioning ? '6 4' : undefined,
-        // ── Added by Claude ────────────────────────────────────────────
-        // Drop the field's interactivity (its click handler + link cursor)
-        // while the farm boundary is being drawn/edited, so a double-click
-        // inside a field passes through to the map and inserts a boundary
-        // point instead of opening the field editor.
-        interactive,
-        // ── End Claude ─────────────────────────────────────────────────
       }}
       eventHandlers={{
         click: handleClick,
