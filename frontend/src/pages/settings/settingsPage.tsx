@@ -1,10 +1,14 @@
 import { useRef } from 'react'
+import { z } from 'zod'
 import { Download, Upload, Trash2, Database, Info } from 'lucide-react'
 import { useFarmStore } from '@/store/useFarmStore'
 import { useFieldStore } from '@/store/useFieldStore'
 import { useLivestockStore } from '@/store/useLivestockStore'
 import { useConfirm } from '@/components/shared/confirmDialog'
 import { toast } from '@/store/useToastStore'
+import type { Farm } from '@/store/useFarmStore'
+import type { PlacedField } from '@/features/field/types'
+import type { LivestockUnit } from '@/features/livestock/types'
 
 // ──────────────────────────────────────────────────────────────────────────
 // Settings — data backup/restore while the app runs offline-first. The
@@ -24,6 +28,50 @@ type BackupFile = {
   fields: unknown
   livestock: unknown
 }
+
+// ── Backup validation ─────────────────────────────────────────────────
+// The stores are replaced wholesale on import, so every record must at
+// least have the fields the app dereferences (farm.boundary.map,
+// farm.fieldIds spread, field.rows ?? [], …). Lenient by design: unknown
+// extra keys pass through, and versions newer than ours are rejected with
+// a clear message instead of corrupting the current data.
+
+const latLngSchema = z.looseObject({ lat: z.number(), lng: z.number() })
+
+const backupFarmSchema = z.looseObject({
+  id: z.string(),
+  name: z.string(),
+  location: z.string().catch(''),
+  totalAreaAcres: z.number().catch(0),
+  createdAt: z.string().catch(''),
+  boundary: z.array(latLngSchema).catch([]),
+  fieldIds: z.array(z.string()).catch([]),
+})
+
+const backupFieldSchema = z.looseObject({
+  id: z.string(),
+  farmId: z.string(),
+  name: z.string(),
+})
+
+const backupLivestockSchema = z.looseObject({
+  id: z.string(),
+  farmId: z.string(),
+  name: z.string(),
+  animalType: z.string(),
+  currentCount: z.number().catch(0),
+  acquisitionDate: z.string().catch(''),
+})
+
+const backupSchema = z.looseObject({
+  app: z.literal('mi-finca-pr'),
+  version: z.number(),
+  farms: z.array(backupFarmSchema),
+  fields: z.array(backupFieldSchema),
+  livestock: z.array(backupLivestockSchema).catch([]),
+  activeFarmId: z.string().nullable().catch(null),
+  favoriteFarmId: z.string().nullable().catch(null),
+})
 
 export default function SettingsPage() {
   const { confirm, confirmDialog } = useConfirm()
@@ -52,18 +100,26 @@ export default function SettingsPage() {
   }
 
   async function handleImportFile(file: File) {
-    let data: BackupFile
+    let raw: unknown
     try {
-      data = JSON.parse(await file.text())
+      raw = JSON.parse(await file.text())
     } catch {
       toast.error('El archivo no es un JSON válido.')
       return
     }
-    if (data?.app !== 'mi-finca-pr' || !Array.isArray(data.farms) || !Array.isArray(data.fields)) {
-      toast.error('El archivo no parece ser un respaldo de Mi Finca PR.')
+
+    const parsed = backupSchema.safeParse(raw)
+    if (!parsed.success) {
+      toast.error('El archivo no parece ser un respaldo válido de Mi Finca PR.')
       return
     }
-    const farmCount = (data.farms as unknown[]).length
+    const data = parsed.data
+    if (data.version > BACKUP_VERSION) {
+      toast.error('Este respaldo es de una versión más nueva de la aplicación.')
+      return
+    }
+
+    const farmCount = data.farms.length
     const ok = await confirm({
       title: '¿Restaurar respaldo?',
       message: `El respaldo contiene ${farmCount} ${farmCount === 1 ? 'finca' : 'fincas'}. Se reemplazarán todos los datos actuales de la aplicación.`,
@@ -72,15 +128,15 @@ export default function SettingsPage() {
     })
     if (!ok) return
 
+    // Only restore ids that actually resolve to a farm in the backup.
+    const farmIds = new Set(data.farms.map(f => f.id))
     useFarmStore.setState({
-      farms: data.farms as never,
-      activeFarmId: (typeof data.activeFarmId === 'string' ? data.activeFarmId : null) as never,
-      favoriteFarmId: (typeof data.favoriteFarmId === 'string' ? data.favoriteFarmId : null) as never,
+      farms: data.farms as Farm[],
+      activeFarmId: data.activeFarmId && farmIds.has(data.activeFarmId) ? data.activeFarmId : null,
+      favoriteFarmId: data.favoriteFarmId && farmIds.has(data.favoriteFarmId) ? data.favoriteFarmId : null,
     })
-    useFieldStore.setState({ fields: data.fields as never })
-    useLivestockStore.setState({
-      units: (Array.isArray(data.livestock) ? data.livestock : []) as never,
-    })
+    useFieldStore.setState({ fields: data.fields as unknown as PlacedField[] })
+    useLivestockStore.setState({ units: data.livestock as unknown as LivestockUnit[] })
     toast.success('Respaldo restaurado')
   }
 

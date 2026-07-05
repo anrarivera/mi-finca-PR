@@ -8,7 +8,7 @@
 // so a bulk edit can change just the crop while leaving each row's own spacing
 // and date intact.
 // ──────────────────────────────────────────────────────────────────────────
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { Check, X } from 'lucide-react'
 import CropSelector from './cropSelector'
 import { calculateRowPlantPositions, pointInPolygon, placePlantsAlongPath } from '../utils/canvasGeo'
@@ -61,6 +61,23 @@ export default function RowEditPanel({ rows, boundary, onApply, onCancel }: Prop
         plantingDate: date,
       }
 
+      // Only a spacing change redefines the layout and needs plants
+      // regenerated along the geometry. For crop/companion/date edits, keep
+      // the row's existing plants (including any the user deleted one by
+      // one) and just retag them — regenerating would resurrect deletions.
+      if (!spacingDirty) {
+        const plants: PlantInstance[] = r.plants.map(p => {
+          let cropTypeId = p.cropTypeId
+          if (p.cropTypeId === r.primaryCropTypeId) {
+            cropTypeId = primary
+          } else if (r.companionCropTypeId && p.cropTypeId === r.companionCropTypeId) {
+            cropTypeId = companion ?? primary
+          }
+          return { ...p, cropTypeId, plantingDate: date }
+        })
+        return { ...base, plants }
+      }
+
       // Regenerate plants along the row's existing geometry — a contour ring
       // walks its path; a straight row walks its start→end segment.
       const positions = r.path
@@ -84,12 +101,9 @@ export default function RowEditPanel({ rows, boundary, onApply, onCancel }: Prop
     })
   }
 
-  const previewPlantCount = useMemo(
-    () => buildUpdated().reduce((s, r) => s + r.plants.length, 0),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [primaryCropId, companionCropId, spacingFt, plantingDate,
-     primaryDirty, companionDirty, spacingDirty, dateDirty],
-  )
+  // Cheap enough to recompute per keystroke; memoizing it with an
+  // incomplete dependency list previously showed a stale count.
+  const previewPlantCount = buildUpdated().reduce((s, r) => s + r.plants.length, 0)
 
   function handleApply() {
     onApply(buildUpdated())

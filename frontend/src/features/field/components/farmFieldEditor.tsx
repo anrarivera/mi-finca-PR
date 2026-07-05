@@ -292,6 +292,9 @@ export default function FarmFieldEditor({
             if (editRows.length === 0) return null
             return (
               <RowEditPanel
+                // Remount when the selection changes so the form prefills for
+                // the newly selected row(s) instead of showing stale values.
+                key={editingRowIds.join('|')}
                 rows={editRows}
                 boundary={editor.canvasPointsToLatLng(bbox)}
                 onApply={(updated) => { editor.applyRowEdits(updated); setEditingRowIds(null) }}

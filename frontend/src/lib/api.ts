@@ -36,7 +36,7 @@ type RequestOptions = {
 // import between api.ts and useAuthStore.ts.
 let getAccessToken: () => string | null = () => null
 let onSessionExpired: () => void = () => {}
-let refreshInFlight: Promise<string | null> | null = null
+let refreshInFlight: Promise<RefreshResult> | null = null
 
 export function bindAuthHandlers(handlers: {
   getAccessToken: () => string | null
@@ -84,18 +84,32 @@ async function rawRequest<T>(path: string, options: RequestOptions): Promise<T> 
   return payload.data as T
 }
 
-/** Refresh the access token using the HttpOnly cookie. Deduplicated. */
-export async function refreshSession(): Promise<string | null> {
-  refreshInFlight ??= (async () => {
+/**
+ * Refresh the access token using the HttpOnly cookie. Deduplicated.
+ *
+ * The failure REASON matters: only a definitive rejection by the backend
+ * (401/403 — the refresh token really is invalid) may end the session.
+ * A network error or 5xx means "server unreachable", and treating that as
+ * a logout would silently destroy a perfectly valid session every time the
+ * backend restarts or the connection blips.
+ */
+export type RefreshResult =
+  | { ok: true; token: string }
+  | { ok: false; reason: 'unauthorized' | 'unavailable' }
+
+export async function refreshSession(): Promise<RefreshResult> {
+  refreshInFlight ??= (async (): Promise<RefreshResult> => {
     try {
       const data = await rawRequest<{ accessToken: string }>(
         '/api/v1/auth/refresh',
         { method: 'POST', anonymous: true },
       )
       setAccessTokenInternal(data.accessToken)
-      return data.accessToken
-    } catch {
-      return null
+      return { ok: true, token: data.accessToken }
+    } catch (err) {
+      const unauthorized =
+        err instanceof ApiError && (err.status === 401 || err.status === 403)
+      return { ok: false, reason: unauthorized ? 'unauthorized' : 'unavailable' }
     } finally {
       refreshInFlight = null
     }
@@ -108,10 +122,10 @@ export async function api<T>(path: string, options: RequestOptions = {}): Promis
     return await rawRequest<T>(path, options)
   } catch (err) {
     // One silent refresh + retry when the access token expired mid-session.
-    if (err instanceof ApiError && err.status === 401 && !options.anonymous && getAccessToken()) {
-      const newToken = await refreshSession()
-      if (newToken) return rawRequest<T>(path, options)
-      onSessionExpired()
+    if (err instanceof ApiError && err.status === 401 && !options.anonymous) {
+      const refreshed = await refreshSession()
+      if (refreshed.ok) return rawRequest<T>(path, options)
+      if (refreshed.reason === 'unauthorized') onSessionExpired()
     }
     throw err
   }

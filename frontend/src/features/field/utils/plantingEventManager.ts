@@ -4,10 +4,12 @@ import type {
 import { todayISO } from '../types'
 import { getScheduleForCrop } from '../data/cropSchedules'
 
+// Pure calendar-date arithmetic in UTC. Mixing UTC parsing with local
+// setDate/toISOString (the previous version) drifted a day around DST
+// transitions in local timezones.
 function addDays(dateStr: string, days: number): string {
-  const date = new Date(dateStr)
-  date.setDate(date.getDate() + days)
-  return date.toISOString().split('T')[0]
+  const [y, m, d] = dateStr.split('-').map(Number)
+  return new Date(Date.UTC(y, m - 1, d + days)).toISOString().split('T')[0]
 }
 
 function generateOperations(
@@ -70,18 +72,6 @@ export function createPlantingEvent(
   }
 }
 
-// Merge a new row into an existing planting event
-export function mergeRowIntoEvent(
-  event: PlantingEvent,
-  row: FieldRow
-): PlantingEvent {
-  return {
-    ...event,
-    plantCount: event.plantCount + row.plants.length,
-    rowIds: [...event.rowIds, row.id],
-  }
-}
-
 // Merge new free plants into an existing planting event
 export function mergeFreePlantsIntoEvent(
   event: PlantingEvent,
@@ -97,64 +87,53 @@ export function mergeFreePlantsIntoEvent(
   }
 }
 
-// Called when a row is confirmed — returns updated events array
+// Merge a row's plants of one crop into the matching event (or create it).
+// Each event only ever counts plants of ITS crop — a row with a companion
+// crop contributes to two separate events.
+function upsertRowCrop(
+  events: PlantingEvent[],
+  fieldId: string,
+  row: FieldRow,
+  cropTypeId: string,
+  isPrimary: boolean
+): PlantingEvent[] {
+  const plants = row.plants.filter(p => p.cropTypeId === cropTypeId)
+  // The primary event anchors the row even before plants exist; a companion
+  // event only makes sense once companion plants are actually placed.
+  if (!isPrimary && plants.length === 0) return events
+
+  const existing = findPlantingEvent(events, cropTypeId, row.plantingDate)
+  if (existing) {
+    return events.map(e =>
+      e.id === existing.id
+        ? {
+            ...e,
+            plantCount: e.plantCount + plants.length,
+            rowIds: e.rowIds.includes(row.id) ? e.rowIds : [...e.rowIds, row.id],
+          }
+        : e
+    )
+  }
+  return [
+    ...events,
+    createPlantingEvent(fieldId, cropTypeId, row.plantingDate, plants.length, [row.id], []),
+  ]
+}
+
+// Called when a row is confirmed — returns updated events array.
+// Primary and companion crops are processed independently so the companion
+// event is created/merged even when the primary crop merges into an
+// existing event (the old early-return dropped companions in that case and
+// over-counted the primary event with companion plants).
 export function processRowForEvents(
   existingEvents: PlantingEvent[],
   fieldId: string,
   row: FieldRow
 ): PlantingEvent[] {
-  const cropTypeId = row.primaryCropTypeId
-  const plantingDate = row.plantingDate
-
-  const existing = findPlantingEvent(existingEvents, cropTypeId, plantingDate)
-
-  if (existing) {
-    return existingEvents.map(e =>
-      e.id === existing.id ? mergeRowIntoEvent(e, row) : e
-    )
+  let events = upsertRowCrop(existingEvents, fieldId, row, row.primaryCropTypeId, true)
+  if (row.companionCropTypeId && row.companionCropTypeId !== row.primaryCropTypeId) {
+    events = upsertRowCrop(events, fieldId, row, row.companionCropTypeId, false)
   }
-
-  const newEvent = createPlantingEvent(
-    fieldId,
-    cropTypeId,
-    plantingDate,
-    row.plants.filter(p => p.cropTypeId === cropTypeId).length,
-    [row.id],
-    []
-  )
-
-  const events = [...existingEvents, newEvent]
-
-  // If row has a companion crop, create a separate event for it
-  if (row.companionCropTypeId) {
-    const companionPlants = row.plants.filter(
-      p => p.cropTypeId === row.companionCropTypeId
-    )
-    if (companionPlants.length > 0) {
-      const existingCompanion = findPlantingEvent(
-        events,
-        row.companionCropTypeId,
-        plantingDate
-      )
-      if (existingCompanion) {
-        return events.map(e =>
-          e.id === existingCompanion.id
-            ? { ...e, plantCount: e.plantCount + companionPlants.length }
-            : e
-        )
-      }
-      const companionEvent = createPlantingEvent(
-        fieldId,
-        row.companionCropTypeId,
-        plantingDate,
-        companionPlants.length,
-        [row.id],
-        []
-      )
-      return [...events, companionEvent]
-    }
-  }
-
   return events
 }
 
@@ -213,19 +192,43 @@ export function rebuildPlantingEvents(
   freePlants: PlantInstance[],
   previousEvents: PlantingEvent[]
 ): PlantingEvent[] {
-  let events: PlantingEvent[] = []
-  for (const row of rows) {
-    events = processRowForEvents(events, fieldId, row)
+  // Group by what is ACTUALLY planted (each plant's own crop and date), not
+  // by row-level primary/companion labels — a single plant recropped via the
+  // plant editor must show up in the calendar under its real crop.
+  type Group = {
+    cropTypeId: string
+    plantingDate: string
+    count: number
+    rowIds: string[]
+    freePlantIds: string[]
+  }
+  const groups = new Map<string, Group>()
+  const groupFor = (cropTypeId: string, plantingDate: string): Group => {
+    const key = `${cropTypeId}|${plantingDate}`
+    let g = groups.get(key)
+    if (!g) {
+      g = { cropTypeId, plantingDate, count: 0, rowIds: [], freePlantIds: [] }
+      groups.set(key, g)
+    }
+    return g
   }
 
-  // Free plants are grouped per planting date by processFreePlantsForEvents.
-  const freeByDate: Record<string, PlantInstance[]> = {}
+  for (const row of rows) {
+    for (const p of row.plants) {
+      const g = groupFor(p.cropTypeId, p.plantingDate || row.plantingDate)
+      g.count++
+      if (!g.rowIds.includes(row.id)) g.rowIds.push(row.id)
+    }
+  }
   for (const p of freePlants) {
-    (freeByDate[p.plantingDate] ??= []).push(p)
+    const g = groupFor(p.cropTypeId, p.plantingDate)
+    g.count++
+    g.freePlantIds.push(p.id)
   }
-  for (const [date, plants] of Object.entries(freeByDate)) {
-    events = processFreePlantsForEvents(events, fieldId, plants, date)
-  }
+
+  const events: PlantingEvent[] = [...groups.values()].map(g =>
+    createPlantingEvent(fieldId, g.cropTypeId, g.plantingDate, g.count, g.rowIds, g.freePlantIds)
+  )
 
   // Carry over completion status from the previous events where the
   // crop + date grouping still exists.

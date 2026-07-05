@@ -216,8 +216,17 @@ router.post('/refresh', async (req: Request, res: Response, next: NextFunction) 
       throw Errors.unauthorized()
     }
 
-    // Rotate tokens — delete old, issue new
-    await prisma.refreshToken.delete({ where: { token } })
+    // Rotate tokens — but keep the old token redeemable for a short grace
+    // window instead of deleting it immediately. Two tabs loading at once
+    // both present the same cookie; without the grace window the loser gets
+    // a 401 and both sessions die.
+    const graceExpiry = new Date(Date.now() + 60 * 1000)
+    if (stored.expiresAt > graceExpiry) {
+      await prisma.refreshToken.update({
+        where: { token },
+        data: { expiresAt: graceExpiry },
+      })
+    }
 
     const newPayload = { userId: user.id, email: user.email }
     const newAccessToken = signAccessToken(newPayload)

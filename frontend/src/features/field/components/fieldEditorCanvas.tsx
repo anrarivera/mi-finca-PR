@@ -312,6 +312,13 @@ export default function FieldEditorCanvas({
   function handleMouseMove(e: React.MouseEvent) {
     // Added by Claude — dragging the selected row translates it (and its plants)
     if (rowDragRef.current && onMoveRow && bbox) {
+      // The mouse was released outside the SVG (side panel, rulers, outside
+      // the window): no mouseup ever reached us, so end the drag here
+      // instead of letting the row chase the cursor on re-entry.
+      if (e.buttons === 0) {
+        rowDragRef.current = null
+        return
+      }
       const p = getSVGPoint(e)
       const last = rowDragRef.current.last
       const dLng = ((p.x - last.x) / CANVAS_W) * (bbox.east - bbox.west)

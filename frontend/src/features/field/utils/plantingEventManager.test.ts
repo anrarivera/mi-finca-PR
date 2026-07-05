@@ -54,6 +54,37 @@ describe('processRowForEvents', () => {
     events = processRowForEvents(events, 'f1', r2)
     expect(events).toHaveLength(2)
   })
+
+  it('offsets operation dates by pure calendar arithmetic', () => {
+    // plantain's first operation is at offset 14 days; crossing a US DST
+    // boundary (2026-03-08) must not shift the date.
+    const row = makeRow('r1', 'plantain', '2026-03-01', 3)
+    const [event] = processRowForEvents([], 'f1', row)
+    expect(event.operations[0].recommendedDate).toBe('2026-03-15')
+  })
+
+  it('merges companion plants into the companion event, not the primary', () => {
+    // Two rows, same date: plantain primary with marigold companion.
+    // Regression: the old merge path added row 2's companion plants to the
+    // PRIMARY event's count and never updated the companion event.
+    const makeCompanionRow = (id: string) => {
+      const row = makeRow(id, 'plantain', '2026-06-01', 4)
+      row.companionCropTypeId = 'marigold'
+      row.plants = row.plants.map((p, i) =>
+        i % 2 !== 0 ? { ...p, cropTypeId: 'marigold' } : p
+      ) // 2 plantain + 2 marigold per row
+      return row
+    }
+    let events = processRowForEvents([], 'f1', makeCompanionRow('r1'))
+    events = processRowForEvents(events, 'f1', makeCompanionRow('r2'))
+
+    expect(events).toHaveLength(2)
+    const plantain = events.find(e => e.cropTypeId === 'plantain')!
+    const marigold = events.find(e => e.cropTypeId === 'marigold')!
+    expect(plantain.plantCount).toBe(4) // 2 per row × 2 rows — primary only
+    expect(marigold.plantCount).toBe(4)
+    expect(marigold.rowIds).toEqual(['r1', 'r2'])
+  })
 })
 
 describe('processFreePlantsForEvents', () => {
@@ -108,6 +139,26 @@ describe('rebuildPlantingEvents', () => {
     expect(carried.status).toBe('completed')
     expect(carried.completedDate).toBe('2026-06-20')
     expect(carried.product).toBe('Abono 10-10-10')
+  })
+
+  it('groups by each plant\'s actual crop, so a recropped plant moves events', () => {
+    // A row of 4 plantain where one plant was individually recropped to
+    // mango must produce a 3-plant plantain event and a 1-plant mango event.
+    const row = makeRow('r1', 'plantain', '2026-06-01', 4)
+    row.plants[2] = { ...row.plants[2], cropTypeId: 'mango' }
+    const rebuilt = rebuildPlantingEvents('f1', [row], [], [])
+    const plantain = rebuilt.find(e => e.cropTypeId === 'plantain')!
+    const mango = rebuilt.find(e => e.cropTypeId === 'mango')!
+    expect(plantain.plantCount).toBe(3)
+    expect(mango.plantCount).toBe(1)
+    expect(mango.operations.length).toBeGreaterThan(0)
+  })
+
+  it('drops individually deleted plants from event counts', () => {
+    const row = makeRow('r1', 'plantain', '2026-06-01', 5)
+    row.plants = row.plants.filter((_, i) => i !== 0) // one plant deleted
+    const rebuilt = rebuildPlantingEvents('f1', [row], [], [])
+    expect(rebuilt[0].plantCount).toBe(4)
   })
 })
 

@@ -246,12 +246,15 @@ export default function FarmMap({ center = PR_CENTER, zoom = DEFAULT_ZOOM }: Pro
     ? fields.filter(f => f.farmId === activeFarm.id)
     : []
 
-  // On mount — fly to favorite or first farm
+  // On mount — fly to the persisted active farm if it still exists, falling
+  // back to the favorite/first farm. Never stomp a valid saved selection.
   useEffect(() => {
     if (farms.length === 0) return
-    const target = farms.find(f => f.id === favoriteFarmId) ?? farms[0]
-    setActiveFarm(target)
+    const current = activeFarm
+    const target = current ?? farms.find(f => f.id === favoriteFarmId) ?? farms[0]
+    if (!current) setActiveFarm(target)
     setFlyTarget(target)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // ── Added by Claude — hydrate the boundary editor from the active farm ──

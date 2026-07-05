@@ -71,15 +71,19 @@ export const useAuthStore = create<AuthStore>()(
       },
 
       // On app load: if a user was persisted, try to silently renew the
-      // session with the refresh cookie. Failure = back to guest.
+      // session with the refresh cookie. Only a definitive rejection ends
+      // the session — if the backend is simply unreachable, the user stays
+      // signed in and the next API call retries the refresh.
       restoreSession: async () => {
         if (!get().user) return
         set({ status: 'restoring' })
-        const token = await refreshSession()
-        if (token) {
-          set({ accessToken: token, status: 'authenticated' })
-        } else {
+        const result = await refreshSession()
+        if (result.ok) {
+          set({ accessToken: result.token, status: 'authenticated' })
+        } else if (result.reason === 'unauthorized') {
           set({ user: null, accessToken: null, status: 'guest' })
+        } else {
+          set({ status: 'authenticated' })
         }
       },
     }),
