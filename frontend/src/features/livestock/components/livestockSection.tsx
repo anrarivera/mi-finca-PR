@@ -5,6 +5,7 @@ import { useFarmStore } from '@/store/useFarmStore'
 import { ANIMAL_LIBRARY, getAnimalById } from '../data/animalLibrary'
 import { useConfirm } from '@/components/shared/confirmDialog'
 import { toast } from '@/store/useToastStore'
+import { todayISO } from '@/features/field/types'
 import type { AnimalType, LivestockUnit } from '../types'
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -12,13 +13,6 @@ import type { AnimalType, LivestockUnit } from '../types'
 // farm; the form asks for farm (when there is more than one), animal type,
 // name, count and acquisition date.
 // ──────────────────────────────────────────────────────────────────────────
-
-function todayISO(): string {
-  const d = new Date()
-  const mm = String(d.getMonth() + 1).padStart(2, '0')
-  const dd = String(d.getDate()).padStart(2, '0')
-  return `${d.getFullYear()}-${mm}-${dd}`
-}
 
 export default function LivestockSection() {
   const { units, addUnit, updateUnit, removeUnit } = useLivestockStore()

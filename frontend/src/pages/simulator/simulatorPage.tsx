@@ -50,6 +50,17 @@ export default function SimulatorPage() {
   const result = useMemo(() => simulateFarm(rows), [rows])
   const hasRows = rows.length > 0
 
+  // The table renders in the user's stable row order — result.perCrop is
+  // sorted by net, and re-sorting while someone types in an input would
+  // yank the field out from under them.
+  const resultByCrop = useMemo(
+    () => new Map(result.perCrop.map(c => [c.cropTypeId, c])),
+    [result]
+  )
+  const tableRows = rows
+    .map(r => resultByCrop.get(r.cropTypeId))
+    .filter((c): c is NonNullable<typeof c> => c !== undefined)
+
   const inputClass =
     'w-full px-2 py-1.5 rounded-lg border border-[#d0dcc0] text-xs text-[#2d4a1e] text-right focus:outline-none focus:border-[#639922] transition-colors'
 
@@ -159,7 +170,7 @@ export default function SimulatorPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#f0f5e8]">
-                  {result.perCrop.map(c => {
+                  {tableRows.map(c => {
                     const crop = getCropById(c.cropTypeId)
                     const base = getEconomicsForCrop(c.cropTypeId)
                     return (

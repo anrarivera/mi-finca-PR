@@ -35,13 +35,16 @@ describe('simulateFarm', () => {
     expect(result.perCrop[0].yieldPerPlantLbs).toBe(DEFAULT_ECONOMICS.yieldPerPlantLbs)
   })
 
-  it('drops zero-count rows and sorts by net descending', () => {
+  it('keeps zero-count rows as zeros and sorts by net descending', () => {
     const result = simulateFarm([
-      { cropTypeId: 'plantain', count: 0 },
+      { cropTypeId: 'plantain', count: 0 },  // kept — the UI edits counts in place
       { cropTypeId: 'recao', count: 100 },   // small net
       { cropTypeId: 'avocado', count: 100 }, // large net
     ])
-    expect(result.perCrop).toHaveLength(2)
+    expect(result.perCrop).toHaveLength(3)
     expect(result.perCrop[0].cropTypeId).toBe('avocado')
+    const zero = result.perCrop.find(c => c.cropTypeId === 'plantain')!
+    expect(zero.annualNet).toBe(0)
+    expect(result.totals.plants).toBe(200)
   })
 })

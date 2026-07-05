@@ -160,6 +160,59 @@ describe('rebuildPlantingEvents', () => {
     const rebuilt = rebuildPlantingEvents('f1', [row], [], [])
     expect(rebuilt[0].plantCount).toBe(4)
   })
+
+  it('keeps completed harvest history when the row is deleted', () => {
+    // Harvest checked off with quantity, then the spent row is removed:
+    // the event must survive as history (it backs the harvest log), keeping
+    // only its completed/skipped operations.
+    const row = makeRow('r1', 'plantain', '2020-01-01', 5)
+    const [event] = processRowForEvents([], 'f1', row)
+    const harvested: PlantingEvent = {
+      ...event,
+      operations: event.operations.map(op =>
+        op.type === 'harvest'
+          ? { ...op, status: 'completed' as const, completedDate: '2020-10-01', quantity: 250, unit: 'lbs' }
+          : op
+      ),
+    }
+
+    const rebuilt = rebuildPlantingEvents('f1', [], [], [harvested])
+    expect(rebuilt).toHaveLength(1)
+    const ops = rebuilt[0].operations
+    expect(ops.length).toBeGreaterThan(0)
+    expect(ops.every(op => op.status === 'completed' || op.status === 'skipped')).toBe(true)
+    const harvest = ops.find(op => op.type === 'harvest')!
+    expect(harvest.quantity).toBe(250)
+  })
+
+  it('drops vanished events that have no completed work', () => {
+    const row = makeRow('r1', 'plantain', '2026-06-01', 5)
+    const [event] = processRowForEvents([], 'f1', row) // all ops pending/due
+    const rebuilt = rebuildPlantingEvents('f1', [], [], [event])
+    expect(rebuilt).toHaveLength(0)
+  })
+
+  it('keeps history when a planting date is corrected', () => {
+    const row = makeRow('r1', 'plantain', '2026-05-01', 5)
+    const [event] = processRowForEvents([], 'f1', row)
+    const withDone: PlantingEvent = {
+      ...event,
+      operations: event.operations.map((op, i) =>
+        i === 0 ? { ...op, status: 'completed' as const, completedDate: '2026-05-20' } : op
+      ),
+    }
+
+    // Date corrected → group key changes → old event survives as history,
+    // new event gets a fresh schedule.
+    const edited = makeRow('r1', 'plantain', '2026-06-01', 5)
+    const rebuilt = rebuildPlantingEvents('f1', [edited], [], [withDone])
+    expect(rebuilt).toHaveLength(2)
+    const history = rebuilt.find(e => e.plantingDate === '2026-05-01')!
+    expect(history.operations).toHaveLength(1)
+    expect(history.operations[0].status).toBe('completed')
+    const fresh = rebuilt.find(e => e.plantingDate === '2026-06-01')!
+    expect(fresh.operations.length).toBeGreaterThan(1)
+  })
 })
 
 describe('refreshOperationStatuses', () => {

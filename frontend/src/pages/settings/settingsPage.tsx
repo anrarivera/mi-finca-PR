@@ -30,13 +30,64 @@ type BackupFile = {
 }
 
 // ── Backup validation ─────────────────────────────────────────────────
-// The stores are replaced wholesale on import, so every record must at
-// least have the fields the app dereferences (farm.boundary.map,
-// farm.fieldIds spread, field.rows ?? [], …). Lenient by design: unknown
-// extra keys pass through, and versions newer than ours are rejected with
-// a clear message instead of corrupting the current data.
+// The stores are replaced wholesale on import, so this validates the FULL
+// depth of what the app dereferences (rows, plants, planting events,
+// operations…). All-or-nothing on purpose: any structural problem rejects
+// the import BEFORE anything is overwritten — never a partial restore, and
+// never an array-level fallback that could silently wipe a whole store.
+// Unknown extra keys pass through (loose objects) for forward compat;
+// versions newer than ours are rejected with a clear message.
 
 const latLngSchema = z.looseObject({ lat: z.number(), lng: z.number() })
+
+const backupPlantSchema = z.looseObject({
+  id: z.string(),
+  cropTypeId: z.string(),
+  lat: z.number(),
+  lng: z.number(),
+  plantingDate: z.string(),
+})
+
+const backupRowSchema = z.looseObject({
+  id: z.string(),
+  startLat: z.number(),
+  startLng: z.number(),
+  endLat: z.number(),
+  endLng: z.number(),
+  spacingFt: z.number(),
+  primaryCropTypeId: z.string(),
+  companionCropTypeId: z.string().nullable().catch(null),
+  plantingDate: z.string(),
+  plants: z.array(backupPlantSchema),
+  path: z.array(latLngSchema).optional(),
+  pathClosed: z.boolean().optional(),
+})
+
+const backupOperationSchema = z.looseObject({
+  id: z.string(),
+  plantingEventId: z.string().catch(''),
+  templateId: z.string(),
+  type: z.string(),
+  labelEs: z.string(),
+  recommendedDate: z.string(),
+  status: z.enum(['pending', 'due', 'completed', 'skipped']).catch('pending'),
+  completedDate: z.string().optional(),
+  notes: z.string().optional(),
+  product: z.string().optional(),
+  quantity: z.number().optional(),
+  unit: z.string().optional(),
+})
+
+const backupEventSchema = z.looseObject({
+  id: z.string(),
+  fieldId: z.string(),
+  cropTypeId: z.string(),
+  plantingDate: z.string(),
+  plantCount: z.number().catch(0),
+  rowIds: z.array(z.string()).catch([]),
+  freePlantIds: z.array(z.string()).catch([]),
+  operations: z.array(backupOperationSchema),
+})
 
 const backupFarmSchema = z.looseObject({
   id: z.string(),
@@ -44,14 +95,27 @@ const backupFarmSchema = z.looseObject({
   location: z.string().catch(''),
   totalAreaAcres: z.number().catch(0),
   createdAt: z.string().catch(''),
-  boundary: z.array(latLngSchema).catch([]),
-  fieldIds: z.array(z.string()).catch([]),
+  boundary: z.array(latLngSchema),
+  fieldIds: z.array(z.string()),
 })
 
 const backupFieldSchema = z.looseObject({
   id: z.string(),
   farmId: z.string(),
   name: z.string(),
+  color: z.string().catch('#8fba4e'),
+  shape: z.enum(['rectangle', 'polygon']).catch('rectangle'),
+  widthFt: z.number().catch(100),
+  heightFt: z.number().catch(100),
+  farmLat: z.number(),
+  farmLng: z.number(),
+  rotation: z.number().catch(0),
+  isPositioning: z.boolean().catch(false),
+  displayMode: z.enum(['shape', 'pin']).catch('shape'),
+  boundary: z.array(latLngSchema).optional(),
+  rows: z.array(backupRowSchema).optional(),
+  freePlants: z.array(backupPlantSchema).optional(),
+  plantingEvents: z.array(backupEventSchema).optional(),
 })
 
 const backupLivestockSchema = z.looseObject({
@@ -60,7 +124,8 @@ const backupLivestockSchema = z.looseObject({
   name: z.string(),
   animalType: z.string(),
   currentCount: z.number().catch(0),
-  acquisitionDate: z.string().catch(''),
+  acquisitionDate: z.string(),
+  notes: z.string().optional(),
 })
 
 const backupSchema = z.looseObject({
@@ -68,7 +133,9 @@ const backupSchema = z.looseObject({
   version: z.number(),
   farms: z.array(backupFarmSchema),
   fields: z.array(backupFieldSchema),
-  livestock: z.array(backupLivestockSchema).catch([]),
+  // No array-level .catch here: one bad record must reject the whole
+  // import with an error, not silently erase every animal.
+  livestock: z.array(backupLivestockSchema),
   activeFarmId: z.string().nullable().catch(null),
   favoriteFarmId: z.string().nullable().catch(null),
 })

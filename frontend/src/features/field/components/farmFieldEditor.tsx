@@ -216,6 +216,8 @@ export default function FarmFieldEditor({
           onDeletePoint={editor.deletePoint}
           // Added by Claude — multi-row fill tool
           onStartFillRows={editor.startFillRows}
+          onStartAddRow={editor.startAddRow}
+          onCancelAddRow={editor.cancelRowConfig}
           onStartAddFreePlant={editor.startAddFreePlant}
           onStopAddFreePlant={editor.stopAddFreePlant}
           // Added by Claude — row editing (single + bulk)

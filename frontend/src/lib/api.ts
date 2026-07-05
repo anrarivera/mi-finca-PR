@@ -97,19 +97,33 @@ export type RefreshResult =
   | { ok: true; token: string }
   | { ok: false; reason: 'unauthorized' | 'unavailable' }
 
+async function doRefresh(): Promise<RefreshResult> {
+  try {
+    const data = await rawRequest<{ accessToken: string }>(
+      '/api/v1/auth/refresh',
+      { method: 'POST', anonymous: true },
+    )
+    setAccessTokenInternal(data.accessToken)
+    return { ok: true, token: data.accessToken }
+  } catch (err) {
+    const unauthorized =
+      err instanceof ApiError && (err.status === 401 || err.status === 403)
+    return { ok: false, reason: unauthorized ? 'unauthorized' : 'unavailable' }
+  }
+}
+
 export async function refreshSession(): Promise<RefreshResult> {
   refreshInFlight ??= (async (): Promise<RefreshResult> => {
     try {
-      const data = await rawRequest<{ accessToken: string }>(
-        '/api/v1/auth/refresh',
-        { method: 'POST', anonymous: true },
-      )
-      setAccessTokenInternal(data.accessToken)
-      return { ok: true, token: data.accessToken }
-    } catch (err) {
-      const unauthorized =
-        err instanceof ApiError && (err.status === 401 || err.status === 403)
-      return { ok: false, reason: unauthorized ? 'unauthorized' : 'unavailable' }
+      // Refresh tokens are strictly single-use on the backend, so two TABS
+      // refreshing at once would race: the loser presents an already-rotated
+      // cookie and gets logged out. The Web Locks API serializes across all
+      // tabs of the origin — the second tab waits, then refreshes with the
+      // NEW cookie (the cookie jar is shared) and succeeds.
+      if (typeof navigator !== 'undefined' && 'locks' in navigator) {
+        return await navigator.locks.request('mi-finca-session-refresh', doRefresh)
+      }
+      return await doRefresh()
     } finally {
       refreshInFlight = null
     }

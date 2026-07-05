@@ -232,7 +232,7 @@ export function rebuildPlantingEvents(
 
   // Carry over completion status from the previous events where the
   // crop + date grouping still exists.
-  return events.map(ev => {
+  const rebuilt = events.map(ev => {
     const old = previousEvents.find(
       e => e.cropTypeId === ev.cropTypeId && e.plantingDate === ev.plantingDate
     )
@@ -256,6 +256,23 @@ export function rebuildPlantingEvents(
       }),
     }
   })
+
+  // Completed work is a RECORD, not a todo: planting events are the sole
+  // storage behind the harvest log and calendar history, so a previous
+  // event whose plants were all removed (row deleted, date corrected)
+  // survives as a history-only event keeping its completed/skipped
+  // operations. Its pending operations disappear with the plants.
+  const rebuiltKeys = new Set(rebuilt.map(e => `${e.cropTypeId}|${e.plantingDate}`))
+  for (const old of previousEvents) {
+    if (rebuiltKeys.has(`${old.cropTypeId}|${old.plantingDate}`)) continue
+    const doneOps = old.operations.filter(
+      op => op.status === 'completed' || op.status === 'skipped'
+    )
+    if (doneOps.length === 0) continue
+    rebuilt.push({ ...old, operations: doneOps })
+  }
+
+  return rebuilt
 }
 
 // Update operation statuses based on today's date

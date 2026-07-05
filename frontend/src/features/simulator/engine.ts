@@ -41,8 +41,10 @@ export type SimResult = {
 }
 
 export function simulateFarm(crops: SimCropInput[]): SimResult {
+  // Zero-count rows are kept (contributing zeros): the simulator table edits
+  // counts in place, and dropping a row the moment the user types 0 would
+  // make it vanish from the UI mid-edit.
   const perCrop: SimCropResult[] = crops
-    .filter(c => c.count > 0)
     .map(c => {
       const base = getEconomicsForCrop(c.cropTypeId)
       const yieldPerPlantLbs = c.yieldPerPlantLbs ?? base.yieldPerPlantLbs

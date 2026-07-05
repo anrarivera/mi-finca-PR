@@ -216,17 +216,17 @@ router.post('/refresh', async (req: Request, res: Response, next: NextFunction) 
       throw Errors.unauthorized()
     }
 
-    // Rotate tokens — but keep the old token redeemable for a short grace
-    // window instead of deleting it immediately. Two tabs loading at once
-    // both present the same cookie; without the grace window the loser gets
-    // a 401 and both sessions die.
-    const graceExpiry = new Date(Date.now() + 60 * 1000)
-    if (stored.expiresAt > graceExpiry) {
-      await prisma.refreshToken.update({
-        where: { token },
-        data: { expiresAt: graceExpiry },
-      })
-    }
+    // Rotate tokens — strict single use: the old token is deleted the moment
+    // it is redeemed, so a captured token cannot be replayed and logout
+    // reliably ends the session. The "two tabs refresh at once" race is
+    // handled client-side (the frontend serializes refreshes across tabs
+    // with the Web Locks API), not by weakening rotation here.
+    await prisma.refreshToken.delete({ where: { token } })
+
+    // Opportunistic hygiene — expired rows for this user are dead weight.
+    await prisma.refreshToken.deleteMany({
+      where: { userId: user.id, expiresAt: { lt: new Date() } },
+    })
 
     const newPayload = { userId: user.id, email: user.email }
     const newAccessToken = signAccessToken(newPayload)

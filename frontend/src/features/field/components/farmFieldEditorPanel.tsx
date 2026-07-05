@@ -40,6 +40,8 @@ type Props = {
   onCancelField: () => void
   onDeletePoint: (i: number) => void
   onStartFillRows: () => void // Added by Claude — multi-row fill tool
+  onStartAddRow: () => void   // single row between two points, any angle
+  onCancelAddRow: () => void  // back to 'complete' without resetting the field
   onStartAddFreePlant: (cropId: string) => void
   onStopAddFreePlant: () => void
   // ── Added by Claude — row editing (single + bulk) replaces single-row add ──
@@ -59,7 +61,8 @@ export default function FarmFieldEditorPanel({
   onShapeChange, onNameChange, onWidthChange, onHeightChange,
   onStartNewField, onStartDrawing, onComplete, onUndo,
   onSaveField, onCancelField, onDeletePoint,
-  onStartFillRows, onStartAddFreePlant, onStopAddFreePlant,
+  onStartFillRows, onStartAddRow, onCancelAddRow,
+  onStartAddFreePlant, onStopAddFreePlant,
   onEditRows, onDeleteRows,
   onSelectField, onEditSelectedField, onDeleteSelectedField, onOpenOperations,
 }: Props) {
@@ -494,12 +497,18 @@ export default function FarmFieldEditorPanel({
             )}
 
             <div className="flex flex-col gap-2 pt-2 border-t border-[#f0f5e8]">
-              {/* Added by Claude — single-row "Añadir hilera" removed; the fill
-                  tool with Número de hileras = 1 covers making one row. */}
               <button onClick={onStartFillRows}
                 className="w-full flex items-center justify-center gap-2 py-2 text-xs text-[#639922] border border-[#c8dca8] rounded-lg hover:bg-[#eaf3de] transition-colors"
               >
                 <LayoutGrid size={13} /> Rellenar con hileras
+              </button>
+
+              {/* Single row between two chosen points, at any angle — the
+                  fill tool only makes rows aligned to the field's axes. */}
+              <button onClick={onStartAddRow}
+                className="w-full flex items-center justify-center gap-2 py-2 text-xs text-[#639922] border border-[#c8dca8] rounded-lg hover:bg-[#eaf3de] transition-colors"
+              >
+                <Plus size={13} /> Añadir hilera individual
               </button>
 
               <div className="flex flex-col gap-1.5">
@@ -544,7 +553,7 @@ export default function FarmFieldEditorPanel({
               <p>• Clic para marcar inicio de hilera</p>
               <p>• Clic de nuevo para marcar el final</p>
             </div>
-            <button onClick={onCancelField}
+            <button onClick={onCancelAddRow}
               className="w-full py-2 text-xs text-[#9aab8a] hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
             >
               Cancelar

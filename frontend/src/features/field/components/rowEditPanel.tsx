@@ -61,11 +61,15 @@ export default function RowEditPanel({ rows, boundary, onApply, onCancel }: Prop
         plantingDate: date,
       }
 
-      // Only a spacing change redefines the layout and needs plants
-      // regenerated along the geometry. For crop/companion/date edits, keep
-      // the row's existing plants (including any the user deleted one by
-      // one) and just retag them — regenerating would resurrect deletions.
-      if (!spacingDirty) {
+      // Plants must be regenerated along the geometry when the layout
+      // changes: a spacing edit, or ADDING a companion to a row that never
+      // had one (retagging can't materialize plants that don't exist).
+      // For every other edit (crop swap, companion change/removal, date),
+      // keep the row's existing plants — including any the user deleted
+      // one by one — and just retag them; regenerating would resurrect
+      // those deletions.
+      const addsCompanion = companionDirty && !!companion && !r.companionCropTypeId
+      if (!spacingDirty && !addsCompanion) {
         const plants: PlantInstance[] = r.plants.map(p => {
           let cropTypeId = p.cropTypeId
           if (p.cropTypeId === r.primaryCropTypeId) {
