@@ -13,7 +13,9 @@ import { todayISO } from '@/features/field/types'
 import { getCropById } from '@/features/field/data/cropLibrary'
 import { geodesicAreaAcres } from '@/lib/geo'
 import { recommendationService } from '@/features/recommendations/ruleEngine'
+import { collectHarvestEntries, totalHarvestsByCrop } from '@/features/field/utils/harvestLog'
 import LivestockSection from '@/features/livestock/components/livestockSection'
+import OperationsCalendar from '@/features/field/components/operationsCalendar'
 import type { Recommendation } from '@/features/recommendations/types'
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -73,7 +75,13 @@ export default function DashboardPage() {
       farms, fields, livestock, today: new Date(),
     })
 
-    return { totalAcres, cropSummary, totalPlants, totalAnimals, health, nextOps, recommendations }
+    const harvestEntries = collectHarvestEntries(fields)
+    const harvestTotals = totalHarvestsByCrop(harvestEntries)
+
+    return {
+      totalAcres, cropSummary, totalPlants, totalAnimals, health, nextOps,
+      recommendations, harvestEntries, harvestTotals,
+    }
   }, [farms, fields, livestock])
 
   return (
@@ -190,6 +198,69 @@ export default function DashboardPage() {
               )}
             </section>
           </div>
+
+          {/* ── Operations month calendar ──────────────────────────── */}
+          {fields.length > 0 && <OperationsCalendar fields={fields} />}
+
+          {/* ── Harvest log ────────────────────────────────────────── */}
+          {stats.harvestEntries.length > 0 && (
+            <section className="bg-white rounded-2xl border border-[#e0e8d8] overflow-hidden">
+              <div className="flex items-center gap-2 px-5 py-4 border-b border-[#e0e8d8]">
+                <span className="text-base" aria-hidden>🧺</span>
+                <h2 className="text-sm font-semibold text-[#2d4a1e]">Cosechas registradas</h2>
+                <span className="text-xs text-[#9aab8a]">
+                  {stats.harvestEntries.length} en total
+                </span>
+              </div>
+
+              {/* Totals per crop */}
+              <div className="flex flex-wrap gap-2 px-5 py-4 border-b border-[#f0f5e8]">
+                {stats.harvestTotals.map(t => {
+                  const crop = getCropById(t.cropTypeId)
+                  const quantities = Object.entries(t.totalsByUnit)
+                    .map(([unit, qty]) => `${qty.toLocaleString()} ${unit}`)
+                    .join(' + ')
+                  return (
+                    <div key={t.cropTypeId}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-[#f5f8f0] rounded-full"
+                    >
+                      <span aria-hidden>{crop?.emoji ?? '🌱'}</span>
+                      <span className="text-xs font-medium text-[#2d4a1e]">
+                        {crop?.nameEs ?? t.cropTypeId}
+                      </span>
+                      <span className="text-xs text-[#7a8a6a]">
+                        {quantities || `${t.harvests} ${t.harvests === 1 ? 'cosecha' : 'cosechas'}`}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+
+              {/* Recent entries */}
+              <div className="divide-y divide-[#f0f5e8]">
+                {stats.harvestEntries.slice(0, 6).map(entry => {
+                  const crop = getCropById(entry.cropTypeId)
+                  return (
+                    <div key={entry.operationId} className="flex items-center gap-3 px-5 py-2.5">
+                      <span className="text-lg" aria-hidden>{crop?.emoji ?? '🌱'}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium text-[#2d4a1e] truncate">
+                          {crop?.nameEs ?? entry.cropTypeId}
+                          {entry.quantity ? ` — ${entry.quantity.toLocaleString()} ${entry.unit || 'lbs'}` : ''}
+                        </p>
+                        <p className="text-[10px] text-[#9aab8a] truncate">
+                          {entry.fieldName}{entry.notes ? ` · ${entry.notes}` : ''}
+                        </p>
+                      </div>
+                      <span className="text-[10px] font-semibold text-[#7a8a6a] shrink-0">
+                        {entry.date}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+            </section>
+          )}
 
           {/* ── Crop inventory ─────────────────────────────────────── */}
           {stats.cropSummary.length > 0 && (

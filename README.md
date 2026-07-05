@@ -170,7 +170,8 @@ mi-finca-PR/
 │       │   └── recommendations/   # RecommendationService + rule-based engine
 │       ├── pages/
 │       │   ├── home/              # Farm map or empty state
-│       │   ├── dashboard/         # Stats, labores, recomendaciones, animales
+│       │   ├── dashboard/         # Stats, calendario, cosechas, recomendaciones, animales
+│       │   ├── simulator/         # Farm viability simulator
 │       │   ├── settings/          # Backup export/import, app info
 │       │   └── auth/              # Login / register
 │       ├── store/                 # Zustand stores (farms, fields, livestock, auth, toasts)
