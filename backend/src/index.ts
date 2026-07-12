@@ -1,9 +1,8 @@
-// import { env } from './lib/env' // must be first — validates config, loads .env
-import './lib/env'
+import { env } from './lib/env' // must be first — loads .env
 import { createApp } from './app'
 
 const app = createApp()
-const PORT = process.env.PORT
+const PORT = env.PORT
 
 // ── Start ──────────────────────────────────────────────────────────────
 app.listen(PORT, () => {
