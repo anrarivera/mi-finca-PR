@@ -30,3 +30,16 @@ export function requireAuth(req: Request, res: Response, next: NextFunction) {
     })
   }
 }
+
+export const optionalAuth = (req: Request, res: Response, next: NextFunction) => {
+  const header = req.headers.authorization
+  if (!header?.startsWith('Bearer ')) return next()
+  
+  try {
+    const token = header.split(' ')[1]
+    req.user = verifyAccessToken(token)
+  } catch {
+    // Invalid token treated as anonymous — don't block the request
+  }
+  next()
+}

@@ -1,13 +1,24 @@
 import { useState, useRef, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Settings, LogOut } from 'lucide-react'
+import { Settings, LogOut, LogIn, UserPlus } from 'lucide-react'
+import { useAuthStore } from '@/store/useAuthStore'
 import { useLogout } from '@/features/auth/hooks/useAuth'
+import NotificationBell from './notificationBell'
+
+function initialsFromName(fullName: string): string {
+  return fullName
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map(part => part[0]!.toUpperCase())
+    .join('') || '?'
+}
 
 export default function TopNav() {
   const [open, setOpen] = useState(false)
-  const [error, setError] = useState('')
   const dropdownRef = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
+  const user = useAuthStore(s => s.user)
   const logout = useLogout()
 
   useEffect(() => {
@@ -20,18 +31,14 @@ export default function TopNav() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  async function handleLogout(e: React.FormEvent) {
+  async function handleLogout() {
     setOpen(false)
-  
-    console.log('Logging out...')
-    e.preventDefault()
-    setError('')
-
     try {
       await logout.mutateAsync()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al cerrar sesión')
+    } catch {
+      // proceed anyway
     }
+    navigate('/')
   }
 
   function handleSettings() {
@@ -41,8 +48,6 @@ export default function TopNav() {
 
   return (
     <nav className="w-full h-16 bg-[#2d4a1e] border-b-2 border-[#3d6128] flex items-center justify-between px-6">
-
-      {/* Logo — clicking takes you home */}
       <Link
         to="/"
         className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-white/10 transition-colors"
@@ -56,44 +61,59 @@ export default function TopNav() {
         </span>
       </Link>
 
-      {/* Profile button + dropdown */}
-      <div className="relative" ref={dropdownRef}>
-        <button
-          onClick={() => setOpen(prev => !prev)}
-          className="w-10 h-10 rounded-full bg-[#4a7a2a] border-2 border-[#6aaa3a] text-[#d4e8b0] text-sm font-semibold hover:bg-[#5a8f35] hover:border-[#8fba4e] transition-colors"
-        >
-          AR
-        </button>
-
-        {open && (
-          <div className="absolute right-0 top-12 w-48 bg-white rounded-xl border border-gray-200 shadow-lg overflow-hidden z-10000">
-
-            {/* User info header */}
-            <div className="px-4 py-3 border-b border-gray-100">
-              <p className="text-sm font-semibold text-[#2d4a1e]">Angel R. Rivera</p>
-              <p className="text-xs text-gray-400 mt-0.5">anra.rivera@gmail.com</p>
-            </div>
-
-            {/* Settings */}
+      <div className="flex items-center gap-2">
+        <NotificationBell />
+        {user ? (
+          <div className="relative" ref={dropdownRef}>
             <button
-              onClick={handleSettings}
-              className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-[#3d5a2a] hover:bg-[#f0f5e8] transition-colors"
+              onClick={() => setOpen(prev => !prev)}
+              aria-label="Menú de usuario"
+              aria-expanded={open}
+              className="w-10 h-10 rounded-full bg-[#4a7a2a] border-2 border-[#6aaa3a] text-[#d4e8b0] text-sm font-semibold hover:bg-[#5a8f35] hover:border-[#8fba4e] transition-colors"
             >
-              <Settings size={15} />
-              Settings
+              {initialsFromName(user.fullName)}
             </button>
 
-            <div className="h-px bg-gray-100 mx-2" />
-
-            {/* Logout */}
-            <button
-              onClick={handleLogout}
-              className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
+            {open && (
+              <div className="absolute right-0 top-12 w-52 bg-white rounded-xl border border-gray-200 shadow-lg overflow-hidden z-[1200]">
+                <div className="px-4 py-3 border-b border-gray-100">
+                  <p className="text-sm font-semibold text-[#2d4a1e] truncate">{user.fullName}</p>
+                  <p className="text-xs text-gray-400 mt-0.5 truncate">{user.email}</p>
+                </div>
+                <button
+                  onClick={handleSettings}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-[#3d5a2a] hover:bg-[#f0f5e8] transition-colors"
+                >
+                  <Settings size={15} />
+                  Configuración
+                </button>
+                <div className="h-px bg-gray-100 mx-2" />
+                <button
+                  onClick={handleLogout}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                >
+                  <LogOut size={15} />
+                  Cerrar sesión
+                </button>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <Link
+              to="/login"
+              className="flex items-center gap-1.5 px-3 py-2 text-xs text-[#d4e8b0] rounded-lg hover:bg-white/10 transition-colors"
             >
-              <LogOut size={15} />
-              Log out
-            </button>
-
+              <LogIn size={13} />
+              Iniciar sesión
+            </Link>
+            <Link
+              to="/register"
+              className="flex items-center gap-1.5 px-3 py-2 text-xs bg-[#639922] text-white rounded-lg hover:bg-[#71ad27] transition-colors"
+            >
+              <UserPlus size={13} />
+              Crear cuenta
+            </Link>
           </div>
         )}
       </div>
