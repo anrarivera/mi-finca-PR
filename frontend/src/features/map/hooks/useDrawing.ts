@@ -121,6 +121,17 @@ export function useDrawing() {
     }
   }, [points, mode])
 
+  const loadBoundary = useCallback((points: L.LatLng[]) => {
+    setPoints(points)
+    setMode('complete')
+    setSelectedPointIndex(null)
+    // Calculate area from loaded points
+    if (points.length >= 3) {
+      const area = calculateGeodesicArea(points)
+      setAreaAcres(area)
+    }
+  }, [])
+  
   const startDrawing = useCallback(() => {
     setMode('drawing')
     setPoints([])
@@ -203,5 +214,6 @@ export function useDrawing() {
     deselectPoint,
     insertPointAfter,
     moveAllPoints,
+    loadBoundary,
   }
 }

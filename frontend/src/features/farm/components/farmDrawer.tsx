@@ -4,6 +4,7 @@ import {
   MapPin, Layers, Pencil, Trash2,
   ToggleLeft, ToggleRight, AlertCircle, Clock,
 } from 'lucide-react'
+import { useDeleteField } from '@/features/field/hooks/useFieldsApi'
 import { useFarmStore } from '@/store/useFarmStore'
 import { useFieldStore } from '@/store/useFieldStore'
 import { computeCropSummary } from '@/features/field/utils/rowCalculator'
@@ -324,7 +325,19 @@ function FieldList({
   onDeleteField: (id: string) => void
   onToggleDisplay: (field: PlacedField) => void
   onOpenFieldEditor: () => void
-}) {
+  }) {
+  
+  const deleteField = useDeleteField(farm.id)
+  const { removeFieldIdFromFarm } = useFarmStore()
+
+  function handleDeleteField(fieldId: string) {
+    deleteField.mutate(fieldId, {
+      onSuccess: () => {
+        removeFieldIdFromFarm(farm.id, fieldId)
+        onDeleteField(fieldId) // notify parent if needed
+      },
+    })
+  }
   const totalOverdue = fields.reduce((sum, f) => {
     const h = getFieldOperationHealth(f.plantingEvents ?? [])
     return sum + h.overdue
@@ -333,6 +346,8 @@ function FieldList({
     const h = getFieldOperationHealth(f.plantingEvents ?? [])
     return sum + h.dueSoon
   }, 0)
+
+  
 
   return (
     <div className="flex flex-col h-full">
@@ -392,7 +407,7 @@ function FieldList({
                 key={field.id}
                 field={field}
                 onEdit={() => onEditField(field.id)}
-                onDelete={() => onDeleteField(field.id)}
+                onDelete={() => handleDeleteField(field.id)}  // ← use this
                 onToggleDisplay={() => onToggleDisplay(field)}
               />
             ))}

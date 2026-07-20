@@ -7,6 +7,7 @@ export function errorHandler(
   res: Response,
   next: NextFunction
 ) {
+
   if (err instanceof AppError) {
     return res.status(err.statusCode).json({
       success: false,
@@ -18,8 +19,6 @@ export function errorHandler(
     })
   }
 
-  // Unexpected errors
-  console.error('Unhandled error:', err)
   return res.status(500).json({
     success: false,
     error: {

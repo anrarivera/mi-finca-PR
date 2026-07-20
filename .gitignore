@@ -22,3 +22,5 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+backend/src/env.ts
+backend/src/lib/env.ts

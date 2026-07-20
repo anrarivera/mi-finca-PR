@@ -33,6 +33,8 @@ export type FieldRow = {
   companionCropTypeId: string | null
   plants: PlantInstance[]
   plantingDate: string
+  path?: LatLngPoint[]
+  pathClosed?: boolean
 }
 
 export type OperationStatus = 'pending' | 'due' | 'completed' | 'skipped'

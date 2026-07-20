@@ -1,15 +1,18 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback } from 'react'
 import { X } from 'lucide-react'
 import { useFieldEditor } from '../hooks/useFieldEditor'
 import FieldEditorCanvas from './fieldEditorCanvas'
 import FarmFieldEditorPanel from './farmFieldEditorPanel'
 import RowConfigPanel from './rowConfigPanel'
+import RowFillPanel from './rowFillPanel'
+import RowEditPanel from './rowEditPanel'
+import PlantEditPanel from './plantEditPanel'
 import OperationsView from './operationsView'
 import { useSatelliteBackground } from '../hooks/useSatelliteBackground'
 import { useFieldStore } from '@/store/useFieldStore'
 import { useFarmStore } from '@/store/useFarmStore'
 import { randomFieldColor } from '../types'
-import type { PlacedField } from '../types'
+import { useCreateField, useDeleteField, useUpdateField } from '../hooks/useFieldsApi'
 
 type Props = {
   farmId: string
@@ -22,35 +25,48 @@ export default function FarmFieldEditor({
   farmId, onClose, onFieldSaved, onFieldDeleted,
 }: Props) {
   const editor = useFieldEditor()
-  const { fields, addField, updateField, removeField, getField, getFieldsByFarmId } = useFieldStore()
+  const { updateField, removeField, getField, getFieldsByFarmId } = useFieldStore()
   const { farms, addFieldIdToFarm, removeFieldIdFromFarm } = useFarmStore()
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null)
   const [editingFieldId, setEditingFieldId] = useState<string | null>(null)
   const [showOperations, setShowOperations] = useState(false)
   const [isCreatingNew, setIsCreatingNew] = useState(false)
+  const [editingRowIds, setEditingRowIds] = useState<string[] | null>(null)
+  const [selectedPlantId, setSelectedPlantId] = useState<string | null>(null)
 
   const activeFarm = farms.find(f => f.id === farmId)
   const farmBoundary = activeFarm?.boundary ?? []
   const farmFields = getFieldsByFarmId(farmId)
 
   const { bbox } = useSatelliteBackground(farmBoundary)
+  const createField = useCreateField(farmId)
+  const updateField_api = useUpdateField(farmId)
+  const deleteField = useDeleteField(farmId)
+
+  // The boundary of the field currently being edited (for row fill/edit panels)
+  const editingBoundary = bbox
+    ? (editingFieldId
+        ? (getField(editingFieldId)?.boundary ?? editor.canvasPointsToLatLng(bbox))
+        : editor.canvasPointsToLatLng(bbox))
+    : []
 
   // ── Start a new field from scratch ───────────────────────────────
   function handleStartNewField() {
     setSelectedFieldId(null)
     setEditingFieldId(null)
     setIsCreatingNew(true)
+    setEditingRowIds(null)
+    setSelectedPlantId(null)
     editor.reset()
     editor.setFieldId(`field_${Date.now()}`)
   }
 
-  // ── Select an existing field (shows its details in panel) ─────────
+  // ── Select an existing field ──────────────────────────────────────
   function handleSelectField(id: string) {
     if (id === '') {
       setSelectedFieldId(null)
       return
     }
-    // If currently drawing, don't allow field selection
     if (editor.mode !== 'setup') return
     setSelectedFieldId(id)
   }
@@ -61,6 +77,8 @@ export default function FarmFieldEditor({
     const field = getField(selectedFieldId)
     if (!field) return
     setEditingFieldId(selectedFieldId)
+    setEditingRowIds(null)
+    setSelectedPlantId(null)
     editor.loadField(field, bbox)
   }
 
@@ -68,10 +86,13 @@ export default function FarmFieldEditor({
   function handleDeleteSelectedField() {
     if (!selectedFieldId) return
     if (!window.confirm('¿Eliminar este campo?')) return
-    removeField(selectedFieldId)
-    removeFieldIdFromFarm(farmId, selectedFieldId)
-    onFieldDeleted(selectedFieldId)
-    setSelectedFieldId(null)
+    deleteField.mutate(selectedFieldId, {
+      onSuccess: () => {
+        removeFieldIdFromFarm(farmId, selectedFieldId)
+        onFieldDeleted(selectedFieldId)
+        setSelectedFieldId(null)
+      },
+    })
   }
 
   // ── Cancel current drawing / editing ─────────────────────────────
@@ -80,17 +101,18 @@ export default function FarmFieldEditor({
     setEditingFieldId(null)
     setSelectedFieldId(null)
     setIsCreatingNew(false)
+    setEditingRowIds(null)
+    setSelectedPlantId(null)
   }
 
   // ── Save the current field ────────────────────────────────────────
-  const handleSaveField = useCallback(() => {
+  const handleSaveField = useCallback(async () => {
     if (editor.points.length < 3 || !editor.name.trim() || !bbox) return
 
     const boundaryLatLng = editor.canvasPointsToLatLng(bbox)
 
     if (editingFieldId) {
-      // Update existing
-      updateField(editingFieldId, {
+      const updates = {
         name: editor.name,
         shape: editor.shape,
         widthFt: editor.widthFt,
@@ -99,19 +121,17 @@ export default function FarmFieldEditor({
         rows: editor.rows,
         freePlants: editor.freePlants,
         plantingEvents: editor.plantingEvents,
-      })
+      }
+      await updateField_api.mutateAsync({ id: editingFieldId, updates })
       onFieldSaved(editingFieldId, false)
-      // Stay in the editor — go back to showing this field selected
       setSelectedFieldId(editingFieldId)
       setEditingFieldId(null)
       setIsCreatingNew(false)
+      setEditingRowIds(null)
+      setSelectedPlantId(null)
       editor.reset()
     } else {
-      // Create new
-      const fieldId = editor.fieldId || `field_${Date.now()}`
-      const newField: PlacedField = {
-        id: fieldId,
-        farmId,
+      const payload = {
         name: editor.name,
         color: randomFieldColor(),
         shape: editor.shape,
@@ -122,20 +142,21 @@ export default function FarmFieldEditor({
         farmLng: boundaryLatLng.reduce((s, p) => s + p.lng, 0) / boundaryLatLng.length,
         rotation: 0,
         isPositioning: false,
-        displayMode: 'shape',
+        displayMode: 'shape' as const,
         rows: editor.rows,
         freePlants: editor.freePlants,
         plantingEvents: editor.plantingEvents,
       }
-      addField(newField)
-      addFieldIdToFarm(farmId, fieldId)
-      onFieldSaved(fieldId, true)
-      // Stay in editor — select the newly created field
-      setSelectedFieldId(fieldId)
+      const saved = await createField.mutateAsync(payload)
+      addFieldIdToFarm(farmId, saved.id)
+      onFieldSaved(saved.id, true)
+      setSelectedFieldId(saved.id)
       setIsCreatingNew(false)
+      setEditingRowIds(null)
+      setSelectedPlantId(null)
       editor.reset()
     }
-  }, [editor, bbox, farmId, editingFieldId, addField, updateField, onFieldSaved, addFieldIdToFarm, removeFieldIdFromFarm])
+  }, [editor, bbox, farmId, editingFieldId, createField, updateField_api, onFieldSaved, addFieldIdToFarm])
 
   const isActivelyDrawing = editor.mode !== 'setup'
   const activeFieldId = editingFieldId || (isActivelyDrawing ? editor.fieldId : null)
@@ -182,6 +203,7 @@ export default function FarmFieldEditor({
           selectedFreeCropId={editor.selectedFreeCropId}
           allFields={farmFields}
           selectedFieldId={selectedFieldId}
+          isCreatingNew={isCreatingNew}
           onShapeChange={editor.setShape}
           onNameChange={editor.setName}
           onWidthChange={editor.setWidthFt}
@@ -193,15 +215,17 @@ export default function FarmFieldEditor({
           onSaveField={handleSaveField}
           onCancelField={handleCancelField}
           onDeletePoint={editor.deletePoint}
+          onStartFillRows={editor.startFillRows}
           onStartAddRow={editor.startAddRow}
+          onCancelAddRow={editor.cancelRowConfig}
           onStartAddFreePlant={editor.startAddFreePlant}
           onStopAddFreePlant={editor.stopAddFreePlant}
-          onDeleteRow={editor.deleteRow}
+          onEditRows={(ids) => setEditingRowIds(ids)}
+          onDeleteRows={(ids) => editor.deleteRows(ids)}
           onSelectField={handleSelectField}
           onEditSelectedField={handleEditSelectedField}
           onDeleteSelectedField={handleDeleteSelectedField}
           onOpenOperations={() => setShowOperations(true)}
-          isCreatingNew={isCreatingNew}
         />
 
         <div className="flex-1 overflow-hidden relative">
@@ -215,11 +239,11 @@ export default function FarmFieldEditor({
             heightFt={editor.heightFt}
             rows={editor.rows}
             freePlants={editor.freePlants}
+            fillPreviewRows={editor.fillPreviewRows}
             rowStartPoint={editor.rowStartPoint}
             selectedFreeCropId={editor.selectedFreeCropId}
             bbox={bbox}
             farmBoundary={farmBoundary}
-            // Pass all saved fields so the canvas can render them
             savedFields={farmFields}
             activeFieldId={activeFieldId}
             selectedFieldId={selectedFieldId}
@@ -231,10 +255,15 @@ export default function FarmFieldEditor({
             onComplete={editor.completeDrawing}
             onRowClick={editor.handleRowClick}
             onPlaceFreePlant={editor.placeFreePlant}
-            onDeleteFreePlant={editor.deleteFreePlant}
             onClickField={handleSelectField}
+            selectedRowId={editingRowIds?.length === 1 ? editingRowIds[0] : null}
+            selectedPlantId={selectedPlantId}
+            onSelectRow={(id) => { setSelectedPlantId(null); setEditingRowIds([id]) }}
+            onSelectPlant={(id) => { setEditingRowIds(null); setSelectedPlantId(id) }}
+            onMoveRow={editor.translateRow}
           />
 
+          {/* Row config panel — single row between two clicked points */}
           {editor.mode === 'rowConfig' && editor.rowDraft && bbox && (
             <RowConfigPanel
               rowDraft={editor.rowDraft}
@@ -243,6 +272,47 @@ export default function FarmFieldEditor({
               onCancel={editor.cancelRowConfig}
             />
           )}
+
+          {/* Fill rows panel — multi-row fill tool */}
+          {editor.mode === 'fillRows' && bbox && (
+            <RowFillPanel
+              boundary={editingBoundary}
+              onPreview={editor.setFillPreviewRows}
+              onConfirm={editor.confirmFillRows}
+              onCancel={editor.cancelFillRows}
+            />
+          )}
+
+          {/* Row edit panel — single or bulk row editing */}
+          {editingRowIds && bbox && editor.mode === 'complete' && (() => {
+            const editRows = editor.rows.filter(r => editingRowIds.includes(r.id))
+            if (editRows.length === 0) return null
+            return (
+              <RowEditPanel
+                key={editingRowIds.join('|')}
+                rows={editRows}
+                boundary={editingBoundary}
+                onApply={(updated) => { editor.applyRowEdits(updated); setEditingRowIds(null) }}
+                onCancel={() => setEditingRowIds(null)}
+              />
+            )
+          })()}
+
+          {/* Plant edit panel — click a plant on the canvas */}
+          {selectedPlantId && editor.mode === 'complete' && (() => {
+            const plant =
+              editor.rows.flatMap(r => r.plants).find(p => p.id === selectedPlantId)
+              ?? editor.freePlants.find(p => p.id === selectedPlantId)
+            if (!plant) return null
+            return (
+              <PlantEditPanel
+                plant={plant}
+                onChangeCrop={(cropId) => editor.updatePlantCrop(plant.id, cropId)}
+                onDelete={() => { editor.deletePlantById(plant.id); setSelectedPlantId(null) }}
+                onClose={() => setSelectedPlantId(null)}
+              />
+            )
+          })()}
         </div>
       </div>
 

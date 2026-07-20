@@ -5,10 +5,13 @@ export type Farm = {
   id: string
   name: string
   location: string
+  farmType: 'crop' | 'livestock' | 'mixed' | 'apiary'
   totalAreaAcres: number
   createdAt: string
   boundary: Array<{ lat: number; lng: number }>
   fieldIds: string[]
+  isFavorite: boolean
+  description?: string
 }
 
 type FarmStore = {
@@ -19,6 +22,7 @@ type FarmStore = {
   addFarm: (farm: Farm) => void
   updateFarm: (id: string, updates: Partial<Farm>) => void
   deleteFarm: (id: string) => void
+  clearFarms: () => void
   setActiveFarm: (farm: Farm) => void
   clearActiveFarm: () => void
   setFavoriteFarm: (id: string) => void
@@ -33,11 +37,13 @@ export const useFarmStore = create<FarmStore>((set, get) => ({
   favoriteFarmId: null,
 
   addFarm: (farm) =>
-    set(state => ({
-      farms: [...state.farms, farm],
-      // Auto-set as favorite if it's the first farm
-      favoriteFarmId: state.farms.length === 0 ? farm.id : state.favoriteFarmId,
-    })),
+  set(state => ({
+    farms: [...state.farms, { 
+      ...farm, 
+      isFavorite: state.farms.length === 0 ? true : farm.isFavorite 
+    }],
+    favoriteFarmId: state.farms.length === 0 ? farm.id : state.favoriteFarmId,
+  })),
 
   updateFarm: (id, updates) =>
     set(state => ({
@@ -56,6 +62,8 @@ export const useFarmStore = create<FarmStore>((set, get) => ({
         ? (state.farms.find(f => f.id !== id)?.id ?? null)
         : state.favoriteFarmId,
     })),
+  
+  clearFarms: () => set({ farms: [], activeFarmId: null, activeFarm: null, favoriteFarmId: null }),
 
   setActiveFarm: (farm) =>
     set({ activeFarmId: farm.id, activeFarm: farm }),
