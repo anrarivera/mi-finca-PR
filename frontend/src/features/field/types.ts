@@ -79,15 +79,11 @@ export type PlacedField = {
   name: string
   color: string
   shape: FieldShape
-  widthFt: number
-  heightFt: number
   // Boundary stored as lat/lng — the source of truth
   boundary: LatLngPoint[]
   // Placement center — where the user double-clicked on the farm map
   farmLat: number
   farmLng: number
-  rotation: number
-  isPositioning: boolean
   displayMode: 'pin' | 'shape'
   rows: FieldRow[]
   freePlants: PlantInstance[]

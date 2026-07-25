@@ -71,8 +71,6 @@ model Field {
   color          String
   shape          String
   boundary       Json      @default("[]")
-  widthFt        Decimal   @db.Decimal(10, 2)
-  heightFt       Decimal   @db.Decimal(10, 2)
   farmLat        Decimal   @db.Decimal(12, 8)
   farmLng        Decimal   @db.Decimal(12, 8)
   displayMode    String    @default("shape")

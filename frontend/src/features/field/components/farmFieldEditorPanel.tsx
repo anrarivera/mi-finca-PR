@@ -3,7 +3,7 @@ import {
   Plus, Pencil, Check, Trash2, RotateCcw,
   Leaf, ChevronDown, ChevronUp,
   Square, Pentagon, X, ClipboardList,
-  LayoutGrid, // Added by Claude — multi-row fill tool
+  LayoutGrid,
   AlertCircle, Clock,
 } from 'lucide-react'
 import type { FieldShape, FieldRow, PlantInstance, PlacedField } from '../types'
@@ -12,28 +12,22 @@ import CropSelector from './cropSelector'
 import { getCropById } from '../data/cropLibrary'
 import { computeCropSummary } from '../utils/rowCalculator'
 import { getFieldOperationHealth } from '../utils/operationStatus'
+import { areaFt2, ft2ToAcres, getCanvasScale, latlngToCanvas, farmBoundaryToBBox } from '../utils/canvasGeo'
 
 type Props = {
-  // Current editor state
   mode: EditorMode
   shape: FieldShape
   name: string
-  widthFt: number
-  heightFt: number
   pointCount: number
   selectedPointIndex: number | null
   rows: FieldRow[]
   freePlants: PlantInstance[]
   selectedFreeCropId: string
   isCreatingNew: boolean
-  // All farm fields
   allFields: PlacedField[]
   selectedFieldId: string | null
-  // Handlers
   onShapeChange: (s: FieldShape) => void
   onNameChange: (n: string) => void
-  onWidthChange: (w: number) => void
-  onHeightChange: (h: number) => void
   onStartNewField: () => void
   onStartDrawing: () => void
   onComplete: () => void
@@ -41,12 +35,11 @@ type Props = {
   onSaveField: () => void
   onCancelField: () => void
   onDeletePoint: (i: number) => void
-  onStartFillRows: () => void // Added by Claude — multi-row fill tool
-  onStartAddRow: () => void   // single row between two points, any angle
-  onCancelAddRow: () => void  // back to 'complete' without resetting the field
+  onStartFillRows: () => void
+  onStartAddRow: () => void
+  onCancelAddRow: () => void
   onStartAddFreePlant: (cropId: string) => void
   onStopAddFreePlant: () => void
-  // ── Added by Claude — row editing (single + bulk) replaces single-row add ──
   onEditRows: (ids: string[]) => void
   onDeleteRows: (ids: string[]) => void
   onSelectField: (id: string) => void
@@ -55,12 +48,22 @@ type Props = {
   onOpenOperations: () => void
 }
 
+// Calculate area in acres from a field's boundary lat/lng points
+function fieldAreaAcres(boundary: PlacedField['boundary']): number | null {
+  if (!boundary || boundary.length < 3) return null
+  const bbox = farmBoundaryToBBox(boundary)
+  const scale = getCanvasScale(bbox)
+  const canvasPoints = boundary.map(p => latlngToCanvas(p.lat, p.lng, bbox))
+  const ft2 = areaFt2(canvasPoints, scale)
+  return ft2ToAcres(ft2)
+}
+
 export default function FarmFieldEditorPanel({
-  mode, shape, name, widthFt, heightFt,
+  mode, shape, name,
   pointCount, selectedPointIndex,
-  rows, // Claude: removed unused `freePlants`, `selectedFreeCropId` (TS6133 cleanup)
+  rows,
   allFields, selectedFieldId, isCreatingNew,
-  onShapeChange, onNameChange, onWidthChange, onHeightChange,
+  onShapeChange, onNameChange,
   onStartNewField, onStartDrawing, onComplete, onUndo,
   onSaveField, onCancelField, onDeletePoint,
   onStartFillRows, onStartAddRow, onCancelAddRow,
@@ -70,7 +73,6 @@ export default function FarmFieldEditorPanel({
 }: Props) {
   const [freeCropPick, setFreeCropPick] = useState('')
   const [showRows, setShowRows] = useState(true)
-  // Added by Claude — which rows are checked for bulk edit/delete
   const [selectedRowIds, setSelectedRowIds] = useState<string[]>([])
   const toggleRowSelected = (id: string) =>
     setSelectedRowIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
@@ -78,7 +80,6 @@ export default function FarmFieldEditorPanel({
 
   const selectedField = allFields.find(f => f.id === selectedFieldId)
   const isIdle = mode === 'setup' && !selectedFieldId && !isCreatingNew
-  // Claude: removed unused `isEditingSelected` (TS6133 cleanup)
 
   // ── IDLE — show field list ────────────────────────────────────────
   if (isIdle) {
@@ -108,6 +109,7 @@ export default function FarmFieldEditorPanel({
                   field.rows ?? [], field.freePlants ?? [], getCropById
                 )
                 const health = getFieldOperationHealth(field.plantingEvents ?? [])
+                const acres = fieldAreaAcres(field.boundary)
                 return (
                   <button
                     key={field.id}
@@ -140,9 +142,11 @@ export default function FarmFieldEditorPanel({
                         )}
                       </div>
                     </div>
-                    <p className="text-[10px] text-[#9aab8a] mb-1">
-                      {field.widthFt}ft × {field.heightFt}ft
-                    </p>
+                    {acres !== null && (
+                      <p className="text-[10px] text-[#9aab8a] mb-1">
+                        {acres.toFixed(3)} ac
+                      </p>
+                    )}
                     {summary.length > 0 && (
                       <div className="flex flex-wrap gap-1.5">
                         {summary.map(c => (
@@ -182,6 +186,7 @@ export default function FarmFieldEditorPanel({
     const dueCount = (selectedField.plantingEvents ?? [])
       .flatMap(e => e.operations)
       .filter(o => o.status === 'due').length
+    const acres = fieldAreaAcres(selectedField.boundary)
 
     return (
       <div className="w-64 h-full bg-white border-r border-[#e0e8d8] flex flex-col">
@@ -204,9 +209,11 @@ export default function FarmFieldEditorPanel({
 
         <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
           <div className="flex flex-col gap-0.5">
-            <p className="text-[10px] text-[#9aab8a]">
-              {selectedField.widthFt}ft × {selectedField.heightFt}ft
-            </p>
+            {acres !== null && (
+              <p className="text-[10px] text-[#9aab8a]">
+                {acres.toFixed(3)} acres
+              </p>
+            )}
             {selectedField.boundary && (
               <p className="text-[10px] text-[#9aab8a]">
                 {selectedField.boundary.length} puntos de contorno
@@ -330,26 +337,6 @@ export default function FarmFieldEditorPanel({
               </div>
             </div>
 
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-[#5a6a4a]">Dimensiones reales</label>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="flex flex-col gap-1">
-                  <span className="text-[10px] text-[#9aab8a]">Ancho (ft)</span>
-                  <input type="number" min={1} value={widthFt}
-                    onChange={e => onWidthChange(Number(e.target.value))}
-                    className="w-full px-2 py-1.5 rounded-lg border border-[#d0dcc0] text-sm text-[#2d4a1e] focus:outline-none focus:border-[#639922] transition-colors"
-                  />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <span className="text-[10px] text-[#9aab8a]">Alto (ft)</span>
-                  <input type="number" min={1} value={heightFt}
-                    onChange={e => onHeightChange(Number(e.target.value))}
-                    className="w-full px-2 py-1.5 rounded-lg border border-[#d0dcc0] text-sm text-[#2d4a1e] focus:outline-none focus:border-[#639922] transition-colors"
-                  />
-                </div>
-              </div>
-            </div>
-
             <button onClick={onStartDrawing} disabled={!name.trim()}
               className="w-full flex items-center justify-center gap-2 py-2.5 bg-[#2d4a1e] text-[#d4e8b0] rounded-lg text-xs font-medium hover:bg-[#3d6128] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
@@ -420,7 +407,6 @@ export default function FarmFieldEditorPanel({
               </div>
             )}
 
-            {/* ── Row list — Added by Claude: checkboxes + per-row & bulk edit/delete ── */}
             {rows.length > 0 && (
               <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between">
@@ -442,7 +428,6 @@ export default function FarmFieldEditorPanel({
                   )}
                 </div>
 
-                {/* Bulk action bar — shown when ≥1 row is selected */}
                 {showRows && selectedRowIds.length > 0 && (
                   <div className="flex items-center gap-2">
                     <button onClick={() => onEditRows(selectedRowIds)}
@@ -471,7 +456,6 @@ export default function FarmFieldEditorPanel({
                             checked ? 'border-[#639922] bg-[#f5f8f0]' : 'border-[#e8f0e0]'
                           }`}
                         >
-                          {/* Select checkbox */}
                           <button onClick={() => toggleRowSelected(row.id)}
                             className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors ${
                               checked ? 'bg-[#639922] border-[#639922]' : 'border-[#c0d0b0] hover:border-[#639922]'
@@ -494,7 +478,6 @@ export default function FarmFieldEditorPanel({
                             </span>
                           </div>
 
-                          {/* Per-row edit + delete */}
                           <button onClick={() => onEditRows([row.id])}
                             className="text-[#c0d0b0] hover:text-[#639922] transition-colors shrink-0"
                             title="Editar hilera"
@@ -522,8 +505,6 @@ export default function FarmFieldEditorPanel({
                 <LayoutGrid size={13} /> Rellenar con hileras
               </button>
 
-              {/* Single row between two chosen points, at any angle — the
-                  fill tool only makes rows aligned to the field's axes. */}
               <button onClick={onStartAddRow}
                 className="w-full flex items-center justify-center gap-2 py-2 text-xs text-[#639922] border border-[#c8dca8] rounded-lg hover:bg-[#eaf3de] transition-colors"
               >
@@ -580,7 +561,7 @@ export default function FarmFieldEditorPanel({
           </>
         )}
 
-        {/* ── FILL ROWS mode ── (Added by Claude) */}
+        {/* ── FILL ROWS mode ── */}
         {mode === 'fillRows' && (
           <div className="flex items-center gap-2 px-3 py-2 bg-[#eaf3de] rounded-lg">
             <div className="w-2 h-2 rounded-full bg-[#639922] animate-pulse shrink-0" />

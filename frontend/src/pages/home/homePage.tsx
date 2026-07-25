@@ -4,6 +4,7 @@ import { useCreateFarm } from '@/features/farm/hooks/useFarmsApi'
 import EmptyFarmState from '@/features/farm/components/emptyFarmState'
 import CreateFarmModal from '@/features/farm/components/createFarmModal'
 import FarmMap from '@/features/map/components/farmMap'
+import { toast } from '@/store/useToastStore'
 
 export default function HomePage() {
   const [showModal, setShowModal] = useState(false)
@@ -17,6 +18,7 @@ export default function HomePage() {
         location: data.location,
         farmType: 'mixed',
       })
+      toast.success('Finca creada')
       setShowModal(false)
     } catch (err) {
       console.error('Failed to create farm:', err)

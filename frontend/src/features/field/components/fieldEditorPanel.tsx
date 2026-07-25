@@ -102,26 +102,6 @@ export default function FieldEditorPanel({
               </div>
             </div>
 
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-[#5a6a4a]">Dimensiones reales</label>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="flex flex-col gap-1">
-                  <span className="text-[10px] text-[#9aab8a]">Ancho (ft)</span>
-                  <input type="number" min={1} value={widthFt}
-                    onChange={e => onWidthChange(Number(e.target.value))}
-                    className="w-full px-2 py-1.5 rounded-lg border border-[#d0dcc0] text-sm text-[#2d4a1e] focus:outline-none focus:border-[#639922] transition-colors"
-                  />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <span className="text-[10px] text-[#9aab8a]">Alto (ft)</span>
-                  <input type="number" min={1} value={heightFt}
-                    onChange={e => onHeightChange(Number(e.target.value))}
-                    className="w-full px-2 py-1.5 rounded-lg border border-[#d0dcc0] text-sm text-[#2d4a1e] focus:outline-none focus:border-[#639922] transition-colors"
-                  />
-                </div>
-              </div>
-            </div>
-
             <button
               onClick={onStartDrawing}
               disabled={!name.trim()}

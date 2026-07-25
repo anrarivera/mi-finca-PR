@@ -13,6 +13,7 @@ import { useFieldStore } from '@/store/useFieldStore'
 import { useFarmStore } from '@/store/useFarmStore'
 import { randomFieldColor } from '../types'
 import { useCreateField, useDeleteField, useUpdateField } from '../hooks/useFieldsApi'
+import { toast } from '@/store/useToastStore'
 
 type Props = {
   farmId: string
@@ -91,6 +92,7 @@ export default function FarmFieldEditor({
         removeFieldIdFromFarm(farmId, selectedFieldId)
         onFieldDeleted(selectedFieldId)
         setSelectedFieldId(null)
+        toast.success('Campo eliminado')
       },
     })
   }
@@ -115,8 +117,6 @@ export default function FarmFieldEditor({
       const updates = {
         name: editor.name,
         shape: editor.shape,
-        widthFt: editor.widthFt,
-        heightFt: editor.heightFt,
         boundary: boundaryLatLng,
         rows: editor.rows,
         freePlants: editor.freePlants,
@@ -129,14 +129,13 @@ export default function FarmFieldEditor({
       setIsCreatingNew(false)
       setEditingRowIds(null)
       setSelectedPlantId(null)
+      toast.success('Campo actualizado')
       editor.reset()
     } else {
       const payload = {
         name: editor.name,
         color: randomFieldColor(),
         shape: editor.shape,
-        widthFt: editor.widthFt,
-        heightFt: editor.heightFt,
         boundary: boundaryLatLng,
         farmLat: boundaryLatLng.reduce((s, p) => s + p.lat, 0) / boundaryLatLng.length,
         farmLng: boundaryLatLng.reduce((s, p) => s + p.lng, 0) / boundaryLatLng.length,
@@ -154,6 +153,7 @@ export default function FarmFieldEditor({
       setIsCreatingNew(false)
       setEditingRowIds(null)
       setSelectedPlantId(null)
+      toast.success('Campo guardado')
       editor.reset()
     }
   }, [editor, bbox, farmId, editingFieldId, createField, updateField_api, onFieldSaved, addFieldIdToFarm])
@@ -194,8 +194,6 @@ export default function FarmFieldEditor({
           mode={editor.mode}
           shape={editor.shape}
           name={editor.name}
-          widthFt={editor.widthFt}
-          heightFt={editor.heightFt}
           pointCount={editor.points.length}
           selectedPointIndex={editor.selectedPointIndex}
           rows={editor.rows}
@@ -206,8 +204,6 @@ export default function FarmFieldEditor({
           isCreatingNew={isCreatingNew}
           onShapeChange={editor.setShape}
           onNameChange={editor.setName}
-          onWidthChange={editor.setWidthFt}
-          onHeightChange={editor.setHeightFt}
           onStartNewField={handleStartNewField}
           onStartDrawing={editor.startDrawing}
           onComplete={editor.completeDrawing}
@@ -235,8 +231,6 @@ export default function FarmFieldEditor({
             points={editor.points}
             mousePos={editor.mousePos}
             selectedPointIndex={editor.selectedPointIndex}
-            widthFt={editor.widthFt}
-            heightFt={editor.heightFt}
             rows={editor.rows}
             freePlants={editor.freePlants}
             fillPreviewRows={editor.fillPreviewRows}

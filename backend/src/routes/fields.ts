@@ -20,11 +20,37 @@ function toDateStr(val: any): string {
   return String(val).split('T')[0]
 }
 
+// Ray-casting point-in-polygon for lat/lng coordinates
+function pointInPolygonLatLng(
+  pt: { lat: number; lng: number },
+  polygon: Array<{ lat: number; lng: number }>
+): boolean {
+  let inside = false
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const xi = polygon[i].lng, yi = polygon[i].lat
+    const xj = polygon[j].lng, yj = polygon[j].lat
+    const intersect = yi > pt.lat !== yj > pt.lat &&
+      pt.lng < ((xj - xi) * (pt.lat - yi)) / (yj - yi) + xi
+    if (intersect) inside = !inside
+  }
+  return inside
+}
+
+function validateFieldInsideFarm(
+  fieldBoundary: Array<{ lat: number; lng: number }>,
+  farmBoundary: Array<{ lat: number; lng: number }>
+) {
+  if (!farmBoundary || farmBoundary.length < 3) return // no farm boundary = no restriction
+  if (!fieldBoundary || fieldBoundary.length < 3) return
+  const allInside = fieldBoundary.every(pt => pointInPolygonLatLng(pt, farmBoundary))
+  if (!allInside) {
+    throw Errors.validation('El campo debe estar dentro del límite de la finca')
+  }
+}
+
 function serializeField(field: any) {
   return {
     ...field,
-    widthFt: Number(field.widthFt),
-    heightFt: Number(field.heightFt),
     farmLat: Number(field.farmLat),
     farmLng: Number(field.farmLng),
     rows: (field.rows ?? []).map((row: any) => ({
@@ -53,13 +79,11 @@ function serializeField(field: any) {
     plantingEvents: (field.plantingEvents ?? []).map((e: any) => ({
       ...e,
       plantingDate: toDateStr(e.plantingDate),
-      // Derive rowIds from plants that belong to a row
       rowIds: [...new Set(
         (e.plants ?? [])
           .filter((p: any) => p.rowId)
           .map((p: any) => p.rowId as string)
       )],
-      // Derive freePlantIds from plants without a row
       freePlantIds: (e.plants ?? [])
         .filter((p: any) => !p.rowId)
         .map((p: any) => p.id as string),
@@ -72,7 +96,6 @@ function serializeField(field: any) {
   }
 }
 
-// Include relations in all queries
 const fieldInclude = {
   rows: {
     where: {},
@@ -115,14 +138,21 @@ router.post('/', requireAuth, async (req: Request, res: Response, next: NextFunc
     const userId = req.user!.userId
     const {
       name, color, shape, boundary,
-      widthFt, heightFt, farmLat, farmLng,
+      farmLat, farmLng,
       displayMode, isPositioning, isSimulated, farmModelId,
       rows = [], freePlants = [], plantingEvents = [],
     } = req.body
 
-    requireFields(req.body, ['name', 'color', 'shape', 'widthFt', 'heightFt', 'farmLat', 'farmLng'])
-    await requireFarmOwnership(userId, farmId)
+    requireFields(req.body, ['name', 'color', 'shape', 'farmLat', 'farmLng'])
+    const farm = await requireFarmOwnership(userId, farmId)
 
+    // Validate field boundary is inside farm boundary
+    validateFieldInsideFarm(
+      boundary ?? [],
+      (farm.boundary as Array<{ lat: number; lng: number }>) ?? []
+    )
+
+    // Step 1 — Create field with free plants and planting events
     const field = await prisma.field.create({
       data: {
         farmId,
@@ -130,36 +160,12 @@ router.post('/', requireAuth, async (req: Request, res: Response, next: NextFunc
         color,
         shape,
         boundary: boundary ?? [],
-        widthFt,
-        heightFt,
         farmLat,
         farmLng,
         displayMode: displayMode ?? 'shape',
         isPositioning: isPositioning ?? false,
         isSimulated: isSimulated ?? false,
         farmModelId: farmModelId ?? null,
-        rows: {
-          create: rows.map((row: any) => ({
-            id: row.id,
-            startLat: row.startLat,
-            startLng: row.startLng,
-            endLat: row.endLat,
-            endLng: row.endLng,
-            spacingFt: row.spacingFt,
-            primaryCropTypeId: row.primaryCropTypeId,
-            companionCropTypeId: row.companionCropTypeId ?? null,
-            plantingDate: new Date(row.plantingDate),
-            plants: {
-              create: (row.plants ?? []).map((p: any) => ({
-                id: p.id,
-                cropTypeId: p.cropTypeId,
-                lat: p.lat,
-                lng: p.lng,
-                plantingDate: new Date(p.plantingDate),
-              })),
-            },
-          })),
-        },
         plants: {
           create: freePlants.map((p: any) => ({
             id: p.id,
@@ -194,10 +200,44 @@ router.post('/', requireAuth, async (req: Request, res: Response, next: NextFunc
           })),
         },
       },
+      select: { id: true },
+    })
+
+    // Step 2 — Create rows separately now that we have field.id
+    for (const row of rows) {
+      await prisma.fieldRow.create({
+        data: {
+          id: row.id,
+          fieldId: field.id,
+          startLat: row.startLat,
+          startLng: row.startLng,
+          endLat: row.endLat,
+          endLng: row.endLng,
+          spacingFt: row.spacingFt,
+          primaryCropTypeId: row.primaryCropTypeId,
+          companionCropTypeId: row.companionCropTypeId ?? null,
+          plantingDate: new Date(row.plantingDate),
+          plants: {
+            create: (row.plants ?? []).map((p: any) => ({
+              id: p.id,
+              field: { connect: { id: field.id } },
+              cropTypeId: p.cropTypeId,
+              lat: p.lat,
+              lng: p.lng,
+              plantingDate: new Date(p.plantingDate),
+            })),
+          },
+        },
+      })
+    }
+
+    // Step 3 — Fetch and return complete field with all relations
+    const created = await prisma.field.findFirst({
+      where: { id: field.id },
       include: fieldInclude,
     })
 
-    res.status(201).json({ success: true, data: { field: serializeField(field) } })
+    res.status(201).json({ success: true, data: { field: serializeField(created) } })
   } catch (err) {
     next(err)
   }
@@ -211,7 +251,7 @@ router.patch('/:id', requireAuth, async (req: Request, res: Response, next: Next
     const userId = req.user!.userId
 
     requireValidId(id)
-    await requireFarmOwnership(userId, farmId)
+    const farm = await requireFarmOwnership(userId, farmId)
 
     const existing = await prisma.field.findFirst({
       where: { id, farmId, deletedAt: { equals: null } },
@@ -220,10 +260,18 @@ router.patch('/:id', requireAuth, async (req: Request, res: Response, next: Next
 
     const {
       name, color, shape, boundary,
-      widthFt, heightFt, farmLat, farmLng,
+      farmLat, farmLng,
       displayMode, isPositioning, isSimulated, farmModelId,
       rows, freePlants, plantingEvents,
     } = req.body
+
+    // Validate field boundary is inside farm boundary
+    if (boundary && boundary.length >= 3) {
+      validateFieldInsideFarm(
+        boundary,
+        (farm.boundary as Array<{ lat: number; lng: number }>) ?? []
+      )
+    }
 
     // Update scalar fields
     await prisma.field.update({
@@ -233,8 +281,6 @@ router.patch('/:id', requireAuth, async (req: Request, res: Response, next: Next
         ...(color !== undefined && { color }),
         ...(shape !== undefined && { shape }),
         ...(boundary !== undefined && { boundary }),
-        ...(widthFt !== undefined && { widthFt }),
-        ...(heightFt !== undefined && { heightFt }),
         ...(farmLat !== undefined && { farmLat }),
         ...(farmLng !== undefined && { farmLng }),
         ...(displayMode !== undefined && { displayMode }),
@@ -246,6 +292,7 @@ router.patch('/:id', requireAuth, async (req: Request, res: Response, next: Next
 
     // Replace rows entirely if provided
     if (rows !== undefined) {
+      await prisma.plantInstance.deleteMany({ where: { fieldId: id } })
       await prisma.fieldRow.deleteMany({ where: { fieldId: id } })
 
       for (const row of rows) {

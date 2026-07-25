@@ -161,6 +161,14 @@ export function midpoint(a: CanvasPoint, b: CanvasPoint): CanvasPoint {
   return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }
 }
 
+// Point-in-polygon check for canvas pixel coordinates
+export function pointInPolygonCanvas(
+  pt: CanvasPoint,
+  polygon: CanvasPoint[]
+): boolean {
+  return rayCast(pt, polygon)
+}
+
 // ── Row plant positions ───────────────────────────────────────────────
 
 export function calculateRowPlantPositions(

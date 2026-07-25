@@ -16,6 +16,7 @@ import CreateFarmModal from '@/features/farm/components/createFarmModal'
 import { useFieldStore } from '@/store/useFieldStore'
 import { useFarmStore } from '@/store/useFarmStore'
 import type { Farm } from '@/store/useFarmStore'
+import { toast } from '@/store/useToastStore'
 
 delete (L.Icon.Default.prototype as any)._getIconUrl
 L.Icon.Default.mergeOptions({
@@ -272,38 +273,37 @@ export default function FarmMap({ center = PR_CENTER, zoom = DEFAULT_ZOOM }: Pro
   }, [activeFarm?.id])
 
   async function handleSaveFarm() {
-    console.log('Save clicked — activeFarm:', activeFarm?.id)
-    console.log('Drawing points:', drawing.points.length)
-
-    if (!activeFarm) {
-      alert('No hay finca activa seleccionada')
-      return
-    }
-    if (drawing.points.length < 3) {
-      alert('Dibuja al menos 3 puntos para guardar el límite')
-      return
-    }
-
-    const boundary = drawing.points.map(p => ({ lat: p.lat, lng: p.lng }))
-    try {
-      await updateFarmApi.mutateAsync({ id: activeFarm.id, data: { boundary } })
-      console.log('Farm saved successfully')
-      drawing.finishEditing()
-    } catch (err) {
-      console.error('Failed to save farm:', err)
-      alert('Error al guardar: ' + (err instanceof Error ? err.message : 'Error desconocido'))
-    }
+  if (!activeFarm) {
+    toast.error('No hay finca activa seleccionada')
+    return
+  }
+  if (drawing.points.length < 3) {
+    toast.error('Dibuja al menos 3 puntos para guardar el límite')
+    return
   }
 
-  async function handleDeleteFarm() {
-    if (!activeFarm) return
-    if (!window.confirm(`¿Eliminar la finca "${activeFarm.name}" y todos sus campos?`)) return
-    try {
-      await deleteFarmApi.mutateAsync(activeFarm.id)
-    } catch (err) {
-      console.error('Failed to delete farm:', err)
-    }
+  const boundary = drawing.points.map(p => ({ lat: p.lat, lng: p.lng }))
+  try {
+    await updateFarmApi.mutateAsync({ id: activeFarm.id, data: { boundary } })
+    toast.success('Finca guardada')
+    drawing.finishEditing()
+  } catch (err) {
+    console.error('Failed to save farm:', err)
+    // toast.error already fired by api.ts handleResponse
   }
+}
+
+async function handleDeleteFarm() {
+  if (!activeFarm) return
+  if (!window.confirm(`¿Eliminar la finca "${activeFarm.name}" y todos sus campos?`)) return
+  try {
+    await deleteFarmApi.mutateAsync(activeFarm.id)
+    toast.success('Finca eliminada')
+  } catch (err) {
+    console.error('Failed to delete farm:', err)
+    // toast.error already fired by api.ts handleResponse
+  }
+}
 
   function handleOpenFieldEditor() {
     if (!activeFarm?.boundary || activeFarm.boundary.length < 3) {

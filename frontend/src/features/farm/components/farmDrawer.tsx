@@ -12,6 +12,8 @@ import { getFieldOperationHealth } from '@/features/field/utils/operationStatus'
 import { getCropById } from '@/features/field/data/cropLibrary'
 import type { Farm } from '@/store/useFarmStore'
 import type { PlacedField } from '@/features/field/types'
+import { areaFt2, ft2ToAcres, getCanvasScale, latlngToCanvas, farmBoundaryToBBox } from '@/features/field/utils/canvasGeo'
+import { toast } from '@/store/useToastStore'
 
 type Props = {
   onAddFarm: () => void
@@ -335,6 +337,7 @@ function FieldList({
       onSuccess: () => {
         removeFieldIdFromFarm(farm.id, fieldId)
         onDeleteField(fieldId) // notify parent if needed
+        toast.success('Campo eliminado')
       },
     })
   }
@@ -468,10 +471,18 @@ function FieldCard({
         </div>
       </div>
 
-      {/* Dimensions */}
-      <p className="text-[10px] text-[#9aab8a] mb-1.5">
-        {field.widthFt}ft × {field.heightFt}ft
-      </p>
+      {/* Area */}
+      {field.boundary && field.boundary.length >= 3 && (() => {
+        const bbox = farmBoundaryToBBox(field.boundary)
+        const scale = getCanvasScale(bbox)
+        const pts = field.boundary.map(p => latlngToCanvas(p.lat, p.lng, bbox))
+        const acres = ft2ToAcres(areaFt2(pts, scale))
+        return (
+          <p className="text-[10px] text-[#9aab8a] mb-1.5">
+            {acres.toFixed(3)} ac
+          </p>
+        )
+      })()}
 
       {/* Crop summary */}
       {summary.length > 0 && (

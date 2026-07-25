@@ -1,4 +1,5 @@
 import { useAuthStore } from '@/store/useAuthStore'
+import { toast } from '@/store/useToastStore'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
@@ -43,7 +44,9 @@ class ApiClient {
     const json: ApiResult<T> = await res.json()
 
     if (!json.success) {
-      throw new Error(json.error.message || 'An error occurred')
+      const message = json.error.message || 'An error occurred'
+      toast.error(message)
+      throw new Error(message)
     }
 
     return json.data

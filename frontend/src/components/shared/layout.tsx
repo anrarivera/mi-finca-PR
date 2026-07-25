@@ -1,6 +1,7 @@
 import TopNav from './topNav'
 import SideMenu from './sideMenu'
 import DataProvider from './dataProvider'
+import ToastContainer from './toast'
 
 type Props = {
   children: React.ReactNode
@@ -18,6 +19,7 @@ export default function Layout({ children }: Props) {
           </DataProvider>
         </main>
       </div>
+      <ToastContainer />
     </div>
   )
 }

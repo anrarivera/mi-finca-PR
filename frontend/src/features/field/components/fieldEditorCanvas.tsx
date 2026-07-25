@@ -6,6 +6,7 @@ import {
   latlngToCanvas, canvasDistanceFt, perimeterFt,
   areaFt2, ft2ToAcres, formatFt, midpoint,
   getCanvasScale, CANVAS_W, CANVAS_H,
+  pointInPolygonCanvas,
 } from '../utils/canvasGeo'
 import type { BBox } from '../utils/canvasGeo'
 import type { PlacedField } from '../types'
@@ -20,8 +21,6 @@ type Props = {
   points: CanvasPoint[]
   mousePos: CanvasPoint | null
   selectedPointIndex: number | null
-  widthFt: number
-  heightFt: number
   rows: FieldRow[]
   freePlants: PlantInstance[]
   fillPreviewRows?: FieldRow[] // Added by Claude — live preview of the fill tool
@@ -352,14 +351,26 @@ export default function FieldEditorCanvas({
   }
 
   function handleMouseUp(e: React.MouseEvent) {
-    if (rowDragRef.current) { rowDragRef.current = null; return } // Added by Claude
+    if (rowDragRef.current) { rowDragRef.current = null; return }
     if (isPanning.current) { isPanning.current = false; panStart.current = null; return }
     const p = getSVGPoint(e)
     if (isDrawingRect.current && rectStart.current) {
       isDrawingRect.current = false
       const s = rectStart.current
       rectStart.current = null
-      if (Math.abs(p.x - s.x) > 10 && Math.abs(p.y - s.y) > 10) onSetRectangle(s, p)
+      if (Math.abs(p.x - s.x) > 10 && Math.abs(p.y - s.y) > 10) {
+        // Clamp rectangle corners to farm boundary
+        if (farmBoundaryCanvas.length >= 3) {
+          const allInside = [
+            { x: s.x, y: s.y },
+            { x: p.x, y: s.y },
+            { x: p.x, y: p.y },
+            { x: s.x, y: p.y },
+          ].every(corner => pointInPolygonCanvas(corner, farmBoundaryCanvas))
+          if (!allInside) return // reject rectangle that goes outside
+        }
+        onSetRectangle(s, p)
+      }
       return
     }
     if (dragIndex.current !== null) {
@@ -372,12 +383,21 @@ export default function FieldEditorCanvas({
   }
 
   function handleClick(e: React.MouseEvent) {
-    // Added by Claude — ignore the click that concludes a pan-drag
-    if (isPanning.current || panMoved.current) return
-    const p = getSVGPoint(e)
+  if (isPanning.current || panMoved.current) return
+  const p = getSVGPoint(e)
+
+  // Check farm boundary restriction when drawing
+  const insideFarm = farmBoundaryCanvas.length < 3 ||
+    pointInPolygonCanvas(p, farmBoundaryCanvas)
+
     if (mode === 'addRow') { onRowClick(p); return }
-    if (mode === 'addFreePlant') { if (bbox) onPlaceFreePlant(p, bbox); return }
+    if (mode === 'addFreePlant') {
+      if (!insideFarm) return // silently block
+      if (bbox) onPlaceFreePlant(p, bbox)
+      return
+    }
     if (mode !== 'drawing' || shape === 'rectangle') return
+    if (!insideFarm) return // block points outside farm boundary
     if (points.length >= 3 && isNearPoint(p, points[0], 14)) { onComplete(); return }
     onAddPoint(p)
   }
