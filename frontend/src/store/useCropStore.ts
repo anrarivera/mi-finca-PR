@@ -2,33 +2,36 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { CropType } from '@/features/field/data/cropLibrary'
 import type { CropSchedule } from '@/features/field/data/cropSchedules'
-
-// ──────────────────────────────────────────────────────────────────────────
-// Custom crops (issue #1). The built-in library stays as shipped data; any
-// crop the farmer defines — with an optional operations "recipe" — lives
-// here and persists locally, mirroring how farms/fields persist. When
-// authenticated, the backend /api/v1/crops endpoints hold the same shape.
-// getCropById / getScheduleForCrop consult this store, so custom crops are
-// plantable everywhere built-ins are.
-// ──────────────────────────────────────────────────────────────────────────
+import type { ApiCrop } from '@/features/field/hooks/useCropsApi'
 
 export type CustomCrop = {
   crop: CropType
-  /** Optional recipe: harvest window + operation templates. */
   schedule: CropSchedule | null
 }
 
 type CropState = {
+  // All crops from API (built-ins + user's custom crops)
+  crops: ApiCrop[]
+  // Legacy custom crops (local only, pre-API)
   customCrops: CustomCrop[]
+
+  setCrops: (crops: ApiCrop[]) => void
   addCustomCrop: (entry: CustomCrop) => void
   updateCustomCrop: (cropId: string, entry: CustomCrop) => void
   removeCustomCrop: (cropId: string) => void
+
+  // Lookup helpers
+  getCropById: (id: string) => ApiCrop | undefined
+  getCropsByCategory: () => Record<string, ApiCrop[]>
 }
 
 export const useCropStore = create<CropState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
+      crops: [],
       customCrops: [],
+
+      setCrops: (crops) => set({ crops }),
 
       addCustomCrop: (entry) =>
         set(s => ({ customCrops: [...s.customCrops, entry] })),
@@ -39,10 +42,22 @@ export const useCropStore = create<CropState>()(
         })),
 
       removeCustomCrop: (cropId) =>
-        set(s => ({ customCrops: s.customCrops.filter(c => c.crop.id !== cropId) })),
+        set(s => ({
+          customCrops: s.customCrops.filter(c => c.crop.id !== cropId),
+        })),
+
+      getCropById: (id) => get().crops.find(c => c.id === id),
+
+      getCropsByCategory: () =>
+        get().crops.reduce((acc, crop) => {
+          if (!acc[crop.category]) acc[crop.category] = []
+          acc[crop.category].push(crop)
+          return acc
+        }, {} as Record<string, ApiCrop[]>),
     }),
     {
       name: 'mi-finca-crops',
+      // Only persist custom crops — API crops are always refetched
       partialize: (s) => ({ customCrops: s.customCrops }),
     }
   )
