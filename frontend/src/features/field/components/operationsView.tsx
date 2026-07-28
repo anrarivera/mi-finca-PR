@@ -476,10 +476,10 @@ function OperationRow({
             </p>
           )}
         </div>
-        {/* Accumulated partial-log progress (multi-day harvests) */}
+        {/* Accumulated partial-log progress (multi-day work) */}
         {partialSummary && (
           <p className="text-[10px] text-[#639922] font-medium mt-0.5">
-            🧺 {partialSummary}
+            {operationTypeEmoji[operation.type] ?? '📋'} {partialSummary}
           </p>
         )}
       </div>
@@ -487,16 +487,14 @@ function OperationRow({
       {/* Row actions by status */}
       {isOpen && (
         <>
-          {/* Partial logging only makes sense for harvests — spraying half a
-              field one day and half the next is logged as two standalone ops */}
-          {operation.type === 'harvest' && (
-            <button onClick={onPartial}
-              className={`${smallBtn} text-[#639922] hover:text-[#2d4a1e] font-medium`}
-              title="Registrar avance sin completar la labor"
-            >
-              Parcial
-            </button>
-          )}
+          {/* Partial logging works for every type: "fertilized rows 1–3
+              today, the rest tomorrow" — the item stays open until done */}
+          <button onClick={onPartial}
+            className={`${smallBtn} text-[#639922] hover:text-[#2d4a1e] font-medium`}
+            title="Registrar avance sin completar la labor"
+          >
+            Parcial
+          </button>
           <button onClick={onSkip}
             className={`${smallBtn} text-[#c0d0b0] hover:text-[#9aab8a]`}
           >
@@ -588,8 +586,10 @@ export function CheckOffModal({
   const needsProduct = ['fertilization', 'spray'].includes(operation.type)
   const needsQuantity = mode === 'partial'
     || ['fertilization', 'spray', 'harvest'].includes(operation.type)
-  const showHarvestSelector = operation.type === 'harvest'
-    && (targets.rows.length > 0 || targets.freePlants.length > 0)
+  // The scope selector (rows / plants / whole field) applies to EVERY
+  // operation type — "fertilized rows 1–3", "sprayed just these plants",
+  // not only harvests.
+  const showScopeSelector = targets.rows.length > 0 || targets.freePlants.length > 0
 
   const units = operation.type === 'harvest'
     ? ['kg', 'lb', 'unidades', 'cajas', 'sacos']
@@ -620,8 +620,8 @@ export function CheckOffModal({
             <p className="text-xs text-[#7a8a6a] mt-0.5">{operation.labelEs}</p>
             {mode === 'partial' && (
               <p className="text-[10px] text-[#9aab8a] mt-1">
-                La labor seguirá pendiente — ideal para cosechas de varios días.
-                Márcala completada cuando termines.
+                La labor seguirá pendiente — ideal para trabajos de varios
+                días. Márcala completada cuando termines.
               </p>
             )}
           </div>
@@ -688,9 +688,10 @@ export function CheckOffModal({
               </div>
             )}
 
-            {/* Harvest selector — rows, partial rows, or individual plants */}
-            {showHarvestSelector && (
+            {/* Scope selector — rows, partial rows, or individual plants */}
+            {showScopeSelector && (
               <HarvestSelector
+                title={operation.type === 'harvest' ? '¿Qué cosechaste?' : '¿Qué alcanzó esta labor?'}
                 targets={targets}
                 selected={selectedPlants}
                 onChange={setSelectedPlants}
@@ -729,7 +730,7 @@ export function CheckOffModal({
                 quantity: quantity ? Number(quantity) : undefined,
                 unit: quantity ? unit : undefined,
                 // Compress the plant set: full rows → rowIds, rest → plantIds
-                ...(showHarvestSelector
+                ...(showScopeSelector
                   ? plantSetToSelection(targets, selectedPlants)
                   : {}),
               })}
@@ -751,7 +752,9 @@ export function CheckOffModal({
 // a row (expand it), "the first N plants of a row" (quick input), and
 // free-standing plants. The canonical state is a set of plant ids owned by
 // the modal; this component is a controlled view over it.
-function HarvestSelector({ targets, selected, onChange }: {
+function HarvestSelector({ title, targets, selected, onChange }: {
+  /** Type-aware heading, e.g. "¿Qué cosechaste?" / "¿Qué alcanzó esta labor?" */
+  title: string
   targets: HarvestTargets
   selected: Set<string>
   onChange: (next: Set<string>) => void
@@ -817,7 +820,7 @@ function HarvestSelector({ targets, selected, onChange }: {
     <div className="flex flex-col gap-1.5">
       <div className="flex items-center justify-between">
         <label className="text-xs font-medium text-[#5a6a4a]">
-          ¿Qué cosechaste?
+          {title}
           <span className="text-[#9aab8a] font-normal ml-1">(opcional)</span>
         </label>
         <button

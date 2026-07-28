@@ -19,17 +19,18 @@ export type PlantMarks = {
   rowIds: Set<string>
 }
 
-// Collect every plant/row an operation touched. Harvest check-offs carry
-// rowIds/plantIds selections; plant removals (died/replaced/harvested) are
-// logged with plantIds too — all of them render red.
+// Collect the plants/rows that HARVESTS touched — only harvests turn a
+// plant red. Every operation type can carry a rowIds/plantIds scope now
+// ("fertilized rows 1–3"), and fertilizing a plant must not mark it as
+// gone. Removed plants (died/replaced) don't need marking: they're deleted
+// from the field and never render.
 export function buildPlantMarks(operations: FarmOperation[]): PlantMarks {
   const plantIds = new Set<string>()
   const rowIds = new Set<string>()
   for (const op of operations) {
+    if (op.type !== 'harvest') continue
     for (const id of op.plantIds ?? []) plantIds.add(id)
-    if (op.type === 'harvest') {
-      for (const id of op.rowIds ?? []) rowIds.add(id)
-    }
+    for (const id of op.rowIds ?? []) rowIds.add(id)
   }
   return { plantIds, rowIds }
 }
