@@ -597,18 +597,18 @@ export function CheckOffModal({
 
   return (
     <>
-      {/* Backdrop — kept light and unblurred for harvests so the map stays
-          visible: selected rows/plants highlight live behind the modal */}
+      {/* Backdrop — kept light and unblurred when a scope selector is shown
+          so the map stays visible: selection highlights live behind it */}
       <div
         className={`fixed inset-0 z-[2200] ${
-          showHarvestSelector ? 'bg-black/10' : 'bg-black/40 backdrop-blur-sm'
+          showScopeSelector ? 'bg-black/10' : 'bg-black/40 backdrop-blur-sm'
         }`}
         onClick={onCancel}
       />
 
-      {/* Modal — docked right for harvests so the field isn't covered */}
+      {/* Modal — docked right when selecting scope so the field isn't covered */}
       <div className={`fixed inset-0 z-[2300] flex items-center p-4 ${
-        showHarvestSelector ? 'justify-end pr-6' : 'justify-center'
+        showScopeSelector ? 'justify-end pr-6' : 'justify-center'
       }`}>
         <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden max-h-[92vh] overflow-y-auto">
 
