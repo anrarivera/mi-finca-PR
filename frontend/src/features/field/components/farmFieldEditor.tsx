@@ -7,16 +7,12 @@ import RowConfigPanel from './rowConfigPanel'
 import RowFillPanel from './rowFillPanel'
 import RowEditPanel from './rowEditPanel'
 import PlantEditPanel from './plantEditPanel'
-import OperationsView from './operationsView'
+import FieldOperationsContainer from './fieldOperationsContainer'
 import { useSatelliteBackground } from '../hooks/useSatelliteBackground'
 import { useFieldStore } from '@/store/useFieldStore'
 import { useFarmStore } from '@/store/useFarmStore'
 import { randomFieldColor } from '../types'
 import { useCreateField, useDeleteField, useUpdateField } from '../hooks/useFieldsApi'
-import {
-  useCompleteRecommendedOp, useSkipRecommendedOp, useUndoRecommendedOp,
-  useLogPartialRecommendedOp, useUpdateOperation, useOperations,
-} from '../hooks/useOperationsApi'
 import { toast } from '@/store/useToastStore'
 
 type Props = {
@@ -47,17 +43,6 @@ export default function FarmFieldEditor({
   const createField = useCreateField(farmId)
   const updateField_api = useUpdateField(farmId)
   const deleteField = useDeleteField(farmId)
-  // Check-off persistence (SDD §6.2) — completing/skipping a recommended
-  // operation writes to the backend; the hooks handle the optimistic local
-  // store update and the rollback on failure. Undo/edit/partial cover the
-  // "I made a mistake" and "multi-day harvest" flows.
-  const completeOp = useCompleteRecommendedOp(farmId)
-  const skipOp = useSkipRecommendedOp(farmId)
-  const undoOp = useUndoRecommendedOp(farmId)
-  const partialOp = useLogPartialRecommendedOp(farmId)
-  const updateOpLog = useUpdateOperation(farmId)
-  // Farm operations log — feeds the partial-progress captions in the view.
-  const { data: farmOperations } = useOperations(farmId)
 
   // The boundary of the field currently being edited (for row fill/edit panels)
   const editingBoundary = bbox
@@ -325,77 +310,14 @@ export default function FarmFieldEditor({
         </div>
       </div>
 
-      {/* Operations view */}
-      {showOperations && selectedFieldId && (() => {
-        const field = getField(selectedFieldId)
-        if (!field) return null
-        return (
-          <OperationsView
-            plantingEvents={field.plantingEvents ?? []}
-            fieldName={field.name}
-            fieldRows={field.rows ?? []}
-            freePlants={field.freePlants ?? []}
-            farmOperations={farmOperations ?? []}
-            onClose={() => setShowOperations(false)}
-            onCompleteOperation={(eventId, opId, data) => {
-              // Persists via POST /recommended-operations/:id/complete —
-              // the hook updates the local store optimistically.
-              completeOp.mutate(
-                { fieldId: selectedFieldId, eventId, operationId: opId, data },
-                { onSuccess: () => toast.success('Operación registrada') }
-              )
-            }}
-            onSkipOperation={(eventId, opId) => {
-              skipOp.mutate({ fieldId: selectedFieldId, eventId, operationId: opId })
-            }}
-            onUndoOperation={(eventId, opId) => {
-              // Reopens the item; the server deletes the completing log
-              // entry (and its yield) but keeps any partial logs.
-              undoOp.mutate(
-                { fieldId: selectedFieldId, eventId, operationId: opId },
-                { onSuccess: () => toast.success('Operación deshecha') }
-              )
-            }}
-            onEditOperation={(_eventId, _opId, logId, data) => {
-              // Corrects the linked operations-log entry; the server mirrors
-              // the fix onto the recommendation and the harvest yield.
-              updateOpLog.mutate(
-                {
-                  id: logId,
-                  updates: {
-                    actualDate: data.completedDate,
-                    product: data.product ?? null,
-                    quantity: data.quantity ?? null,
-                    unit: data.unit ?? null,
-                    notes: data.notes ?? null,
-                    rowIds: data.rowIds ?? [],
-                    plantIds: data.plantIds ?? [],
-                  },
-                },
-                { onSuccess: () => toast.success('Operación corregida') }
-              )
-            }}
-            onPartialLog={(_eventId, opId, data) => {
-              // Multi-day harvest: logs the day's progress, item stays open.
-              partialOp.mutate(
-                {
-                  operationId: opId,
-                  data: {
-                    date: data.completedDate,
-                    product: data.product,
-                    quantity: data.quantity,
-                    unit: data.unit,
-                    notes: data.notes,
-                    rowIds: data.rowIds,
-                    plantIds: data.plantIds,
-                  },
-                },
-                { onSuccess: () => toast.success('Avance parcial registrado') }
-              )
-            }}
-          />
-        )
-      })()}
+      {/* Operations view — shared container wires all persistence */}
+      {showOperations && selectedFieldId && (
+        <FieldOperationsContainer
+          farmId={farmId}
+          fieldId={selectedFieldId}
+          onClose={() => setShowOperations(false)}
+        />
+      )}
 
     </div>
   )

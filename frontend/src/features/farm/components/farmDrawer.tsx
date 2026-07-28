@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import {
   ChevronRight, ChevronLeft, Star, Plus,
   MapPin, Layers, Pencil, Trash2,
-  ToggleLeft, ToggleRight, AlertCircle, Clock,
+  ToggleLeft, ToggleRight, AlertCircle, Clock, CalendarDays,
 } from 'lucide-react'
 import { useDeleteField } from '@/features/field/hooks/useFieldsApi'
 import { useCompleteRecommendedOp } from '@/features/field/hooks/useOperationsApi'
@@ -12,6 +12,7 @@ import { computeCropSummary } from '@/features/field/utils/rowCalculator'
 import { getFieldOperationHealth } from '@/features/field/utils/operationStatus'
 import { getCropById } from '@/features/field/data/cropLibrary'
 import { CheckOffModal, harvestTargetsForOperation } from '@/features/field/components/operationsView'
+import FieldOperationsContainer from '@/features/field/components/fieldOperationsContainer'
 import type { Farm } from '@/store/useFarmStore'
 import type { PlacedField, PlantingEvent, RecommendedOperation } from '@/features/field/types'
 
@@ -382,6 +383,8 @@ function FieldList({
     event: PlantingEvent
     op: RecommendedOperation
   } | null>(null)
+  // Full operations UI (same screen as the field editor's) for one field
+  const [opsFieldId, setOpsFieldId] = useState<string | null>(null)
 
   function handleDeleteField(fieldId: string) {
     deleteField.mutate(fieldId, {
@@ -467,11 +470,21 @@ function FieldList({
                 onDelete={() => handleDeleteField(field.id)}  // ← use this
                 onToggleDisplay={() => onToggleDisplay(field)}
                 onCheckOff={(op, event) => setChecking({ field, event, op })}
+                onOpenOperations={() => setOpsFieldId(field.id)}
               />
             ))}
           </div>
         )}
       </div>
+
+      {/* Full operations UI — identical to the field editor's */}
+      {opsFieldId && (
+        <FieldOperationsContainer
+          farmId={farm.id}
+          fieldId={opsFieldId}
+          onClose={() => setOpsFieldId(null)}
+        />
+      )}
 
       {/* Check-off modal — flexible harvest selection included */}
       {checking && (
@@ -517,7 +530,8 @@ function FieldList({
 
 // ── Individual field card ─────────────────────────────────────────────
 function FieldCard({
-  field, focused, focusNonce, onSelect, onEdit, onDelete, onToggleDisplay, onCheckOff,
+  field, focused, focusNonce, onSelect, onEdit, onDelete, onToggleDisplay,
+  onCheckOff, onOpenOperations,
 }: {
   field: PlacedField
   focused: boolean
@@ -528,6 +542,8 @@ function FieldCard({
   onDelete: () => void
   onToggleDisplay: () => void
   onCheckOff: (op: RecommendedOperation, event: PlantingEvent) => void
+  /** Opens the full operations UI (same screen as the field editor's). */
+  onOpenOperations: () => void
 }) {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const cardRef = useRef<HTMLDivElement | null>(null)
@@ -662,6 +678,13 @@ function FieldCard({
       {/* Actions */}
       {!confirmDelete ? (
         <div className="flex items-center gap-2">
+          <button
+            onClick={(e) => { e.stopPropagation(); onOpenOperations() }}
+            title="Ver el calendario completo de labores"
+            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-[10px] text-[#2d4a1e] border border-[#c8dca8] bg-[#eaf3de] rounded-lg hover:bg-[#d9ecc4] transition-colors"
+          >
+            <CalendarDays size={10} /> Operaciones
+          </button>
           <button onClick={onEdit}
             className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-[10px] text-[#639922] border border-[#c8dca8] rounded-lg hover:bg-[#eaf3de] transition-colors"
           >
