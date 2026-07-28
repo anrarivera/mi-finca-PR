@@ -57,6 +57,8 @@ export function useMapFieldEditing(
   const [isCreatingNew, setIsCreatingNew] = useState(false)
   const [editingRowIds, setEditingRowIds] = useState<string[] | null>(null)
   const [selectedPlantId, setSelectedPlantId] = useState<string | null>(null)
+  // Rows checked in the tool panel's row list — highlighted on the map.
+  const [highlightedRowIds, setHighlightedRowIds] = useState<string[]>([])
   const [removalLogs, setRemovalLogs] = useState<PendingRemovalLog[]>([])
 
   // The lat/lng↔canvas transform for this farm — all editor coordinates
@@ -72,6 +74,7 @@ export function useMapFieldEditing(
     setIsCreatingNew(false)
     setEditingRowIds(null)
     setSelectedPlantId(null)
+    setHighlightedRowIds([])
     setRemovalLogs([])
   }
 
@@ -207,6 +210,7 @@ export function useMapFieldEditing(
     editor, bbox, active, editingFieldId, isCreatingNew,
     editingRowIds, setEditingRowIds,
     selectedPlantId, setSelectedPlantId,
+    highlightedRowIds, setHighlightedRowIds,
     editingBoundary,
     startEdit, startNew, cancel, save, removePlant,
   }
@@ -391,7 +395,12 @@ export function MapFieldEditingLayer({
       ? row.path.map(p => L.latLng(p.lat, p.lng))
       : [L.latLng(row.startLat, row.startLng), L.latLng(row.endLat, row.endLng)]
 
-  const selectedRowId = session.editingRowIds?.length === 1 ? session.editingRowIds[0] : null
+  // Rows highlighted amber: whatever the row-edit panel targets, plus any
+  // rows checked in the tool panel's row list.
+  const highlightedRows = new Set([
+    ...(session.editingRowIds ?? []),
+    ...session.highlightedRowIds,
+  ])
 
   return (
     <>
@@ -439,10 +448,10 @@ export function MapFieldEditingLayer({
           key={row.id}
           positions={rowPositions(row)}
           pathOptions={{
-            color: row.id === selectedRowId ? '#f59e0b' : 'white',
-            weight: row.id === selectedRowId ? 3 : 2,
+            color: highlightedRows.has(row.id) ? '#f59e0b' : 'white',
+            weight: highlightedRows.has(row.id) ? 3.5 : 2,
             opacity: 0.95,
-            dashArray: '1 6',
+            dashArray: highlightedRows.has(row.id) ? undefined : '1 6',
             lineCap: 'round',
           }}
           eventHandlers={{
@@ -567,6 +576,7 @@ export function MapFieldEditingPanels({ session }: { session: MapFieldEditingSes
           onSelectField={() => {}}
           onEditFieldById={() => {}}
           onDeleteFieldById={() => {}}
+          onRowSelectionChange={session.setHighlightedRowIds}
         />
       </div>
 

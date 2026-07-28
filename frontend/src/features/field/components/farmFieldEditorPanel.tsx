@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   Plus, Pencil, Check, Trash2, RotateCcw,
   Leaf, ChevronDown, ChevronUp,
@@ -44,6 +44,8 @@ type Props = {
   onEditFieldById: (id: string) => void
   /** Card delete (already confirmed in-card). */
   onDeleteFieldById: (id: string) => void
+  /** Fires whenever the row checkboxes change — highlights rows on the map. */
+  onRowSelectionChange?: (ids: string[]) => void
 }
 
 export default function FarmFieldEditorPanel({
@@ -58,10 +60,17 @@ export default function FarmFieldEditorPanel({
   onStartAddFreePlant, onStopAddFreePlant,
   onEditRows, onDeleteRows,
   onSelectField, onEditFieldById, onDeleteFieldById,
+  onRowSelectionChange,
 }: Props) {
   const [freeCropPick, setFreeCropPick] = useState('')
   const [showRows, setShowRows] = useState(true)
   const [selectedRowIds, setSelectedRowIds] = useState<string[]>([])
+
+  // Mirror the checkbox selection up so the map can highlight those rows.
+  useEffect(() => {
+    onRowSelectionChange?.(selectedRowIds)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedRowIds])
   const toggleRowSelected = (id: string) =>
     setSelectedRowIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
   const clearRowSelection = () => setSelectedRowIds([])
