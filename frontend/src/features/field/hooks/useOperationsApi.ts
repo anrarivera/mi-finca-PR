@@ -73,6 +73,22 @@ function patchLocalOperation(
   })
 }
 
+// ── Due-soon badge counts ─────────────────────────────────────────────
+// Server-authoritative overdue / due-within-14-days counts across the whole
+// farm, including livestock recommendations (GET /recommended-operations/
+// due-soon). Complements the client-derived per-field health numbers.
+export function useDueSoonOperations(farmId: string | null) {
+  return useQuery({
+    queryKey: ['recommended-operations', 'due-soon', farmId],
+    queryFn: () =>
+      api.get<{ overdueCount: number; dueSoonCount: number }>(
+        `/api/v1/farms/${farmId}/recommended-operations/due-soon`
+      ),
+    enabled: !!farmId,
+    staleTime: 60 * 1000,
+  })
+}
+
 // ── Complete (check off) a recommended operation ──────────────────────
 export function useCompleteRecommendedOp(farmId: string) {
   const queryClient = useQueryClient()
@@ -101,6 +117,7 @@ export function useCompleteRecommendedOp(farmId: string) {
       // harvest yield) — refresh everything derived from them.
       queryClient.invalidateQueries({ queryKey: ['fields', farmId] })
       queryClient.invalidateQueries({ queryKey: ['operations', farmId] })
+      queryClient.invalidateQueries({ queryKey: ['recommended-operations'] })
     },
     onError: (_err, vars) => {
       // Roll the optimistic flip back — the refetch will restore truth, but
@@ -134,6 +151,7 @@ export function useSkipRecommendedOp(farmId: string) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['fields', farmId] })
+      queryClient.invalidateQueries({ queryKey: ['recommended-operations'] })
     },
     onError: (_err, vars) => {
       patchLocalOperation(vars.fieldId, vars.eventId, vars.operationId, {

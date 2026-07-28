@@ -16,6 +16,7 @@ import { recommendationService } from '@/features/recommendations/ruleEngine'
 import { collectHarvestEntries, totalHarvestsByCrop } from '@/features/field/utils/harvestLog'
 import LivestockSection from '@/features/livestock/components/livestockSection'
 import OperationsCalendar from '@/features/field/components/operationsCalendar'
+import OperationsLogSection from '@/features/field/components/operationsLogSection'
 import type { Recommendation } from '@/features/recommendations/types'
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -198,6 +199,10 @@ export default function DashboardPage() {
               )}
             </section>
           </div>
+
+          {/* ── Server-backed operations log (SDD §4.5) — what was
+                 actually logged, plus overdue badges and CSV export ── */}
+          <OperationsLogSection />
 
           {/* ── Operations month calendar ──────────────────────────── */}
           {fields.length > 0 && <OperationsCalendar fields={fields} />}
