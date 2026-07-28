@@ -118,6 +118,52 @@ export default function FarmFieldEditor({
     setSelectedPlantId(null)
   }
 
+  // ── Click a saved field on the canvas → open it for editing ───────
+  // ('' means the canvas asked to clear the selection.)
+  function handleCanvasFieldClick(id: string) {
+    if (id === '') {
+      setSelectedFieldId(null)
+      return
+    }
+    if (editor.mode !== 'setup' || isCreatingNew) return // busy editing/drawing
+    handleEditField(id)
+  }
+
+  // ── Escape backs out one level at a time ──────────────────────────
+  // Open sub-panel/mode first (plant panel, row panel, row drawing, fill,
+  // free plants…), then the edit/draw session itself — landing back on the
+  // field-cards page.
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key !== 'Escape') return
+      if (selectedPlantId) { setSelectedPlantId(null); return }
+      if (editingRowIds) { setEditingRowIds(null); return }
+      switch (editor.mode) {
+        case 'rowConfig':
+        case 'addRow':
+          editor.cancelRowConfig()
+          return
+        case 'fillRows':
+          editor.cancelFillRows()
+          return
+        case 'addFreePlant':
+          editor.stopAddFreePlant()
+          return
+        case 'drawing':
+        case 'complete':
+          handleCancelField()
+          return
+        case 'setup':
+          // Creating a new field but not drawing yet — cancel the form too
+          if (isCreatingNew) handleCancelField()
+          return
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editor.mode, selectedPlantId, editingRowIds, isCreatingNew])
+
   // ── Save the current field ────────────────────────────────────────
   const handleSaveField = useCallback(async () => {
     if (editor.points.length < 3 || !editor.name.trim() || !bbox) return
@@ -259,7 +305,7 @@ export default function FarmFieldEditor({
             onComplete={editor.completeDrawing}
             onRowClick={editor.handleRowClick}
             onPlaceFreePlant={editor.placeFreePlant}
-            onClickField={handleSelectField}
+            onClickField={handleCanvasFieldClick}
             selectedRowId={editingRowIds?.length === 1 ? editingRowIds[0] : null}
             selectedPlantId={selectedPlantId}
             onSelectRow={(id) => { setSelectedPlantId(null); setEditingRowIds([id]) }}
