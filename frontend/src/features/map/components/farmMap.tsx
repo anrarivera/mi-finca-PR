@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { MapContainer, TileLayer, useMapEvents, useMap, Polygon, Polyline, CircleMarker } from 'react-leaflet'
 import * as L from 'leaflet'
 import {
@@ -12,7 +12,6 @@ import DrawingPanel from './drawingPanel'
 import FarmDrawer from '@/features/farm/components/farmDrawer'
 import FarmFieldEditor from '@/features/field/components/farmFieldEditor'
 import PlacedField from '@/features/field/components/placedField'
-import FieldOpsDrawer from '@/features/field/components/fieldOpsDrawer'
 import CreateFarmModal from '@/features/farm/components/createFarmModal'
 import { useFieldStore } from '@/store/useFieldStore'
 import { useFarmStore } from '@/store/useFarmStore'
@@ -234,13 +233,14 @@ export default function FarmMap({ center = PR_CENTER, zoom = DEFAULT_ZOOM }: Pro
   const [showFieldEditor, setShowFieldEditor] = useState(false)
   const [showModal, setShowModal] = useState(false)
   const [flyTarget, setFlyTarget] = useState<Farm | null>(null)
-  // Field selected by a single map click — opens the operations side drawer
-  // (double click opens the full editor instead).
-  const [opsDrawerFieldId, setOpsDrawerFieldId] = useState<string | null>(null)
+  // Field selected by a single map click — opens the farm drawer focused on
+  // that field's card (double click opens the full editor instead). The
+  // nonce re-triggers the drawer when the same field is clicked again.
+  const [focusRequest, setFocusRequest] = useState<{ fieldId: string; nonce: number } | null>(null)
   const boundaryLoaded = useRef(false)
 
   const { fields, removeField } = useFieldStore()
-  const { isLoading: farmsLoading } = useFarms()
+  useFarms() // hydrates the farm store; loading state unused here
   const createFarm = useCreateFarm()
   const updateFarmApi = useUpdateFarm()
   const deleteFarmApi = useDeleteFarm()
@@ -389,31 +389,17 @@ async function handleDeleteFarm() {
           <PlacedField
             key={field.id}
             field={field}
-            detailed={field.id === opsDrawerFieldId}
-            onSelect={(fieldId) => setOpsDrawerFieldId(fieldId)}
-            onOpenEditor={() => {
-              setOpsDrawerFieldId(null)
-              handleOpenFieldEditor()
-            }}
+            detailed={field.id === focusRequest?.fieldId}
+            onSelect={(fieldId) =>
+              setFocusRequest(prev => ({ fieldId, nonce: (prev?.nonce ?? 0) + 1 }))
+            }
+            onOpenEditor={() => handleOpenFieldEditor()}
           />
         ))}
       </MapContainer>
 
-      {/* Field operations drawer — single click on a field */}
-      {opsDrawerFieldId && activeFarm && (
-        <FieldOpsDrawer
-          farmId={activeFarm.id}
-          farmName={activeFarm.name}
-          focusFieldId={opsDrawerFieldId}
-          onClose={() => setOpsDrawerFieldId(null)}
-          onOpenEditor={() => {
-            setOpsDrawerFieldId(null)
-            handleOpenFieldEditor()
-          }}
-        />
-      )}
-
       <FarmDrawer
+        focusRequest={focusRequest}
         onAddFarm={() => setShowModal(true)}
         onEditField={() => setShowFieldEditor(true)}
         onDeleteField={(fieldId) => {

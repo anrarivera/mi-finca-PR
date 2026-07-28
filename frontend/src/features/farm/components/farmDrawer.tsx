@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   ChevronRight, ChevronLeft, Star, Plus,
   MapPin, Layers, Pencil, Trash2,
@@ -12,9 +12,28 @@ import { computeCropSummary } from '@/features/field/utils/rowCalculator'
 import { getFieldOperationHealth } from '@/features/field/utils/operationStatus'
 import { getCropById } from '@/features/field/data/cropLibrary'
 import { CheckOffModal, harvestTargetsForOperation } from '@/features/field/components/operationsView'
-import { nextOperation } from '@/features/field/components/fieldOpsDrawer'
 import type { Farm } from '@/store/useFarmStore'
 import type { PlacedField, PlantingEvent, RecommendedOperation } from '@/features/field/types'
+
+// The most urgent open calendar item for a field: overdue first (oldest
+// first), then upcoming (soonest first). Drives the check-off shortcut on
+// each field card.
+function nextOperation(field: PlacedField): {
+  op: RecommendedOperation
+  event: PlantingEvent
+} | null {
+  const open = (field.plantingEvents ?? []).flatMap(event =>
+    event.operations
+      .filter(op => op.status === 'due' || op.status === 'pending')
+      .map(op => ({ op, event }))
+  )
+  if (open.length === 0) return null
+  open.sort((a, b) => {
+    if (a.op.status !== b.op.status) return a.op.status === 'due' ? -1 : 1
+    return a.op.recommendedDate.localeCompare(b.op.recommendedDate)
+  })
+  return open[0]
+}
 import { areaFt2, ft2ToAcres, getCanvasScale, latlngToCanvas, farmBoundaryToBBox } from '@/features/field/utils/canvasGeo'
 import { toast } from '@/store/useToastStore'
 
@@ -24,14 +43,26 @@ type Props = {
   onDeleteField: (fieldId: string) => void
   onFlyToFarm: (farm: Farm) => void
   onOpenFieldEditor: (farmId: string) => void
+  /** Set on a map field click: opens the drawer focused on that field.
+      The nonce lets the same field re-trigger after the drawer closes. */
+  focusRequest?: { fieldId: string; nonce: number } | null
 }
 
 export default function FarmDrawer({
   onAddFarm, onEditField, onDeleteField,
-  onFlyToFarm, onOpenFieldEditor,
+  onFlyToFarm, onOpenFieldEditor, focusRequest,
 }: Props) {
   const [isOpen, setIsOpen] = useState(false)
   const [level, setLevel] = useState<'farms' | 'fields'>('farms')
+
+  // A field was clicked on the map — open the drawer at the fields level;
+  // the matching card highlights and scrolls into view.
+  useEffect(() => {
+    if (!focusRequest) return
+    setIsOpen(true)
+    setLevel('fields')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusRequest?.nonce])
 
   const {
     farms, activeFarm, activeFarmId, favoriteFarmId,
@@ -134,6 +165,8 @@ export default function FarmDrawer({
           ? <FieldList
               farm={activeFarm}
               fields={fields}
+              focusFieldId={focusRequest?.fieldId ?? null}
+              focusNonce={focusRequest?.nonce ?? 0}
               showBackButton={farms.length > 1}
               onBack={handleBackToFarms}
               onClose={() => setIsOpen(false)}
@@ -316,12 +349,14 @@ function FarmList({
 
 // ── Level 2: Field list for a farm ────────────────────────────────────
 function FieldList({
-  farm, fields, showBackButton,
+  farm, fields, focusFieldId, focusNonce, showBackButton,
   onBack, onClose, onEditField, onDeleteField,
   onToggleDisplay, onOpenFieldEditor,
 }: {
   farm: Farm
   fields: PlacedField[]
+  focusFieldId: string | null
+  focusNonce: number
   showBackButton: boolean
   onBack: () => void
   onClose: () => void
@@ -421,6 +456,8 @@ function FieldList({
               <FieldCard
                 key={field.id}
                 field={field}
+                focused={field.id === focusFieldId}
+                focusNonce={focusNonce}
                 onEdit={() => onEditField(field.id)}
                 onDelete={() => handleDeleteField(field.id)}  // ← use this
                 onToggleDisplay={() => onToggleDisplay(field)}
@@ -475,15 +512,27 @@ function FieldList({
 
 // ── Individual field card ─────────────────────────────────────────────
 function FieldCard({
-  field, onEdit, onDelete, onToggleDisplay, onCheckOff,
+  field, focused, focusNonce, onEdit, onDelete, onToggleDisplay, onCheckOff,
 }: {
   field: PlacedField
+  focused: boolean
+  focusNonce: number
   onEdit: () => void
   onDelete: () => void
   onToggleDisplay: () => void
   onCheckOff: (op: RecommendedOperation, event: PlantingEvent) => void
 }) {
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const cardRef = useRef<HTMLDivElement | null>(null)
+
+  // Scroll the clicked field's card into view (re-runs when the same field
+  // is clicked again thanks to the nonce).
+  useEffect(() => {
+    if (focused) {
+      cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focused, focusNonce])
   const summary = computeCropSummary(field.rows ?? [], field.freePlants ?? [], getCropById)
   const health = getFieldOperationHealth(field.plantingEvents ?? [])
 
@@ -497,7 +546,12 @@ function FieldCard({
     : null
 
   return (
-    <div className="px-4 py-3 hover:bg-[#fafcf8] transition-colors">
+    <div
+      ref={cardRef}
+      className={`px-4 py-3 hover:bg-[#fafcf8] transition-colors ${
+        focused ? 'bg-[#f5f8f0] border-l-2 border-l-[#639922]' : ''
+      }`}
+    >
 
       {/* Field name + color + operation badges */}
       <div className="flex items-center justify-between mb-1">

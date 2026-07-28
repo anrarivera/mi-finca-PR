@@ -36,6 +36,32 @@ function pointInPolygonLatLng(
   return inside
 }
 
+// Attach plant instances to their planting event. The client sends each
+// event's rowIds/freePlantIds, but plants are created through row nesting
+// without plantingEventId — without this link, serializeField returns empty
+// rowIds/freePlantIds and the harvest row/plant selector has nothing to
+// offer. Runs after rows/plants and events all exist.
+async function linkPlantsToEvents(fieldId: string, events: any[]) {
+  for (const event of events ?? []) {
+    const rowIds: string[] = event.rowIds ?? []
+    const freePlantIds: string[] = event.freePlantIds ?? []
+    if (rowIds.length === 0 && freePlantIds.length === 0) continue
+    await prisma.plantInstance.updateMany({
+      where: {
+        fieldId,
+        OR: [
+          ...(rowIds.length ? [{ rowId: { in: rowIds } }] : []),
+          ...(freePlantIds.length ? [{ id: { in: freePlantIds } }] : []),
+        ],
+        // Companion rows belong to two events (one per crop) — scope the
+        // link to the event's own crop so plants land in the right event.
+        cropTypeId: event.cropTypeId,
+      },
+      data: { plantingEventId: event.id },
+    })
+  }
+}
+
 function validateFieldInsideFarm(
   fieldBoundary: Array<{ lat: number; lng: number }>,
   farmBoundary: Array<{ lat: number; lng: number }>
@@ -235,7 +261,10 @@ router.post('/', requireAuth, async (req: Request, res: Response, next: NextFunc
       })
     }
 
-    // Step 3 — Fetch and return complete field with all relations
+    // Step 3 — Link plants to their planting events (rows now exist)
+    await linkPlantsToEvents(field.id, plantingEvents)
+
+    // Step 4 — Fetch and return complete field with all relations
     const created = await prisma.field.findFirst({
       where: { id: field.id },
       include: fieldInclude,
@@ -382,6 +411,12 @@ router.patch('/:id', requireAuth, async (req: Request, res: Response, next: Next
           },
         })
       }
+    }
+
+    // Re-link plants to events — rows/plants/events may all have been
+    // replaced above, and the replace path never sets plantingEventId.
+    if (plantingEvents !== undefined) {
+      await linkPlantsToEvents(id, plantingEvents)
     }
 
     // Fetch and return updated field with all relations

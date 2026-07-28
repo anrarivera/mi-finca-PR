@@ -47,12 +47,37 @@ export function harvestTargetsForOperation(
 ): HarvestTargets {
   const event = plantingEvents.find(e => e.id === operation.plantingEventId)
   if (!event) return { rows: [], freePlants: [] }
-  return {
-    rows: field.rows
-      .map((row, index) => ({ row, index }))
-      .filter(({ row }) => event.rowIds.includes(row.id)),
-    freePlants: field.freePlants.filter(p => event.freePlantIds.includes(p.id)),
-  }
+
+  // Primary source: the event's explicit row/plant membership. Fallback for
+  // fields saved before the backend linked plants to events (empty arrays):
+  // match by the grouping invariant — same crop, same planting date.
+  const belongsByGrouping = (cropTypeId: string, plantingDate: string) =>
+    cropTypeId === event.cropTypeId && plantingDate === event.plantingDate
+
+  const rows = field.rows
+    .map((row, index) => ({ row, index }))
+    .filter(({ row }) =>
+      event.rowIds.length > 0
+        ? event.rowIds.includes(row.id)
+        : (row.primaryCropTypeId === event.cropTypeId ||
+           row.companionCropTypeId === event.cropTypeId) &&
+          row.plantingDate === event.plantingDate
+    )
+    // Companion rows hold two crops — offer only the event's own plants so
+    // "Hilera 2 · Maíz · 0/12" counts just the maíz plants in that row.
+    .map(({ row, index }) => ({
+      index,
+      row: { ...row, plants: row.plants.filter(p => p.cropTypeId === event.cropTypeId) },
+    }))
+    .filter(({ row }) => row.plants.length > 0)
+
+  const freePlants = field.freePlants.filter(p =>
+    event.freePlantIds.length > 0
+      ? event.freePlantIds.includes(p.id)
+      : belongsByGrouping(p.cropTypeId, p.plantingDate)
+  )
+
+  return { rows, freePlants }
 }
 
 // Expand a stored selection (rowIds = whole rows, plantIds = loose plants)
