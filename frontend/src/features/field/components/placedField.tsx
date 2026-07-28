@@ -2,7 +2,10 @@ import { useEffect, useRef, useState } from 'react'
 import { Polygon, Polyline, CircleMarker, Marker, Tooltip, useMapEvents } from 'react-leaflet'
 import * as L from 'leaflet'
 import { useFieldStore } from '@/store/useFieldStore'
+import { plantVisualStatus, PLANT_STATUS_STYLE, type PlantMarks } from '../utils/plantStatus'
 import type { PlacedField as PlacedFieldType, FieldRow } from '../types'
+
+const EMPTY_MARKS: PlantMarks = { plantIds: new Set(), rowIds: new Set() }
 
 // ──────────────────────────────────────────────────────────────────────────
 // A field rendered on the farm map. Click behavior:
@@ -25,6 +28,8 @@ type Props = {
   onOpenEditor: (fieldId: string) => void
   /** Draw individual plants (the field selected in the ops drawer). */
   detailed?: boolean
+  /** Plant/row ids covered by operations — colors removed plants red. */
+  plantMarks?: PlantMarks
 }
 
 // A row's geometry: the drawn path when present, else the start→end segment.
@@ -59,7 +64,9 @@ function createPinIcon(color: string, name: string): L.DivIcon {
   })
 }
 
-export default function PlacedField({ field, onSelect, onOpenEditor, detailed = false }: Props) {
+export default function PlacedField({
+  field, onSelect, onOpenEditor, detailed = false, plantMarks = EMPTY_MARKS,
+}: Props) {
   const { updateField } = useFieldStore()
   const [isHovered, setIsHovered] = useState(false)
   const isDragging = useRef(false)
@@ -137,7 +144,10 @@ export default function PlacedField({ field, onSelect, onOpenEditor, detailed = 
 
   const positions = field.boundary.map(p => L.latLng(p.lat, p.lng))
   const plants = detailed
-    ? [...field.rows.flatMap(r => r.plants), ...field.freePlants]
+    ? [
+        ...field.rows.flatMap(r => r.plants.map(p => ({ plant: p, rowId: r.id as string | undefined }))),
+        ...field.freePlants.map(p => ({ plant: p, rowId: undefined as string | undefined })),
+      ]
     : []
 
   return (
@@ -178,21 +188,25 @@ export default function PlacedField({ field, onSelect, onOpenEditor, detailed = 
         />
       ))}
 
-      {/* Individual plants — only for the selected field */}
-      {plants.map(plant => (
-        <CircleMarker
-          key={plant.id}
-          center={L.latLng(plant.lat, plant.lng)}
-          radius={2.5}
-          interactive={false}
-          pathOptions={{
-            color: '#2d4a1e',
-            weight: 1,
-            fillColor: '#d4e8b0',
-            fillOpacity: 1,
-          }}
-        />
-      ))}
+      {/* Individual plants — only for the selected field. Colors:
+          white = planned, green = planted, red = harvested/removed */}
+      {plants.map(({ plant, rowId }) => {
+        const style = PLANT_STATUS_STYLE[plantVisualStatus(plant, plantMarks, rowId)]
+        return (
+          <CircleMarker
+            key={plant.id}
+            center={L.latLng(plant.lat, plant.lng)}
+            radius={2.5}
+            interactive={false}
+            pathOptions={{
+              color: style.color,
+              weight: 1,
+              fillColor: style.fillColor,
+              fillOpacity: 1,
+            }}
+          />
+        )
+      })}
     </>
   )
 }

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import {
   ChevronRight, ChevronLeft, Star, Plus,
-  MapPin, Layers, Pencil, Trash2,
+  MapPin, Layers, Trash2,
   AlertCircle, Clock,
 } from 'lucide-react'
 import { useDeleteField } from '@/features/field/hooks/useFieldsApi'
@@ -440,13 +440,13 @@ function FieldList({
         )}
       </div>
 
-      {/* Fixed bottom — Manage fields button */}
+      {/* Fixed bottom — start drawing a new field on the map */}
       <div className="px-4 py-3 border-t border-[#e0e8d8] bg-white shrink-0">
         <button
           onClick={onOpenFieldEditor}
           className="w-full flex items-center justify-center gap-2 py-2.5 bg-[#2d4a1e] text-[#d4e8b0] rounded-lg text-xs font-medium hover:bg-[#3d6128] transition-colors"
         >
-          <Pencil size={13} /> Gestionar campos
+          <Plus size={13} /> Nuevo campo
         </button>
       </div>
     </div>

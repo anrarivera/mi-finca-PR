@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { MapContainer, TileLayer, useMapEvents, useMap, Polygon, Polyline, CircleMarker } from 'react-leaflet'
 import * as L from 'leaflet'
 import {
@@ -10,8 +10,12 @@ import {
 import { useDrawing, findNearestEdgeIndex } from '../hooks/useDrawing'
 import DrawingPanel from './drawingPanel'
 import FarmDrawer from '@/features/farm/components/farmDrawer'
-import FarmFieldEditor from '@/features/field/components/farmFieldEditor'
 import PlacedField from '@/features/field/components/placedField'
+import {
+  useMapFieldEditing, MapFieldEditingLayer, MapFieldEditingPanels,
+} from '@/features/field/components/mapFieldEditing'
+import { useOperations } from '@/features/field/hooks/useOperationsApi'
+import { buildPlantMarks } from '@/features/field/utils/plantStatus'
 import CreateFarmModal from '@/features/farm/components/createFarmModal'
 import { useFieldStore } from '@/store/useFieldStore'
 import { useFarmStore } from '@/store/useFarmStore'
@@ -230,15 +234,12 @@ type Props = {
 
 export default function FarmMap({ center = PR_CENTER, zoom = DEFAULT_ZOOM }: Props) {
   const drawing = useDrawing()
-  const [showFieldEditor, setShowFieldEditor] = useState(false)
   const [showModal, setShowModal] = useState(false)
   const [flyTarget, setFlyTarget] = useState<Farm | null>(null)
   // Field selected by a single map click — opens the farm drawer focused on
-  // that field's card (double click opens the full editor instead). The
-  // nonce re-triggers the drawer when the same field is clicked again.
+  // that field's card (double click starts editing instead). The nonce
+  // re-triggers the drawer when the same field is clicked again.
   const [focusRequest, setFocusRequest] = useState<{ fieldId: string; nonce: number } | null>(null)
-  // Field the editor should open editing (double-click on the map/card).
-  const [editorFieldId, setEditorFieldId] = useState<string | null>(null)
   const boundaryLoaded = useRef(false)
 
   const { fields, removeField } = useFieldStore()
@@ -249,12 +250,29 @@ export default function FarmMap({ center = PR_CENTER, zoom = DEFAULT_ZOOM }: Pro
 
   const {
     farms, activeFarm, favoriteFarmId,
-    setActiveFarm, addFieldIdToFarm, removeFieldIdFromFarm,
+    setActiveFarm, removeFieldIdFromFarm,
   } = useFarmStore()
 
   const farmFields = activeFarm
     ? fields.filter(f => f.farmId === activeFarm.id)
     : []
+
+  // ── On-map field editing session — replaces the old full-screen
+  //    editor. While active, the drawer and farm-boundary tools yield
+  //    to the editing panel and map layer. ─────────────────────────────
+  const fieldEditing = useMapFieldEditing(
+    activeFarm?.id ?? '',
+    activeFarm?.boundary ?? [],
+    {
+      onSaved: (fieldId) =>
+        setFocusRequest(prev => ({ fieldId, nonce: (prev?.nonce ?? 0) + 1 })),
+    }
+  )
+
+  // Plant/row ids already covered by operations — colors plant dots
+  // (white = planned, green = planted, red = harvested/removed).
+  const { data: farmOps } = useOperations(activeFarm?.id ?? null)
+  const plantMarks = useMemo(() => buildPlantMarks(farmOps ?? []), [farmOps])
 
   // On mount — fly to favorite or first farm
   useEffect(() => {
@@ -311,16 +329,17 @@ async function handleDeleteFarm() {
   }
 }
 
-  // Open the field editor — with a fieldId it opens straight into editing
-  // that field (double-click on a map field or a drawer card). Guarded
-  // against non-string args so it can back onClick handlers directly.
+  // Start on-map field editing — with a fieldId it opens straight into
+  // editing that field (double-click on a map field or a drawer card);
+  // without one it starts a new field. Guarded against non-string args so
+  // it can back onClick handlers directly.
   function handleOpenFieldEditor(fieldId?: unknown) {
     if (!activeFarm?.boundary || activeFarm.boundary.length < 3) {
       alert('Primero guarda el límite de tu finca antes de añadir campos.')
       return
     }
-    setEditorFieldId(typeof fieldId === 'string' ? fieldId : null)
-    setShowFieldEditor(true)
+    if (typeof fieldId === 'string') fieldEditing.startEdit(fieldId)
+    else fieldEditing.startNew()
   }
 
   async function handleCreateFarm(data: { name: string; location: string }) {
@@ -340,20 +359,23 @@ async function handleDeleteFarm() {
   return (
     <div className="flex-1 w-full h-full relative">
 
-      <DrawingPanel
-        mode={drawing.mode}
-        pointCount={drawing.points.length}
-        areaAcres={drawing.areaAcres}
-        selectedPointIndex={drawing.selectedPointIndex}
-        onStart={drawing.startDrawing}
-        onComplete={() => drawing.completeDrawing(drawing.points)}
-        onClear={drawing.clearDrawing}
-        onStartEditing={drawing.startEditing}
-        onFinishEditing={drawing.finishEditing}
-        onSave={handleSaveFarm}
-        onAddField={handleOpenFieldEditor}
-        onDeleteFarm={handleDeleteFarm}
-      />
+      {/* Farm-boundary tools yield to the field-editing panel */}
+      {!fieldEditing.active && (
+        <DrawingPanel
+          mode={drawing.mode}
+          pointCount={drawing.points.length}
+          areaAcres={drawing.areaAcres}
+          selectedPointIndex={drawing.selectedPointIndex}
+          onStart={drawing.startDrawing}
+          onComplete={() => drawing.completeDrawing(drawing.points)}
+          onClear={drawing.clearDrawing}
+          onStartEditing={drawing.startEditing}
+          onFinishEditing={drawing.finishEditing}
+          onSave={handleSaveFarm}
+          onAddField={handleOpenFieldEditor}
+          onDeleteFarm={handleDeleteFarm}
+        />
+      )}
 
       <MapContainer
         center={center}
@@ -391,19 +413,34 @@ async function handleDeleteFarm() {
           onInsertPoint={drawing.insertPointAfter}
         />
 
-        {farmFields.map(field => (
-          <PlacedField
-            key={field.id}
-            field={field}
-            detailed={field.id === focusRequest?.fieldId}
-            onSelect={(fieldId) =>
-              setFocusRequest(prev => ({ fieldId, nonce: (prev?.nonce ?? 0) + 1 }))
-            }
-            onOpenEditor={(fieldId) => handleOpenFieldEditor(fieldId)}
-          />
-        ))}
+        {farmFields
+          // The field being edited is rendered live by the editing layer
+          .filter(field => !(fieldEditing.active && field.id === fieldEditing.editingFieldId))
+          .map(field => (
+            <PlacedField
+              key={field.id}
+              field={field}
+              detailed={field.id === focusRequest?.fieldId}
+              plantMarks={plantMarks}
+              onSelect={(fieldId) => {
+                if (fieldEditing.active) return // don't switch mid-edit
+                setFocusRequest(prev => ({ fieldId, nonce: (prev?.nonce ?? 0) + 1 }))
+              }}
+              onOpenEditor={(fieldId) => {
+                if (fieldEditing.active) return
+                handleOpenFieldEditor(fieldId)
+              }}
+            />
+          ))}
+
+        {/* On-map field editing (boundary, rows, plants) */}
+        {fieldEditing.active && (
+          <MapFieldEditingLayer session={fieldEditing} plantMarks={plantMarks} />
+        )}
       </MapContainer>
 
+      {/* While editing a field, the drawer is replaced by the editor panel */}
+      {!fieldEditing.active && (
       <FarmDrawer
         focusRequest={focusRequest}
         onSelectField={(fieldId) =>
@@ -422,23 +459,13 @@ async function handleDeleteFarm() {
           setFlyTarget(farm)
         }}
         // The drawer passes the FARM id here — don't let it be mistaken
-        // for a field id; open the editor with no initial field.
+        // for a field id; start a NEW field instead.
         onOpenFieldEditor={() => handleOpenFieldEditor()}
       />
-
-      {showFieldEditor && activeFarm && (
-        <FarmFieldEditor
-          farmId={activeFarm.id}
-          initialFieldId={editorFieldId}
-          onClose={() => { setShowFieldEditor(false); setEditorFieldId(null) }}
-          onFieldSaved={(fieldId, isNew) => {
-            if (isNew) addFieldIdToFarm(activeFarm.id, fieldId)
-          }}
-          onFieldDeleted={(fieldId) => {
-            removeFieldIdFromFarm(activeFarm.id, fieldId)
-          }}
-        />
       )}
+
+      {/* Field editing panels (left tools + contextual sub-panels) */}
+      <MapFieldEditingPanels session={fieldEditing} />
 
       {showModal && (
         <CreateFarmModal
