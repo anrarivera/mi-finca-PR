@@ -3,7 +3,7 @@ import {
   X, Check, SkipForward, ChevronDown, ChevronUp,
   AlertCircle, Clock, CheckCircle2,
 } from 'lucide-react'
-import type { PlantingEvent, RecommendedOperation, OperationStatus } from '../types'
+import type { PlantingEvent, RecommendedOperation, OperationStatus, FieldRow } from '../types'
 import type { FarmOperation } from '../hooks/useOperationsApi'
 import { getCropById } from '../data/cropLibrary'
 
@@ -22,13 +22,39 @@ export type CheckOffFormData = {
   product?: string
   quantity?: number
   unit?: string
+  /** Which field rows were covered (harvest row selection). */
+  rowIds?: string[]
 }
 
 type ModalMode = 'complete' | 'partial' | 'edit'
 
+/** A selectable row in the harvest modal. */
+export type RowOption = { id: string; label: string }
+
+// Build the selectable row list for a recommendation: the rows that belong
+// to its planting event, labeled by their position in the field ("Hilera 3"),
+// crop, and plant count. Exported so the map-side drawer can reuse it.
+export function rowOptionsForOperation(
+  operation: RecommendedOperation,
+  plantingEvents: PlantingEvent[],
+  fieldRows: FieldRow[]
+): RowOption[] {
+  const event = plantingEvents.find(e => e.id === operation.plantingEventId)
+  if (!event) return []
+  return fieldRows
+    .map((row, i) => ({ row, i }))
+    .filter(({ row }) => event.rowIds.includes(row.id))
+    .map(({ row, i }) => ({
+      id: row.id,
+      label: `Hilera ${i + 1} · ${getCropById(row.primaryCropTypeId)?.nameEs ?? row.primaryCropTypeId} · ${row.plants.length} plantas`,
+    }))
+}
+
 type Props = {
   plantingEvents: PlantingEvent[]
   fieldName: string
+  /** The field's rows — feeds the harvest row selector in the modal. */
+  fieldRows: FieldRow[]
   /** Farm operations log — used to show partial-log progress per row. */
   farmOperations: FarmOperation[]
   onClose: () => void
@@ -43,7 +69,7 @@ type Props = {
 }
 
 export default function OperationsView({
-  plantingEvents, fieldName, farmOperations, onClose,
+  plantingEvents, fieldName, fieldRows, farmOperations, onClose,
   onCompleteOperation, onSkipOperation,
   onUndoOperation, onEditOperation, onPartialLog,
 }: Props) {
@@ -159,6 +185,13 @@ export default function OperationsView({
         <CheckOffModal
           mode={modal.mode}
           operation={modal.operation}
+          rowOptions={rowOptionsForOperation(modal.operation, plantingEvents, fieldRows)}
+          // When editing, preselect the rows the original log entry covered.
+          initialRowIds={
+            modal.mode === 'edit' && modal.operation.completedOperationId
+              ? farmOperations.find(fo => fo.id === modal.operation.completedOperationId)?.rowIds
+              : undefined
+          }
           onConfirm={(data) => {
             if (modal.mode === 'complete') {
               onCompleteOperation(modal.eventId, modal.operationId, data)
@@ -443,17 +476,24 @@ function OperationRow({
 //  - complete: original check-off (empty form, today's date)
 //  - partial:  same fields, but confirms a progress log, not a completion
 //  - edit:     prefilled with the completed values for correction
+// For harvests with rows, a row selector records WHICH rows were harvested
+// (multi-day harvests: rows 1–3 today, 4–6 tomorrow). Exported so the map
+// view's field drawer can open the same UI.
 const MODAL_COPY: Record<ModalMode, { title: string; confirm: string; dateLabel: string }> = {
   complete: { title: 'Confirmar operación', confirm: 'Confirmar', dateLabel: 'Fecha de realización' },
   partial: { title: 'Registrar avance parcial', confirm: 'Registrar avance', dateLabel: 'Fecha del avance' },
   edit: { title: 'Editar operación', confirm: 'Guardar cambios', dateLabel: 'Fecha de realización' },
 }
 
-function CheckOffModal({
-  mode, operation, onConfirm, onCancel,
+export function CheckOffModal({
+  mode, operation, rowOptions = [], initialRowIds, onConfirm, onCancel,
 }: {
   mode: ModalMode
   operation: RecommendedOperation
+  /** Selectable rows for harvest operations; empty = no selector shown. */
+  rowOptions?: RowOption[]
+  /** Preselected rows (edit mode). */
+  initialRowIds?: string[]
   onConfirm: (data: CheckOffFormData) => void
   onCancel: () => void
 }) {
@@ -469,11 +509,24 @@ function CheckOffModal({
     isEdit && operation.quantity != null ? String(operation.quantity) : ''
   )
   const [unit, setUnit] = useState(isEdit ? (operation.unit ?? 'kg') : 'kg')
+  const [selectedRows, setSelectedRows] = useState<Set<string>>(
+    () => new Set(initialRowIds ?? [])
+  )
 
   const copy = MODAL_COPY[mode]
   const needsProduct = ['fertilization', 'spray'].includes(operation.type)
   const needsQuantity = mode === 'partial'
     || ['fertilization', 'spray', 'harvest'].includes(operation.type)
+  const showRows = operation.type === 'harvest' && rowOptions.length > 0
+
+  function toggleRow(id: string) {
+    setSelectedRows(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
 
   const units = operation.type === 'harvest'
     ? ['kg', 'lb', 'unidades', 'cajas', 'sacos']
@@ -567,6 +620,49 @@ function CheckOffModal({
               </div>
             )}
 
+            {/* Row selector — which rows did this harvest cover? */}
+            {showRows && (
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-medium text-[#5a6a4a]">
+                    Hileras cosechadas
+                    <span className="text-[#9aab8a] font-normal ml-1">(opcional)</span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedRows(prev =>
+                      prev.size === rowOptions.length
+                        ? new Set()
+                        : new Set(rowOptions.map(r => r.id))
+                    )}
+                    className="text-[10px] text-[#639922] hover:text-[#2d4a1e] transition-colors"
+                  >
+                    {selectedRows.size === rowOptions.length ? 'Ninguna' : 'Todas'}
+                  </button>
+                </div>
+                <div className="max-h-36 overflow-y-auto rounded-lg border border-[#d0dcc0] divide-y divide-[#f0f5e8]">
+                  {rowOptions.map(row => (
+                    <label
+                      key={row.id}
+                      className="flex items-center gap-2.5 px-3 py-2 text-xs text-[#2d4a1e] cursor-pointer hover:bg-[#fafcf8] transition-colors"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedRows.has(row.id)}
+                        onChange={() => toggleRow(row.id)}
+                        className="accent-[#639922]"
+                      />
+                      <span className="truncate">{row.label}</span>
+                    </label>
+                  ))}
+                </div>
+                <p className="text-[10px] text-[#9aab8a]">
+                  Sin selección = todo el campo. Útil para cosechas de varios
+                  días: marca hoy las hileras que terminaste.
+                </p>
+              </div>
+            )}
+
             {/* Notes */}
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-[#5a6a4a]">
@@ -598,6 +694,9 @@ function CheckOffModal({
                 product: product || undefined,
                 quantity: quantity ? Number(quantity) : undefined,
                 unit: quantity ? unit : undefined,
+                rowIds: showRows && selectedRows.size > 0
+                  ? [...selectedRows]
+                  : undefined,
               })}
               className="flex-1 flex items-center justify-center gap-2 py-2 bg-[#2d4a1e] text-[#d4e8b0] rounded-lg text-sm font-medium hover:bg-[#3d6128] transition-colors"
             >

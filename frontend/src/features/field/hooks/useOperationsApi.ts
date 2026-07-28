@@ -26,6 +26,8 @@ export type FarmOperation = {
   quantity: number | null
   unit: string | null
   qualityRating: number | null
+  /** Field-row ids this operation covered — [] = whole field. */
+  rowIds: string[]
   createdAt: string
 }
 
@@ -35,6 +37,8 @@ export type CheckOffData = {
   product?: string
   quantity?: number
   unit?: string
+  /** Which rows were covered (harvest row selection). */
+  rowIds?: string[]
 }
 
 // ── Farm-wide operations log ──────────────────────────────────────────
@@ -202,7 +206,14 @@ export function useLogPartialRecommendedOp(farmId: string) {
   return useMutation({
     mutationFn: async (vars: {
       operationId: string
-      data: { date: string; product?: string; quantity?: number; unit?: string; notes?: string }
+      data: {
+        date: string
+        product?: string
+        quantity?: number
+        unit?: string
+        notes?: string
+        rowIds?: string[]
+      }
     }) => {
       return api.post<FarmOperation>(
         `/api/v1/farms/${farmId}/recommended-operations/${vars.operationId}/log-partial`,
@@ -226,7 +237,7 @@ export function useUpdateOperation(farmId: string) {
     mutationFn: async (vars: {
       id: string
       updates: Partial<Pick<FarmOperation,
-        'type' | 'actualDate' | 'notes' | 'product' | 'quantity' | 'unit' | 'qualityRating'>>
+        'type' | 'actualDate' | 'notes' | 'product' | 'quantity' | 'unit' | 'qualityRating' | 'rowIds'>>
     }) => {
       return api.patch<FarmOperation>(
         `/api/v1/farms/${farmId}/operations/${vars.id}`,

@@ -165,7 +165,7 @@ router.get('/export', async (req: Request, res: Response, next: NextFunction) =>
       return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
     }
 
-    const header = 'date,type,field,livestock_unit,product,quantity,unit,quality_rating,notes'
+    const header = 'date,type,field,livestock_unit,product,quantity,unit,quality_rating,rows_covered,notes'
     const rows = operations.map(op =>
       [
         toDateStr(op.actualDate),
@@ -176,6 +176,7 @@ router.get('/export', async (req: Request, res: Response, next: NextFunction) =>
         op.quantity !== null ? Number(op.quantity) : '',
         op.unit ?? '',
         op.qualityRating ?? '',
+        Array.isArray(op.rowIds) ? (op.rowIds as unknown[]).length || '' : '',
         op.notes ?? '',
       ].map(esc).join(',')
     )
@@ -207,7 +208,13 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
       fieldId, plantingEventId, livestockUnitId, recommendedOperationId,
       type, actualDate, notes, product, quantity, unit, qualityRating,
       cropTypeId, // optional — lets a standalone harvest log attribute its yield
+      rowIds,     // optional — which field rows this operation covered
     } = req.body
+
+    if (rowIds !== undefined &&
+        (!Array.isArray(rowIds) || rowIds.some((r: unknown) => typeof r !== 'string'))) {
+      throw Errors.validation('rowIds must be an array of row ids')
+    }
 
     if (!VALID_OPERATION_TYPES.includes(type)) {
       throw Errors.validation(`type must be one of: ${VALID_OPERATION_TYPES.join(', ')}`)
@@ -261,6 +268,7 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
           quantity: quantity ?? null,
           unit: unit ?? null,
           qualityRating: qualityRating ?? null,
+          rowIds: rowIds ?? [],
         },
       })
 
@@ -312,10 +320,14 @@ router.patch('/:id', async (req: Request, res: Response, next: NextFunction) => 
     const existing = await prisma.operation.findFirst({ where: { id, farmId } })
     if (!existing) throw Errors.notFound('Operation')
 
-    const { type, actualDate, notes, product, quantity, unit, qualityRating } = req.body
+    const { type, actualDate, notes, product, quantity, unit, qualityRating, rowIds } = req.body
 
     if (type !== undefined && !VALID_OPERATION_TYPES.includes(type)) {
       throw Errors.validation(`type must be one of: ${VALID_OPERATION_TYPES.join(', ')}`)
+    }
+    if (rowIds !== undefined &&
+        (!Array.isArray(rowIds) || rowIds.some((r: unknown) => typeof r !== 'string'))) {
+      throw Errors.validation('rowIds must be an array of row ids')
     }
     if (qualityRating !== undefined && qualityRating !== null &&
         (typeof qualityRating !== 'number' || qualityRating < 1 || qualityRating > 5)) {
@@ -337,6 +349,7 @@ router.patch('/:id', async (req: Request, res: Response, next: NextFunction) => 
           ...(quantity !== undefined && { quantity }),
           ...(unit !== undefined && { unit }),
           ...(qualityRating !== undefined && { qualityRating }),
+          ...(rowIds !== undefined && { rowIds }),
         },
       })
 

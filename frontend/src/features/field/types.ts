@@ -88,6 +88,8 @@ export type PlacedField = {
   farmLat: number
   farmLng: number
   displayMode: 'pin' | 'shape'
+  // True while the field is being placed on the map (backend column).
+  isPositioning?: boolean
   rows: FieldRow[]
   freePlants: PlantInstance[]
   plantingEvents: PlantingEvent[]

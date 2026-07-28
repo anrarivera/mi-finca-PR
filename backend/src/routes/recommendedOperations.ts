@@ -179,9 +179,14 @@ router.post('/:id/complete', async (req: Request, res: Response, next: NextFunct
     }
 
     const {
-      completedDate, product, quantity, unit, notes,
+      completedDate, product, quantity, unit, notes, rowIds,
     } = req.body ?? {}
     const actualDate = new Date(completedDate ?? todayUtc())
+
+    if (rowIds !== undefined &&
+        (!Array.isArray(rowIds) || rowIds.some((r: unknown) => typeof r !== 'string'))) {
+      throw Errors.validation('rowIds must be an array of row ids')
+    }
 
     const result = await prisma.$transaction(async (tx) => {
       // 1. The real log entry — this is what the farmer "did".
@@ -198,6 +203,7 @@ router.post('/:id/complete', async (req: Request, res: Response, next: NextFunct
           product: product ?? recOp.product ?? null,
           quantity: quantity ?? null,
           unit: unit ?? null,
+          rowIds: rowIds ?? [], // which rows were covered (harvest row selection)
         },
       })
 
@@ -280,8 +286,13 @@ router.post('/:id/log-partial', async (req: Request, res: Response, next: NextFu
       throw Errors.conflict('Only open operations can receive partial logs')
     }
 
-    const { date, product, quantity, unit, notes } = req.body ?? {}
+    const { date, product, quantity, unit, notes, rowIds } = req.body ?? {}
     const actualDate = new Date(date ?? todayUtc())
+
+    if (rowIds !== undefined &&
+        (!Array.isArray(rowIds) || rowIds.some((r: unknown) => typeof r !== 'string'))) {
+      throw Errors.validation('rowIds must be an array of row ids')
+    }
 
     const operation = await prisma.$transaction(async (tx) => {
       const created = await tx.operation.create({
@@ -297,6 +308,7 @@ router.post('/:id/log-partial', async (req: Request, res: Response, next: NextFu
           product: product ?? null,
           quantity: quantity ?? null,
           unit: unit ?? null,
+          rowIds: rowIds ?? [], // e.g. "today I harvested rows 1–3"
         },
       })
 

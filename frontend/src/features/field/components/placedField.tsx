@@ -1,12 +1,42 @@
-import { useRef, useState } from 'react'
-import { Polygon, Marker, Tooltip, useMapEvents } from 'react-leaflet'
+import { useEffect, useRef, useState } from 'react'
+import { Polygon, Polyline, CircleMarker, Marker, Tooltip, useMapEvents } from 'react-leaflet'
 import * as L from 'leaflet'
 import { useFieldStore } from '@/store/useFieldStore'
-import type { PlacedField as PlacedFieldType } from '../types'
+import type { PlacedField as PlacedFieldType, FieldRow } from '../types'
+
+// ──────────────────────────────────────────────────────────────────────────
+// A field rendered on the farm map. Click behavior:
+//  - single click → onSelect (opens the field-operations side drawer)
+//  - double click → onOpenEditor (opens the full field editor)
+// Leaflet fires click twice before dblclick, so the single-click action is
+// deferred ~250 ms and cancelled when a double-click lands.
+// Detail rendering: crop rows are drawn as lines inside every field shape;
+// individual plants are drawn only for the selected field (`detailed`) to
+// keep marker counts sane on farms with many fields.
+// ──────────────────────────────────────────────────────────────────────────
+
+const DOUBLE_CLICK_WINDOW_MS = 250
 
 type Props = {
   field: PlacedFieldType
-  onEdit: (fieldId: string) => void
+  /** Single click — show the field's operations drawer. */
+  onSelect: (fieldId: string) => void
+  /** Double click — open the full field editor. */
+  onOpenEditor: (fieldId: string) => void
+  /** Draw individual plants (the field selected in the ops drawer). */
+  detailed?: boolean
+}
+
+// A row's geometry: the drawn path when present, else the start→end segment.
+function rowPositions(row: FieldRow): L.LatLng[] {
+  if (row.path && row.path.length >= 2) {
+    const pts = row.path.map(p => L.latLng(p.lat, p.lng))
+    return row.pathClosed ? [...pts, pts[0]] : pts
+  }
+  return [
+    L.latLng(row.startLat, row.startLng),
+    L.latLng(row.endLat, row.endLng),
+  ]
 }
 
 function createPinIcon(color: string, name: string): L.DivIcon {
@@ -29,19 +59,48 @@ function createPinIcon(color: string, name: string): L.DivIcon {
   })
 }
 
-export default function PlacedField({ field, onEdit }: Props) {
+export default function PlacedField({ field, onSelect, onOpenEditor, detailed = false }: Props) {
   const { updateField } = useFieldStore()
   const [isHovered, setIsHovered] = useState(false)
   const isDragging = useRef(false)
+  const clickTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   useMapEvents({})
+
+  // Clear any pending single-click when unmounting
+  useEffect(() => () => {
+    if (clickTimer.current) clearTimeout(clickTimer.current)
+  }, [])
 
   function handleClick() {
     if (isDragging.current) return
     if (field.isPositioning) {
       updateField(field.id, { isPositioning: false })
-    } else {
-      onEdit(field.id)
+      return
     }
+    // Defer: if a dblclick follows, this select is cancelled.
+    if (clickTimer.current) clearTimeout(clickTimer.current)
+    clickTimer.current = setTimeout(() => {
+      clickTimer.current = null
+      onSelect(field.id)
+    }, DOUBLE_CLICK_WINDOW_MS)
+  }
+
+  function handleDblClick(e: L.LeafletMouseEvent) {
+    // Don't let the map's dblclick handlers (e.g. boundary point insertion)
+    // also react to a field double-click.
+    L.DomEvent.stopPropagation(e.originalEvent)
+    if (clickTimer.current) {
+      clearTimeout(clickTimer.current)
+      clickTimer.current = null
+    }
+    if (!field.isPositioning) onOpenEditor(field.id)
+  }
+
+  const eventHandlers = {
+    click: handleClick,
+    dblclick: handleDblClick,
+    mouseover: () => setIsHovered(true),
+    mouseout: () => setIsHovered(false),
   }
 
   // Pin mode — show at farm center point
@@ -50,7 +109,7 @@ export default function PlacedField({ field, onEdit }: Props) {
       <Marker
         position={L.latLng(field.farmLat, field.farmLng)}
         icon={createPinIcon(field.color, field.name)}
-        eventHandlers={{ click: handleClick }}
+        eventHandlers={eventHandlers}
       />
     )
   }
@@ -62,34 +121,68 @@ export default function PlacedField({ field, onEdit }: Props) {
       <Marker
         position={L.latLng(field.farmLat, field.farmLng)}
         icon={createPinIcon(field.color, field.name)}
-        eventHandlers={{ click: handleClick }}
+        eventHandlers={eventHandlers}
       />
     )
   }
 
   const positions = field.boundary.map(p => L.latLng(p.lat, p.lng))
+  const plants = detailed
+    ? [...field.rows.flatMap(r => r.plants), ...field.freePlants]
+    : []
 
   return (
-    <Polygon
-      positions={positions}
-      pathOptions={{
-        color: field.color,
-        fillColor: field.color,
-        fillOpacity: isHovered ? 0.5 : field.isPositioning ? 0.3 : 0.4,
-        weight: field.isPositioning ? 2.5 : 2,
-        dashArray: field.isPositioning ? '6 4' : undefined,
-      }}
-      eventHandlers={{
-        click: handleClick,
-        mouseover: () => setIsHovered(true),
-        mouseout: () => setIsHovered(false),
-      }}
-    >
-      <Tooltip permanent direction="top" offset={[0, -4]}>
-        <span style={{ fontSize: 11, fontWeight: 600, color: '#2d4a1e' }}>
-          {field.name}
-        </span>
-      </Tooltip>
-    </Polygon>
+    <>
+      <Polygon
+        positions={positions}
+        pathOptions={{
+          color: field.color,
+          fillColor: field.color,
+          fillOpacity: isHovered ? 0.5 : field.isPositioning ? 0.3 : 0.4,
+          weight: field.isPositioning ? 2.5 : 2,
+          dashArray: field.isPositioning ? '6 4' : undefined,
+        }}
+        eventHandlers={eventHandlers}
+      >
+        <Tooltip permanent direction="top" offset={[0, -4]}>
+          <span style={{ fontSize: 11, fontWeight: 600, color: '#2d4a1e' }}>
+            {field.name}
+          </span>
+        </Tooltip>
+      </Polygon>
+
+      {/* Crop rows — lat/lng straight to Leaflet, no conversion (SDD §2.2.3).
+          interactive={false} so clicks fall through to the field polygon. */}
+      {field.rows.map(row => (
+        <Polyline
+          key={row.id}
+          positions={rowPositions(row)}
+          interactive={false}
+          pathOptions={{
+            color: 'white',
+            weight: detailed ? 2 : 1.5,
+            opacity: detailed ? 0.9 : 0.6,
+            dashArray: '1 6',
+            lineCap: 'round',
+          }}
+        />
+      ))}
+
+      {/* Individual plants — only for the selected field */}
+      {plants.map(plant => (
+        <CircleMarker
+          key={plant.id}
+          center={L.latLng(plant.lat, plant.lng)}
+          radius={2.5}
+          interactive={false}
+          pathOptions={{
+            color: '#2d4a1e',
+            weight: 1,
+            fillColor: '#d4e8b0',
+            fillOpacity: 1,
+          }}
+        />
+      ))}
+    </>
   )
 }

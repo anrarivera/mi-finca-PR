@@ -12,6 +12,7 @@ import DrawingPanel from './drawingPanel'
 import FarmDrawer from '@/features/farm/components/farmDrawer'
 import FarmFieldEditor from '@/features/field/components/farmFieldEditor'
 import PlacedField from '@/features/field/components/placedField'
+import FieldOpsDrawer from '@/features/field/components/fieldOpsDrawer'
 import CreateFarmModal from '@/features/farm/components/createFarmModal'
 import { useFieldStore } from '@/store/useFieldStore'
 import { useFarmStore } from '@/store/useFarmStore'
@@ -233,6 +234,9 @@ export default function FarmMap({ center = PR_CENTER, zoom = DEFAULT_ZOOM }: Pro
   const [showFieldEditor, setShowFieldEditor] = useState(false)
   const [showModal, setShowModal] = useState(false)
   const [flyTarget, setFlyTarget] = useState<Farm | null>(null)
+  // Field selected by a single map click — opens the operations side drawer
+  // (double click opens the full editor instead).
+  const [opsDrawerFieldId, setOpsDrawerFieldId] = useState<string | null>(null)
   const boundaryLoaded = useRef(false)
 
   const { fields, removeField } = useFieldStore()
@@ -385,10 +389,29 @@ async function handleDeleteFarm() {
           <PlacedField
             key={field.id}
             field={field}
-            onEdit={handleOpenFieldEditor}
+            detailed={field.id === opsDrawerFieldId}
+            onSelect={(fieldId) => setOpsDrawerFieldId(fieldId)}
+            onOpenEditor={() => {
+              setOpsDrawerFieldId(null)
+              handleOpenFieldEditor()
+            }}
           />
         ))}
       </MapContainer>
+
+      {/* Field operations drawer — single click on a field */}
+      {opsDrawerFieldId && activeFarm && (
+        <FieldOpsDrawer
+          farmId={activeFarm.id}
+          farmName={activeFarm.name}
+          focusFieldId={opsDrawerFieldId}
+          onClose={() => setOpsDrawerFieldId(null)}
+          onOpenEditor={() => {
+            setOpsDrawerFieldId(null)
+            handleOpenFieldEditor()
+          }}
+        />
+      )}
 
       <FarmDrawer
         onAddFarm={() => setShowModal(true)}
