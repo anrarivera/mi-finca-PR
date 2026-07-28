@@ -237,6 +237,8 @@ export default function FarmMap({ center = PR_CENTER, zoom = DEFAULT_ZOOM }: Pro
   // that field's card (double click opens the full editor instead). The
   // nonce re-triggers the drawer when the same field is clicked again.
   const [focusRequest, setFocusRequest] = useState<{ fieldId: string; nonce: number } | null>(null)
+  // Field the editor should open editing (double-click on the map/card).
+  const [editorFieldId, setEditorFieldId] = useState<string | null>(null)
   const boundaryLoaded = useRef(false)
 
   const { fields, removeField } = useFieldStore()
@@ -309,11 +311,15 @@ async function handleDeleteFarm() {
   }
 }
 
-  function handleOpenFieldEditor() {
+  // Open the field editor — with a fieldId it opens straight into editing
+  // that field (double-click on a map field or a drawer card). Guarded
+  // against non-string args so it can back onClick handlers directly.
+  function handleOpenFieldEditor(fieldId?: unknown) {
     if (!activeFarm?.boundary || activeFarm.boundary.length < 3) {
       alert('Primero guarda el límite de tu finca antes de añadir campos.')
       return
     }
+    setEditorFieldId(typeof fieldId === 'string' ? fieldId : null)
     setShowFieldEditor(true)
   }
 
@@ -393,7 +399,7 @@ async function handleDeleteFarm() {
             onSelect={(fieldId) =>
               setFocusRequest(prev => ({ fieldId, nonce: (prev?.nonce ?? 0) + 1 }))
             }
-            onOpenEditor={() => handleOpenFieldEditor()}
+            onOpenEditor={(fieldId) => handleOpenFieldEditor(fieldId)}
           />
         ))}
       </MapContainer>
@@ -405,7 +411,7 @@ async function handleDeleteFarm() {
           setFocusRequest(prev => ({ fieldId, nonce: (prev?.nonce ?? 0) + 1 }))
         }
         onAddFarm={() => setShowModal(true)}
-        onEditField={() => setShowFieldEditor(true)}
+        onEditField={(fieldId) => handleOpenFieldEditor(fieldId)}
         onDeleteField={(fieldId) => {
           if (!activeFarm) return
           removeField(fieldId)
@@ -415,13 +421,16 @@ async function handleDeleteFarm() {
           setActiveFarm(farm)
           setFlyTarget(farm)
         }}
-        onOpenFieldEditor={handleOpenFieldEditor}
+        // The drawer passes the FARM id here — don't let it be mistaken
+        // for a field id; open the editor with no initial field.
+        onOpenFieldEditor={() => handleOpenFieldEditor()}
       />
 
       {showFieldEditor && activeFarm && (
         <FarmFieldEditor
           farmId={activeFarm.id}
-          onClose={() => setShowFieldEditor(false)}
+          initialFieldId={editorFieldId}
+          onClose={() => { setShowFieldEditor(false); setEditorFieldId(null) }}
           onFieldSaved={(fieldId, isNew) => {
             if (isNew) addFieldIdToFarm(activeFarm.id, fieldId)
           }}

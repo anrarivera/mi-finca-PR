@@ -2,17 +2,14 @@ import { useState } from 'react'
 import {
   Plus, Pencil, Check, Trash2, RotateCcw,
   Leaf, ChevronDown, ChevronUp,
-  Square, Pentagon, X, ClipboardList,
+  Square, Pentagon, X,
   LayoutGrid,
-  AlertCircle, Clock,
 } from 'lucide-react'
 import type { FieldShape, FieldRow, PlantInstance, PlacedField } from '../types'
 import type { EditorMode } from '../hooks/useFieldEditor'
 import CropSelector from './cropSelector'
+import FieldSummaryCard from './fieldSummaryCard'
 import { getCropById } from '../data/cropLibrary'
-import { computeCropSummary } from '../utils/rowCalculator'
-import { getFieldOperationHealth } from '../utils/operationStatus'
-import { areaFt2, ft2ToAcres, getCanvasScale, latlngToCanvas, farmBoundaryToBBox } from '../utils/canvasGeo'
 
 type Props = {
   mode: EditorMode
@@ -43,19 +40,10 @@ type Props = {
   onEditRows: (ids: string[]) => void
   onDeleteRows: (ids: string[]) => void
   onSelectField: (id: string) => void
-  onEditSelectedField: () => void
-  onDeleteSelectedField: () => void
-  onOpenOperations: () => void
-}
-
-// Calculate area in acres from a field's boundary lat/lng points
-function fieldAreaAcres(boundary: PlacedField['boundary']): number | null {
-  if (!boundary || boundary.length < 3) return null
-  const bbox = farmBoundaryToBBox(boundary)
-  const scale = getCanvasScale(bbox)
-  const canvasPoints = boundary.map(p => latlngToCanvas(p.lat, p.lng, bbox))
-  const ft2 = areaFt2(canvasPoints, scale)
-  return ft2ToAcres(ft2)
+  /** Card double-click / Editar button — enter edit mode for this field. */
+  onEditFieldById: (id: string) => void
+  /** Card delete (already confirmed in-card). */
+  onDeleteFieldById: (id: string) => void
 }
 
 export default function FarmFieldEditorPanel({
@@ -69,7 +57,7 @@ export default function FarmFieldEditorPanel({
   onStartFillRows, onStartAddRow, onCancelAddRow,
   onStartAddFreePlant, onStopAddFreePlant,
   onEditRows, onDeleteRows,
-  onSelectField, onEditSelectedField, onDeleteSelectedField, onOpenOperations,
+  onSelectField, onEditFieldById, onDeleteFieldById,
 }: Props) {
   const [freeCropPick, setFreeCropPick] = useState('')
   const [showRows, setShowRows] = useState(true)
@@ -78,13 +66,14 @@ export default function FarmFieldEditorPanel({
     setSelectedRowIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
   const clearRowSelection = () => setSelectedRowIds([])
 
-  const selectedField = allFields.find(f => f.id === selectedFieldId)
-  const isIdle = mode === 'setup' && !selectedFieldId && !isCreatingNew
+  const isIdle = mode === 'setup' && !isCreatingNew
 
-  // ── IDLE — show field list ────────────────────────────────────────
+  // ── SETUP — field summary cards (same cards as the farm-map drawer).
+  //    Single click selects on the canvas, double click / "Editar" enters
+  //    edit mode, and each card carries its own Operaciones button. ──────
   if (isIdle) {
     return (
-      <div className="w-64 h-full bg-white border-r border-[#e0e8d8] flex flex-col">
+      <div className="w-72 h-full bg-white border-r border-[#e0e8d8] flex flex-col">
         <div className="px-4 py-3 border-b border-[#e0e8d8] bg-[#f5f8f0] shrink-0">
           <p className="text-xs font-semibold text-[#2d4a1e] uppercase tracking-wide">
             Campos de la finca
@@ -104,64 +93,16 @@ export default function FarmFieldEditorPanel({
             </div>
           ) : (
             <div className="flex flex-col divide-y divide-[#f0f5e8]">
-              {allFields.map(field => {
-                const summary = computeCropSummary(
-                  field.rows ?? [], field.freePlants ?? [], getCropById
-                )
-                const health = getFieldOperationHealth(field.plantingEvents ?? [])
-                const acres = fieldAreaAcres(field.boundary)
-                return (
-                  <button
-                    key={field.id}
-                    onClick={() => onSelectField(field.id)}
-                    className={`w-full text-left px-4 py-3 hover:bg-[#fafcf8] transition-colors ${
-                      selectedFieldId === field.id ? 'bg-[#eaf3de]' : ''
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-1">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <div className="w-3 h-3 rounded-full shrink-0"
-                          style={{ backgroundColor: field.color }}
-                        />
-                        <span className="text-sm font-medium text-[#2d4a1e] truncate">
-                          {field.name}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1 shrink-0">
-                        {health.overdue > 0 && (
-                          <div className="flex items-center gap-0.5 px-1.5 py-0.5 bg-red-50 rounded-full">
-                            <AlertCircle size={8} className="text-red-500" />
-                            <span className="text-[9px] text-red-600 font-bold">{health.overdue}</span>
-                          </div>
-                        )}
-                        {health.dueSoon > 0 && (
-                          <div className="flex items-center gap-0.5 px-1.5 py-0.5 bg-amber-50 rounded-full">
-                            <Clock size={8} className="text-amber-500" />
-                            <span className="text-[9px] text-amber-600 font-bold">{health.dueSoon}</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    {acres !== null && (
-                      <p className="text-[10px] text-[#9aab8a] mb-1">
-                        {acres.toFixed(3)} ac
-                      </p>
-                    )}
-                    {summary.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5">
-                        {summary.map(c => (
-                          <div key={c.cropTypeId}
-                            className="flex items-center gap-1 px-1.5 py-0.5 bg-[#f5f8f0] rounded"
-                          >
-                            <span className="text-xs">{c.emoji}</span>
-                            <span className="text-[10px] text-[#5a6a4a] font-medium">{c.count}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </button>
-                )
-              })}
+              {allFields.map(field => (
+                <FieldSummaryCard
+                  key={field.id}
+                  field={field}
+                  focused={field.id === selectedFieldId}
+                  onSelect={() => onSelectField(field.id)}
+                  onOpenEditor={() => onEditFieldById(field.id)}
+                  onDelete={() => onDeleteFieldById(field.id)}
+                />
+              ))}
             </div>
           )}
         </div>
@@ -170,109 +111,6 @@ export default function FarmFieldEditorPanel({
           <button
             onClick={onStartNewField}
             className="w-full flex items-center justify-center gap-2 py-2.5 bg-[#2d4a1e] text-[#d4e8b0] rounded-lg text-xs font-medium hover:bg-[#3d6128] transition-colors"
-          >
-            <Plus size={13} /> Nuevo campo
-          </button>
-        </div>
-      </div>
-    )
-  }
-
-  // ── FIELD SELECTED (not yet editing) ─────────────────────────────
-  if (selectedField && mode === 'setup') {
-    const summary = computeCropSummary(
-      selectedField.rows ?? [], selectedField.freePlants ?? [], getCropById
-    )
-    const dueCount = (selectedField.plantingEvents ?? [])
-      .flatMap(e => e.operations)
-      .filter(o => o.status === 'due').length
-    const acres = fieldAreaAcres(selectedField.boundary)
-
-    return (
-      <div className="w-64 h-full bg-white border-r border-[#e0e8d8] flex flex-col">
-        <div className="px-4 py-3 border-b border-[#e0e8d8] bg-[#f5f8f0] flex items-center gap-2 shrink-0">
-          <button
-            onClick={() => onSelectField('')}
-            className="text-[#9aab8a] hover:text-[#2d4a1e] transition-colors"
-          >
-            ←
-          </button>
-          <div className="flex items-center gap-2 min-w-0">
-            <div className="w-3 h-3 rounded-full shrink-0"
-              style={{ backgroundColor: selectedField.color }}
-            />
-            <p className="text-xs font-semibold text-[#2d4a1e] truncate">
-              {selectedField.name}
-            </p>
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
-          <div className="flex flex-col gap-0.5">
-            {acres !== null && (
-              <p className="text-[10px] text-[#9aab8a]">
-                {acres.toFixed(3)} acres
-              </p>
-            )}
-            {selectedField.boundary && (
-              <p className="text-[10px] text-[#9aab8a]">
-                {selectedField.boundary.length} puntos de contorno
-              </p>
-            )}
-          </div>
-
-          {summary.length > 0 && (
-            <div className="flex flex-col gap-1.5 px-3 py-2.5 bg-[#f5f8f0] rounded-lg">
-              <p className="text-[10px] font-semibold text-[#5a6a4a] uppercase tracking-wide">
-                Cultivos
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {summary.map(c => (
-                  <div key={c.cropTypeId} className="flex items-center gap-1">
-                    <span className="text-sm">{c.emoji}</span>
-                    <span className="text-xs text-[#5a6a4a] font-medium">{c.count}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div className="flex flex-col gap-2">
-            <button
-              onClick={onEditSelectedField}
-              className="w-full flex items-center justify-center gap-2 py-2.5 bg-[#2d4a1e] text-[#d4e8b0] rounded-lg text-xs font-medium hover:bg-[#3d6128] transition-colors"
-            >
-              <Pencil size={13} /> Editar campo
-            </button>
-
-            {summary.length > 0 && (
-              <button
-                onClick={onOpenOperations}
-                className="w-full flex items-center justify-center gap-2 py-2 text-xs text-[#639922] border border-[#c8dca8] rounded-lg hover:bg-[#eaf3de] transition-colors"
-              >
-                <ClipboardList size={13} />
-                Operaciones
-                {dueCount > 0 && (
-                  <span className="w-4 h-4 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center">
-                    {dueCount}
-                  </span>
-                )}
-              </button>
-            )}
-
-            <button
-              onClick={onDeleteSelectedField}
-              className="w-full flex items-center justify-center gap-2 py-2 text-xs text-[#9aab8a] hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-            >
-              <Trash2 size={13} /> Eliminar campo
-            </button>
-          </div>
-        </div>
-
-        <div className="p-4 border-t border-[#e0e8d8] shrink-0">
-          <button
-            onClick={onStartNewField}
-            className="w-full flex items-center justify-center gap-2 py-2 text-xs text-[#639922] border border-[#c8dca8] rounded-lg hover:bg-[#eaf3de] transition-colors"
           >
             <Plus size={13} /> Nuevo campo
           </button>

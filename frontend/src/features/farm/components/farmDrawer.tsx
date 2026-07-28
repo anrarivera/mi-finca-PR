@@ -1,45 +1,21 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import {
   ChevronRight, ChevronLeft, Star, Plus,
   MapPin, Layers, Pencil, Trash2,
-  ToggleLeft, ToggleRight, AlertCircle, Clock, CalendarDays,
+  AlertCircle, Clock,
 } from 'lucide-react'
 import { useDeleteField } from '@/features/field/hooks/useFieldsApi'
-import { useCompleteRecommendedOp } from '@/features/field/hooks/useOperationsApi'
 import { useFarmStore } from '@/store/useFarmStore'
 import { useFieldStore } from '@/store/useFieldStore'
-import { computeCropSummary } from '@/features/field/utils/rowCalculator'
 import { getFieldOperationHealth } from '@/features/field/utils/operationStatus'
-import { getCropById } from '@/features/field/data/cropLibrary'
-import { CheckOffModal, harvestTargetsForOperation } from '@/features/field/components/operationsView'
-import FieldOperationsContainer from '@/features/field/components/fieldOperationsContainer'
+import FieldSummaryCard from '@/features/field/components/fieldSummaryCard'
 import type { Farm } from '@/store/useFarmStore'
-import type { PlacedField, PlantingEvent, RecommendedOperation } from '@/features/field/types'
-
-// The most urgent open calendar item for a field: overdue first (oldest
-// first), then upcoming (soonest first). Drives the check-off shortcut on
-// each field card.
-function nextOperation(field: PlacedField): {
-  op: RecommendedOperation
-  event: PlantingEvent
-} | null {
-  const open = (field.plantingEvents ?? []).flatMap(event =>
-    event.operations
-      .filter(op => op.status === 'due' || op.status === 'pending')
-      .map(op => ({ op, event }))
-  )
-  if (open.length === 0) return null
-  open.sort((a, b) => {
-    if (a.op.status !== b.op.status) return a.op.status === 'due' ? -1 : 1
-    return a.op.recommendedDate.localeCompare(b.op.recommendedDate)
-  })
-  return open[0]
-}
-import { areaFt2, ft2ToAcres, getCanvasScale, latlngToCanvas, farmBoundaryToBBox } from '@/features/field/utils/canvasGeo'
+import type { PlacedField } from '@/features/field/types'
 import { toast } from '@/store/useToastStore'
 
 type Props = {
   onAddFarm: () => void
+  /** Open the field editor editing this specific field. */
   onEditField: (fieldId: string) => void
   onDeleteField: (fieldId: string) => void
   onFlyToFarm: (farm: Farm) => void
@@ -352,6 +328,9 @@ function FarmList({
 }
 
 // ── Level 2: Field list for a farm ────────────────────────────────────
+// Cards are the shared FieldSummaryCard (same one the field editor uses):
+// single click selects on the map, double click / Editar opens the editor
+// for that field, and the card owns check-off + the full operations UI.
 function FieldList({
   farm, fields, focusFieldId, focusNonce, onSelectField, showBackButton,
   onBack, onClose, onEditField, onDeleteField,
@@ -370,21 +349,9 @@ function FieldList({
   onToggleDisplay: (field: PlacedField) => void
   onOpenFieldEditor: () => void
   }) {
-  
+
   const deleteField = useDeleteField(farm.id)
   const { removeFieldIdFromFarm } = useFarmStore()
-
-  // Check-off straight from the drawer — same flow as the map's field
-  // drawer: the card's check circle opens the standard check-off modal
-  // (with the flexible harvest selector) and persists via the API.
-  const completeOp = useCompleteRecommendedOp(farm.id)
-  const [checking, setChecking] = useState<{
-    field: PlacedField
-    event: PlantingEvent
-    op: RecommendedOperation
-  } | null>(null)
-  // Full operations UI (same screen as the field editor's) for one field
-  const [opsFieldId, setOpsFieldId] = useState<string | null>(null)
 
   function handleDeleteField(fieldId: string) {
     deleteField.mutate(fieldId, {
@@ -403,8 +370,6 @@ function FieldList({
     const h = getFieldOperationHealth(f.plantingEvents ?? [])
     return sum + h.dueSoon
   }, 0)
-
-  
 
   return (
     <div className="flex flex-col h-full">
@@ -460,60 +425,20 @@ function FieldList({
         ) : (
           <div className="flex flex-col divide-y divide-[#f0f5e8]">
             {fields.map(field => (
-              <FieldCard
+              <FieldSummaryCard
                 key={field.id}
                 field={field}
                 focused={field.id === focusFieldId}
                 focusNonce={focusNonce}
                 onSelect={() => onSelectField(field.id)}
-                onEdit={() => onEditField(field.id)}
-                onDelete={() => handleDeleteField(field.id)}  // ← use this
+                onOpenEditor={() => onEditField(field.id)}
+                onDelete={() => handleDeleteField(field.id)}
                 onToggleDisplay={() => onToggleDisplay(field)}
-                onCheckOff={(op, event) => setChecking({ field, event, op })}
-                onOpenOperations={() => setOpsFieldId(field.id)}
               />
             ))}
           </div>
         )}
       </div>
-
-      {/* Full operations UI — identical to the field editor's */}
-      {opsFieldId && (
-        <FieldOperationsContainer
-          farmId={farm.id}
-          fieldId={opsFieldId}
-          onClose={() => setOpsFieldId(null)}
-        />
-      )}
-
-      {/* Check-off modal — flexible harvest selection included */}
-      {checking && (
-        <CheckOffModal
-          mode="complete"
-          operation={checking.op}
-          harvestTargets={harvestTargetsForOperation(
-            checking.op,
-            checking.field.plantingEvents ?? [],
-            {
-              rows: checking.field.rows ?? [],
-              freePlants: checking.field.freePlants ?? [],
-            }
-          )}
-          onConfirm={(data) => {
-            completeOp.mutate(
-              {
-                fieldId: checking.field.id,
-                eventId: checking.event.id,
-                operationId: checking.op.id,
-                data,
-              },
-              { onSuccess: () => toast.success('Operación registrada') }
-            )
-            setChecking(null)
-          }}
-          onCancel={() => setChecking(null)}
-        />
-      )}
 
       {/* Fixed bottom — Manage fields button */}
       <div className="px-4 py-3 border-t border-[#e0e8d8] bg-white shrink-0">
@@ -524,197 +449,6 @@ function FieldList({
           <Pencil size={13} /> Gestionar campos
         </button>
       </div>
-    </div>
-  )
-}
-
-// ── Individual field card ─────────────────────────────────────────────
-function FieldCard({
-  field, focused, focusNonce, onSelect, onEdit, onDelete, onToggleDisplay,
-  onCheckOff, onOpenOperations,
-}: {
-  field: PlacedField
-  focused: boolean
-  focusNonce: number
-  /** Clicking the card selects the field on the map. */
-  onSelect: () => void
-  onEdit: () => void
-  onDelete: () => void
-  onToggleDisplay: () => void
-  onCheckOff: (op: RecommendedOperation, event: PlantingEvent) => void
-  /** Opens the full operations UI (same screen as the field editor's). */
-  onOpenOperations: () => void
-}) {
-  const [confirmDelete, setConfirmDelete] = useState(false)
-  const cardRef = useRef<HTMLDivElement | null>(null)
-
-  // Scroll the clicked field's card into view (re-runs when the same field
-  // is clicked again thanks to the nonce).
-  useEffect(() => {
-    if (focused) {
-      cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [focused, focusNonce])
-  const summary = computeCropSummary(field.rows ?? [], field.freePlants ?? [], getCropById)
-  const health = getFieldOperationHealth(field.plantingEvents ?? [])
-
-  // Most urgent open calendar item — checkable right from the drawer
-  const next = nextOperation(field)
-  const nextCrop = next ? getCropById(next.event.cropTypeId) : null
-  const nextIsDue = next?.op.status === 'due'
-  const nextDate = next
-    ? new Date(next.op.recommendedDate + 'T12:00:00')
-        .toLocaleDateString('es-PR', { day: 'numeric', month: 'short' })
-    : null
-
-  return (
-    <div
-      ref={cardRef}
-      onClick={onSelect}
-      className={`px-4 py-3 hover:bg-[#fafcf8] transition-colors cursor-pointer ${
-        focused ? 'bg-[#f5f8f0] border-l-2 border-l-[#639922]' : ''
-      }`}
-    >
-
-      {/* Field name + color + operation badges */}
-      <div className="flex items-center justify-between mb-1">
-        <div className="flex items-center gap-2 min-w-0">
-          <div className="w-3 h-3 rounded-full shrink-0"
-            style={{ backgroundColor: field.color }}
-          />
-          <span className="text-sm font-medium text-[#2d4a1e] truncate">{field.name}</span>
-        </div>
-        <div className="flex items-center gap-1 shrink-0">
-          {health.overdue > 0 && (
-            <div className="flex items-center gap-0.5 px-1.5 py-0.5 bg-red-50 rounded-full">
-              <AlertCircle size={8} className="text-red-500" />
-              <span className="text-[9px] text-red-600 font-bold">{health.overdue}</span>
-            </div>
-          )}
-          {health.dueSoon > 0 && (
-            <div className="flex items-center gap-0.5 px-1.5 py-0.5 bg-amber-50 rounded-full">
-              <Clock size={8} className="text-amber-500" />
-              <span className="text-[9px] text-amber-600 font-bold">{health.dueSoon}</span>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Area */}
-      {field.boundary && field.boundary.length >= 3 && (() => {
-        const bbox = farmBoundaryToBBox(field.boundary)
-        const scale = getCanvasScale(bbox)
-        const pts = field.boundary.map(p => latlngToCanvas(p.lat, p.lng, bbox))
-        const acres = ft2ToAcres(areaFt2(pts, scale))
-        return (
-          <p className="text-[10px] text-[#9aab8a] mb-1.5">
-            {acres.toFixed(3)} ac
-          </p>
-        )
-      })()}
-
-      {/* Crop summary */}
-      {summary.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 mb-2.5">
-          {summary.map(c => (
-            <div key={c.cropTypeId}
-              className="flex items-center gap-1 px-1.5 py-0.5 bg-[#f5f8f0] rounded"
-            >
-              <span className="text-xs">{c.emoji}</span>
-              <span className="text-[10px] text-[#5a6a4a] font-medium">{c.count}</span>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Current operation — check it off without leaving the drawer */}
-      {next && (
-        <div className={`flex items-center gap-2 mb-2.5 px-2 py-1.5 rounded-lg ${
-          nextIsDue ? 'bg-red-50/70' : 'bg-[#f5f8f0]'
-        }`}>
-          <button
-            onClick={() => onCheckOff(next.op, next.event)}
-            aria-label={`Completar ${next.op.labelEs}`}
-            title="Marcar como realizada"
-            className={`w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors hover:bg-[#eaf3de] ${
-              nextIsDue
-                ? 'border-red-400 hover:border-[#639922]'
-                : 'border-[#c0d8a0] hover:border-[#639922]'
-            }`}
-          />
-          <div className="flex-1 min-w-0">
-            <p className="text-[10px] font-medium text-[#2d4a1e] truncate">
-              {nextCrop?.emoji ?? '🌱'} {next.op.labelEs}
-            </p>
-            <p className={`text-[9px] ${nextIsDue ? 'text-red-500 font-medium' : 'text-[#9aab8a]'}`}>
-              {nextIsDue ? 'Vencida — ' : ''}{nextDate}
-              {nextCrop ? ` · ${nextCrop.nameEs}` : ''}
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* Pin / shape toggle */}
-      <button
-        onClick={onToggleDisplay}
-        className="flex items-center gap-1.5 mb-2.5 text-[10px] text-[#5a6a4a] hover:text-[#2d4a1e] transition-colors w-full"
-      >
-        {field.displayMode === 'pin' ? (
-          <>
-            <MapPin size={10} className="text-[#639922]" />
-            <span>Mostrar como pin</span>
-            <ToggleLeft size={13} className="text-[#c0d0b0] ml-auto" />
-          </>
-        ) : (
-          <>
-            <Layers size={10} className="text-[#639922]" />
-            <span>Mostrar como forma</span>
-            <ToggleRight size={13} className="text-[#639922] ml-auto" />
-          </>
-        )}
-      </button>
-
-      {/* Actions */}
-      {!confirmDelete ? (
-        <div className="flex items-center gap-2">
-          <button
-            onClick={(e) => { e.stopPropagation(); onOpenOperations() }}
-            title="Ver el calendario completo de labores"
-            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-[10px] text-[#2d4a1e] border border-[#c8dca8] bg-[#eaf3de] rounded-lg hover:bg-[#d9ecc4] transition-colors"
-          >
-            <CalendarDays size={10} /> Operaciones
-          </button>
-          <button onClick={onEdit}
-            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-[10px] text-[#639922] border border-[#c8dca8] rounded-lg hover:bg-[#eaf3de] transition-colors"
-          >
-            <Pencil size={10} /> Editar
-          </button>
-          <button onClick={() => setConfirmDelete(true)}
-            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-[10px] text-[#9aab8a] border border-[#e0e8d8] rounded-lg hover:text-red-500 hover:border-red-200 hover:bg-red-50 transition-colors"
-          >
-            <Trash2 size={10} /> Eliminar
-          </button>
-        </div>
-      ) : (
-        <div className="flex flex-col gap-1.5">
-          <p className="text-[10px] text-red-500 text-center">
-            ¿Eliminar "{field.name}"?
-          </p>
-          <div className="flex items-center gap-2">
-            <button onClick={onDelete}
-              className="flex-1 py-1.5 text-[10px] text-white bg-red-500 rounded-lg hover:bg-red-600 transition-colors"
-            >
-              Sí, eliminar
-            </button>
-            <button onClick={() => setConfirmDelete(false)}
-              className="flex-1 py-1.5 text-[10px] text-[#5a6a4a] border border-[#e0e8d8] rounded-lg hover:bg-[#f5f8f0] transition-colors"
-            >
-              Cancelar
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

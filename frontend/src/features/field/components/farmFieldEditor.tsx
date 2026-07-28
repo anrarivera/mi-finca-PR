@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { X } from 'lucide-react'
 import { useFieldEditor } from '../hooks/useFieldEditor'
 import FieldEditorCanvas from './fieldEditorCanvas'
@@ -7,7 +7,6 @@ import RowConfigPanel from './rowConfigPanel'
 import RowFillPanel from './rowFillPanel'
 import RowEditPanel from './rowEditPanel'
 import PlantEditPanel from './plantEditPanel'
-import FieldOperationsContainer from './fieldOperationsContainer'
 import { useSatelliteBackground } from '../hooks/useSatelliteBackground'
 import { useFieldStore } from '@/store/useFieldStore'
 import { useFarmStore } from '@/store/useFarmStore'
@@ -17,20 +16,21 @@ import { toast } from '@/store/useToastStore'
 
 type Props = {
   farmId: string
+  /** Open the editor already editing this field (map/drawer double-click). */
+  initialFieldId?: string | null
   onClose: () => void
   onFieldSaved: (fieldId: string, isNew: boolean) => void
   onFieldDeleted: (fieldId: string) => void
 }
 
 export default function FarmFieldEditor({
-  farmId, onClose, onFieldSaved, onFieldDeleted,
+  farmId, initialFieldId, onClose, onFieldSaved, onFieldDeleted,
 }: Props) {
   const editor = useFieldEditor()
   const { getField, getFieldsByFarmId } = useFieldStore()
   const { farms, addFieldIdToFarm, removeFieldIdFromFarm } = useFarmStore()
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null)
   const [editingFieldId, setEditingFieldId] = useState<string | null>(null)
-  const [showOperations, setShowOperations] = useState(false)
   const [isCreatingNew, setIsCreatingNew] = useState(false)
   const [editingRowIds, setEditingRowIds] = useState<string[] | null>(null)
   const [selectedPlantId, setSelectedPlantId] = useState<string | null>(null)
@@ -72,26 +72,37 @@ export default function FarmFieldEditor({
     setSelectedFieldId(id)
   }
 
-  // ── Enter edit mode for the selected field ────────────────────────
-  function handleEditSelectedField() {
-    if (!selectedFieldId || !bbox) return
-    const field = getField(selectedFieldId)
+  // ── Enter edit mode for a field (card double-click / Editar button) ──
+  function handleEditField(id: string) {
+    if (!bbox) return
+    const field = getField(id)
     if (!field) return
-    setEditingFieldId(selectedFieldId)
+    setSelectedFieldId(id)
+    setEditingFieldId(id)
+    setIsCreatingNew(false)
     setEditingRowIds(null)
     setSelectedPlantId(null)
     editor.loadField(field, bbox)
   }
 
-  // ── Delete the selected field ─────────────────────────────────────
-  function handleDeleteSelectedField() {
-    if (!selectedFieldId) return
-    if (!window.confirm('¿Eliminar este campo?')) return
-    deleteField.mutate(selectedFieldId, {
+  // Opened via double-click on the map or a drawer card: jump straight
+  // into editing that field once the canvas bbox is ready. Ref-guarded so
+  // it fires exactly once per mount.
+  const initialApplied = useRef(false)
+  useEffect(() => {
+    if (!initialFieldId || initialApplied.current || !bbox) return
+    initialApplied.current = true
+    handleEditField(initialFieldId)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialFieldId, bbox])
+
+  // ── Delete a field (card already confirmed) ───────────────────────
+  function handleDeleteField(id: string) {
+    deleteField.mutate(id, {
       onSuccess: () => {
-        removeFieldIdFromFarm(farmId, selectedFieldId)
-        onFieldDeleted(selectedFieldId)
-        setSelectedFieldId(null)
+        removeFieldIdFromFarm(farmId, id)
+        onFieldDeleted(id)
+        if (selectedFieldId === id) setSelectedFieldId(null)
         toast.success('Campo eliminado')
       },
     })
@@ -219,9 +230,8 @@ export default function FarmFieldEditor({
           onEditRows={(ids) => setEditingRowIds(ids)}
           onDeleteRows={(ids) => editor.deleteRows(ids)}
           onSelectField={handleSelectField}
-          onEditSelectedField={handleEditSelectedField}
-          onDeleteSelectedField={handleDeleteSelectedField}
-          onOpenOperations={() => setShowOperations(true)}
+          onEditFieldById={handleEditField}
+          onDeleteFieldById={handleDeleteField}
         />
 
         <div className="flex-1 overflow-hidden relative">
@@ -309,15 +319,6 @@ export default function FarmFieldEditor({
           })()}
         </div>
       </div>
-
-      {/* Operations view — shared container wires all persistence */}
-      {showOperations && selectedFieldId && (
-        <FieldOperationsContainer
-          farmId={farmId}
-          fieldId={selectedFieldId}
-          onClose={() => setShowOperations(false)}
-        />
-      )}
 
     </div>
   )
