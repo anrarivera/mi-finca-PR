@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   X, Check, SkipForward, ChevronDown, ChevronUp,
   AlertCircle, Clock, CheckCircle2, ChevronRight,
@@ -552,7 +552,8 @@ const MODAL_COPY: Record<ModalMode, { title: string; confirm: string; dateLabel:
 }
 
 export function CheckOffModal({
-  mode, operation, harvestTargets, initialSelection, onConfirm, onCancel,
+  mode, operation, harvestTargets, initialSelection, mapInteractive = false,
+  onConfirm, onCancel,
 }: {
   mode: ModalMode
   operation: RecommendedOperation
@@ -560,6 +561,10 @@ export function CheckOffModal({
   harvestTargets?: HarvestTargets
   /** Previously stored selection (edit mode). */
   initialSelection?: { rowIds?: string[]; plantIds?: string[] }
+  /** True when the farm map is visible behind the modal: the backdrop then
+      lets clicks through so rows/plants can be toggled right on the map.
+      Leave false in fullscreen contexts (clicks would hit the list). */
+  mapInteractive?: boolean
   onConfirm: (data: CheckOffFormData) => void
   onCancel: () => void
 }) {
@@ -590,6 +595,9 @@ export function CheckOffModal({
   // operation type — "fertilized rows 1–3", "sprayed just these plants",
   // not only harvests.
   const showScopeSelector = targets.rows.length > 0 || targets.freePlants.length > 0
+  // Backdrop goes transparent to clicks only when the map is behind AND
+  // there is something to select on it.
+  const clickThrough = showScopeSelector && mapInteractive
 
   const units = operation.type === 'harvest'
     ? ['kg', 'lb', 'unidades', 'cajas', 'sacos']
@@ -597,20 +605,25 @@ export function CheckOffModal({
 
   return (
     <>
-      {/* Backdrop — kept light and unblurred when a scope selector is shown
-          so the map stays visible: selection highlights live behind it */}
+      {/* Backdrop — kept light and unblurred when a scope selector is
+          shown so the map stays visible; over the map it also goes
+          transparent to clicks so clicking rows/plants there toggles them
+          in the selector (cancel via the button instead) */}
       <div
         className={`fixed inset-0 z-[2200] ${
-          showScopeSelector ? 'bg-black/10' : 'bg-black/40 backdrop-blur-sm'
+          clickThrough ? 'bg-black/10 pointer-events-none'
+          : showScopeSelector ? 'bg-black/10'
+          : 'bg-black/40 backdrop-blur-sm'
         }`}
-        onClick={onCancel}
+        onClick={clickThrough ? undefined : onCancel}
       />
 
-      {/* Modal — docked right when selecting scope so the field isn't covered */}
-      <div className={`fixed inset-0 z-[2300] flex items-center p-4 ${
+      {/* Modal — docked right when selecting scope so the field isn't
+          covered; the wrapper never captures clicks, only the card does */}
+      <div className={`fixed inset-0 z-[2300] flex items-center p-4 pointer-events-none ${
         showScopeSelector ? 'justify-end pr-6' : 'justify-center'
       }`}>
-        <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden max-h-[92vh] overflow-y-auto">
+        <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden max-h-[92vh] overflow-y-auto pointer-events-auto">
 
           {/* Header */}
           <div className="px-5 py-4 border-b border-[#e0e8d8] bg-[#f5f8f0]">
@@ -695,6 +708,7 @@ export function CheckOffModal({
                 targets={targets}
                 selected={selectedPlants}
                 onChange={setSelectedPlants}
+                mapToggles={clickThrough}
               />
             )}
 
@@ -752,25 +766,58 @@ export function CheckOffModal({
 // a row (expand it), "the first N plants of a row" (quick input), and
 // free-standing plants. The canonical state is a set of plant ids owned by
 // the modal; this component is a controlled view over it.
-function HarvestSelector({ title, targets, selected, onChange }: {
+function HarvestSelector({ title, targets, selected, onChange, mapToggles = false }: {
   /** Type-aware heading, e.g. "¿Qué cosechaste?" / "¿Qué alcanzó esta labor?" */
   title: string
   targets: HarvestTargets
   selected: Set<string>
   onChange: (next: Set<string>) => void
+  /** Accept clicks from the map (only when the map is actually behind). */
+  mapToggles?: boolean
 }) {
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
+  const rowRefs = useRef<Record<string, HTMLDivElement | null>>({})
 
   // Publish the live selection so the map highlights the chosen rows and
   // plants while this modal is open (cleared on unmount).
   const setHighlight = useHarvestHighlightStore(s => s.setHighlight)
   const clearHighlight = useHarvestHighlightStore(s => s.clearHighlight)
+  const setToggles = useHarvestHighlightStore(s => s.setToggles)
+  const clearToggles = useHarvestHighlightStore(s => s.clearToggles)
   useEffect(() => {
     const sel = plantSetToSelection(targets, selected)
     setHighlight({ rowIds: sel.rowIds ?? [], plantIds: [...selected] })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected, targets])
-  useEffect(() => () => clearHighlight(), [clearHighlight])
+
+  // Register map-click toggles: clicking a row line or plant dot on the
+  // map toggles it here, exactly like ticking its checkbox. A plant click
+  // also expands its row so the checked plant is visible. Re-registered on
+  // every selection change to keep the closures fresh.
+  useEffect(() => {
+    if (!mapToggles) return
+    setToggles({
+      toggleRow: (rowId) => {
+        const target = targets.rows.find(({ row }) => row.id === rowId)
+        if (target) toggleRow(target.row)
+      },
+      togglePlant: (plantId) => {
+        const target = targets.rows.find(({ row }) => row.plants.some(p => p.id === plantId))
+        if (target) {
+          setExpandedRows(prev => new Set(prev).add(target.row.id))
+          requestAnimationFrame(() => {
+            rowRefs.current[target.row.id]?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+          })
+          togglePlant(plantId)
+        } else if (targets.freePlants.some(p => p.id === plantId)) {
+          togglePlant(plantId)
+        }
+      },
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected, targets, mapToggles])
+
+  useEffect(() => () => { clearHighlight(); clearToggles() }, [clearHighlight, clearToggles])
 
   const allPlantIds = useMemo(
     () => [
@@ -843,7 +890,7 @@ function HarvestSelector({ title, targets, selected, onChange }: {
           const expanded = expandedRows.has(row.id)
 
           return (
-            <div key={row.id}>
+            <div key={row.id} ref={el => { rowRefs.current[row.id] = el }}>
               {/* Row header */}
               <div className="flex items-center gap-2 px-3 py-2 hover:bg-[#fafcf8] transition-colors">
                 <input

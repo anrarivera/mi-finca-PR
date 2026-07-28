@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   Plus, Pencil, Check, Trash2, RotateCcw,
-  Leaf, ChevronDown, ChevronUp,
+  Leaf, ChevronDown, ChevronUp, ChevronRight, Minus,
   Square, Pentagon, X,
   LayoutGrid,
 } from 'lucide-react'
@@ -44,14 +44,24 @@ type Props = {
   onEditFieldById: (id: string) => void
   /** Card delete (already confirmed in-card). */
   onDeleteFieldById: (id: string) => void
-  /** Fires whenever the row checkboxes change — highlights rows on the map. */
-  onRowSelectionChange?: (ids: string[]) => void
+  /** Canonical selection — plant ids, shared with the map (two-way). */
+  selectedPlantIds: Set<string>
+  /** Replace the whole selection (Todos / Ninguno). */
+  onChangeSelection: (next: Set<string>) => void
+  /** Toggle a whole row — same as clicking its line on the map. */
+  onToggleRowSelected: (rowId: string) => void
+  /** Toggle a single plant — same as clicking its dot on the map. */
+  onTogglePlantSelected: (plantId: string) => void
+  /** Delete the selection: full rows + loose plants (reason asked if planted). */
+  onDeleteSelection: (rowIds: string[], plantIds: string[]) => void
+  /** Map plant click — expand that row and scroll it into view. */
+  reveal?: { rowId: string; nonce: number } | null
 }
 
 export default function FarmFieldEditorPanel({
   mode, shape, name,
   pointCount, selectedPointIndex,
-  rows,
+  rows, freePlants,
   allFields, selectedFieldId, isCreatingNew,
   onShapeChange, onNameChange,
   onStartNewField, onStartDrawing, onComplete, onUndo,
@@ -60,20 +70,46 @@ export default function FarmFieldEditorPanel({
   onStartAddFreePlant, onStopAddFreePlant,
   onEditRows, onDeleteRows,
   onSelectField, onEditFieldById, onDeleteFieldById,
-  onRowSelectionChange,
+  selectedPlantIds, onChangeSelection,
+  onToggleRowSelected, onTogglePlantSelected,
+  onDeleteSelection, reveal,
 }: Props) {
   const [freeCropPick, setFreeCropPick] = useState('')
   const [showRows, setShowRows] = useState(true)
-  const [selectedRowIds, setSelectedRowIds] = useState<string[]>([])
+  // Rows expanded to show their individual plants.
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
+  const rowRefs = useRef<Record<string, HTMLDivElement | null>>({})
 
-  // Mirror the checkbox selection up so the map can highlight those rows.
+  // A plant was clicked on the map — open its row and bring it into view.
   useEffect(() => {
-    onRowSelectionChange?.(selectedRowIds)
+    if (!reveal) return
+    setExpandedRows(prev => new Set(prev).add(reveal.rowId))
+    requestAnimationFrame(() => {
+      rowRefs.current[reveal.rowId]?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedRowIds])
-  const toggleRowSelected = (id: string) =>
-    setSelectedRowIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
-  const clearRowSelection = () => setSelectedRowIds([])
+  }, [reveal?.nonce])
+
+  const toggleExpand = (rowId: string) =>
+    setExpandedRows(prev => {
+      const next = new Set(prev)
+      next.has(rowId) ? next.delete(rowId) : next.add(rowId)
+      return next
+    })
+
+  // Selection views: every plant id, rows fully covered, and the loose
+  // plants outside those rows (mirrors the operations scope selector).
+  const allPlantIds = [
+    ...rows.flatMap(r => r.plants.map(p => p.id)),
+    ...freePlants.map(p => p.id),
+  ]
+  const allSelected = allPlantIds.length > 0 && allPlantIds.every(id => selectedPlantIds.has(id))
+  const fullRows = rows.filter(r =>
+    r.plants.length > 0 && r.plants.every(p => selectedPlantIds.has(p.id))
+  )
+  const fullRowIds = fullRows.map(r => r.id)
+  const coveredByFullRows = new Set(fullRows.flatMap(r => r.plants.map(p => p.id)))
+  const loosePlantIds = [...selectedPlantIds].filter(id => !coveredByFullRows.has(id))
 
   const isIdle = mode === 'setup' && !isCreatingNew
 
@@ -254,38 +290,40 @@ export default function FarmFieldEditorPanel({
               </div>
             )}
 
-            {rows.length > 0 && (
+            {(rows.length > 0 || freePlants.length > 0) && (
               <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between">
                   <button onClick={() => setShowRows(p => !p)}
                     className="flex items-center gap-1.5 text-xs font-medium text-[#5a6a4a]"
                   >
-                    <span>Hileras ({rows.length})</span>
+                    <span>Hileras y plantas</span>
                     {showRows ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
                   </button>
                   {showRows && (
                     <button
-                      onClick={() => setSelectedRowIds(
-                        selectedRowIds.length === rows.length ? [] : rows.map(r => r.id)
+                      onClick={() => onChangeSelection(
+                        allSelected ? new Set() : new Set(allPlantIds)
                       )}
                       className="text-[10px] text-[#639922] hover:text-[#2d4a1e] transition-colors"
                     >
-                      {selectedRowIds.length === rows.length ? 'Ninguno' : 'Todos'}
+                      {allSelected ? 'Ninguno' : 'Todos'}
                     </button>
                   )}
                 </div>
 
-                {showRows && selectedRowIds.length > 0 && (
+                {showRows && selectedPlantIds.size > 0 && (
                   <div className="flex items-center gap-2">
-                    <button onClick={() => onEditRows(selectedRowIds)}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-[10px] text-[#639922] border border-[#c8dca8] rounded-lg hover:bg-[#eaf3de] transition-colors"
-                    >
-                      <Pencil size={10} /> Editar ({selectedRowIds.length})
-                    </button>
-                    <button onClick={() => { onDeleteRows(selectedRowIds); clearRowSelection() }}
+                    {fullRowIds.length > 0 && (
+                      <button onClick={() => onEditRows(fullRowIds)}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-[10px] text-[#639922] border border-[#c8dca8] rounded-lg hover:bg-[#eaf3de] transition-colors"
+                      >
+                        <Pencil size={10} /> Editar ({fullRowIds.length})
+                      </button>
+                    )}
+                    <button onClick={() => onDeleteSelection(fullRowIds, loosePlantIds)}
                       className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-[10px] text-[#9aab8a] border border-[#e0e8d8] rounded-lg hover:text-red-500 hover:border-red-200 hover:bg-red-50 transition-colors"
                     >
-                      <Trash2 size={10} /> Eliminar ({selectedRowIds.length})
+                      <Trash2 size={10} /> Eliminar ({selectedPlantIds.size})
                     </button>
                   </div>
                 )}
@@ -296,50 +334,117 @@ export default function FarmFieldEditorPanel({
                       const primary = getCropById(row.primaryCropTypeId)
                       const companion = row.companionCropTypeId
                         ? getCropById(row.companionCropTypeId) : null
-                      const checked = selectedRowIds.includes(row.id)
+                      const selCount = row.plants.filter(p => selectedPlantIds.has(p.id)).length
+                      const checked = row.plants.length > 0 && selCount === row.plants.length
+                      const some = selCount > 0 && !checked
+                      const expanded = expandedRows.has(row.id)
                       return (
                         <div key={row.id}
-                          className={`flex items-center gap-2 px-2.5 py-2 bg-white border rounded-lg transition-colors ${
-                            checked ? 'border-[#639922] bg-[#f5f8f0]' : 'border-[#e8f0e0]'
+                          ref={el => { rowRefs.current[row.id] = el }}
+                          className={`bg-white border rounded-lg transition-colors ${
+                            checked || some ? 'border-[#639922] bg-[#f5f8f0]' : 'border-[#e8f0e0]'
                           }`}
                         >
-                          <button onClick={() => toggleRowSelected(row.id)}
-                            className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors ${
-                              checked ? 'bg-[#639922] border-[#639922]' : 'border-[#c0d0b0] hover:border-[#639922]'
-                            }`}
-                          >
-                            {checked && <Check size={10} className="text-white" />}
-                          </button>
+                          <div className="flex items-center gap-2 px-2.5 py-2">
+                            <button onClick={() => onToggleRowSelected(row.id)}
+                              title={checked ? 'Quitar hilera de la selección' : 'Seleccionar toda la hilera'}
+                              className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors ${
+                                checked || some
+                                  ? 'bg-[#639922] border-[#639922]'
+                                  : 'border-[#c0d0b0] hover:border-[#639922]'
+                              }`}
+                            >
+                              {checked && <Check size={10} className="text-white" />}
+                              {some && <Minus size={10} className="text-white" />}
+                            </button>
 
-                          <div className="flex items-center gap-1.5 flex-1 min-w-0">
-                            <span className="text-xs text-[#9aab8a]">#{i + 1}</span>
-                            <span className="text-sm">{primary?.emoji}</span>
-                            {companion && (
-                              <>
-                                <span className="text-[10px] text-[#c0d0b0]">+</span>
-                                <span className="text-sm">{companion.emoji}</span>
-                              </>
-                            )}
-                            <span className="text-[10px] text-[#9aab8a] truncate">
-                              · {row.plants.length} plantas
-                            </span>
+                            <button
+                              onClick={() => toggleExpand(row.id)}
+                              className="flex items-center gap-1.5 flex-1 min-w-0 text-left"
+                              title="Ver plantas de la hilera"
+                            >
+                              {expanded
+                                ? <ChevronDown size={11} className="text-[#9aab8a] shrink-0" />
+                                : <ChevronRight size={11} className="text-[#9aab8a] shrink-0" />}
+                              <span className="text-xs text-[#9aab8a]">#{i + 1}</span>
+                              <span className="text-sm">{primary?.emoji}</span>
+                              {companion && (
+                                <>
+                                  <span className="text-[10px] text-[#c0d0b0]">+</span>
+                                  <span className="text-sm">{companion.emoji}</span>
+                                </>
+                              )}
+                              <span className={`text-[10px] shrink-0 ml-auto ${
+                                some ? 'text-[#639922] font-medium' : 'text-[#9aab8a]'
+                              }`}>
+                                {selCount}/{row.plants.length}
+                              </span>
+                            </button>
+
+                            <button onClick={() => onEditRows([row.id])}
+                              className="text-[#c0d0b0] hover:text-[#639922] transition-colors shrink-0"
+                              title="Editar hilera"
+                            >
+                              <Pencil size={11} />
+                            </button>
+                            <button onClick={() => onDeleteRows([row.id])}
+                              className="text-[#c0d0b0] hover:text-red-400 transition-colors shrink-0"
+                              title="Eliminar hilera"
+                            >
+                              <X size={11} />
+                            </button>
                           </div>
 
-                          <button onClick={() => onEditRows([row.id])}
-                            className="text-[#c0d0b0] hover:text-[#639922] transition-colors shrink-0"
-                            title="Editar hilera"
-                          >
-                            <Pencil size={11} />
-                          </button>
-                          <button onClick={() => { onDeleteRows([row.id]); setSelectedRowIds(prev => prev.filter(x => x !== row.id)) }}
-                            className="text-[#c0d0b0] hover:text-red-400 transition-colors shrink-0"
-                            title="Eliminar hilera"
-                          >
-                            <X size={11} />
-                          </button>
+                          {/* Individual plants — same checkboxes as the map dots */}
+                          {expanded && (
+                            <div className="px-2.5 pb-2 pl-8 grid grid-cols-2 gap-x-2 gap-y-0.5">
+                              {row.plants.map((plant, pi) => (
+                                <label
+                                  key={plant.id}
+                                  className="flex items-center gap-1 text-[10px] text-[#5a6a4a] cursor-pointer"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedPlantIds.has(plant.id)}
+                                    onChange={() => onTogglePlantSelected(plant.id)}
+                                    className="accent-[#639922]"
+                                  />
+                                  Planta {pi + 1}
+                                </label>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       )
                     })}
+
+                    {/* Free-standing plants */}
+                    {freePlants.length > 0 && (
+                      <div className="bg-white border border-[#e8f0e0] rounded-lg px-2.5 py-2">
+                        <p className="text-[10px] font-medium text-[#7a8a6a] mb-1">
+                          Plantas sueltas
+                        </p>
+                        <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
+                          {freePlants.map((plant, pi) => {
+                            const crop = getCropById(plant.cropTypeId)
+                            return (
+                              <label
+                                key={plant.id}
+                                className="flex items-center gap-1 text-[10px] text-[#5a6a4a] cursor-pointer"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={selectedPlantIds.has(plant.id)}
+                                  onChange={() => onTogglePlantSelected(plant.id)}
+                                  className="accent-[#639922]"
+                                />
+                                {crop?.emoji ?? '🌱'} Planta {pi + 1}
+                              </label>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
 import { Polygon, Polyline, CircleMarker, Marker, Tooltip, useMapEvents } from 'react-leaflet'
 import * as L from 'leaflet'
 import { useFieldStore } from '@/store/useFieldStore'
@@ -71,6 +71,9 @@ export default function PlacedField({
   const { updateField } = useFieldStore()
   // Live harvest-modal selection — paints chosen rows/plants amber.
   const harvestHighlight = useHarvestHighlightStore(s => s.highlight)
+  // While a scope selector is open, map clicks on rows/plants toggle them
+  // in it — and the field's own click/dblclick actions are suspended.
+  const mapToggles = useHarvestHighlightStore(s => s.toggles)
   const [isHovered, setIsHovered] = useState(false)
   const isDragging = useRef(false)
   const clickTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -82,7 +85,7 @@ export default function PlacedField({
   }, [])
 
   function handleClick() {
-    if (isDragging.current) return
+    if (isDragging.current || mapToggles) return
     if (field.isPositioning) {
       updateField(field.id, { isPositioning: false })
       return
@@ -103,7 +106,7 @@ export default function PlacedField({
       clearTimeout(clickTimer.current)
       clickTimer.current = null
     }
-    if (field.isPositioning) return
+    if (field.isPositioning || mapToggles) return
     // Zoom the map so the field fills the view — visible as soon as the
     // editor is closed again.
     if (field.boundary && field.boundary.length >= 3) {
@@ -146,7 +149,9 @@ export default function PlacedField({
   }
 
   const positions = field.boundary.map(p => L.latLng(p.lat, p.lng))
-  const plants = detailed
+  // Plants draw for the selected field — and for every field while a scope
+  // selector is open, so they can be clicked to toggle their selection.
+  const plants = detailed || mapToggles
     ? [
         ...field.rows.flatMap(r => r.plants.map(p => ({ plant: p, rowId: r.id as string | undefined }))),
         ...field.freePlants.map(p => ({ plant: p, rowId: undefined as string | undefined })),
@@ -180,18 +185,33 @@ export default function PlacedField({
       {field.rows.map(row => {
         const inHarvest = harvestHighlight?.rowIds.includes(row.id) ?? false
         return (
-          <Polyline
-            key={row.id}
-            positions={rowPositions(row)}
-            interactive={false}
-            pathOptions={{
-              color: inHarvest ? '#f59e0b' : 'white',
-              weight: inHarvest ? 3.5 : detailed ? 2 : 1.5,
-              opacity: inHarvest ? 1 : detailed ? 0.9 : 0.6,
-              dashArray: inHarvest ? undefined : '1 6',
-              lineCap: 'round',
-            }}
-          />
+          <Fragment key={row.id}>
+            <Polyline
+              positions={rowPositions(row)}
+              interactive={false}
+              pathOptions={{
+                color: inHarvest ? '#f59e0b' : 'white',
+                weight: inHarvest ? 3.5 : detailed ? 2 : 1.5,
+                opacity: inHarvest ? 1 : detailed ? 0.9 : 0.6,
+                dashArray: inHarvest ? undefined : '1 6',
+                lineCap: 'round',
+              }}
+            />
+            {/* Invisible wide hit line — click toggles the row in the
+                open scope selector */}
+            {mapToggles && (
+              <Polyline
+                positions={rowPositions(row)}
+                pathOptions={{ opacity: 0, weight: 16 }}
+                eventHandlers={{
+                  click: (e) => {
+                    L.DomEvent.stopPropagation(e.originalEvent)
+                    mapToggles.toggleRow(row.id)
+                  },
+                }}
+              />
+            )}
+          </Fragment>
         )
       })}
 
@@ -201,18 +221,35 @@ export default function PlacedField({
         const style = PLANT_STATUS_STYLE[plantVisualStatus(plant, plantMarks, rowId)]
         const inHarvest = harvestHighlight?.plantIds.includes(plant.id) ?? false
         return (
-          <CircleMarker
-            key={plant.id}
-            center={L.latLng(plant.lat, plant.lng)}
-            radius={inHarvest ? 4 : 2.5}
-            interactive={false}
-            pathOptions={{
-              color: inHarvest ? '#f59e0b' : style.color,
-              weight: inHarvest ? 2 : 1,
-              fillColor: style.fillColor,
-              fillOpacity: 1,
-            }}
-          />
+          <Fragment key={plant.id}>
+            <CircleMarker
+              center={L.latLng(plant.lat, plant.lng)}
+              radius={inHarvest ? 4 : 2.5}
+              interactive={false}
+              pathOptions={{
+                color: inHarvest ? '#f59e0b' : style.color,
+                weight: inHarvest ? 2 : 1,
+                fillColor: style.fillColor,
+                fillOpacity: 1,
+              }}
+            />
+            {/* Invisible bigger hit circle — click toggles the plant in
+                the open scope selector (drawn after the row hit lines so
+                plants win where they overlap) */}
+            {mapToggles && (
+              <CircleMarker
+                center={L.latLng(plant.lat, plant.lng)}
+                radius={8}
+                pathOptions={{ opacity: 0, fillOpacity: 0 }}
+                eventHandlers={{
+                  click: (e) => {
+                    L.DomEvent.stopPropagation(e.originalEvent)
+                    mapToggles.togglePlant(plant.id)
+                  },
+                }}
+              />
+            )}
+          </Fragment>
         )
       })}
     </>

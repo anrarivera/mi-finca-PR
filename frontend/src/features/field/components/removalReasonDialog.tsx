@@ -1,13 +1,25 @@
 import { useState } from 'react'
 import { Check } from 'lucide-react'
-import { REMOVAL_REASONS, type PlantRemovalReason } from './plantEditPanel'
 
 // ──────────────────────────────────────────────────────────────────────────
-// Removal-reason dialog — the same died/replaced/harvested/other picker the
-// single-plant panel uses, as a standalone modal. Used when deleting whole
-// rows that already contain planted plants: removing living plants is a
-// farm event, so it gets logged with a reason.
+// Removal-reason dialog — died/replaced/harvested/other picker as a
+// standalone modal. Used when deleting rows or plants that are already in
+// the ground: removing living plants is a farm event, so it gets logged
+// with a reason.
 // ──────────────────────────────────────────────────────────────────────────
+
+export type PlantRemovalReason = 'died' | 'replaced' | 'harvested' | 'other'
+
+export const REMOVAL_REASONS: Array<{
+  id: PlantRemovalReason
+  labelEs: string
+  emoji: string
+}> = [
+  { id: 'died', labelEs: 'Murió', emoji: '🥀' },
+  { id: 'replaced', labelEs: 'Reemplazada', emoji: '🔄' },
+  { id: 'harvested', labelEs: 'Cosechada', emoji: '🧺' },
+  { id: 'other', labelEs: 'Otra razón', emoji: '📋' },
+]
 
 type Props = {
   title: string

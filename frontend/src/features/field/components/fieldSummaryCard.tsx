@@ -267,6 +267,9 @@ export default function FieldSummaryCard({
             field.plantingEvents ?? [],
             { rows: field.rows ?? [], freePlants: field.freePlants ?? [] }
           )}
+          // The card lives over the farm map — rows/plants can be toggled
+          // by clicking them right on the imagery.
+          mapInteractive
           onConfirm={(data) => {
             completeOp.mutate(
               {

@@ -313,6 +313,27 @@ export function useFieldEditor() {
     })
   }, [fieldId])
 
+  // Delete rows and individual plants in one state update (bulk selection).
+  const deleteRowsAndPlants = useCallback((rowIds: string[], plantIds: string[]) => {
+    if (rowIds.length === 0 && plantIds.length === 0) return
+    const rowSet = new Set(rowIds)
+    const plantSet = new Set(plantIds)
+    setPlanting(prev => {
+      const rows = prev.rows
+        .filter(r => !rowSet.has(r.id))
+        .map(r => r.plants.some(p => plantSet.has(p.id))
+          ? { ...r, plants: r.plants.filter(p => !plantSet.has(p.id)) }
+          : r
+        )
+      const freePlants = prev.freePlants.filter(p => !plantSet.has(p.id))
+      return {
+        rows,
+        freePlants,
+        plantingEvents: rebuildPlantingEvents(fieldId, rows, freePlants, prev.plantingEvents),
+      }
+    })
+  }, [fieldId])
+
   const updatePlantCrop = useCallback((plantId: string, cropTypeId: string) => {
     setPlanting(prev => {
       const rows = prev.rows.map(r =>
@@ -406,7 +427,7 @@ export function useFieldEditor() {
     applyRowEdits, deleteRows, translateRow,
     startAddFreePlant, placeFreePlant,
     deleteFreePlant, stopAddFreePlant,
-    deletePlantById, updatePlantCrop,
+    deletePlantById, deleteRowsAndPlants, updatePlantCrop,
     completeOperation, skipOperation,
     fillPreviewRows, setFillPreviewRows,
     startFillRows, confirmFillRows, cancelFillRows,

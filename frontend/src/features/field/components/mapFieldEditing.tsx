@@ -10,14 +10,13 @@ import { latlngToCanvas, canvasToLatlng, farmBoundaryToBBox } from '../utils/can
 import type { BBox } from '../utils/canvasGeo'
 import { getCropById } from '../data/cropLibrary'
 import { randomFieldColor } from '../types'
-import type { CanvasPoint, FieldRow, LatLngPoint } from '../types'
+import type { CanvasPoint, FieldRow, LatLngPoint, PlantInstance } from '../types'
 import { plantVisualStatus, PLANT_STATUS_STYLE, type PlantMarks } from '../utils/plantStatus'
 import FarmFieldEditorPanel from './farmFieldEditorPanel'
 import RowConfigPanel from './rowConfigPanel'
 import RowFillPanel from './rowFillPanel'
 import RowEditPanel from './rowEditPanel'
-import PlantEditPanel, { REMOVAL_REASONS, type PlantRemovalReason } from './plantEditPanel'
-import RemovalReasonDialog from './removalReasonDialog'
+import RemovalReasonDialog, { REMOVAL_REASONS, type PlantRemovalReason } from './removalReasonDialog'
 import { todayISO } from '../types'
 import { toast } from '@/store/useToastStore'
 
@@ -66,12 +65,17 @@ export function useMapFieldEditing(
   const [editingFieldId, setEditingFieldId] = useState<string | null>(null)
   const [isCreatingNew, setIsCreatingNew] = useState(false)
   const [editingRowIds, setEditingRowIds] = useState<string[] | null>(null)
-  const [selectedPlantId, setSelectedPlantId] = useState<string | null>(null)
-  // Rows checked in the tool panel's row list — highlighted on the map.
-  const [highlightedRowIds, setHighlightedRowIds] = useState<string[]>([])
+  // Canonical selection — a set of plant ids, shared by the tool panel's
+  // row/plant checkboxes and by clicks on the map (both toggle it). A row
+  // whose plants are all selected counts as a selected row.
+  const [selectedPlantIds, setSelectedPlantIds] = useState<Set<string>>(new Set())
+  // Set when a plant is toggled FROM THE MAP — the panel expands that
+  // plant's row and scrolls it into view.
+  const [reveal, setReveal] = useState<{ rowId: string; nonce: number } | null>(null)
   const [removalLogs, setRemovalLogs] = useState<PendingRemovalLog[]>([])
-  // Row deletion awaiting a removal reason (rows with planted plants).
-  const [pendingRowDelete, setPendingRowDelete] = useState<string[] | null>(null)
+  // Deletion awaiting a removal reason (selection includes planted plants).
+  const [pendingDelete, setPendingDelete] =
+    useState<{ rowIds: string[]; plantIds: string[] } | null>(null)
 
   // The lat/lng↔canvas transform for this farm — all editor coordinates
   // flow through it.
@@ -85,10 +89,10 @@ export function useMapFieldEditing(
     setEditingFieldId(null)
     setIsCreatingNew(false)
     setEditingRowIds(null)
-    setSelectedPlantId(null)
-    setHighlightedRowIds([])
+    setSelectedPlantIds(new Set())
+    setReveal(null)
     setRemovalLogs([])
-    setPendingRowDelete(null)
+    setPendingDelete(null)
   }
 
   // ── Start editing an existing field ─────────────────────────────
@@ -117,42 +121,80 @@ export function useMapFieldEditing(
     setActive(false)
   }
 
-  // ── Plant removal (with reason) — queued, flushed on save ───────
-  function removePlant(plant: { id: string; cropTypeId: string }, reason: PlantRemovalReason, notes?: string) {
-    // New unsaved fields skip logging — removing a just-placed plant
-    // isn't a farm event.
-    if (editingFieldId) {
-      setRemovalLogs(prev => [...prev, {
-        kind: 'plant', plantId: plant.id, cropTypeId: plant.cropTypeId, reason, notes,
-      }])
-    }
-    editor.deletePlantById(plant.id)
-    setSelectedPlantId(null)
+  // ── Selection toggles — used by panel checkboxes AND map clicks ──
+  function toggleRowSelected(rowId: string) {
+    const row = editor.rows.find(r => r.id === rowId)
+    if (!row || row.plants.length === 0) return
+    const all = row.plants.every(p => selectedPlantIds.has(p.id))
+    setSelectedPlantIds(prev => {
+      const next = new Set(prev)
+      row.plants.forEach(p => { all ? next.delete(p.id) : next.add(p.id) })
+      return next
+    })
   }
 
-  // ── Row deletion — planted rows need a reason first ─────────────
-  // Rows whose plants are all still in the future (planned) delete
-  // silently; rows with plants already in the ground are a farm event.
-  function requestDeleteRows(rowIds: string[]) {
-    if (rowIds.length === 0) return
+  function togglePlantSelected(plantId: string, rowId?: string) {
+    setSelectedPlantIds(prev => {
+      const next = new Set(prev)
+      next.has(plantId) ? next.delete(plantId) : next.add(plantId)
+      return next
+    })
+    // Map click → panel opens the row so the checked plant is visible.
+    if (rowId) setReveal(prev => ({ rowId, nonce: (prev?.nonce ?? 0) + 1 }))
+  }
+
+  // Every plant currently in the editor, rows + free-standing.
+  function allEditorPlants(): PlantInstance[] {
+    return [...editor.rows.flatMap(r => r.plants), ...editor.freePlants]
+  }
+
+  function performDelete(rowIds: string[], plantIds: string[]) {
+    const rowPlantIds = editor.rows
+      .filter(r => rowIds.includes(r.id))
+      .flatMap(r => r.plants.map(p => p.id))
+    editor.deleteRowsAndPlants(rowIds, plantIds)
+    setSelectedPlantIds(prev => {
+      const next = new Set(prev)
+      ;[...rowPlantIds, ...plantIds].forEach(id => next.delete(id))
+      return next
+    })
+    setEditingRowIds(null)
+  }
+
+  // ── Deletion — planted plants need a reason first ────────────────
+  // rowIds = whole rows to remove; plantIds = individual plants outside
+  // those rows. Anything still planned-only deletes silently; plants
+  // already in the ground are a farm event and get logged with a reason.
+  function requestDeleteSelection(rowIds: string[], plantIds: string[]) {
+    if (rowIds.length === 0 && plantIds.length === 0) return
     const today = todayISO()
     const rows = editor.rows.filter(r => rowIds.includes(r.id))
-    const hasPlanted = editingFieldId != null &&
-      rows.some(r => r.plants.some(p => p.plantingDate <= today))
+    const byId = new Map(allEditorPlants().map(p => [p.id, p]))
+    const hasPlanted = editingFieldId != null && (
+      rows.some(r => r.plants.some(p => p.plantingDate <= today)) ||
+      plantIds.some(id => {
+        const p = byId.get(id)
+        return p != null && p.plantingDate <= today
+      })
+    )
     if (!hasPlanted) {
-      editor.deleteRows(rowIds)
-      setEditingRowIds(null)
+      performDelete(rowIds, plantIds)
       return
     }
-    setPendingRowDelete(rowIds)
+    setPendingDelete({ rowIds, plantIds })
   }
 
-  function confirmDeleteRows(reason: PlantRemovalReason, notes?: string) {
-    if (!pendingRowDelete) return
+  function requestDeleteRows(rowIds: string[]) {
+    requestDeleteSelection(rowIds, [])
+  }
+
+  function confirmDeletePending(reason: PlantRemovalReason, notes?: string) {
+    if (!pendingDelete) return
     const today = todayISO()
-    const rows = editor.rows.filter(r => pendingRowDelete.includes(r.id))
-    // One log entry per row that had planted plants; planned-only rows in
-    // the same batch just delete without noise.
+    const rows = editor.rows.filter(r => pendingDelete.rowIds.includes(r.id))
+    const byId = new Map(allEditorPlants().map(p => [p.id, p]))
+    // One log entry per planted row and per planted loose plant; anything
+    // planned-only in the same batch just deletes without noise.
     setRemovalLogs(prev => [
       ...prev,
       ...rows
@@ -166,10 +208,19 @@ export function useMapFieldEditing(
           reason,
           notes,
         })),
+      ...pendingDelete.plantIds
+        .map(id => byId.get(id))
+        .filter((p): p is PlantInstance => p != null && p.plantingDate <= today)
+        .map(p => ({
+          kind: 'plant' as const,
+          plantId: p.id,
+          cropTypeId: p.cropTypeId,
+          reason,
+          notes,
+        })),
     ])
-    editor.deleteRows(pendingRowDelete)
-    setEditingRowIds(null)
-    setPendingRowDelete(null)
+    performDelete(pendingDelete.rowIds, pendingDelete.plantIds)
+    setPendingDelete(null)
   }
 
   async function flushRemovalLogs(fieldId: string) {
@@ -244,9 +295,9 @@ export function useMapFieldEditing(
     if (!active) return
     function onKeyDown(e: KeyboardEvent) {
       if (e.key !== 'Escape') return
-      if (pendingRowDelete) { setPendingRowDelete(null); return }
-      if (selectedPlantId) { setSelectedPlantId(null); return }
+      if (pendingDelete) { setPendingDelete(null); return }
       if (editingRowIds) { setEditingRowIds(null); return }
+      if (selectedPlantIds.size > 0) { setSelectedPlantIds(new Set()); return }
       switch (editor.mode) {
         case 'rowConfig':
         case 'addRow': editor.cancelRowConfig(); return
@@ -258,7 +309,7 @@ export function useMapFieldEditing(
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active, editor.mode, selectedPlantId, editingRowIds, pendingRowDelete])
+  }, [active, editor.mode, selectedPlantIds, editingRowIds, pendingDelete])
 
   // Boundary of the field being edited (feeds row fill/edit panels).
   const editingBoundary: LatLngPoint[] = bbox
@@ -270,12 +321,13 @@ export function useMapFieldEditing(
   return {
     editor, bbox, active, editingFieldId, isCreatingNew,
     editingRowIds, setEditingRowIds,
-    selectedPlantId, setSelectedPlantId,
-    highlightedRowIds, setHighlightedRowIds,
+    selectedPlantIds, setSelectedPlantIds,
+    toggleRowSelected, togglePlantSelected,
+    reveal,
     editingBoundary,
-    startEdit, startNew, cancel, save, removePlant,
-    pendingRowDelete, setPendingRowDelete,
-    requestDeleteRows, confirmDeleteRows,
+    startEdit, startNew, cancel, save,
+    pendingDelete, setPendingDelete,
+    requestDeleteRows, requestDeleteSelection, confirmDeletePending,
   }
 }
 
@@ -459,10 +511,12 @@ export function MapFieldEditingLayer({
       : [L.latLng(row.startLat, row.startLng), L.latLng(row.endLat, row.endLng)]
 
   // Rows highlighted amber: whatever the row-edit panel targets, plus any
-  // rows checked in the tool panel's row list.
+  // rows fully covered by the current selection.
   const highlightedRows = new Set([
     ...(session.editingRowIds ?? []),
-    ...session.highlightedRowIds,
+    ...editor.rows
+      .filter(r => r.plants.length > 0 && r.plants.every(p => session.selectedPlantIds.has(p.id)))
+      .map(r => r.id),
   ])
 
   return (
@@ -518,11 +572,12 @@ export function MapFieldEditingLayer({
             lineCap: 'round',
           }}
           eventHandlers={{
+            // Click toggles the row's selection (mirrored as a checked row
+            // in the tool panel); editing opens from the panel's buttons.
             click: (e) => {
               L.DomEvent.stopPropagation(e.originalEvent)
               if (editor.mode !== 'complete') return
-              session.setSelectedPlantId(null)
-              session.setEditingRowIds([row.id])
+              session.toggleRowSelected(row.id)
             },
           }}
         />
@@ -572,7 +627,7 @@ export function MapFieldEditingLayer({
       ].map(({ plant, rowId }) => {
         const status = plantVisualStatus(plant, plantMarks, rowId)
         const style = PLANT_STATUS_STYLE[status]
-        const selected = plant.id === session.selectedPlantId
+        const selected = session.selectedPlantIds.has(plant.id)
         return (
           <CircleMarker
             key={plant.id}
@@ -585,11 +640,12 @@ export function MapFieldEditingLayer({
               fillOpacity: 1,
             }}
             eventHandlers={{
+              // Click toggles the plant's selection and reveals it in the
+              // tool panel (its row expands with the plant checked).
               click: (e) => {
                 L.DomEvent.stopPropagation(e.originalEvent)
                 if (editor.mode !== 'complete') return
-                session.setEditingRowIds(null)
-                session.setSelectedPlantId(plant.id)
+                session.togglePlantSelected(plant.id, rowId)
               },
             }}
           />
@@ -639,7 +695,12 @@ export function MapFieldEditingPanels({ session }: { session: MapFieldEditingSes
           onSelectField={() => {}}
           onEditFieldById={() => {}}
           onDeleteFieldById={() => {}}
-          onRowSelectionChange={session.setHighlightedRowIds}
+          selectedPlantIds={session.selectedPlantIds}
+          onChangeSelection={session.setSelectedPlantIds}
+          onToggleRowSelected={session.toggleRowSelected}
+          onTogglePlantSelected={session.togglePlantSelected}
+          onDeleteSelection={session.requestDeleteSelection}
+          reveal={session.reveal}
         />
       </div>
 
@@ -677,31 +738,27 @@ export function MapFieldEditingPanels({ session }: { session: MapFieldEditingSes
           )
         })()}
 
-        {/* Removal reason for planted rows being deleted */}
-        {session.pendingRowDelete && (() => {
-          const rows = editor.rows.filter(r => session.pendingRowDelete!.includes(r.id))
-          const plantCount = rows.reduce((s, r) => s + r.plants.length, 0)
+        {/* Removal reason for planted rows/plants being deleted */}
+        {session.pendingDelete && (() => {
+          const { rowIds, plantIds } = session.pendingDelete
+          const rows = editor.rows.filter(r => rowIds.includes(r.id))
+          const plantCount = rows.reduce((s, r) => s + r.plants.length, 0) + plantIds.length
+          const title =
+            rows.length > 0 && plantIds.length > 0
+              ? 'Eliminar hileras y plantas sembradas'
+              : rows.length > 1
+              ? `Eliminar ${rows.length} hileras sembradas`
+              : rows.length === 1
+              ? 'Eliminar hilera sembrada'
+              : plantIds.length > 1
+              ? `Eliminar ${plantIds.length} plantas sembradas`
+              : 'Eliminar planta sembrada'
           return (
             <RemovalReasonDialog
-              title={rows.length === 1 ? 'Eliminar hilera sembrada' : `Eliminar ${rows.length} hileras sembradas`}
-              subtitle={`${plantCount} plantas — se registrará en el historial de operaciones`}
-              onConfirm={session.confirmDeleteRows}
-              onCancel={() => session.setPendingRowDelete(null)}
-            />
-          )
-        })()}
-
-        {session.selectedPlantId && editor.mode === 'complete' && (() => {
-          const plant =
-            editor.rows.flatMap(r => r.plants).find(p => p.id === session.selectedPlantId)
-            ?? editor.freePlants.find(p => p.id === session.selectedPlantId)
-          if (!plant) return null
-          return (
-            <PlantEditPanel
-              plant={plant}
-              onChangeCrop={(cropId) => editor.updatePlantCrop(plant.id, cropId)}
-              onDelete={(reason, notes) => session.removePlant(plant, reason, notes)}
-              onClose={() => session.setSelectedPlantId(null)}
+              title={title}
+              subtitle={`${plantCount} ${plantCount === 1 ? 'planta' : 'plantas'} — se registrará en el historial de operaciones`}
+              onConfirm={session.confirmDeletePending}
+              onCancel={() => session.setPendingDelete(null)}
             />
           )
         })()}
