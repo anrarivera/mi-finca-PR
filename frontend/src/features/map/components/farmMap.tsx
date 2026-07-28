@@ -427,7 +427,12 @@ async function handleDeleteFarm() {
                 setFocusRequest(prev => ({ fieldId, nonce: (prev?.nonce ?? 0) + 1 }))
               }}
               onOpenEditor={(fieldId) => {
-                if (fieldEditing.active) return
+                // Double-clicking another field mid-edit switches the
+                // editor to it (the zoom already happened in PlacedField).
+                if (fieldEditing.active) {
+                  if (fieldId === fieldEditing.editingFieldId) return
+                  if (!window.confirm('¿Cambiar de campo? Los cambios sin guardar del campo actual se perderán.')) return
+                }
                 handleOpenFieldEditor(fieldId)
               }}
             />
