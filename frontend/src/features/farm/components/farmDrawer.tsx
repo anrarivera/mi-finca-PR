@@ -46,11 +46,13 @@ type Props = {
   /** Set on a map field click: opens the drawer focused on that field.
       The nonce lets the same field re-trigger after the drawer closes. */
   focusRequest?: { fieldId: string; nonce: number } | null
+  /** Card click → select that field on the map (two-way selection). */
+  onSelectField: (fieldId: string) => void
 }
 
 export default function FarmDrawer({
   onAddFarm, onEditField, onDeleteField,
-  onFlyToFarm, onOpenFieldEditor, focusRequest,
+  onFlyToFarm, onOpenFieldEditor, focusRequest, onSelectField,
 }: Props) {
   const [isOpen, setIsOpen] = useState(false)
   const [level, setLevel] = useState<'farms' | 'fields'>('farms')
@@ -167,6 +169,7 @@ export default function FarmDrawer({
               fields={fields}
               focusFieldId={focusRequest?.fieldId ?? null}
               focusNonce={focusRequest?.nonce ?? 0}
+              onSelectField={onSelectField}
               showBackButton={farms.length > 1}
               onBack={handleBackToFarms}
               onClose={() => setIsOpen(false)}
@@ -349,7 +352,7 @@ function FarmList({
 
 // ── Level 2: Field list for a farm ────────────────────────────────────
 function FieldList({
-  farm, fields, focusFieldId, focusNonce, showBackButton,
+  farm, fields, focusFieldId, focusNonce, onSelectField, showBackButton,
   onBack, onClose, onEditField, onDeleteField,
   onToggleDisplay, onOpenFieldEditor,
 }: {
@@ -357,6 +360,7 @@ function FieldList({
   fields: PlacedField[]
   focusFieldId: string | null
   focusNonce: number
+  onSelectField: (fieldId: string) => void
   showBackButton: boolean
   onBack: () => void
   onClose: () => void
@@ -458,6 +462,7 @@ function FieldList({
                 field={field}
                 focused={field.id === focusFieldId}
                 focusNonce={focusNonce}
+                onSelect={() => onSelectField(field.id)}
                 onEdit={() => onEditField(field.id)}
                 onDelete={() => handleDeleteField(field.id)}  // ← use this
                 onToggleDisplay={() => onToggleDisplay(field)}
@@ -512,11 +517,13 @@ function FieldList({
 
 // ── Individual field card ─────────────────────────────────────────────
 function FieldCard({
-  field, focused, focusNonce, onEdit, onDelete, onToggleDisplay, onCheckOff,
+  field, focused, focusNonce, onSelect, onEdit, onDelete, onToggleDisplay, onCheckOff,
 }: {
   field: PlacedField
   focused: boolean
   focusNonce: number
+  /** Clicking the card selects the field on the map. */
+  onSelect: () => void
   onEdit: () => void
   onDelete: () => void
   onToggleDisplay: () => void
@@ -548,7 +555,8 @@ function FieldCard({
   return (
     <div
       ref={cardRef}
-      className={`px-4 py-3 hover:bg-[#fafcf8] transition-colors ${
+      onClick={onSelect}
+      className={`px-4 py-3 hover:bg-[#fafcf8] transition-colors cursor-pointer ${
         focused ? 'bg-[#f5f8f0] border-l-2 border-l-[#639922]' : ''
       }`}
     >

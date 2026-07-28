@@ -136,10 +136,11 @@ export default function PlacedField({ field, onSelect, onOpenEditor, detailed = 
       <Polygon
         positions={positions}
         pathOptions={{
-          color: field.color,
+          // Selected field (drawer card / map click) gets a stronger outline
+          color: detailed ? '#2d4a1e' : field.color,
           fillColor: field.color,
-          fillOpacity: isHovered ? 0.5 : field.isPositioning ? 0.3 : 0.4,
-          weight: field.isPositioning ? 2.5 : 2,
+          fillOpacity: isHovered || detailed ? 0.5 : field.isPositioning ? 0.3 : 0.4,
+          weight: detailed ? 3 : field.isPositioning ? 2.5 : 2,
           dashArray: field.isPositioning ? '6 4' : undefined,
         }}
         eventHandlers={eventHandlers}

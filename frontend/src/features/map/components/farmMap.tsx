@@ -400,6 +400,10 @@ async function handleDeleteFarm() {
 
       <FarmDrawer
         focusRequest={focusRequest}
+        onSelectField={(fieldId) =>
+          // Card click → select the field on the map (highlight + plants)
+          setFocusRequest(prev => ({ fieldId, nonce: (prev?.nonce ?? 0) + 1 }))
+        }
         onAddFarm={() => setShowModal(true)}
         onEditField={() => setShowFieldEditor(true)}
         onDeleteField={(fieldId) => {
