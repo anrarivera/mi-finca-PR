@@ -64,7 +64,7 @@ export default function PlacedField({ field, onSelect, onOpenEditor, detailed = 
   const [isHovered, setIsHovered] = useState(false)
   const isDragging = useRef(false)
   const clickTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  useMapEvents({})
+  const map = useMapEvents({})
 
   // Clear any pending single-click when unmounting
   useEffect(() => () => {
@@ -93,7 +93,16 @@ export default function PlacedField({ field, onSelect, onOpenEditor, detailed = 
       clearTimeout(clickTimer.current)
       clickTimer.current = null
     }
-    if (!field.isPositioning) onOpenEditor(field.id)
+    if (field.isPositioning) return
+    // Zoom the map so the field fills the view — visible as soon as the
+    // editor is closed again.
+    if (field.boundary && field.boundary.length >= 3) {
+      const bounds = L.latLngBounds(field.boundary.map(p => L.latLng(p.lat, p.lng)))
+      map.flyToBounds(bounds, { padding: [60, 60], duration: 0.8 })
+    } else {
+      map.flyTo(L.latLng(field.farmLat, field.farmLng), Math.max(map.getZoom(), 18))
+    }
+    onOpenEditor(field.id)
   }
 
   const eventHandlers = {

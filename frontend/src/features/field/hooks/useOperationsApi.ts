@@ -81,6 +81,32 @@ function patchLocalOperation(
   })
 }
 
+// ── Log a standalone operation ────────────────────────────────────────
+// Direct POST /operations — used for events not driven by the calendar,
+// e.g. recording why a plant was removed (died / replaced / harvested).
+export function useCreateOperation(farmId: string) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (data: {
+      type: string
+      actualDate: string
+      fieldId?: string | null
+      cropTypeId?: string
+      notes?: string | null
+      quantity?: number | null
+      unit?: string | null
+      rowIds?: string[]
+      plantIds?: string[]
+    }) => {
+      return api.post<FarmOperation>(`/api/v1/farms/${farmId}/operations`, data)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['operations', farmId] })
+    },
+  })
+}
+
 // ── Due-soon badge counts ─────────────────────────────────────────────
 // Server-authoritative overdue / due-within-14-days counts across the whole
 // farm, including livestock recommendations (GET /recommended-operations/

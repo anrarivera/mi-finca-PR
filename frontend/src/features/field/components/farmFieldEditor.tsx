@@ -12,7 +12,20 @@ import { useFieldStore } from '@/store/useFieldStore'
 import { useFarmStore } from '@/store/useFarmStore'
 import { randomFieldColor } from '../types'
 import { useCreateField, useDeleteField, useUpdateField } from '../hooks/useFieldsApi'
+import { useCreateOperation } from '../hooks/useOperationsApi'
+import { getCropById } from '../data/cropLibrary'
+import { REMOVAL_REASONS, type PlantRemovalReason } from './plantEditPanel'
 import { toast } from '@/store/useToastStore'
+
+// A plant removal waiting to be written to the operations log. Queued while
+// editing and flushed on save — cancelling the edit discards them together
+// with the removal itself.
+type PendingRemovalLog = {
+  plantId: string
+  cropTypeId: string
+  reason: PlantRemovalReason
+  notes?: string
+}
 
 type Props = {
   farmId: string
@@ -34,6 +47,7 @@ export default function FarmFieldEditor({
   const [isCreatingNew, setIsCreatingNew] = useState(false)
   const [editingRowIds, setEditingRowIds] = useState<string[] | null>(null)
   const [selectedPlantId, setSelectedPlantId] = useState<string | null>(null)
+  const [removalLogs, setRemovalLogs] = useState<PendingRemovalLog[]>([])
 
   const activeFarm = farms.find(f => f.id === farmId)
   const farmBoundary = activeFarm?.boundary ?? []
@@ -43,6 +57,7 @@ export default function FarmFieldEditor({
   const createField = useCreateField(farmId)
   const updateField_api = useUpdateField(farmId)
   const deleteField = useDeleteField(farmId)
+  const createOperation = useCreateOperation(farmId)
 
   // The boundary of the field currently being edited (for row fill/edit panels)
   const editingBoundary = bbox
@@ -116,6 +131,30 @@ export default function FarmFieldEditor({
     setIsCreatingNew(false)
     setEditingRowIds(null)
     setSelectedPlantId(null)
+    setRemovalLogs([]) // removals were discarded along with the edit
+  }
+
+  // ── Flush queued plant-removal logs after a successful save ────────
+  // Each removal becomes an operations-log entry: harvested removals log
+  // as 'harvest', everything else as 'other', always naming the crop and
+  // the reason so the history explains itself.
+  async function flushRemovalLogs(fieldId: string) {
+    if (removalLogs.length === 0) return
+    const today = new Date().toISOString().split('T')[0]
+    await Promise.all(removalLogs.map(log => {
+      const cropName = getCropById(log.cropTypeId)?.nameEs ?? log.cropTypeId
+      const reasonLabel = REMOVAL_REASONS.find(r => r.id === log.reason)?.labelEs ?? log.reason
+      return createOperation.mutateAsync({
+        type: log.reason === 'harvested' ? 'harvest' : 'other',
+        actualDate: today,
+        fieldId,
+        cropTypeId: log.cropTypeId,
+        plantIds: [log.plantId],
+        notes: `Planta de ${cropName} eliminada — ${reasonLabel.toLowerCase()}`
+          + (log.notes ? `: ${log.notes}` : ''),
+      })
+    }))
+    setRemovalLogs([])
   }
 
   // ── Click a saved field on the canvas → open it for editing ───────
@@ -180,6 +219,7 @@ export default function FarmFieldEditor({
         plantingEvents: editor.plantingEvents,
       }
       await updateField_api.mutateAsync({ id: editingFieldId, updates })
+      await flushRemovalLogs(editingFieldId) // plant removals → operations log
       onFieldSaved(editingFieldId, false)
       setSelectedFieldId(editingFieldId)
       setEditingFieldId(null)
@@ -213,7 +253,8 @@ export default function FarmFieldEditor({
       toast.success('Campo guardado')
       editor.reset()
     }
-  }, [editor, bbox, farmId, editingFieldId, createField, updateField_api, onFieldSaved, addFieldIdToFarm])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editor, bbox, farmId, editingFieldId, createField, updateField_api, onFieldSaved, addFieldIdToFarm, removalLogs, createOperation])
 
   const isActivelyDrawing = editor.mode !== 'setup'
   const activeFieldId = editingFieldId || (isActivelyDrawing ? editor.fieldId : null)
@@ -358,7 +399,21 @@ export default function FarmFieldEditor({
               <PlantEditPanel
                 plant={plant}
                 onChangeCrop={(cropId) => editor.updatePlantCrop(plant.id, cropId)}
-                onDelete={() => { editor.deletePlantById(plant.id); setSelectedPlantId(null) }}
+                onDelete={(reason, notes) => {
+                  // Queue the "why" for the operations log — flushed when the
+                  // field is saved. New unsaved fields skip logging (removing
+                  // a plant you just placed isn't a farm event).
+                  if (editingFieldId) {
+                    setRemovalLogs(prev => [...prev, {
+                      plantId: plant.id,
+                      cropTypeId: plant.cropTypeId,
+                      reason,
+                      notes,
+                    }])
+                  }
+                  editor.deletePlantById(plant.id)
+                  setSelectedPlantId(null)
+                }}
                 onClose={() => setSelectedPlantId(null)}
               />
             )
