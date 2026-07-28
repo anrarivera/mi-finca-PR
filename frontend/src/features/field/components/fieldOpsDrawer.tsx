@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { X, Check, CheckCircle2, AlertCircle, Pencil } from 'lucide-react'
 import { useFieldStore } from '@/store/useFieldStore'
 import { useCompleteRecommendedOp } from '../hooks/useOperationsApi'
-import { CheckOffModal, rowOptionsForOperation } from './operationsView'
+import { CheckOffModal, harvestTargetsForOperation } from './operationsView'
 import { getCropById } from '../data/cropLibrary'
 import { toast } from '@/store/useToastStore'
 import type { PlacedField, PlantingEvent, RecommendedOperation } from '../types'
@@ -26,8 +26,9 @@ type Props = {
 }
 
 // The most urgent open calendar item for a field: overdue first (oldest
-// first), then upcoming (soonest first).
-function nextOperation(field: PlacedField): {
+// first), then upcoming (soonest first). Exported — the farm drawer's field
+// cards use the same logic.
+export function nextOperation(field: PlacedField): {
   op: RecommendedOperation
   event: PlantingEvent
 } | null {
@@ -110,10 +111,13 @@ export default function FieldOpsDrawer({
         <CheckOffModal
           mode="complete"
           operation={checking.op}
-          rowOptions={rowOptionsForOperation(
+          harvestTargets={harvestTargetsForOperation(
             checking.op,
             checking.field.plantingEvents ?? [],
-            checking.field.rows ?? []
+            {
+              rows: checking.field.rows ?? [],
+              freePlants: checking.field.freePlants ?? [],
+            }
           )}
           onConfirm={(data) => {
             completeOp.mutate(

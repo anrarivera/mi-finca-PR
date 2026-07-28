@@ -334,6 +334,7 @@ export default function FarmFieldEditor({
             plantingEvents={field.plantingEvents ?? []}
             fieldName={field.name}
             fieldRows={field.rows ?? []}
+            freePlants={field.freePlants ?? []}
             farmOperations={farmOperations ?? []}
             onClose={() => setShowOperations(false)}
             onCompleteOperation={(eventId, opId, data) => {
@@ -368,6 +369,7 @@ export default function FarmFieldEditor({
                     unit: data.unit ?? null,
                     notes: data.notes ?? null,
                     rowIds: data.rowIds ?? [],
+                    plantIds: data.plantIds ?? [],
                   },
                 },
                 { onSuccess: () => toast.success('Operación corregida') }
@@ -385,6 +387,7 @@ export default function FarmFieldEditor({
                     unit: data.unit,
                     notes: data.notes,
                     rowIds: data.rowIds,
+                    plantIds: data.plantIds,
                   },
                 },
                 { onSuccess: () => toast.success('Avance parcial registrado') }

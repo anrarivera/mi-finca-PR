@@ -1,9 +1,11 @@
 import { useMemo, useState } from 'react'
 import {
   X, Check, SkipForward, ChevronDown, ChevronUp,
-  AlertCircle, Clock, CheckCircle2,
+  AlertCircle, Clock, CheckCircle2, ChevronRight,
 } from 'lucide-react'
-import type { PlantingEvent, RecommendedOperation, OperationStatus, FieldRow } from '../types'
+import type {
+  PlantingEvent, RecommendedOperation, OperationStatus, FieldRow, PlantInstance,
+} from '../types'
 import type { FarmOperation } from '../hooks/useOperationsApi'
 import { getCropById } from '../data/cropLibrary'
 
@@ -22,39 +24,77 @@ export type CheckOffFormData = {
   product?: string
   quantity?: number
   unit?: string
-  /** Which field rows were covered (harvest row selection). */
+  /** Fully covered rows (harvest selection). */
   rowIds?: string[]
+  /** Individual plants outside those rows (partial rows, loose plants). */
+  plantIds?: string[]
 }
 
 type ModalMode = 'complete' | 'partial' | 'edit'
 
-/** A selectable row in the harvest modal. */
-export type RowOption = { id: string; label: string }
+// What a harvest can select from: the planting event's rows (kept with their
+// position in the field so labels read "Hilera 3") and its free-standing
+// plants. Exported so the map/farm drawers reuse the same wiring.
+export type HarvestTargets = {
+  rows: Array<{ row: FieldRow; index: number }>
+  freePlants: PlantInstance[]
+}
 
-// Build the selectable row list for a recommendation: the rows that belong
-// to its planting event, labeled by their position in the field ("Hilera 3"),
-// crop, and plant count. Exported so the map-side drawer can reuse it.
-export function rowOptionsForOperation(
+export function harvestTargetsForOperation(
   operation: RecommendedOperation,
   plantingEvents: PlantingEvent[],
-  fieldRows: FieldRow[]
-): RowOption[] {
+  field: { rows: FieldRow[]; freePlants: PlantInstance[] }
+): HarvestTargets {
   const event = plantingEvents.find(e => e.id === operation.plantingEventId)
-  if (!event) return []
-  return fieldRows
-    .map((row, i) => ({ row, i }))
-    .filter(({ row }) => event.rowIds.includes(row.id))
-    .map(({ row, i }) => ({
-      id: row.id,
-      label: `Hilera ${i + 1} · ${getCropById(row.primaryCropTypeId)?.nameEs ?? row.primaryCropTypeId} · ${row.plants.length} plantas`,
-    }))
+  if (!event) return { rows: [], freePlants: [] }
+  return {
+    rows: field.rows
+      .map((row, index) => ({ row, index }))
+      .filter(({ row }) => event.rowIds.includes(row.id)),
+    freePlants: field.freePlants.filter(p => event.freePlantIds.includes(p.id)),
+  }
+}
+
+// Expand a stored selection (rowIds = whole rows, plantIds = loose plants)
+// back into the canonical plant-id set the selector edits.
+function selectionToPlantSet(
+  targets: HarvestTargets,
+  rowIds: string[] | undefined,
+  plantIds: string[] | undefined
+): Set<string> {
+  const set = new Set<string>(plantIds ?? [])
+  for (const { row } of targets.rows) {
+    if (rowIds?.includes(row.id)) row.plants.forEach(p => set.add(p.id))
+  }
+  return set
+}
+
+// Compress a plant-id set into { rowIds, plantIds }: rows where every plant
+// is selected become rowIds; everything else stays as individual plantIds.
+function plantSetToSelection(
+  targets: HarvestTargets,
+  selected: Set<string>
+): { rowIds?: string[]; plantIds?: string[] } {
+  if (selected.size === 0) return {}
+  const fullRows = targets.rows.filter(({ row }) =>
+    row.plants.length > 0 && row.plants.every(p => selected.has(p.id))
+  )
+  const coveredByRows = new Set(fullRows.flatMap(({ row }) => row.plants.map(p => p.id)))
+  const rowIds = fullRows.map(({ row }) => row.id)
+  const plantIds = [...selected].filter(id => !coveredByRows.has(id))
+  return {
+    rowIds: rowIds.length > 0 ? rowIds : undefined,
+    plantIds: plantIds.length > 0 ? plantIds : undefined,
+  }
 }
 
 type Props = {
   plantingEvents: PlantingEvent[]
   fieldName: string
-  /** The field's rows — feeds the harvest row selector in the modal. */
+  /** The field's rows — feeds the harvest selector in the modal. */
   fieldRows: FieldRow[]
+  /** The field's free-standing plants — also selectable in harvests. */
+  freePlants: PlantInstance[]
   /** Farm operations log — used to show partial-log progress per row. */
   farmOperations: FarmOperation[]
   onClose: () => void
@@ -69,7 +109,7 @@ type Props = {
 }
 
 export default function OperationsView({
-  plantingEvents, fieldName, fieldRows, farmOperations, onClose,
+  plantingEvents, fieldName, fieldRows, freePlants, farmOperations, onClose,
   onCompleteOperation, onSkipOperation,
   onUndoOperation, onEditOperation, onPartialLog,
 }: Props) {
@@ -185,13 +225,15 @@ export default function OperationsView({
         <CheckOffModal
           mode={modal.mode}
           operation={modal.operation}
-          rowOptions={rowOptionsForOperation(modal.operation, plantingEvents, fieldRows)}
-          // When editing, preselect the rows the original log entry covered.
-          initialRowIds={
-            modal.mode === 'edit' && modal.operation.completedOperationId
-              ? farmOperations.find(fo => fo.id === modal.operation.completedOperationId)?.rowIds
-              : undefined
-          }
+          harvestTargets={harvestTargetsForOperation(
+            modal.operation, plantingEvents, { rows: fieldRows, freePlants }
+          )}
+          // When editing, preselect what the original log entry covered.
+          initialSelection={(() => {
+            if (modal.mode !== 'edit' || !modal.operation.completedOperationId) return undefined
+            const fo = farmOperations.find(f => f.id === modal.operation.completedOperationId)
+            return fo ? { rowIds: fo.rowIds, plantIds: fo.plantIds } : undefined
+          })()}
           onConfirm={(data) => {
             if (modal.mode === 'complete') {
               onCompleteOperation(modal.eventId, modal.operationId, data)
@@ -486,19 +528,20 @@ const MODAL_COPY: Record<ModalMode, { title: string; confirm: string; dateLabel:
 }
 
 export function CheckOffModal({
-  mode, operation, rowOptions = [], initialRowIds, onConfirm, onCancel,
+  mode, operation, harvestTargets, initialSelection, onConfirm, onCancel,
 }: {
   mode: ModalMode
   operation: RecommendedOperation
-  /** Selectable rows for harvest operations; empty = no selector shown. */
-  rowOptions?: RowOption[]
-  /** Preselected rows (edit mode). */
-  initialRowIds?: string[]
+  /** What a harvest can select from; empty/omitted = no selector shown. */
+  harvestTargets?: HarvestTargets
+  /** Previously stored selection (edit mode). */
+  initialSelection?: { rowIds?: string[]; plantIds?: string[] }
   onConfirm: (data: CheckOffFormData) => void
   onCancel: () => void
 }) {
   const today = new Date().toISOString().split('T')[0]
   const isEdit = mode === 'edit'
+  const targets = harvestTargets ?? { rows: [], freePlants: [] }
 
   const [completedDate, setCompletedDate] = useState(
     isEdit ? (operation.completedDate ?? today) : today
@@ -509,24 +552,18 @@ export function CheckOffModal({
     isEdit && operation.quantity != null ? String(operation.quantity) : ''
   )
   const [unit, setUnit] = useState(isEdit ? (operation.unit ?? 'kg') : 'kg')
-  const [selectedRows, setSelectedRows] = useState<Set<string>>(
-    () => new Set(initialRowIds ?? [])
+  // Canonical harvest selection: a set of plant ids. Rows are derived views
+  // over it — a fully selected row compresses back to a rowId on confirm.
+  const [selectedPlants, setSelectedPlants] = useState<Set<string>>(
+    () => selectionToPlantSet(targets, initialSelection?.rowIds, initialSelection?.plantIds)
   )
 
   const copy = MODAL_COPY[mode]
   const needsProduct = ['fertilization', 'spray'].includes(operation.type)
   const needsQuantity = mode === 'partial'
     || ['fertilization', 'spray', 'harvest'].includes(operation.type)
-  const showRows = operation.type === 'harvest' && rowOptions.length > 0
-
-  function toggleRow(id: string) {
-    setSelectedRows(prev => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
-  }
+  const showHarvestSelector = operation.type === 'harvest'
+    && (targets.rows.length > 0 || targets.freePlants.length > 0)
 
   const units = operation.type === 'harvest'
     ? ['kg', 'lb', 'unidades', 'cajas', 'sacos']
@@ -620,47 +657,13 @@ export function CheckOffModal({
               </div>
             )}
 
-            {/* Row selector — which rows did this harvest cover? */}
-            {showRows && (
-              <div className="flex flex-col gap-1.5">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-medium text-[#5a6a4a]">
-                    Hileras cosechadas
-                    <span className="text-[#9aab8a] font-normal ml-1">(opcional)</span>
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedRows(prev =>
-                      prev.size === rowOptions.length
-                        ? new Set()
-                        : new Set(rowOptions.map(r => r.id))
-                    )}
-                    className="text-[10px] text-[#639922] hover:text-[#2d4a1e] transition-colors"
-                  >
-                    {selectedRows.size === rowOptions.length ? 'Ninguna' : 'Todas'}
-                  </button>
-                </div>
-                <div className="max-h-36 overflow-y-auto rounded-lg border border-[#d0dcc0] divide-y divide-[#f0f5e8]">
-                  {rowOptions.map(row => (
-                    <label
-                      key={row.id}
-                      className="flex items-center gap-2.5 px-3 py-2 text-xs text-[#2d4a1e] cursor-pointer hover:bg-[#fafcf8] transition-colors"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selectedRows.has(row.id)}
-                        onChange={() => toggleRow(row.id)}
-                        className="accent-[#639922]"
-                      />
-                      <span className="truncate">{row.label}</span>
-                    </label>
-                  ))}
-                </div>
-                <p className="text-[10px] text-[#9aab8a]">
-                  Sin selección = todo el campo. Útil para cosechas de varios
-                  días: marca hoy las hileras que terminaste.
-                </p>
-              </div>
+            {/* Harvest selector — rows, partial rows, or individual plants */}
+            {showHarvestSelector && (
+              <HarvestSelector
+                targets={targets}
+                selected={selectedPlants}
+                onChange={setSelectedPlants}
+              />
             )}
 
             {/* Notes */}
@@ -694,9 +697,10 @@ export function CheckOffModal({
                 product: product || undefined,
                 quantity: quantity ? Number(quantity) : undefined,
                 unit: quantity ? unit : undefined,
-                rowIds: showRows && selectedRows.size > 0
-                  ? [...selectedRows]
-                  : undefined,
+                // Compress the plant set: full rows → rowIds, rest → plantIds
+                ...(showHarvestSelector
+                  ? plantSetToSelection(targets, selectedPlants)
+                  : {}),
               })}
               className="flex-1 flex items-center justify-center gap-2 py-2 bg-[#2d4a1e] text-[#d4e8b0] rounded-lg text-sm font-medium hover:bg-[#3d6128] transition-colors"
             >
@@ -708,5 +712,195 @@ export function CheckOffModal({
         </div>
       </div>
     </>
+  )
+}
+
+// ── Harvest selector ──────────────────────────────────────────────────
+// Fully flexible: whole rows (tri-state checkbox), individual plants inside
+// a row (expand it), "the first N plants of a row" (quick input), and
+// free-standing plants. The canonical state is a set of plant ids owned by
+// the modal; this component is a controlled view over it.
+function HarvestSelector({ targets, selected, onChange }: {
+  targets: HarvestTargets
+  selected: Set<string>
+  onChange: (next: Set<string>) => void
+}) {
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
+
+  const allPlantIds = useMemo(
+    () => [
+      ...targets.rows.flatMap(({ row }) => row.plants.map(p => p.id)),
+      ...targets.freePlants.map(p => p.id),
+    ],
+    [targets]
+  )
+  const allSelected = allPlantIds.length > 0 && allPlantIds.every(id => selected.has(id))
+
+  function mutate(fn: (next: Set<string>) => void) {
+    const next = new Set(selected)
+    fn(next)
+    onChange(next)
+  }
+
+  function togglePlant(id: string) {
+    mutate(next => { next.has(id) ? next.delete(id) : next.add(id) })
+  }
+
+  function toggleRow(row: FieldRow) {
+    const all = row.plants.every(p => selected.has(p.id))
+    mutate(next => {
+      row.plants.forEach(p => { all ? next.delete(p.id) : next.add(p.id) })
+    })
+  }
+
+  // "Primeras N" — select exactly the first N plants of a row.
+  function selectFirstN(row: FieldRow, n: number) {
+    mutate(next => {
+      row.plants.forEach((p, i) => {
+        if (i < n) next.add(p.id)
+        else next.delete(p.id)
+      })
+    })
+  }
+
+  function toggleExpand(rowId: string) {
+    setExpandedRows(prev => {
+      const next = new Set(prev)
+      next.has(rowId) ? next.delete(rowId) : next.add(rowId)
+      return next
+    })
+  }
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="flex items-center justify-between">
+        <label className="text-xs font-medium text-[#5a6a4a]">
+          ¿Qué cosechaste?
+          <span className="text-[#9aab8a] font-normal ml-1">(opcional)</span>
+        </label>
+        <button
+          type="button"
+          onClick={() => onChange(allSelected ? new Set() : new Set(allPlantIds))}
+          className="text-[10px] text-[#639922] hover:text-[#2d4a1e] transition-colors"
+        >
+          {allSelected ? 'Ninguna' : 'Todo el campo'}
+        </button>
+      </div>
+
+      <div className="max-h-52 overflow-y-auto rounded-lg border border-[#d0dcc0] divide-y divide-[#f0f5e8]">
+
+        {/* Rows — tri-state header, expandable to plants */}
+        {targets.rows.map(({ row, index }) => {
+          const crop = getCropById(row.primaryCropTypeId)
+          const selCount = row.plants.filter(p => selected.has(p.id)).length
+          const all = row.plants.length > 0 && selCount === row.plants.length
+          const some = selCount > 0 && !all
+          const expanded = expandedRows.has(row.id)
+
+          return (
+            <div key={row.id}>
+              {/* Row header */}
+              <div className="flex items-center gap-2 px-3 py-2 hover:bg-[#fafcf8] transition-colors">
+                <input
+                  type="checkbox"
+                  checked={all}
+                  ref={el => { if (el) el.indeterminate = some }}
+                  onChange={() => toggleRow(row)}
+                  className="accent-[#639922] shrink-0"
+                />
+                <button
+                  type="button"
+                  onClick={() => toggleExpand(row.id)}
+                  className="flex-1 flex items-center gap-1.5 text-left min-w-0"
+                >
+                  {expanded
+                    ? <ChevronDown size={11} className="text-[#9aab8a] shrink-0" />
+                    : <ChevronRight size={11} className="text-[#9aab8a] shrink-0" />}
+                  <span className="text-xs text-[#2d4a1e] truncate">
+                    Hilera {index + 1} · {crop?.emoji ?? '🌱'} {crop?.nameEs ?? row.primaryCropTypeId}
+                  </span>
+                  <span className={`text-[10px] shrink-0 ml-auto ${
+                    some ? 'text-[#639922] font-medium' : 'text-[#9aab8a]'
+                  }`}>
+                    {selCount}/{row.plants.length}
+                  </span>
+                </button>
+              </div>
+
+              {/* Expanded: quick "first N" input + individual plants */}
+              {expanded && (
+                <div className="px-3 pb-2 pl-8 flex flex-col gap-1.5 bg-[#fafcf8]">
+                  <div className="flex items-center gap-1.5 pt-1">
+                    <span className="text-[10px] text-[#7a8a6a]">Primeras</span>
+                    <input
+                      type="number"
+                      min={0}
+                      max={row.plants.length}
+                      value={selCount}
+                      onChange={e => selectFirstN(
+                        row,
+                        Math.max(0, Math.min(row.plants.length, parseInt(e.target.value) || 0))
+                      )}
+                      className="w-14 px-1.5 py-0.5 rounded border border-[#d0dcc0] text-[10px] text-[#2d4a1e] focus:outline-none focus:border-[#639922]"
+                    />
+                    <span className="text-[10px] text-[#7a8a6a]">
+                      de {row.plants.length} plantas
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-x-2 gap-y-0.5">
+                    {row.plants.map((plant, i) => (
+                      <label
+                        key={plant.id}
+                        className="flex items-center gap-1 text-[10px] text-[#5a6a4a] cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selected.has(plant.id)}
+                          onChange={() => togglePlant(plant.id)}
+                          className="accent-[#639922]"
+                        />
+                        Planta {i + 1}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )
+        })}
+
+        {/* Free-standing plants */}
+        {targets.freePlants.length > 0 && (
+          <div className="px-3 py-2">
+            <p className="text-[10px] font-medium text-[#7a8a6a] mb-1">Plantas sueltas</p>
+            <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
+              {targets.freePlants.map((plant, i) => {
+                const crop = getCropById(plant.cropTypeId)
+                return (
+                  <label
+                    key={plant.id}
+                    className="flex items-center gap-1 text-[10px] text-[#5a6a4a] cursor-pointer"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selected.has(plant.id)}
+                      onChange={() => togglePlant(plant.id)}
+                      className="accent-[#639922]"
+                    />
+                    {crop?.emoji ?? '🌱'} Planta {i + 1}
+                  </label>
+                )
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <p className="text-[10px] text-[#9aab8a]">
+        {selected.size > 0
+          ? `${selected.size} de ${allPlantIds.length} plantas seleccionadas`
+          : 'Sin selección = todo el campo. Marca hileras completas, expande una hilera para plantas individuales, o usa "Primeras N".'}
+      </p>
+    </div>
   )
 }

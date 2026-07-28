@@ -1,17 +1,20 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import {
   ChevronRight, ChevronLeft, Star, Plus,
   MapPin, Layers, Pencil, Trash2,
   ToggleLeft, ToggleRight, AlertCircle, Clock,
 } from 'lucide-react'
 import { useDeleteField } from '@/features/field/hooks/useFieldsApi'
+import { useCompleteRecommendedOp } from '@/features/field/hooks/useOperationsApi'
 import { useFarmStore } from '@/store/useFarmStore'
 import { useFieldStore } from '@/store/useFieldStore'
 import { computeCropSummary } from '@/features/field/utils/rowCalculator'
 import { getFieldOperationHealth } from '@/features/field/utils/operationStatus'
 import { getCropById } from '@/features/field/data/cropLibrary'
+import { CheckOffModal, harvestTargetsForOperation } from '@/features/field/components/operationsView'
+import { nextOperation } from '@/features/field/components/fieldOpsDrawer'
 import type { Farm } from '@/store/useFarmStore'
-import type { PlacedField } from '@/features/field/types'
+import type { PlacedField, PlantingEvent, RecommendedOperation } from '@/features/field/types'
 import { areaFt2, ft2ToAcres, getCanvasScale, latlngToCanvas, farmBoundaryToBBox } from '@/features/field/utils/canvasGeo'
 import { toast } from '@/store/useToastStore'
 
@@ -34,8 +37,7 @@ export default function FarmDrawer({
     farms, activeFarm, activeFarmId, favoriteFarmId,
     setActiveFarm, setFavoriteFarm, deleteFarm,
   } = useFarmStore()
-  const { getFieldsByFarmId, updateField, removeField, removeFieldsByFarmId } = useFieldStore()
-  const { removeFieldIdFromFarm } = useFarmStore()
+  const { getFieldsByFarmId, updateField, removeFieldsByFarmId } = useFieldStore()
 
   // Auto-navigate to fields level when only one farm
   useEffect(() => {
@@ -332,6 +334,16 @@ function FieldList({
   const deleteField = useDeleteField(farm.id)
   const { removeFieldIdFromFarm } = useFarmStore()
 
+  // Check-off straight from the drawer — same flow as the map's field
+  // drawer: the card's check circle opens the standard check-off modal
+  // (with the flexible harvest selector) and persists via the API.
+  const completeOp = useCompleteRecommendedOp(farm.id)
+  const [checking, setChecking] = useState<{
+    field: PlacedField
+    event: PlantingEvent
+    op: RecommendedOperation
+  } | null>(null)
+
   function handleDeleteField(fieldId: string) {
     deleteField.mutate(fieldId, {
       onSuccess: () => {
@@ -412,11 +424,41 @@ function FieldList({
                 onEdit={() => onEditField(field.id)}
                 onDelete={() => handleDeleteField(field.id)}  // ← use this
                 onToggleDisplay={() => onToggleDisplay(field)}
+                onCheckOff={(op, event) => setChecking({ field, event, op })}
               />
             ))}
           </div>
         )}
       </div>
+
+      {/* Check-off modal — flexible harvest selection included */}
+      {checking && (
+        <CheckOffModal
+          mode="complete"
+          operation={checking.op}
+          harvestTargets={harvestTargetsForOperation(
+            checking.op,
+            checking.field.plantingEvents ?? [],
+            {
+              rows: checking.field.rows ?? [],
+              freePlants: checking.field.freePlants ?? [],
+            }
+          )}
+          onConfirm={(data) => {
+            completeOp.mutate(
+              {
+                fieldId: checking.field.id,
+                eventId: checking.event.id,
+                operationId: checking.op.id,
+                data,
+              },
+              { onSuccess: () => toast.success('Operación registrada') }
+            )
+            setChecking(null)
+          }}
+          onCancel={() => setChecking(null)}
+        />
+      )}
 
       {/* Fixed bottom — Manage fields button */}
       <div className="px-4 py-3 border-t border-[#e0e8d8] bg-white shrink-0">
@@ -433,16 +475,26 @@ function FieldList({
 
 // ── Individual field card ─────────────────────────────────────────────
 function FieldCard({
-  field, onEdit, onDelete, onToggleDisplay,
+  field, onEdit, onDelete, onToggleDisplay, onCheckOff,
 }: {
   field: PlacedField
   onEdit: () => void
   onDelete: () => void
   onToggleDisplay: () => void
+  onCheckOff: (op: RecommendedOperation, event: PlantingEvent) => void
 }) {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const summary = computeCropSummary(field.rows ?? [], field.freePlants ?? [], getCropById)
   const health = getFieldOperationHealth(field.plantingEvents ?? [])
+
+  // Most urgent open calendar item — checkable right from the drawer
+  const next = nextOperation(field)
+  const nextCrop = next ? getCropById(next.event.cropTypeId) : null
+  const nextIsDue = next?.op.status === 'due'
+  const nextDate = next
+    ? new Date(next.op.recommendedDate + 'T12:00:00')
+        .toLocaleDateString('es-PR', { day: 'numeric', month: 'short' })
+    : null
 
   return (
     <div className="px-4 py-3 hover:bg-[#fafcf8] transition-colors">
@@ -495,6 +547,33 @@ function FieldCard({
               <span className="text-[10px] text-[#5a6a4a] font-medium">{c.count}</span>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Current operation — check it off without leaving the drawer */}
+      {next && (
+        <div className={`flex items-center gap-2 mb-2.5 px-2 py-1.5 rounded-lg ${
+          nextIsDue ? 'bg-red-50/70' : 'bg-[#f5f8f0]'
+        }`}>
+          <button
+            onClick={() => onCheckOff(next.op, next.event)}
+            aria-label={`Completar ${next.op.labelEs}`}
+            title="Marcar como realizada"
+            className={`w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors hover:bg-[#eaf3de] ${
+              nextIsDue
+                ? 'border-red-400 hover:border-[#639922]'
+                : 'border-[#c0d8a0] hover:border-[#639922]'
+            }`}
+          />
+          <div className="flex-1 min-w-0">
+            <p className="text-[10px] font-medium text-[#2d4a1e] truncate">
+              {nextCrop?.emoji ?? '🌱'} {next.op.labelEs}
+            </p>
+            <p className={`text-[9px] ${nextIsDue ? 'text-red-500 font-medium' : 'text-[#9aab8a]'}`}>
+              {nextIsDue ? 'Vencida — ' : ''}{nextDate}
+              {nextCrop ? ` · ${nextCrop.nameEs}` : ''}
+            </p>
+          </div>
         </div>
       )}
 
