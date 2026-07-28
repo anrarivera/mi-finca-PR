@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   X, Check, SkipForward, ChevronDown, ChevronUp,
   AlertCircle, Clock, CheckCircle2, ChevronRight,
@@ -8,6 +8,7 @@ import type {
 } from '../types'
 import type { FarmOperation } from '../hooks/useOperationsApi'
 import { getCropById } from '../data/cropLibrary'
+import { useHarvestHighlightStore } from '@/store/useHarvestHighlightStore'
 
 // ──────────────────────────────────────────────────────────────────────────
 // Operations view — the calendar check-off screen (SDD §6.2), now with:
@@ -596,15 +597,20 @@ export function CheckOffModal({
 
   return (
     <>
-      {/* Backdrop */}
+      {/* Backdrop — kept light and unblurred for harvests so the map stays
+          visible: selected rows/plants highlight live behind the modal */}
       <div
-        className="fixed inset-0 bg-black/40 z-[2200] backdrop-blur-sm"
+        className={`fixed inset-0 z-[2200] ${
+          showHarvestSelector ? 'bg-black/10' : 'bg-black/40 backdrop-blur-sm'
+        }`}
         onClick={onCancel}
       />
 
-      {/* Modal */}
-      <div className="fixed inset-0 z-[2300] flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden">
+      {/* Modal — docked right for harvests so the field isn't covered */}
+      <div className={`fixed inset-0 z-[2300] flex items-center p-4 ${
+        showHarvestSelector ? 'justify-end pr-6' : 'justify-center'
+      }`}>
+        <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden max-h-[92vh] overflow-y-auto">
 
           {/* Header */}
           <div className="px-5 py-4 border-b border-[#e0e8d8] bg-[#f5f8f0]">
@@ -751,6 +757,17 @@ function HarvestSelector({ targets, selected, onChange }: {
   onChange: (next: Set<string>) => void
 }) {
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
+
+  // Publish the live selection so the map highlights the chosen rows and
+  // plants while this modal is open (cleared on unmount).
+  const setHighlight = useHarvestHighlightStore(s => s.setHighlight)
+  const clearHighlight = useHarvestHighlightStore(s => s.clearHighlight)
+  useEffect(() => {
+    const sel = plantSetToSelection(targets, selected)
+    setHighlight({ rowIds: sel.rowIds ?? [], plantIds: [...selected] })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected, targets])
+  useEffect(() => () => clearHighlight(), [clearHighlight])
 
   const allPlantIds = useMemo(
     () => [

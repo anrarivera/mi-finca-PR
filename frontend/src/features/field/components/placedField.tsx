@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Polygon, Polyline, CircleMarker, Marker, Tooltip, useMapEvents } from 'react-leaflet'
 import * as L from 'leaflet'
 import { useFieldStore } from '@/store/useFieldStore'
+import { useHarvestHighlightStore } from '@/store/useHarvestHighlightStore'
 import { plantVisualStatus, PLANT_STATUS_STYLE, type PlantMarks } from '../utils/plantStatus'
 import type { PlacedField as PlacedFieldType, FieldRow } from '../types'
 
@@ -68,6 +69,8 @@ export default function PlacedField({
   field, onSelect, onOpenEditor, detailed = false, plantMarks = EMPTY_MARKS,
 }: Props) {
   const { updateField } = useFieldStore()
+  // Live harvest-modal selection — paints chosen rows/plants amber.
+  const harvestHighlight = useHarvestHighlightStore(s => s.highlight)
   const [isHovered, setIsHovered] = useState(false)
   const isDragging = useRef(false)
   const clickTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -172,35 +175,40 @@ export default function PlacedField({
       </Polygon>
 
       {/* Crop rows — lat/lng straight to Leaflet, no conversion (SDD §2.2.3).
-          interactive={false} so clicks fall through to the field polygon. */}
-      {field.rows.map(row => (
-        <Polyline
-          key={row.id}
-          positions={rowPositions(row)}
-          interactive={false}
-          pathOptions={{
-            color: 'white',
-            weight: detailed ? 2 : 1.5,
-            opacity: detailed ? 0.9 : 0.6,
-            dashArray: '1 6',
-            lineCap: 'round',
-          }}
-        />
-      ))}
+          interactive={false} so clicks fall through to the field polygon.
+          Rows selected in an open harvest modal highlight amber. */}
+      {field.rows.map(row => {
+        const inHarvest = harvestHighlight?.rowIds.includes(row.id) ?? false
+        return (
+          <Polyline
+            key={row.id}
+            positions={rowPositions(row)}
+            interactive={false}
+            pathOptions={{
+              color: inHarvest ? '#f59e0b' : 'white',
+              weight: inHarvest ? 3.5 : detailed ? 2 : 1.5,
+              opacity: inHarvest ? 1 : detailed ? 0.9 : 0.6,
+              dashArray: inHarvest ? undefined : '1 6',
+              lineCap: 'round',
+            }}
+          />
+        )
+      })}
 
       {/* Individual plants — only for the selected field. Colors:
           white = planned, green = planted, red = harvested/removed */}
       {plants.map(({ plant, rowId }) => {
         const style = PLANT_STATUS_STYLE[plantVisualStatus(plant, plantMarks, rowId)]
+        const inHarvest = harvestHighlight?.plantIds.includes(plant.id) ?? false
         return (
           <CircleMarker
             key={plant.id}
             center={L.latLng(plant.lat, plant.lng)}
-            radius={2.5}
+            radius={inHarvest ? 4 : 2.5}
             interactive={false}
             pathOptions={{
-              color: style.color,
-              weight: 1,
+              color: inHarvest ? '#f59e0b' : style.color,
+              weight: inHarvest ? 2 : 1,
               fillColor: style.fillColor,
               fillOpacity: 1,
             }}
