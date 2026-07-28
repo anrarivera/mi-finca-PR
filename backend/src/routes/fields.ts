@@ -191,6 +191,10 @@ router.post('/', requireAuth, async (req: Request, res: Response, next: NextFunc
                 recommendedDate: new Date(op.recommendedDate),
                 status: op.status ?? 'pending',
                 completedDate: op.completedDate ? new Date(op.completedDate) : null,
+                // Keep the link to the operations-log entry across re-saves —
+                // PATCH recreates these rows, and losing the link would orphan
+                // completed check-offs (routes/operations.ts).
+                completedOperationId: op.completedOperationId ?? null,
                 notes: op.notes ?? null,
                 product: op.product ?? null,
                 quantity: op.quantity ?? null,
@@ -365,6 +369,10 @@ router.patch('/:id', requireAuth, async (req: Request, res: Response, next: Next
                 recommendedDate: new Date(op.recommendedDate),
                 status: op.status ?? 'pending',
                 completedDate: op.completedDate ? new Date(op.completedDate) : null,
+                // Keep the link to the operations-log entry across re-saves —
+                // PATCH recreates these rows, and losing the link would orphan
+                // completed check-offs (routes/operations.ts).
+                completedOperationId: op.completedOperationId ?? null,
                 notes: op.notes ?? null,
                 product: op.product ?? null,
                 quantity: op.quantity ?? null,

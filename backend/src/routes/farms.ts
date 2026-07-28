@@ -215,6 +215,13 @@ router.delete('/:id', async (req: Request, res: Response, next: NextFunction) =>
       data: { deletedAt: now }
     })
 
+    // Livestock units cascade the same way fields do — mirrors the frontend
+    // deleteFarmCascade (store/farmActions.ts).
+    await prisma.livestockUnit.updateMany({
+      where: { farmId: id, deletedAt: { equals: null }, },
+      data: { deletedAt: now }
+    })
+
     // Soft delete the farm
     await prisma.farm.update({
       where: { id },
@@ -268,13 +275,45 @@ router.get('/:id/summary', async (req: Request, res: Response, next: NextFunctio
       select: { type: true, actualDate: true }
     })
 
+    // Operation health — real counts from the recommendation calendar.
+    // A recommended operation belongs to this farm through either its
+    // planting event's field or its livestock unit. Overdue = past its
+    // recommended date; dueSoon = inside the next 14 days (SDD §4.6).
+    const today = new Date()
+    today.setUTCHours(0, 0, 0, 0) // recommendedDate is a date-only column anchored at UTC midnight
+    const horizon = new Date(today)
+    horizon.setUTCDate(horizon.getUTCDate() + 14)
+
+    const ownedByFarm = {
+      OR: [
+        { plantingEvent: { field: { farmId: id, deletedAt: { equals: null } } } },
+        { livestockUnit: { farmId: id, deletedAt: { equals: null } } },
+      ],
+    }
+    const [overdue, dueSoon] = await Promise.all([
+      prisma.recommendedOperation.count({
+        where: {
+          ...ownedByFarm,
+          status: { in: ['pending', 'due'] },
+          recommendedDate: { lt: today },
+        },
+      }),
+      prisma.recommendedOperation.count({
+        where: {
+          ...ownedByFarm,
+          status: { in: ['pending', 'due'] },
+          recommendedDate: { gte: today, lte: horizon },
+        },
+      }),
+    ])
+
     res.json({
       success: true,
       data: {
         farmId: id,
         fieldCount,
         totalAreaAcres: parseFloat(farm.totalAreaAcres?.toString() ?? '0'),
-        operationHealth: { overdue: 0, dueSoon: 0 },
+        operationHealth: { overdue, dueSoon },
         lastOperation: lastOperation ?? null,
       }
     })

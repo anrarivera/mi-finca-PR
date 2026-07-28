@@ -10,6 +10,8 @@ import farmsRouter from './routes/farms'
 import fieldRoutes from './routes/fields'
 import livestockRoutes from './routes/livestock'
 import harvestRoutes from './routes/harvests'
+import operationRoutes from './routes/operations'
+import recommendedOperationRoutes from './routes/recommendedOperations'
 import cropRoutes from './routes/crops'
 import userRoutes from './routes/users'
 
@@ -52,6 +54,9 @@ app.use('/api/v1/farms', farmsRouter)
 app.use('/api/v1/farms/:farmId/fields', fieldRoutes)
 app.use('/api/v1/farms/:farmId/livestock', livestockRoutes)
 app.use('/api/v1/farms/:farmId/harvests', harvestRoutes)
+// Operations log + recommendation calendar (SDD §4.5 / §4.6)
+app.use('/api/v1/farms/:farmId/operations', operationRoutes)
+app.use('/api/v1/farms/:farmId/recommended-operations', recommendedOperationRoutes)
 app.use('/api/v1/crops', cropRoutes)
 app.use('/api/v1/users', userRoutes)
 
