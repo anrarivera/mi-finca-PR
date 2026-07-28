@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Plus, Pencil, Trash2, PawPrint } from 'lucide-react'
 import { useLivestockStore } from '@/store/useLivestockStore'
+import { useCreateLivestock, useUpdateLivestock, useDeleteLivestock } from '../hooks/useLivestockApi'
 import { useFarmStore } from '@/store/useFarmStore'
 import { ANIMAL_LIBRARY, getAnimalById } from '../data/animalLibrary'
 import { useConfirm } from '@/components/shared/confirmDialog'
@@ -15,10 +16,16 @@ import type { AnimalType, LivestockUnit } from '../types'
 // ──────────────────────────────────────────────────────────────────────────
 
 export default function LivestockSection() {
-  const { units, addUnit, updateUnit, removeUnit } = useLivestockStore()
+  const units = useLivestockStore(s => s.units)
   const farms = useFarmStore(s => s.farms)
   const { confirm, confirmDialog } = useConfirm()
   const [editing, setEditing] = useState<LivestockUnit | 'new' | null>(null)
+
+  // Persistence now goes through the API (useLivestockApi) instead of only
+  // localStorage — the hooks sync the Zustand store on success.
+  const createLivestock = useCreateLivestock()
+  const updateLivestock = useUpdateLivestock()
+  const deleteLivestock = useDeleteLivestock()
 
   async function handleDelete(unit: LivestockUnit) {
     const animal = getAnimalById(unit.animalType)
@@ -29,8 +36,10 @@ export default function LivestockSection() {
       danger: true,
     })
     if (!ok) return
-    removeUnit(unit.id)
-    toast.success(`"${unit.name}" eliminado`)
+    deleteLivestock.mutate(
+      { id: unit.id, farmId: unit.farmId },
+      { onSuccess: () => toast.success(`"${unit.name}" eliminado`) }
+    )
   }
 
   return (
@@ -107,11 +116,17 @@ export default function LivestockSection() {
           onClose={() => setEditing(null)}
           onSave={(data) => {
             if (editing === 'new') {
-              addUnit({ id: `lv_${Date.now()}`, ...data })
-              toast.success(`"${data.name}" añadido`)
+              // Server assigns the UUID — no more local `lv_` ids.
+              createLivestock.mutate(data, {
+                onSuccess: () => toast.success(`"${data.name}" añadido`),
+              })
             } else {
-              updateUnit(editing.id, data)
-              toast.success(`"${data.name}" actualizado`)
+              // farmId is fixed on edit (units can't move between farms).
+              const { farmId: _ignored, ...updates } = data
+              updateLivestock.mutate(
+                { id: editing.id, farmId: editing.farmId, updates },
+                { onSuccess: () => toast.success(`"${data.name}" actualizado`) }
+              )
             }
             setEditing(null)
           }}
@@ -210,10 +225,13 @@ function LivestockFormModal({
             {farms.length > 1 && (
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-medium text-[#5a6a4a]">Finca</label>
+                {/* The farm is fixed once a unit exists — the API scopes
+                    livestock under its owning farm (no cross-farm moves). */}
                 <select
                   value={farmId}
                   onChange={e => setFarmId(e.target.value)}
-                  className={inputClass}
+                  disabled={!!unit}
+                  className={`${inputClass} disabled:opacity-60 disabled:cursor-not-allowed`}
                 >
                   {farms.map(f => (
                     <option key={f.id} value={f.id}>{f.name}</option>

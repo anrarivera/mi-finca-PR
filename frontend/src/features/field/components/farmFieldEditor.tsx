@@ -13,6 +13,7 @@ import { useFieldStore } from '@/store/useFieldStore'
 import { useFarmStore } from '@/store/useFarmStore'
 import { randomFieldColor } from '../types'
 import { useCreateField, useDeleteField, useUpdateField } from '../hooks/useFieldsApi'
+import { useCompleteRecommendedOp, useSkipRecommendedOp } from '../hooks/useOperationsApi'
 import { toast } from '@/store/useToastStore'
 
 type Props = {
@@ -26,7 +27,7 @@ export default function FarmFieldEditor({
   farmId, onClose, onFieldSaved, onFieldDeleted,
 }: Props) {
   const editor = useFieldEditor()
-  const { updateField, removeField, getField, getFieldsByFarmId } = useFieldStore()
+  const { getField, getFieldsByFarmId } = useFieldStore()
   const { farms, addFieldIdToFarm, removeFieldIdFromFarm } = useFarmStore()
   const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null)
   const [editingFieldId, setEditingFieldId] = useState<string | null>(null)
@@ -43,6 +44,11 @@ export default function FarmFieldEditor({
   const createField = useCreateField(farmId)
   const updateField_api = useUpdateField(farmId)
   const deleteField = useDeleteField(farmId)
+  // Check-off persistence (SDD §6.2) — completing/skipping a recommended
+  // operation writes to the backend; the hooks handle the optimistic local
+  // store update and the rollback on failure.
+  const completeOp = useCompleteRecommendedOp(farmId)
+  const skipOp = useSkipRecommendedOp(farmId)
 
   // The boundary of the field currently being edited (for row fill/edit panels)
   const editingBoundary = bbox
@@ -320,26 +326,15 @@ export default function FarmFieldEditor({
             fieldName={field.name}
             onClose={() => setShowOperations(false)}
             onCompleteOperation={(eventId, opId, data) => {
-              const updated = (field.plantingEvents ?? []).map(e =>
-                e.id !== eventId ? e : {
-                  ...e,
-                  operations: e.operations.map(op =>
-                    op.id !== opId ? op : { ...op, status: 'completed' as const, ...data }
-                  )
-                }
+              // Persists via POST /recommended-operations/:id/complete —
+              // the hook updates the local store optimistically.
+              completeOp.mutate(
+                { fieldId: selectedFieldId, eventId, operationId: opId, data },
+                { onSuccess: () => toast.success('Operación registrada') }
               )
-              updateField(selectedFieldId, { plantingEvents: updated })
             }}
             onSkipOperation={(eventId, opId) => {
-              const updated = (field.plantingEvents ?? []).map(e =>
-                e.id !== eventId ? e : {
-                  ...e,
-                  operations: e.operations.map(op =>
-                    op.id !== opId ? op : { ...op, status: 'skipped' as const }
-                  )
-                }
-              )
-              updateField(selectedFieldId, { plantingEvents: updated })
+              skipOp.mutate({ fieldId: selectedFieldId, eventId, operationId: opId })
             }}
           />
         )

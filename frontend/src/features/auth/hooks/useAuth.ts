@@ -114,7 +114,46 @@ export function useForgotPassword() {
 export function useResetPassword() {
   return useMutation({
     mutationFn: async (data: { token: string; password: string }) => {
-      return api.post('/api/v1/auth/reset-password', data)
+      // Backend schema expects `newPassword` (routes/auth.ts) — the page
+      // keeps the friendlier `password` name in its own props.
+      return api.post('/api/v1/auth/reset-password', {
+        token: data.token,
+        newPassword: data.password,
+      })
+    },
+  })
+}
+
+// ── Verify email (landing page for the emailed link) ──────────────────
+// Redeems the single-use token from /verify-email?token=… against
+// POST /auth/verify-email/confirm.
+export function useVerifyEmail() {
+  return useMutation({
+    mutationFn: async (data: { token: string }) => {
+      return api.post<{ message: string }>('/api/v1/auth/verify-email/confirm', data)
+    },
+  })
+}
+
+// ── Request a (re)send of the verification email ──────────────────────
+export function useRequestVerifyEmail() {
+  return useMutation({
+    mutationFn: async () => {
+      return api.post<{ message: string }>('/api/v1/auth/verify-email/request')
+    },
+  })
+}
+
+// ── Confirm email change (landing page for the emailed link) ──────────
+// Redeems the token from /change-email?token=…. On success the backend
+// revokes all sessions, so the page sends the user back to login.
+export function useConfirmChangeEmail() {
+  return useMutation({
+    mutationFn: async (data: { token: string }) => {
+      return api.post<{ message: string; email: string }>(
+        '/api/v1/auth/change-email/confirm',
+        data
+      )
     },
   })
 }

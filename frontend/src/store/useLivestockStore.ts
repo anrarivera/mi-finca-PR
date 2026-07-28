@@ -7,6 +7,9 @@ import type { LivestockUnit } from '@/features/livestock/types'
 
 type LivestockStore = {
   units: LivestockUnit[]
+  // Replace the whole list — used by useLivestockApi to hydrate from the
+  // backend; localStorage persistence then acts as the offline cache.
+  setUnits: (units: LivestockUnit[]) => void
   addUnit: (unit: LivestockUnit) => void
   updateUnit: (id: string, updates: Partial<LivestockUnit>) => void
   removeUnit: (id: string) => void
@@ -18,6 +21,8 @@ export const useLivestockStore = create<LivestockStore>()(
   persist(
     (set, get) => ({
       units: [],
+
+      setUnits: (units) => set({ units }),
 
       addUnit: (unit) =>
         set(state => ({ units: [...state.units, unit] })),

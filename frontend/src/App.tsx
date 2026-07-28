@@ -6,6 +6,8 @@ import LoginPage from '@/pages/auth/LoginPage'
 import RegisterPage from '@/pages/auth/RegisterPage'
 import ForgotPasswordPage from '@/pages/auth/ForgotPasswordPage'
 import ResetPasswordPage from '@/pages/auth/ResetPasswordPage'
+import VerifyEmailPage from '@/pages/auth/VerifyEmailPage'
+import ChangeEmailPage from '@/pages/auth/ChangeEmailPage'
 import DashboardPage from '@/pages/dashboard/dashboardPage'
 import InventoryPage from '@/pages/inventory/inventoryPage'
 import SimulatorPage from '@/pages/simulator/simulatorPage'
@@ -19,6 +21,10 @@ export default function App() {
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
+      {/* Landing pages for the token links the backend emails
+          (routes/auth.ts: verify-email/request, change-email/request) */}
+      <Route path="/verify-email" element={<VerifyEmailPage />} />
+      <Route path="/change-email" element={<ChangeEmailPage />} />
 
       {/* Protected routes */}
       <Route

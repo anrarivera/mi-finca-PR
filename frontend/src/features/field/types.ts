@@ -48,6 +48,9 @@ export type RecommendedOperation = {
   recommendedDate: string
   status: OperationStatus
   completedDate?: string
+  // Set by the backend when a check-off creates an operations-log entry
+  // (SDD §6.2). Round-tripped on field saves so the link survives edits.
+  completedOperationId?: string | null
   notes?: string
   product?: string
   quantity?: number
