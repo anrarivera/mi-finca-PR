@@ -1,35 +1,78 @@
-import { useState } from 'react'
-import { X, Check, SkipForward, ChevronDown, ChevronUp, AlertCircle, Clock, CheckCircle2 } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import {
+  X, Check, SkipForward, ChevronDown, ChevronUp,
+  AlertCircle, Clock, CheckCircle2,
+} from 'lucide-react'
 import type { PlantingEvent, RecommendedOperation, OperationStatus } from '../types'
+import type { FarmOperation } from '../hooks/useOperationsApi'
 import { getCropById } from '../data/cropLibrary'
+
+// ──────────────────────────────────────────────────────────────────────────
+// Operations view — the calendar check-off screen (SDD §6.2), now with:
+//  - Undo:   completed/skipped items can be reopened ("Deshacer"/"Reactivar")
+//  - Edit:   completed items can be corrected without redoing them
+//  - Partial logs: harvests too big for one day are logged day by day
+//    ("Parcial") without closing the calendar item; progress accumulates
+//    under the row until the final check-off.
+// ──────────────────────────────────────────────────────────────────────────
+
+export type CheckOffFormData = {
+  completedDate: string
+  notes?: string
+  product?: string
+  quantity?: number
+  unit?: string
+}
+
+type ModalMode = 'complete' | 'partial' | 'edit'
 
 type Props = {
   plantingEvents: PlantingEvent[]
   fieldName: string
+  /** Farm operations log — used to show partial-log progress per row. */
+  farmOperations: FarmOperation[]
   onClose: () => void
-  onCompleteOperation: (
-    eventId: string,
-    operationId: string,
-    data: {
-      completedDate: string
-      notes?: string
-      product?: string
-      quantity?: number
-      unit?: string
-    }
-  ) => void
+  onCompleteOperation: (eventId: string, operationId: string, data: CheckOffFormData) => void
   onSkipOperation: (eventId: string, operationId: string) => void
+  /** Reopen a completed or skipped operation. */
+  onUndoOperation: (eventId: string, operationId: string) => void
+  /** Correct the values of a completed operation (logId = operations-log entry). */
+  onEditOperation: (eventId: string, operationId: string, logId: string, data: CheckOffFormData) => void
+  /** Log a day's progress without completing the operation. */
+  onPartialLog: (eventId: string, operationId: string, data: CheckOffFormData) => void
 }
 
 export default function OperationsView({
-  plantingEvents, fieldName, onClose,
+  plantingEvents, fieldName, farmOperations, onClose,
   onCompleteOperation, onSkipOperation,
+  onUndoOperation, onEditOperation, onPartialLog,
 }: Props) {
-  const [checkingOff, setCheckingOff] = useState<{
+  const [modal, setModal] = useState<{
+    mode: ModalMode
     eventId: string
     operationId: string
     operation: RecommendedOperation
   } | null>(null)
+
+  // Partial logs grouped by recommended-operation id. A "partial" is any log
+  // entry linked to a recommendation that is NOT the entry that completed it
+  // (the completing entry is already shown by the row's completed state).
+  const partialsByRecOp = useMemo(() => {
+    const completedIds = new Set(
+      plantingEvents
+        .flatMap(e => e.operations)
+        .map(op => op.completedOperationId)
+        .filter(Boolean) as string[]
+    )
+    const map = new Map<string, FarmOperation[]>()
+    for (const fo of farmOperations) {
+      if (!fo.recommendedOperationId || completedIds.has(fo.id)) continue
+      const list = map.get(fo.recommendedOperationId) ?? []
+      list.push(fo)
+      map.set(fo.recommendedOperationId, list)
+    }
+    return map
+  }, [farmOperations, plantingEvents])
 
   // Sort events by planting date, newest first
   const sortedEvents = [...plantingEvents].sort(
@@ -94,28 +137,42 @@ export default function OperationsView({
             <PlantingEventCard
               key={event.id}
               event={event}
+              partialsByRecOp={partialsByRecOp}
               onCheckOff={(operationId, operation) =>
-                setCheckingOff({ eventId: event.id, operationId, operation })
+                setModal({ mode: 'complete', eventId: event.id, operationId, operation })
               }
               onSkip={(operationId) => onSkipOperation(event.id, operationId)}
+              onUndo={(operationId) => onUndoOperation(event.id, operationId)}
+              onEdit={(operationId, operation) =>
+                setModal({ mode: 'edit', eventId: event.id, operationId, operation })
+              }
+              onPartial={(operationId, operation) =>
+                setModal({ mode: 'partial', eventId: event.id, operationId, operation })
+              }
             />
           ))
         )}
       </div>
 
-      {/* Check-off modal */}
-      {checkingOff && (
+      {/* Check-off / partial / edit modal */}
+      {modal && (
         <CheckOffModal
-          operation={checkingOff.operation}
+          mode={modal.mode}
+          operation={modal.operation}
           onConfirm={(data) => {
-            onCompleteOperation(
-              checkingOff.eventId,
-              checkingOff.operationId,
-              data
-            )
-            setCheckingOff(null)
+            if (modal.mode === 'complete') {
+              onCompleteOperation(modal.eventId, modal.operationId, data)
+            } else if (modal.mode === 'partial') {
+              onPartialLog(modal.eventId, modal.operationId, data)
+            } else if (modal.operation.completedOperationId) {
+              onEditOperation(
+                modal.eventId, modal.operationId,
+                modal.operation.completedOperationId, data
+              )
+            }
+            setModal(null)
           }}
-          onCancel={() => setCheckingOff(null)}
+          onCancel={() => setModal(null)}
         />
       )}
     </div>
@@ -124,11 +181,15 @@ export default function OperationsView({
 
 // ── Planting Event Card ───────────────────────────────────────────────
 function PlantingEventCard({
-  event, onCheckOff, onSkip,
+  event, partialsByRecOp, onCheckOff, onSkip, onUndo, onEdit, onPartial,
 }: {
   event: PlantingEvent
+  partialsByRecOp: Map<string, FarmOperation[]>
   onCheckOff: (operationId: string, operation: RecommendedOperation) => void
   onSkip: (operationId: string) => void
+  onUndo: (operationId: string) => void
+  onEdit: (operationId: string, operation: RecommendedOperation) => void
+  onPartial: (operationId: string, operation: RecommendedOperation) => void
 }) {
   const [expanded, setExpanded] = useState(true)
   const crop = getCropById(event.cropTypeId)
@@ -140,6 +201,18 @@ function PlantingEventCard({
 
   const plantingDateFormatted = new Date(event.plantingDate + 'T12:00:00')
     .toLocaleDateString('es-PR', { day: 'numeric', month: 'long', year: 'numeric' })
+
+  const renderRow = (op: RecommendedOperation, status: OperationStatus) => (
+    <OperationRow
+      key={op.id} operation={op} status={status}
+      partials={partialsByRecOp.get(op.id) ?? []}
+      onCheckOff={() => onCheckOff(op.id, op)}
+      onSkip={() => onSkip(op.id)}
+      onUndo={() => onUndo(op.id)}
+      onEdit={() => onEdit(op.id, op)}
+      onPartial={() => onPartial(op.id, op)}
+    />
+  )
 
   return (
     <div className="bg-white rounded-xl border border-[#e0e8d8] overflow-hidden">
@@ -186,46 +259,13 @@ function PlantingEventCard({
         />
       </div>
 
-      {/* Operations list */}
+      {/* Operations list: due first, then pending, completed, skipped */}
       {expanded && (
         <div className="divide-y divide-[#f5f8f0]">
-
-          {/* Due operations first */}
-          {due.map(op => (
-            <OperationRow
-              key={op.id} operation={op} status="due"
-              onCheckOff={() => onCheckOff(op.id, op)}
-              onSkip={() => onSkip(op.id)}
-            />
-          ))}
-
-          {/* Pending */}
-          {pending.map(op => (
-            <OperationRow
-              key={op.id} operation={op} status="pending"
-              onCheckOff={() => onCheckOff(op.id, op)}
-              onSkip={() => onSkip(op.id)}
-            />
-          ))}
-
-          {/* Completed */}
-          {completed.map(op => (
-            <OperationRow
-              key={op.id} operation={op} status="completed"
-              onCheckOff={() => {}}
-              onSkip={() => {}}
-            />
-          ))}
-
-          {/* Skipped */}
-          {skipped.map(op => (
-            <OperationRow
-              key={op.id} operation={op} status="skipped"
-              onCheckOff={() => {}}
-              onSkip={() => {}}
-            />
-          ))}
-
+          {due.map(op => renderRow(op, 'due'))}
+          {pending.map(op => renderRow(op, 'pending'))}
+          {completed.map(op => renderRow(op, 'completed'))}
+          {skipped.map(op => renderRow(op, 'skipped'))}
         </div>
       )}
     </div>
@@ -234,12 +274,16 @@ function PlantingEventCard({
 
 // ── Single operation row ──────────────────────────────────────────────
 function OperationRow({
-  operation, status, onCheckOff, onSkip,
+  operation, status, partials, onCheckOff, onSkip, onUndo, onEdit, onPartial,
 }: {
   operation: RecommendedOperation
   status: OperationStatus
+  partials: FarmOperation[]
   onCheckOff: () => void
   onSkip: () => void
+  onUndo: () => void
+  onEdit: () => void
+  onPartial: () => void
 }) {
   const dateFormatted = new Date(operation.recommendedDate + 'T12:00:00')
     .toLocaleDateString('es-PR', { day: 'numeric', month: 'short', year: 'numeric' })
@@ -259,6 +303,25 @@ function OperationRow({
     completed: 'border-l-4 border-l-[#639922] opacity-60',
     skipped: 'border-l-4 border-l-gray-300 opacity-50',
   }
+
+  // Partial progress summary, e.g. "2 registros parciales · 150 lb + 3 cajas"
+  const partialSummary = (() => {
+    if (partials.length === 0) return null
+    const totals: Record<string, number> = {}
+    for (const p of partials) {
+      if (p.quantity && p.quantity > 0) {
+        const u = p.unit?.trim() || 'lb'
+        totals[u] = (totals[u] ?? 0) + p.quantity
+      }
+    }
+    const qty = Object.entries(totals)
+      .map(([u, q]) => `${q.toLocaleString()} ${u}`)
+      .join(' + ')
+    return `${partials.length} ${partials.length === 1 ? 'registro parcial' : 'registros parciales'}${qty ? ` · ${qty}` : ''}`
+  })()
+
+  const isOpen = status === 'pending' || status === 'due'
+  const smallBtn = 'text-[10px] shrink-0 transition-colors'
 
   return (
     <div className={`flex items-center gap-3 px-4 py-3 ${statusStyles[status]}`}>
@@ -306,16 +369,68 @@ function OperationRow({
           {operation.product && status === 'completed' && (
             <p className="text-[10px] text-[#9aab8a]">· {operation.product}</p>
           )}
+          {operation.quantity != null && status === 'completed' && (
+            <p className="text-[10px] text-[#9aab8a]">
+              · {operation.quantity.toLocaleString()} {operation.unit ?? ''}
+            </p>
+          )}
         </div>
+        {/* Accumulated partial-log progress (multi-day harvests) */}
+        {partialSummary && (
+          <p className="text-[10px] text-[#639922] font-medium mt-0.5">
+            🧺 {partialSummary}
+          </p>
+        )}
       </div>
 
-      {/* Skip button — only for pending/due */}
-      {(status === 'pending' || status === 'due') && (
-        <button
-          onClick={onSkip}
-          className="text-[10px] text-[#c0d0b0] hover:text-[#9aab8a] transition-colors shrink-0"
+      {/* Row actions by status */}
+      {isOpen && (
+        <>
+          {/* Partial logging only makes sense for harvests — spraying half a
+              field one day and half the next is logged as two standalone ops */}
+          {operation.type === 'harvest' && (
+            <button onClick={onPartial}
+              className={`${smallBtn} text-[#639922] hover:text-[#2d4a1e] font-medium`}
+              title="Registrar avance sin completar la labor"
+            >
+              Parcial
+            </button>
+          )}
+          <button onClick={onSkip}
+            className={`${smallBtn} text-[#c0d0b0] hover:text-[#9aab8a]`}
+          >
+            Omitir
+          </button>
+        </>
+      )}
+
+      {status === 'completed' && (
+        <>
+          {/* Editing needs the linked log entry; legacy check-offs made
+              before the API wiring don't have one */}
+          {operation.completedOperationId && (
+            <button onClick={onEdit}
+              className={`${smallBtn} text-[#7a8a6a] hover:text-[#2d4a1e]`}
+              title="Corregir fecha, cantidad o producto"
+            >
+              Editar
+            </button>
+          )}
+          <button onClick={onUndo}
+            className={`${smallBtn} text-[#c0d0b0] hover:text-red-400`}
+            title="Deshacer — la labor vuelve a quedar pendiente"
+          >
+            Deshacer
+          </button>
+        </>
+      )}
+
+      {status === 'skipped' && (
+        <button onClick={onUndo}
+          className={`${smallBtn} text-[#c0d0b0] hover:text-[#639922]`}
+          title="Reactivar esta labor"
         >
-          Omitir
+          Reactivar
         </button>
       )}
 
@@ -323,31 +438,42 @@ function OperationRow({
   )
 }
 
-// ── Check-off modal ───────────────────────────────────────────────────
+// ── Check-off / partial / edit modal ──────────────────────────────────
+// One form, three modes:
+//  - complete: original check-off (empty form, today's date)
+//  - partial:  same fields, but confirms a progress log, not a completion
+//  - edit:     prefilled with the completed values for correction
+const MODAL_COPY: Record<ModalMode, { title: string; confirm: string; dateLabel: string }> = {
+  complete: { title: 'Confirmar operación', confirm: 'Confirmar', dateLabel: 'Fecha de realización' },
+  partial: { title: 'Registrar avance parcial', confirm: 'Registrar avance', dateLabel: 'Fecha del avance' },
+  edit: { title: 'Editar operación', confirm: 'Guardar cambios', dateLabel: 'Fecha de realización' },
+}
+
 function CheckOffModal({
-  operation,
-  onConfirm,
-  onCancel,
+  mode, operation, onConfirm, onCancel,
 }: {
+  mode: ModalMode
   operation: RecommendedOperation
-  onConfirm: (data: {
-    completedDate: string
-    notes?: string
-    product?: string
-    quantity?: number
-    unit?: string
-  }) => void
+  onConfirm: (data: CheckOffFormData) => void
   onCancel: () => void
 }) {
   const today = new Date().toISOString().split('T')[0]
-  const [completedDate, setCompletedDate] = useState(today)
-  const [notes, setNotes] = useState('')
-  const [product, setProduct] = useState(operation.product ?? '')
-  const [quantity, setQuantity] = useState('')
-  const [unit, setUnit] = useState('kg')
+  const isEdit = mode === 'edit'
 
+  const [completedDate, setCompletedDate] = useState(
+    isEdit ? (operation.completedDate ?? today) : today
+  )
+  const [notes, setNotes] = useState(isEdit ? (operation.notes ?? '') : '')
+  const [product, setProduct] = useState(operation.product ?? '')
+  const [quantity, setQuantity] = useState(
+    isEdit && operation.quantity != null ? String(operation.quantity) : ''
+  )
+  const [unit, setUnit] = useState(isEdit ? (operation.unit ?? 'kg') : 'kg')
+
+  const copy = MODAL_COPY[mode]
   const needsProduct = ['fertilization', 'spray'].includes(operation.type)
-  const needsQuantity = ['fertilization', 'spray', 'harvest'].includes(operation.type)
+  const needsQuantity = mode === 'partial'
+    || ['fertilization', 'spray', 'harvest'].includes(operation.type)
 
   const units = operation.type === 'harvest'
     ? ['kg', 'lb', 'unidades', 'cajas', 'sacos']
@@ -368,9 +494,15 @@ function CheckOffModal({
           {/* Header */}
           <div className="px-5 py-4 border-b border-[#e0e8d8] bg-[#f5f8f0]">
             <p className="text-sm font-semibold text-[#2d4a1e]">
-              Confirmar operación
+              {copy.title}
             </p>
             <p className="text-xs text-[#7a8a6a] mt-0.5">{operation.labelEs}</p>
+            {mode === 'partial' && (
+              <p className="text-[10px] text-[#9aab8a] mt-1">
+                La labor seguirá pendiente — ideal para cosechas de varios días.
+                Márcala completada cuando termines.
+              </p>
+            )}
           </div>
 
           <div className="px-5 py-4 flex flex-col gap-4">
@@ -378,7 +510,7 @@ function CheckOffModal({
             {/* Date */}
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-[#5a6a4a]">
-                Fecha de realización
+                {copy.dateLabel}
               </label>
               <input
                 type="date"
@@ -470,7 +602,7 @@ function CheckOffModal({
               className="flex-1 flex items-center justify-center gap-2 py-2 bg-[#2d4a1e] text-[#d4e8b0] rounded-lg text-sm font-medium hover:bg-[#3d6128] transition-colors"
             >
               <Check size={14} />
-              Confirmar
+              {copy.confirm}
             </button>
           </div>
 

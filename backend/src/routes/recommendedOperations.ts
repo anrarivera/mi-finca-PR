@@ -59,6 +59,12 @@ function todayUtc(): Date {
   return d
 }
 
+// The open status a recommendation should carry given its date: past-due
+// items reopen as 'due', future ones as 'pending'. Used by undo/unskip.
+function openStatusFor(recommendedDate: Date): 'due' | 'pending' {
+  return recommendedDate < todayUtc() ? 'due' : 'pending'
+}
+
 // Context included with every listing so the UI can label entries without a
 // second round-trip (field + crop for crop ops, unit name for livestock ops).
 const recOpInclude = {
@@ -217,6 +223,7 @@ router.post('/:id/complete', async (req: Request, res: Response, next: NextFunct
           data: {
             farmId,
             fieldId: recOp.plantingEvent.fieldId,
+            operationId: operation.id, // keeps the yield in sync with edits/undo
             cropTypeId: recOp.plantingEvent.cropTypeId,
             quantity,
             unit: unit ?? 'lb',
@@ -240,6 +247,136 @@ router.post('/:id/complete', async (req: Request, res: Response, next: NextFunct
         recommendedOperation: serializeRecOp(result.recommendedOperation),
       },
     })
+  } catch (err) {
+    next(err)
+  }
+})
+
+// ─────────────────────────────────────────────────────────────────────
+// POST /api/v1/farms/:farmId/recommended-operations/:id/log-partial
+// Log progress against a recommendation WITHOUT completing it — the
+// multi-day-harvest case: a field too big to harvest in one day gets one
+// partial log per day, each with its own date/quantity, and the calendar
+// item stays open until the farmer completes it on the final day.
+// Creates an operations-log entry (linked via recommendedOperationId but
+// NOT completedOperationId) and, for harvests with a quantity, a yield
+// record. Works for any open recommendation, not just harvests.
+// ─────────────────────────────────────────────────────────────────────
+router.post('/:id/log-partial', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const farmId = req.params.farmId as string
+    const id = req.params.id as string
+    const userId = req.user!.userId
+
+    if (!id || id.length > 300) throw Errors.notFound('Recommended operation')
+    await requireFarmOwnership(userId, farmId)
+
+    const recOp = await prisma.recommendedOperation.findFirst({
+      where: { id, ...ownedByFarm(farmId) },
+      include: { plantingEvent: { select: { fieldId: true, cropTypeId: true } } },
+    })
+    if (!recOp) throw Errors.notFound('Recommended operation')
+    if (recOp.status === 'completed' || recOp.status === 'skipped') {
+      throw Errors.conflict('Only open operations can receive partial logs')
+    }
+
+    const { date, product, quantity, unit, notes } = req.body ?? {}
+    const actualDate = new Date(date ?? todayUtc())
+
+    const operation = await prisma.$transaction(async (tx) => {
+      const created = await tx.operation.create({
+        data: {
+          farmId,
+          fieldId: recOp.plantingEvent?.fieldId ?? null,
+          plantingEventId: recOp.plantingEventId,
+          livestockUnitId: recOp.livestockUnitId,
+          recommendedOperationId: recOp.id, // linked, but the rec op stays open
+          type: recOp.type,
+          actualDate,
+          notes: notes ?? null,
+          product: product ?? null,
+          quantity: quantity ?? null,
+          unit: unit ?? null,
+        },
+      })
+
+      if (recOp.type === 'harvest' && quantity !== undefined && quantity !== null &&
+          recOp.plantingEvent?.cropTypeId) {
+        await tx.harvestYield.create({
+          data: {
+            farmId,
+            fieldId: recOp.plantingEvent.fieldId,
+            operationId: created.id,
+            cropTypeId: recOp.plantingEvent.cropTypeId,
+            quantity,
+            unit: unit ?? 'lb',
+            harvestDate: actualDate,
+            notes: notes ?? null,
+          },
+        })
+      }
+
+      return created
+    })
+
+    res.status(201).json({
+      success: true,
+      data: {
+        ...operation,
+        quantity: operation.quantity !== null ? Number(operation.quantity) : null,
+        actualDate: toDateStr(operation.actualDate),
+      },
+    })
+  } catch (err) {
+    next(err)
+  }
+})
+
+// ─────────────────────────────────────────────────────────────────────
+// POST /api/v1/farms/:farmId/recommended-operations/:id/undo
+// Reopen a recommendation:
+//  - skipped  → back to pending/due (by date)
+//  - completed → deletes the completing operations-log entry and its
+//    harvest yield, then reopens. Partial logs are NOT touched — undoing
+//    the final check-off of a 3-day harvest keeps days 1–2 on the books.
+// ─────────────────────────────────────────────────────────────────────
+router.post('/:id/undo', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const farmId = req.params.farmId as string
+    const id = req.params.id as string
+    const userId = req.user!.userId
+
+    if (!id || id.length > 300) throw Errors.notFound('Recommended operation')
+    await requireFarmOwnership(userId, farmId)
+
+    const recOp = await prisma.recommendedOperation.findFirst({
+      where: { id, ...ownedByFarm(farmId) },
+    })
+    if (!recOp) throw Errors.notFound('Recommended operation')
+    if (recOp.status !== 'completed' && recOp.status !== 'skipped') {
+      throw Errors.conflict('Only completed or skipped operations can be undone')
+    }
+
+    const updated = await prisma.$transaction(async (tx) => {
+      if (recOp.completedOperationId) {
+        // Remove the yield the check-off created, then the log entry itself.
+        await tx.harvestYield.updateMany({
+          where: { operationId: recOp.completedOperationId, deletedAt: null },
+          data: { deletedAt: new Date() },
+        })
+        await tx.operation.deleteMany({ where: { id: recOp.completedOperationId } })
+      }
+      return tx.recommendedOperation.update({
+        where: { id: recOp.id },
+        data: {
+          status: openStatusFor(recOp.recommendedDate),
+          completedDate: null,
+          completedOperationId: null,
+        },
+      })
+    })
+
+    res.json({ success: true, data: serializeRecOp(updated) })
   } catch (err) {
     next(err)
   }

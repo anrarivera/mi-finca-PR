@@ -162,6 +162,104 @@ export function useSkipRecommendedOp(farmId: string) {
   })
 }
 
+// ── Undo (reopen) a completed or skipped recommended operation ────────
+// Server deletes the completing log entry + its harvest yield and reopens
+// the recommendation as pending/due by date. Partial logs are preserved.
+export function useUndoRecommendedOp(farmId: string) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (vars: {
+      fieldId: string
+      eventId: string
+      operationId: string
+    }) => {
+      return api.post<{ status: string }>(
+        `/api/v1/farms/${farmId}/recommended-operations/${vars.operationId}/undo`
+      )
+    },
+    onSuccess: (recOp, vars) => {
+      // Server decides pending vs due — mirror its answer locally.
+      patchLocalOperation(vars.fieldId, vars.eventId, vars.operationId, {
+        status: recOp.status,
+        completedDate: undefined,
+        completedOperationId: null,
+      })
+      queryClient.invalidateQueries({ queryKey: ['fields', farmId] })
+      queryClient.invalidateQueries({ queryKey: ['operations', farmId] })
+      queryClient.invalidateQueries({ queryKey: ['recommended-operations'] })
+    },
+  })
+}
+
+// ── Partial log against an open recommendation ────────────────────────
+// The multi-day-harvest flow: records a day's progress (date + quantity)
+// in the operations log (and harvest yields) WITHOUT closing the calendar
+// item, so a 3-day harvest is three partial logs + one final check-off.
+export function useLogPartialRecommendedOp(farmId: string) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (vars: {
+      operationId: string
+      data: { date: string; product?: string; quantity?: number; unit?: string; notes?: string }
+    }) => {
+      return api.post<FarmOperation>(
+        `/api/v1/farms/${farmId}/recommended-operations/${vars.operationId}/log-partial`,
+        vars.data
+      )
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['operations', farmId] })
+      queryClient.invalidateQueries({ queryKey: ['recommended-operations'] })
+    },
+  })
+}
+
+// ── Edit a logged operation ───────────────────────────────────────────
+// The server mirrors changes onto the linked harvest yield and, when this
+// entry completed a recommendation, onto the recommendation's shown values.
+export function useUpdateOperation(farmId: string) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (vars: {
+      id: string
+      updates: Partial<Pick<FarmOperation,
+        'type' | 'actualDate' | 'notes' | 'product' | 'quantity' | 'unit' | 'qualityRating'>>
+    }) => {
+      return api.patch<FarmOperation>(
+        `/api/v1/farms/${farmId}/operations/${vars.id}`,
+        vars.updates
+      )
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['operations', farmId] })
+      queryClient.invalidateQueries({ queryKey: ['fields', farmId] })
+      queryClient.invalidateQueries({ queryKey: ['recommended-operations'] })
+    },
+  })
+}
+
+// ── Delete a logged operation ─────────────────────────────────────────
+// Server-side this also removes the linked harvest yield and reopens any
+// recommendation this entry had completed.
+export function useDeleteOperation(farmId: string) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      await api.delete(`/api/v1/farms/${farmId}/operations/${id}`)
+      return id
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['operations', farmId] })
+      queryClient.invalidateQueries({ queryKey: ['fields', farmId] })
+      queryClient.invalidateQueries({ queryKey: ['recommended-operations'] })
+    },
+  })
+}
+
 // ── CSV export ────────────────────────────────────────────────────────
 // The export endpoint streams a file, so it bypasses the JSON ApiClient:
 // fetch with the Bearer token and hand the blob to the browser.

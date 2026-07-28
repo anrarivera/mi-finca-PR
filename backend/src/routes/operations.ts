@@ -84,6 +84,7 @@ async function maybeCreateHarvestYield(
     data: {
       farmId,
       fieldId: op.fieldId,
+      operationId: op.id, // link back so edits/deletes of the log stay in sync
       cropTypeId,
       quantity: op.quantity,
       unit: op.unit ?? 'lb',
@@ -321,17 +322,46 @@ router.patch('/:id', async (req: Request, res: Response, next: NextFunction) => 
       throw Errors.validation('qualityRating must be an integer between 1 and 5')
     }
 
-    const updated = await prisma.operation.update({
-      where: { id },
-      data: {
-        ...(type !== undefined && { type }),
-        ...(actualDate !== undefined && { actualDate: new Date(actualDate) }),
-        ...(notes !== undefined && { notes }),
-        ...(product !== undefined && { product }),
-        ...(quantity !== undefined && { quantity }),
-        ...(unit !== undefined && { unit }),
-        ...(qualityRating !== undefined && { qualityRating }),
-      },
+    // Update the log entry and keep its derived records honest: the linked
+    // harvest yield mirrors quantity/unit/date/notes, and if this entry is
+    // the one that completed a recommendation, the recommendation's mirrored
+    // fields follow too (so the calendar shows the corrected values).
+    const updated = await prisma.$transaction(async (tx) => {
+      const op = await tx.operation.update({
+        where: { id },
+        data: {
+          ...(type !== undefined && { type }),
+          ...(actualDate !== undefined && { actualDate: new Date(actualDate) }),
+          ...(notes !== undefined && { notes }),
+          ...(product !== undefined && { product }),
+          ...(quantity !== undefined && { quantity }),
+          ...(unit !== undefined && { unit }),
+          ...(qualityRating !== undefined && { qualityRating }),
+        },
+      })
+
+      await tx.harvestYield.updateMany({
+        where: { operationId: id, deletedAt: null },
+        data: {
+          ...(actualDate !== undefined && { harvestDate: new Date(actualDate) }),
+          ...(quantity !== undefined && quantity !== null && { quantity }),
+          ...(unit !== undefined && unit !== null && { unit }),
+          ...(notes !== undefined && { notes }),
+        },
+      })
+
+      await tx.recommendedOperation.updateMany({
+        where: { completedOperationId: id },
+        data: {
+          ...(actualDate !== undefined && { completedDate: new Date(actualDate) }),
+          ...(product !== undefined && { product }),
+          ...(quantity !== undefined && { quantity }),
+          ...(unit !== undefined && { unit }),
+          ...(notes !== undefined && { notes }),
+        },
+      })
+
+      return op
     })
 
     res.json({ success: true, data: serializeOperation(updated) })
@@ -359,10 +389,29 @@ router.delete('/:id', async (req: Request, res: Response, next: NextFunction) =>
     if (!existing) throw Errors.notFound('Operation')
 
     await prisma.$transaction(async (tx) => {
-      // Un-complete any recommendation that pointed at this log entry.
-      await tx.recommendedOperation.updateMany({
+      // Un-complete any recommendation that pointed at this log entry. The
+      // status goes back to due (not just pending) when its date has passed,
+      // so the calendar immediately shows it as outstanding again.
+      const today = new Date()
+      today.setUTCHours(0, 0, 0, 0)
+      const linked = await tx.recommendedOperation.findMany({
         where: { completedOperationId: id },
-        data: { status: 'pending', completedDate: null, completedOperationId: null },
+        select: { id: true, recommendedDate: true },
+      })
+      for (const rec of linked) {
+        await tx.recommendedOperation.update({
+          where: { id: rec.id },
+          data: {
+            status: rec.recommendedDate < today ? 'due' : 'pending',
+            completedDate: null,
+            completedOperationId: null,
+          },
+        })
+      }
+      // The yield this log entry produced goes with it (soft delete).
+      await tx.harvestYield.updateMany({
+        where: { operationId: id, deletedAt: null },
+        data: { deletedAt: new Date() },
       })
       await tx.operation.delete({ where: { id } })
     })

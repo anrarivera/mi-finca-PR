@@ -186,6 +186,7 @@ model Operation {
   plantingEvent         PlantingEvent? @relation(fields: [plantingEventId], references: [id])
   livestockUnit         LivestockUnit? @relation(fields: [livestockUnitId], references: [id])
   recommendedOperations RecommendedOperation[]
+  harvestYields         HarvestYield[]
 
   @@map("operations")
 }
@@ -194,6 +195,10 @@ model HarvestYield {
   id          String    @id @default(uuid())
   farmId      String
   fieldId     String?
+  // Link back to the operations-log entry that produced this yield, so
+  // editing/deleting the log entry keeps the yield in sync. Null for yields
+  // created directly through the harvests API.
+  operationId String?
   cropTypeId  String
   quantity    Decimal   @db.Decimal(10, 2)
   unit        String
@@ -203,8 +208,9 @@ model HarvestYield {
   updatedAt   DateTime  @updatedAt
   deletedAt   DateTime?
 
-  farm        Farm    @relation(fields: [farmId], references: [id], onDelete: Cascade)
-  field       Field?  @relation(fields: [fieldId], references: [id], onDelete: SetNull)
+  farm        Farm       @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  field       Field?     @relation(fields: [fieldId], references: [id], onDelete: SetNull)
+  operation   Operation? @relation(fields: [operationId], references: [id], onDelete: SetNull)
 
   @@map("harvest_yields")
 }
