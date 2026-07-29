@@ -62,13 +62,14 @@ export default function RowFillPanel({ boundary, onPreview, onConfirm, onCancel 
   // Added by Claude — 'parallel' = straight rows; 'contour' = rings following
   // the field shape.
   const [pattern, setPattern] = useState<'parallel' | 'contour'>('parallel')
-  // Group transform for parallel rows: nudge east/north and rotate around
-  // the field centre. Plants clip live to the boundary minus the margin.
-  const [offsetEastFt, setOffsetEastFt] = useState(0)
-  const [offsetNorthFt, setOffsetNorthFt] = useState(0)
+  // Group transform for parallel rows, in the rows' own frame: ←/→ slide
+  // along the rows, ↑/↓ move across the stack, plus rotation around the
+  // field centre. Plants clip live to the boundary minus the margin.
+  const [offsetAlongFt, setOffsetAlongFt] = useState(0)
+  const [offsetAcrossFt, setOffsetAcrossFt] = useState(0)
   const [rotateDeg, setRotateDeg] = useState(0)
   const [moveStepFt, setMoveStepFt] = useState(5)
-  const hasTransform = offsetEastFt !== 0 || offsetNorthFt !== 0 || rotateDeg !== 0
+  const hasTransform = offsetAlongFt !== 0 || offsetAcrossFt !== 0 || rotateDeg !== 0
   // Default the row count to what fills the field once (rows along the long
   // axis stack across the short side), then let the user edit it.
   const [count, setCount] = useState(() => {
@@ -138,8 +139,8 @@ export default function RowFillPanel({ boundary, onPreview, onConfirm, onCancel 
     // none are added back — shifting a row off one side shortens it (half-
     // field layouts), it never regrows on the opposite side.
     const positionsPerRow = transformFillRows(geoms, boundary, {
-      rotateDeg, offsetEastFt, offsetNorthFt,
-      spacingFt, marginFt,
+      rotateDeg, offsetAlongFt, offsetAcrossFt,
+      orientation, spacingFt, marginFt,
     })
     positionsPerRow.forEach((positions, idx) => {
       if (positions.length < 2) return
@@ -164,7 +165,7 @@ export default function RowFillPanel({ boundary, onPreview, onConfirm, onCancel 
   }, [
     boundary, pattern, orientation, count, marginFt, rowSpacingFt, maxLength, rowLengthFt,
     spacingFt, primaryCropId, companionCropId, plantingDate,
-    rotateDeg, offsetEastFt, offsetNorthFt,
+    rotateDeg, offsetAlongFt, offsetAcrossFt,
   ])
 
   // Push the preview up so the canvas can draw it; clear it on unmount.
@@ -308,24 +309,25 @@ export default function RowFillPanel({ boundary, onPreview, onConfirm, onCancel 
         <div className="flex flex-col gap-1.5">
           <label className="text-xs font-medium text-[#5a6a4a]">Mover y rotar</label>
           <div className="flex items-start gap-3">
-            {/* D-pad — moves in map directions (arriba = norte) */}
+            {/* D-pad — in the rows' frame: ←/→ a lo largo de las hileras,
+                ↑/↓ a lo ancho (entre hileras) */}
             <div className="grid grid-cols-3 gap-1 shrink-0">
               <div />
-              <button onClick={() => setOffsetNorthFt(v => v + moveStepFt)}
-                title="Mover hacia arriba" className={PAD_BTN}>
+              <button onClick={() => setOffsetAcrossFt(v => v + moveStepFt)}
+                title="Mover a lo ancho (entre hileras)" className={PAD_BTN}>
                 <ArrowUp size={13} />
               </button>
               <div />
-              <button onClick={() => setOffsetEastFt(v => v - moveStepFt)}
-                title="Mover a la izquierda" className={PAD_BTN}>
+              <button onClick={() => setOffsetAlongFt(v => v - moveStepFt)}
+                title="Mover a lo largo de las hileras" className={PAD_BTN}>
                 <ArrowLeft size={13} />
               </button>
-              <button onClick={() => setOffsetNorthFt(v => v - moveStepFt)}
-                title="Mover hacia abajo" className={PAD_BTN}>
+              <button onClick={() => setOffsetAcrossFt(v => v - moveStepFt)}
+                title="Mover a lo ancho (entre hileras)" className={PAD_BTN}>
                 <ArrowDown size={13} />
               </button>
-              <button onClick={() => setOffsetEastFt(v => v + moveStepFt)}
-                title="Mover a la derecha" className={PAD_BTN}>
+              <button onClick={() => setOffsetAlongFt(v => v + moveStepFt)}
+                title="Mover a lo largo de las hileras" className={PAD_BTN}>
                 <ArrowRight size={13} />
               </button>
             </div>
@@ -360,7 +362,7 @@ export default function RowFillPanel({ boundary, onPreview, onConfirm, onCancel 
 
           {hasTransform && (
             <button
-              onClick={() => { setOffsetEastFt(0); setOffsetNorthFt(0); setRotateDeg(0) }}
+              onClick={() => { setOffsetAlongFt(0); setOffsetAcrossFt(0); setRotateDeg(0) }}
               className="flex items-center justify-center gap-1.5 py-1.5 text-[10px] text-[#9aab8a] border border-[#e0e8d8] rounded-lg hover:text-[#2d4a1e] hover:bg-[#f5f8f0] transition-colors"
             >
               <Undo2 size={11} /> Restablecer posición
@@ -368,9 +370,11 @@ export default function RowFillPanel({ boundary, onPreview, onConfirm, onCancel 
           )}
 
           <p className="text-[10px] text-[#9aab8a]">
-            Las plantas que salgan del campo o del margen se quitan de la
-            hilera — así puedes acortar hileras sacándolas por un lado
-            (p. ej. hileras de media anchura para dos cultivos).
+            Las flechas siguen la orientación de las hileras: ←/→ a lo
+            largo, ↑/↓ a lo ancho. Las plantas que salgan del campo o del
+            margen se quitan de la hilera — así puedes acortar hileras
+            sacándolas por un lado (p. ej. hileras de media anchura para
+            dos cultivos).
           </p>
         </div>
         </>)}

@@ -533,26 +533,38 @@ export function maxRowsThatFit(
 
 // ── Move / rotate the generated rows ──────────────────────────────────
 // Takes the bare row lines from generateFillRows, applies a group rotation
-// (around the field's oriented-rect centre) plus an east/north offset, and
-// returns each row's surviving plant positions. Each row is a FIXED segment:
-// its plants sit at exact `spacingFt` offsets from the segment centre and
-// move with it. A plant survives only while inside the field AND at least
-// `marginFt` from the boundary — dragging or rotating a row past the field
-// limit (or into the walkway margin) clips those plants off, and nothing is
-// ever added on the opposite side. That's deliberate: shifting a full-width
-// row half a field eastward leaves a half-length row on the eastern side
-// (e.g. plantains east / oranges west layouts), instead of the row
-// regrowing to full length wherever the line re-enters the field.
+// (around the field's oriented-rect centre) plus an offset expressed in the
+// ROWS' OWN FRAME — `offsetAlongFt` slides the group along the rows'
+// direction, `offsetAcrossFt` moves it perpendicular, across the stack.
+// The frame comes from the same oriented-rect axes that generated the rows
+// (so it matches the 'a lo largo' / 'a lo ancho' choice), sign-normalized
+// so +along points east-ish and +across north-ish, and it follows the
+// rotation: after turning the rows, "along" still means along the rows.
+// `rotateDeg` is clockwise on the map.
+//
+// Returns each row's surviving plant positions. Each row is a FIXED
+// segment: its plants sit at exact `spacingFt` offsets from the segment
+// centre and move with it. A plant survives only while inside the field
+// AND at least `marginFt` from the boundary — dragging or rotating a row
+// past the field limit (or into the walkway margin) clips those plants
+// off, and nothing is ever added on the opposite side. That's deliberate:
+// shifting a full-width row half a field over leaves a half-length row on
+// that side (e.g. plantains east / oranges west layouts), instead of the
+// row regrowing to full length wherever the line re-enters the field.
 export type RowTransform = {
+  /** Clockwise degrees on the map. */
   rotateDeg: number
-  offsetEastFt: number
-  offsetNorthFt: number
+  /** Slide along the rows' current direction (+ ≈ east/right). */
+  offsetAlongFt: number
+  /** Move across the row stack (+ ≈ north/up). */
+  offsetAcrossFt: number
 }
 
 export function transformFillRows(
   lines: Array<{ startLat: number; startLng: number; endLat: number; endLng: number }>,
   boundary: Array<{ lat: number; lng: number }>,
   opts: RowTransform & {
+    orientation: 'long' | 'short'
     spacingFt: number
     marginFt: number
   }
@@ -563,9 +575,28 @@ export function transformFillRows(
   const rect = minAreaRect(convexHull(polyFt))
   const pivot = rect.center
 
-  const theta = (opts.rotateDeg * Math.PI) / 180
+  // UI degrees are clockwise; the ft-plane (x east, y north) rotates CCW
+  // for positive angles, so negate.
+  const theta = (-opts.rotateDeg * Math.PI) / 180
   const cos = Math.cos(theta), sin = Math.sin(theta)
-  const dx = opts.offsetEastFt, dy = opts.offsetNorthFt
+  const rotVec = (v: FtPoint): FtPoint =>
+    ({ x: v.x * cos - v.y * sin, y: v.x * sin + v.y * cos })
+
+  // The rows' frame — same axis pick as generateFillRows, sign-normalized
+  // for screen intuition, then rotated with the rows.
+  const wAxis: FtPoint = { x: Math.cos(rect.angle), y: Math.sin(rect.angle) }
+  const hAxis: FtPoint = { x: -Math.sin(rect.angle), y: Math.cos(rect.angle) }
+  const widthIsLong = rect.width >= rect.height
+  const alongIsWidth = opts.orientation === 'long' ? widthIsLong : !widthIsLong
+  let along = alongIsWidth ? wAxis : hAxis
+  let across = alongIsWidth ? hAxis : wAxis
+  if (along.x < 0 || (Math.abs(along.x) < 1e-9 && along.y < 0)) along = { x: -along.x, y: -along.y }
+  if (across.y < 0 || (Math.abs(across.y) < 1e-9 && across.x < 0)) across = { x: -across.x, y: -across.y }
+  along = rotVec(along)
+  across = rotVec(across)
+  const dx = along.x * opts.offsetAlongFt + across.x * opts.offsetAcrossFt
+  const dy = along.y * opts.offsetAlongFt + across.y * opts.offsetAcrossFt
+
   const margin = Math.max(0, opts.marginFt)
   const spacing = Math.max(1, opts.spacingFt)
 
