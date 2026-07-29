@@ -133,13 +133,13 @@ export default function RowFillPanel({ boundary, onPreview, onConfirm, onCancel 
       rowLengthFt: maxLength ? null : rowLengthFt,
     })
     // Apply the group move/rotate and clip each row to the field, keeping a
-    // real `marginFt` gap from the boundary on every side. Plants shed where
-    // the row leaves the plantable area and (in "Máximo" mode) grow back in
-    // wherever the line re-enters it — rows adapt to their new position.
+    // real `marginFt` gap from the boundary on every side. Rows move as
+    // fixed segments: plants that leave the plantable area clip off, and
+    // none are added back — shifting a row off one side shortens it (half-
+    // field layouts), it never regrows on the opposite side.
     const positionsPerRow = transformFillRows(geoms, boundary, {
       rotateDeg, offsetEastFt, offsetNorthFt,
       spacingFt, marginFt,
-      extendToFill: maxLength,
     })
     positionsPerRow.forEach((positions, idx) => {
       if (positions.length < 2) return
@@ -368,8 +368,9 @@ export default function RowFillPanel({ boundary, onPreview, onConfirm, onCancel 
           )}
 
           <p className="text-[10px] text-[#9aab8a]">
-            Las plantas que salgan del campo o del margen se quitan; al mover
-            o rotar pueden aparecer plantas por el lado opuesto.
+            Las plantas que salgan del campo o del margen se quitan de la
+            hilera — así puedes acortar hileras sacándolas por un lado
+            (p. ej. hileras de media anchura para dos cultivos).
           </p>
         </div>
         </>)}

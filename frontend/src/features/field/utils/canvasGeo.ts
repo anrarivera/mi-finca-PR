@@ -534,15 +534,15 @@ export function maxRowsThatFit(
 // ── Move / rotate the generated rows ──────────────────────────────────
 // Takes the bare row lines from generateFillRows, applies a group rotation
 // (around the field's oriented-rect centre) plus an east/north offset, and
-// returns each row's surviving plant positions. Plants are placed from the
-// row's centre outward at exact `spacingFt` and kept only while inside the
-// field AND at least `marginFt` from the boundary — so dragging or rotating
-// a row past the field limit (or into the walkway margin) sheds plants
-// there, while parts of the line swinging back into plantable ground grow
-// plants on the opposite side. With `extendToFill` (the "Máximo" length
-// mode) the line is treated as unbounded and the margin filter alone
-// decides where each row starts and ends; with a fixed row length the
-// segment keeps its length and simply loses what falls outside.
+// returns each row's surviving plant positions. Each row is a FIXED segment:
+// its plants sit at exact `spacingFt` offsets from the segment centre and
+// move with it. A plant survives only while inside the field AND at least
+// `marginFt` from the boundary — dragging or rotating a row past the field
+// limit (or into the walkway margin) clips those plants off, and nothing is
+// ever added on the opposite side. That's deliberate: shifting a full-width
+// row half a field eastward leaves a half-length row on the eastern side
+// (e.g. plantains east / oranges west layouts), instead of the row
+// regrowing to full length wherever the line re-enters the field.
 export type RowTransform = {
   rotateDeg: number
   offsetEastFt: number
@@ -555,7 +555,6 @@ export function transformFillRows(
   opts: RowTransform & {
     spacingFt: number
     marginFt: number
-    extendToFill: boolean
   }
 ): Array<Array<{ lat: number; lng: number }>> {
   if (boundary.length < 3 || lines.length === 0) return lines.map(() => [])
@@ -569,9 +568,6 @@ export function transformFillRows(
   const dx = opts.offsetEastFt, dy = opts.offsetNorthFt
   const margin = Math.max(0, opts.marginFt)
   const spacing = Math.max(1, opts.spacingFt)
-  // Far enough for an "unbounded" line to cross the whole field from its
-  // centre, wherever the offset has taken it.
-  const reachFt = Math.hypot(rect.width, rect.height) + Math.hypot(dx, dy) + spacing
 
   const transform = (p: FtPoint): FtPoint => ({
     x: pivot.x + (p.x - pivot.x) * cos - (p.y - pivot.y) * sin + dx,
@@ -587,8 +583,7 @@ export function transformFillRows(
     if (len < 1e-6) return []
     const dir = { x: (e.x - s.x) / len, y: (e.y - s.y) / len }
     const center = { x: (s.x + e.x) / 2, y: (s.y + e.y) / 2 }
-    const halfLen = opts.extendToFill ? reachFt : len / 2
-    const kMax = Math.floor(halfLen / spacing + 1e-6)
+    const kMax = Math.floor(len / 2 / spacing + 1e-6)
     const out: Array<{ lat: number; lng: number }> = []
     for (let k = -kMax; k <= kMax; k++) {
       const p = { x: center.x + dir.x * k * spacing, y: center.y + dir.y * k * spacing }

@@ -21,13 +21,13 @@ const xFt = (p: { lng: number }) => (p.lng - LNG0) * FT_PER_LNG
 const yFt = (p: { lat: number }) => (p.lat - LAT0) * FT_PER_LAT
 
 // One row along the long axis, 10 ft margin → line y=25, x from 10 to 90.
-const oneRow = () =>
+const oneRow = (rowLengthFt: number | null = null) =>
   generateFillRows(FIELD, {
     orientation: 'long',
     count: 1,
     marginFt: 10,
     rowSpacingFt: 12,
-    rowLengthFt: null,
+    rowLengthFt,
   })
 
 const BASE = {
@@ -36,7 +36,6 @@ const BASE = {
   offsetNorthFt: 0,
   spacingFt: 10,
   marginFt: 10,
-  extendToFill: true,
 }
 
 describe('transformFillRows', () => {
@@ -63,20 +62,32 @@ describe('transformFillRows', () => {
     }
   })
 
-  it('rotating 90° adapts the row to the short axis', () => {
-    const [positions] = transformFillRows(oneRow(), FIELD, { ...BASE, rotateDeg: 90 })
-    // Vertical line through x=50; only y=15,25,35 clear the 10 ft margin.
-    expect(positions).toHaveLength(3)
-    expect(positions.every(p => Math.abs(xFt(p) - 50) < 0.1)).toBe(true)
-  })
-
-  it('shifting sheds plants on one side and grows them on the other', () => {
-    // Offset 5 ft east: candidates sit at x = 15, 25, …, 85 — the x=5 and
-    // x=95 ones fall inside the margin and drop, so the row re-centres.
+  it('plants move with the row and clip off — none appear on the far side', () => {
+    // Offset 5 ft east: the whole segment shifts to x=15..95; the x=95 end
+    // enters the margin and clips. Nothing shows up at the west end.
     const [positions] = transformFillRows(oneRow(), FIELD, { ...BASE, offsetEastFt: 5 })
     expect(positions).toHaveLength(8)
     expect(Math.round(xFt(positions[0]))).toBe(15)
     expect(Math.round(xFt(positions[positions.length - 1]))).toBe(85)
+  })
+
+  it('shifting a full row half a field east leaves a half-length eastern row', () => {
+    // The plantains-east / oranges-west layout: a wall-to-wall row pushed
+    // 40 ft east keeps only its eastern half; pushed 40 ft west, only its
+    // western half. The two halves complement without overlapping.
+    const [east] = transformFillRows(oneRow(), FIELD, { ...BASE, offsetEastFt: 40 })
+    expect(east.map(p => Math.round(xFt(p)))).toEqual([50, 60, 70, 80, 90])
+
+    const [west] = transformFillRows(oneRow(), FIELD, { ...BASE, offsetEastFt: -40 })
+    expect(west.map(p => Math.round(xFt(p)))).toEqual([10, 20, 30, 40, 50])
+  })
+
+  it('rotating 90° clips the row to what fits across the short axis', () => {
+    const [positions] = transformFillRows(oneRow(), FIELD, { ...BASE, rotateDeg: 90 })
+    // The 80 ft segment turns vertical through x=50; only y=15,25,35 clear
+    // the 10 ft margin — the rest clips off.
+    expect(positions).toHaveLength(3)
+    expect(positions.every(p => Math.abs(xFt(p) - 50) < 0.1)).toBe(true)
   })
 
   it('pushing a row into the margin corridor removes it entirely', () => {
@@ -85,23 +96,13 @@ describe('transformFillRows', () => {
     expect(positions).toHaveLength(0)
   })
 
-  it('fixed-length rows keep their length and just lose what falls outside', () => {
-    const fixed = generateFillRows(FIELD, {
-      orientation: 'long',
-      count: 1,
-      marginFt: 10,
-      rowSpacingFt: 12,
-      rowLengthFt: 40, // x from 30 to 70
-    })
-    const opts = { ...BASE, extendToFill: false }
-    const [atRest] = transformFillRows(fixed, FIELD, opts)
+  it('fixed-length rows behave the same: keep their length, lose what exits', () => {
+    const fixed = oneRow(40) // x from 30 to 70, centred
+    const [atRest] = transformFillRows(fixed, FIELD, BASE)
     expect(atRest).toHaveLength(5) // x = 30, 40, 50, 60, 70
 
-    // Shift 40 ft east: segment covers x=70..110, only 70/80/90 survive —
-    // nothing appears on the west side because the length is fixed.
-    const [shifted] = transformFillRows(fixed, FIELD, { ...opts, offsetEastFt: 40 })
-    expect(shifted).toHaveLength(3)
-    expect(Math.round(xFt(shifted[0]))).toBe(70)
-    expect(Math.round(xFt(shifted[shifted.length - 1]))).toBe(90)
+    // Shift 40 ft east: segment covers x=70..110, only 70/80/90 survive.
+    const [shifted] = transformFillRows(fixed, FIELD, { ...BASE, offsetEastFt: 40 })
+    expect(shifted.map(p => Math.round(xFt(p)))).toEqual([70, 80, 90])
   })
 })
