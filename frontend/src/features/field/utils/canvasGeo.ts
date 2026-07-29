@@ -531,6 +531,73 @@ export function maxRowsThatFit(
   return Math.max(1, Math.floor(stackFt / Math.max(1, rowSpacingFt)) + 1)
 }
 
+// ── Move / rotate the generated rows ──────────────────────────────────
+// Takes the bare row lines from generateFillRows, applies a group rotation
+// (around the field's oriented-rect centre) plus an east/north offset, and
+// returns each row's surviving plant positions. Plants are placed from the
+// row's centre outward at exact `spacingFt` and kept only while inside the
+// field AND at least `marginFt` from the boundary — so dragging or rotating
+// a row past the field limit (or into the walkway margin) sheds plants
+// there, while parts of the line swinging back into plantable ground grow
+// plants on the opposite side. With `extendToFill` (the "Máximo" length
+// mode) the line is treated as unbounded and the margin filter alone
+// decides where each row starts and ends; with a fixed row length the
+// segment keeps its length and simply loses what falls outside.
+export type RowTransform = {
+  rotateDeg: number
+  offsetEastFt: number
+  offsetNorthFt: number
+}
+
+export function transformFillRows(
+  lines: Array<{ startLat: number; startLng: number; endLat: number; endLng: number }>,
+  boundary: Array<{ lat: number; lng: number }>,
+  opts: RowTransform & {
+    spacingFt: number
+    marginFt: number
+    extendToFill: boolean
+  }
+): Array<Array<{ lat: number; lng: number }>> {
+  if (boundary.length < 3 || lines.length === 0) return lines.map(() => [])
+  const lat0 = boundary[0].lat, lng0 = boundary[0].lng
+  const polyFt = boundary.map(p => toFt(p, lat0, lng0))
+  const rect = minAreaRect(convexHull(polyFt))
+  const pivot = rect.center
+
+  const theta = (opts.rotateDeg * Math.PI) / 180
+  const cos = Math.cos(theta), sin = Math.sin(theta)
+  const dx = opts.offsetEastFt, dy = opts.offsetNorthFt
+  const margin = Math.max(0, opts.marginFt)
+  const spacing = Math.max(1, opts.spacingFt)
+  // Far enough for an "unbounded" line to cross the whole field from its
+  // centre, wherever the offset has taken it.
+  const reachFt = Math.hypot(rect.width, rect.height) + Math.hypot(dx, dy) + spacing
+
+  const transform = (p: FtPoint): FtPoint => ({
+    x: pivot.x + (p.x - pivot.x) * cos - (p.y - pivot.y) * sin + dx,
+    y: pivot.y + (p.x - pivot.x) * sin + (p.y - pivot.y) * cos + dy,
+  })
+  const keep = (p: FtPoint) =>
+    pointInPolyFt(p, polyFt) && distToPolyFt(p, polyFt) >= margin - 0.01
+
+  return lines.map(line => {
+    const s = transform(toFt({ lat: line.startLat, lng: line.startLng }, lat0, lng0))
+    const e = transform(toFt({ lat: line.endLat, lng: line.endLng }, lat0, lng0))
+    const len = Math.hypot(e.x - s.x, e.y - s.y)
+    if (len < 1e-6) return []
+    const dir = { x: (e.x - s.x) / len, y: (e.y - s.y) / len }
+    const center = { x: (s.x + e.x) / 2, y: (s.y + e.y) / 2 }
+    const halfLen = opts.extendToFill ? reachFt : len / 2
+    const kMax = Math.floor(halfLen / spacing + 1e-6)
+    const out: Array<{ lat: number; lng: number }> = []
+    for (let k = -kMax; k <= kMax; k++) {
+      const p = { x: center.x + dir.x * k * spacing, y: center.y + dir.y * k * spacing }
+      if (keep(p)) out.push(ftToLatLng(p, lat0, lng0))
+    }
+    return out
+  })
+}
+
 export type FillRowsOptions = {
   // Rows run along the field's 'long' or 'short' axis (relative to the field's
   // own orientation, found via the minimum-area bounding rectangle).

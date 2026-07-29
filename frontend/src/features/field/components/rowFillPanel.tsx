@@ -9,15 +9,16 @@
 // the canvas before being committed.
 // ──────────────────────────────────────────────────────────────────────────
 import { useMemo, useState, useEffect } from 'react'
-import { Check, X } from 'lucide-react'
+import {
+  Check, X, RotateCcw, RotateCw, Undo2,
+  ArrowUp, ArrowDown, ArrowLeft, ArrowRight,
+} from 'lucide-react'
 import CropSelector from './cropSelector'
 import {
   generateFillRows,
   generateContourRows,
   placePlantsAlongPath,
-  calculateRowPlantPositions,
-  pointInPolygon,
-  distanceToBoundaryFt,
+  transformFillRows,
   getFieldDimensions,
   maxRowsThatFit,
 } from '../utils/canvasGeo'
@@ -34,6 +35,12 @@ type Props = {
 
 const DEFAULT_MARGIN = 10
 const DEFAULT_ROW_SPACING = 12
+
+// Shared style for the small move/rotate pad buttons.
+const PAD_BTN =
+  'w-7 h-7 flex items-center justify-center rounded-lg border border-[#d0dcc0] ' +
+  'text-[#5a6a4a] hover:bg-[#eaf3de] hover:border-[#639922] hover:text-[#2d4a1e] ' +
+  'active:bg-[#d9ecc4] transition-colors'
 
 export default function RowFillPanel({ boundary, onPreview, onConfirm, onCancel }: Props) {
   // The parent passes a memoized boundary (stable reference per geometry
@@ -55,6 +62,13 @@ export default function RowFillPanel({ boundary, onPreview, onConfirm, onCancel 
   // Added by Claude — 'parallel' = straight rows; 'contour' = rings following
   // the field shape.
   const [pattern, setPattern] = useState<'parallel' | 'contour'>('parallel')
+  // Group transform for parallel rows: nudge east/north and rotate around
+  // the field centre. Plants clip live to the boundary minus the margin.
+  const [offsetEastFt, setOffsetEastFt] = useState(0)
+  const [offsetNorthFt, setOffsetNorthFt] = useState(0)
+  const [rotateDeg, setRotateDeg] = useState(0)
+  const [moveStepFt, setMoveStepFt] = useState(5)
+  const hasTransform = offsetEastFt !== 0 || offsetNorthFt !== 0 || rotateDeg !== 0
   // Default the row count to what fills the field once (rows along the long
   // axis stack across the short side), then let the user edit it.
   const [count, setCount] = useState(() => {
@@ -118,16 +132,16 @@ export default function RowFillPanel({ boundary, onPreview, onConfirm, onCancel 
       rowSpacingFt,
       rowLengthFt: maxLength ? null : rowLengthFt,
     })
-    geoms.forEach((g, idx) => {
-      // Clip each row to the field, keeping a real `marginFt` gap from the
-      // boundary on every side (not just the bounding box). This stops rows
-      // from crowding the field limit and over-counting plants.
-      const positions = calculateRowPlantPositions(
-        g.startLat, g.startLng, g.endLat, g.endLng, spacingFt,
-      ).filter(pos =>
-        pointInPolygon(pos, boundary) &&
-        distanceToBoundaryFt(pos, boundary) >= marginFt - 0.01
-      )
+    // Apply the group move/rotate and clip each row to the field, keeping a
+    // real `marginFt` gap from the boundary on every side. Plants shed where
+    // the row leaves the plantable area and (in "Máximo" mode) grow back in
+    // wherever the line re-enters it — rows adapt to their new position.
+    const positionsPerRow = transformFillRows(geoms, boundary, {
+      rotateDeg, offsetEastFt, offsetNorthFt,
+      spacingFt, marginFt,
+      extendToFill: maxLength,
+    })
+    positionsPerRow.forEach((positions, idx) => {
       if (positions.length < 2) return
 
       const rowId = `row_${stamp}_${idx}`
@@ -150,6 +164,7 @@ export default function RowFillPanel({ boundary, onPreview, onConfirm, onCancel 
   }, [
     boundary, pattern, orientation, count, marginFt, rowSpacingFt, maxLength, rowLengthFt,
     spacingFt, primaryCropId, companionCropId, plantingDate,
+    rotateDeg, offsetEastFt, offsetNorthFt,
   ])
 
   // Push the preview up so the canvas can draw it; clear it on unmount.
@@ -286,6 +301,76 @@ export default function RowFillPanel({ boundary, onPreview, onConfirm, onCancel 
               <span className="text-xs text-[#9aab8a]">ft de largo</span>
             </div>
           )}
+        </div>
+
+        {/* Move / rotate the whole set of rows. Plants clip live to the
+            boundary minus the margin — see transformFillRows. */}
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs font-medium text-[#5a6a4a]">Mover y rotar</label>
+          <div className="flex items-start gap-3">
+            {/* D-pad — moves in map directions (arriba = norte) */}
+            <div className="grid grid-cols-3 gap-1 shrink-0">
+              <div />
+              <button onClick={() => setOffsetNorthFt(v => v + moveStepFt)}
+                title="Mover hacia arriba" className={PAD_BTN}>
+                <ArrowUp size={13} />
+              </button>
+              <div />
+              <button onClick={() => setOffsetEastFt(v => v - moveStepFt)}
+                title="Mover a la izquierda" className={PAD_BTN}>
+                <ArrowLeft size={13} />
+              </button>
+              <button onClick={() => setOffsetNorthFt(v => v - moveStepFt)}
+                title="Mover hacia abajo" className={PAD_BTN}>
+                <ArrowDown size={13} />
+              </button>
+              <button onClick={() => setOffsetEastFt(v => v + moveStepFt)}
+                title="Mover a la derecha" className={PAD_BTN}>
+                <ArrowRight size={13} />
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-1.5 flex-1 min-w-0">
+              {/* Step size */}
+              <div className="flex items-center gap-1.5">
+                <input type="number" min={1} value={moveStepFt}
+                  onChange={e => setMoveStepFt(Math.max(1, Number(e.target.value) || 1))}
+                  className="w-14 px-1.5 py-1 rounded-lg border border-[#d0dcc0] text-xs text-[#2d4a1e] focus:outline-none focus:border-[#639922] transition-colors"
+                />
+                <span className="text-[10px] text-[#9aab8a]">ft por paso</span>
+              </div>
+              {/* Rotation */}
+              <div className="flex items-center gap-1.5">
+                <button onClick={() => setRotateDeg(v => v - 5)}
+                  title="Rotar 5° a la izquierda" className={PAD_BTN}>
+                  <RotateCcw size={13} />
+                </button>
+                <input type="number" step={5} value={rotateDeg}
+                  onChange={e => setRotateDeg(Number(e.target.value) || 0)}
+                  className="w-14 px-1.5 py-1 rounded-lg border border-[#d0dcc0] text-xs text-[#2d4a1e] focus:outline-none focus:border-[#639922] transition-colors"
+                />
+                <button onClick={() => setRotateDeg(v => v + 5)}
+                  title="Rotar 5° a la derecha" className={PAD_BTN}>
+                  <RotateCw size={13} />
+                </button>
+                <span className="text-[10px] text-[#9aab8a]">grados</span>
+              </div>
+            </div>
+          </div>
+
+          {hasTransform && (
+            <button
+              onClick={() => { setOffsetEastFt(0); setOffsetNorthFt(0); setRotateDeg(0) }}
+              className="flex items-center justify-center gap-1.5 py-1.5 text-[10px] text-[#9aab8a] border border-[#e0e8d8] rounded-lg hover:text-[#2d4a1e] hover:bg-[#f5f8f0] transition-colors"
+            >
+              <Undo2 size={11} /> Restablecer posición
+            </button>
+          )}
+
+          <p className="text-[10px] text-[#9aab8a]">
+            Las plantas que salgan del campo o del margen se quitan; al mover
+            o rotar pueden aparecer plantas por el lado opuesto.
+          </p>
         </div>
         </>)}
 

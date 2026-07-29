@@ -686,8 +686,6 @@ export function MapFieldEditingPanels({ session }: { session: MapFieldEditingSes
           onCancelField={session.cancel}
           onDeletePoint={editor.deletePoint}
           onStartFillRows={editor.startFillRows}
-          onStartAddRow={editor.startAddRow}
-          onCancelAddRow={editor.cancelRowConfig}
           onStartAddFreePlant={editor.startAddFreePlant}
           onStopAddFreePlant={editor.stopAddFreePlant}
           onEditRows={(ids) => session.setEditingRowIds(ids)}

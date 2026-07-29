@@ -33,8 +33,6 @@ type Props = {
   onCancelField: () => void
   onDeletePoint: (i: number) => void
   onStartFillRows: () => void
-  onStartAddRow: () => void
-  onCancelAddRow: () => void
   onStartAddFreePlant: (cropId: string) => void
   onStopAddFreePlant: () => void
   onEditRows: (ids: string[]) => void
@@ -66,7 +64,7 @@ export default function FarmFieldEditorPanel({
   onShapeChange, onNameChange,
   onStartNewField, onStartDrawing, onComplete, onUndo,
   onSaveField, onCancelField, onDeletePoint,
-  onStartFillRows, onStartAddRow, onCancelAddRow,
+  onStartFillRows,
   onStartAddFreePlant, onStopAddFreePlant,
   onEditRows, onDeleteRows,
   onSelectField, onEditFieldById, onDeleteFieldById,
@@ -457,12 +455,6 @@ export default function FarmFieldEditorPanel({
                 <LayoutGrid size={13} /> Rellenar con hileras
               </button>
 
-              <button onClick={onStartAddRow}
-                className="w-full flex items-center justify-center gap-2 py-2 text-xs text-[#639922] border border-[#c8dca8] rounded-lg hover:bg-[#eaf3de] transition-colors"
-              >
-                <Plus size={13} /> Añadir hilera individual
-              </button>
-
               <div className="flex flex-col gap-1.5">
                 <CropSelector
                   value={freeCropPick}
@@ -491,25 +483,6 @@ export default function FarmFieldEditorPanel({
                 <Trash2 size={13} /> Cancelar
               </button>
             </div>
-          </>
-        )}
-
-        {/* ── ADD ROW mode ── */}
-        {mode === 'addRow' && (
-          <>
-            <div className="flex items-center gap-2 px-3 py-2 bg-[#eaf3de] rounded-lg">
-              <div className="w-2 h-2 rounded-full bg-[#639922] animate-pulse shrink-0" />
-              <span className="text-xs text-[#3b6d11] font-medium">Modo: dibujar hilera</span>
-            </div>
-            <div className="flex flex-col gap-1.5 text-xs text-[#7a8a6a] bg-[#f5f8f0] rounded-lg p-3">
-              <p>• Clic para marcar inicio de hilera</p>
-              <p>• Clic de nuevo para marcar el final</p>
-            </div>
-            <button onClick={onCancelAddRow}
-              className="w-full py-2 text-xs text-[#9aab8a] hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-            >
-              Cancelar
-            </button>
           </>
         )}
 
