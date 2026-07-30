@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import {
   Package, Sprout, AlertCircle, Clock, CheckCircle2, ClipboardList,
   ChevronDown, ChevronRight, ArrowUpDown, Wheat, Rows3, TreeDeciduous,
+  CalendarDays, Bug, PawPrint,
 } from 'lucide-react'
 import { useFarmStore } from '@/store/useFarmStore'
 import { useFieldStore } from '@/store/useFieldStore'
@@ -12,13 +13,29 @@ import {
   type InventoryRow, type InventoryStatus,
 } from '@/features/inventory/inventoryBuilder'
 import { formatRelativeDaysEs } from '@/features/notifications/notificationBuilder'
+import OperationsLogSection from '@/features/field/components/operationsLogSection'
+import OperationsCalendar from '@/features/field/components/operationsCalendar'
+import HarvestLogSection from '@/features/field/components/harvestLogSection'
+import SanidadRecordsSection from '@/features/scouting/components/sanidadRecordsSection'
+import LivestockSection from '@/features/livestock/components/livestockSection'
 
 // ──────────────────────────────────────────────────────────────────────────
-// Inventario (issue #15) — every planting across every farm in one data
-// grid: crop, origin, plant count, age, status, next operation, and the
-// projected harvest window. Rows expand to the planting's full operation
-// list. Filterable by farm/crop/status, sortable by the main columns.
+// Cuaderno de campo — the farm's books: what you have and what has
+// happened, in tabs. Siembras (the inventory data grid, issue #15) ·
+// Labores (operations log + month calendar) · Cosechas · Sanidad (the
+// records half of the sanitary report) · Animales. The forward-looking
+// "what's due today" view lives on the Panel de control.
 // ──────────────────────────────────────────────────────────────────────────
+
+type CuadernoTab = 'siembras' | 'labores' | 'cosechas' | 'sanidad' | 'animales'
+
+const TABS: Array<{ id: CuadernoTab; label: string; icon: React.ReactNode }> = [
+  { id: 'siembras', label: 'Siembras', icon: <Package size={13} /> },
+  { id: 'labores', label: 'Labores', icon: <CalendarDays size={13} /> },
+  { id: 'cosechas', label: 'Cosechas', icon: <Wheat size={13} /> },
+  { id: 'sanidad', label: 'Sanidad', icon: <Bug size={13} /> },
+  { id: 'animales', label: 'Animales', icon: <PawPrint size={13} /> },
+]
 
 type SortKey = 'crop' | 'field' | 'plants' | 'planted' | 'nextOp' | 'harvest'
 type SortDir = 'asc' | 'desc'
@@ -47,6 +64,7 @@ export default function InventoryPage() {
   const farms = useFarmStore(s => s.farms)
   const fields = useFieldStore(s => s.fields)
 
+  const [tab, setTab] = useState<CuadernoTab>('siembras')
   const [farmFilter, setFarmFilter] = useState('all')
   const [cropFilter, setCropFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState<'all' | InventoryStatus>('all')
@@ -96,13 +114,48 @@ export default function InventoryPage() {
   return (
     <div className="max-w-6xl mx-auto flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-bold text-[#2d4a1e]">Inventario</h1>
+        <h1 className="text-2xl font-bold text-[#2d4a1e]">Cuaderno de campo</h1>
         <p className="text-sm text-[#9aab8a] mt-1">
-          Todas tus siembras, su estado y las operaciones que vienen
+          El registro de tu finca: siembras, labores, cosechas y sanidad
         </p>
       </div>
 
-      {allRows.length === 0 ? (
+      {/* Tab bar */}
+      <div className="flex flex-wrap border-b border-[#e0e8d8]">
+        {TABS.map(t => (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            className={`flex items-center gap-1.5 px-4 py-2.5 text-xs border-b-2 -mb-px transition-colors ${
+              tab === t.id
+                ? 'text-[#2d4a1e] border-[#639922] font-semibold'
+                : 'text-[#9aab8a] border-transparent hover:text-[#5a6a4a]'
+            }`}
+          >
+            {t.icon} {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* ── Labores: what was logged + the month calendar ─────────── */}
+      {tab === 'labores' && (
+        <div className="flex flex-col gap-6">
+          <OperationsLogSection />
+          {fields.length > 0 && <OperationsCalendar fields={fields} />}
+        </div>
+      )}
+
+      {/* ── Cosechas ──────────────────────────────────────────────── */}
+      {tab === 'cosechas' && <HarvestLogSection limit={20} />}
+
+      {/* ── Sanidad: recurrence, full history, certifier CSV ──────── */}
+      {tab === 'sanidad' && <SanidadRecordsSection />}
+
+      {/* ── Animales ──────────────────────────────────────────────── */}
+      {tab === 'animales' && <LivestockSection />}
+
+      {/* ── Siembras: the inventory data grid ─────────────────────── */}
+      {tab === 'siembras' && (allRows.length === 0 ? (
         <div className="bg-white rounded-2xl border border-[#e0e8d8] px-6 py-12 text-center">
           <p className="text-4xl mb-3">📦</p>
           <h2 className="text-base font-semibold text-[#2d4a1e] mb-1">
@@ -204,7 +257,7 @@ export default function InventoryPage() {
             )}
           </section>
         </>
-      )}
+      ))}
     </div>
   )
 }

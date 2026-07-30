@@ -1,8 +1,8 @@
 import { useMemo } from 'react'
-import { Bug, Download, TrendingDown, TrendingUp, MoveRight } from 'lucide-react'
+import { Bug, TrendingDown, TrendingUp, MoveRight } from 'lucide-react'
 import { useFarmStore } from '@/store/useFarmStore'
 import { useFieldStore } from '@/store/useFieldStore'
-import { useFindings, useExportFindings } from '../hooks/useFindingsApi'
+import { useFindings } from '../hooks/useFindingsApi'
 import { getPestById } from '../data/pestLibrary'
 import {
   SEVERITY_COLORS, SEVERITY_LABELS, type Finding,
@@ -13,16 +13,14 @@ import {
 } from '../utils/fieldHealth'
 
 // ──────────────────────────────────────────────────────────────────────────
-// Sanidad — dashboard section (Panel de control): the compact sanitary
-// report. Answers three questions at a glance and hands "papel" to whoever
-// asks for it:
-//   1. ¿Cómo están mis campos?   → traffic-light strip (same fieldHealth
+// Sanidad — dashboard section (Panel de control): the ALERT half of the
+// sanitary picture, today-focused:
+//   1. ¿Cómo están mis campos?  → traffic-light strip (same fieldHealth
 //      logic the map uses, so the numbers always match the map colors)
-//   2. ¿Qué tengo activo?        → unresolved findings, worst first
-//   3. ¿Qué plagas me repiten?   → recurrence chips (incl. resolved ones)
-// Depth (observation trails, actions) lives in each field's ops drawer —
-// this section is read-only summary, like the rest of the dashboard.
-// Scoped to the active farm, following OperationsLogSection.
+//   2. ¿Qué tengo activo?       → unresolved findings, worst first
+// The RECORDS half (pest recurrence, CSV export, full history) lives in
+// the cuaderno de campo (sanidadRecordsSection). Depth and actions live in
+// each field's ops drawer. Scoped to the active farm.
 // ──────────────────────────────────────────────────────────────────────────
 
 const ACTIVE_LIMIT = 8
@@ -33,7 +31,6 @@ export default function SanidadSection() {
   const allFields = useFieldStore(s => s.fields)
 
   const { data: findings } = useFindings(farmId)
-  const exportCsv = useExportFindings(farmId ?? '')
 
   const fields = useMemo(
     () => allFields.filter(f => f.farmId === farmId),
@@ -65,20 +62,7 @@ export default function SanidadSection() {
         (b.severity - a.severity) || b.foundDate.localeCompare(a.foundDate)
       )
 
-    // Recurrence — ALL findings (resolved history is the point here).
-    const byPest = new Map<string, { count: number; fieldIds: Set<string>; lastDate: string }>()
-    for (const f of all) {
-      const entry = byPest.get(f.pestId) ?? { count: 0, fieldIds: new Set(), lastDate: f.foundDate }
-      entry.count++
-      entry.fieldIds.add(f.fieldId)
-      if (f.foundDate > entry.lastDate) entry.lastDate = f.foundDate
-      byPest.set(f.pestId, entry)
-    }
-    const recurrence = [...byPest.entries()]
-      .map(([pestId, e]) => ({ pestId, ...e }))
-      .sort((a, b) => b.count - a.count)
-
-    return { all, strip, active, recurrence }
+    return { all, strip, active }
   }, [fields, findings])
 
   if (!farmId) return null
@@ -105,16 +89,6 @@ export default function SanidadSection() {
             : `${stats.active.length} ${stats.active.length === 1 ? 'hallazgo activo' : 'hallazgos activos'}`}
           {activeFarm ? ` · ${activeFarm.name}` : ''}
         </span>
-        {stats.all.length > 0 && (
-          <button
-            onClick={() => exportCsv.mutate()}
-            disabled={exportCsv.isPending}
-            title="Descargar el registro sanitario completo (una fila por observación)"
-            className="ml-auto flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] text-[#639922] border border-[#c8dca8] rounded-lg hover:bg-[#eaf3de] transition-colors disabled:opacity-50"
-          >
-            <Download size={10} /> Exportar CSV
-          </button>
-        )}
       </div>
 
       {/* Traffic-light strip — fields by health, matching the map colors */}
@@ -130,6 +104,11 @@ export default function SanidadSection() {
         <p className="px-5 py-6 text-xs text-[#9aab8a] text-center">
           Sin hallazgos registrados. Usa el botón 🐛 en las tarjetas de campo
           del mapa para anotar plagas o enfermedades.
+        </p>
+      ) : stats.active.length === 0 ? (
+        <p className="px-5 py-6 text-xs text-[#9aab8a] text-center">
+          Sin hallazgos activos — el historial completo está en el cuaderno
+          de campo. 🎉
         </p>
       ) : (
         <>
@@ -191,27 +170,6 @@ export default function SanidadSection() {
               )}
             </div>
           )}
-
-          {/* Recurrence — which pests keep coming back */}
-          <div className="flex flex-wrap gap-2 px-5 py-4 border-t border-[#f0f5e8]">
-            {stats.recurrence.map(r => {
-              const pest = getPestById(r.pestId)
-              return (
-                <div key={r.pestId}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-[#f5f8f0] rounded-full"
-                  title={`${r.count} ${r.count === 1 ? 'hallazgo' : 'hallazgos'} en ${r.fieldIds.size} ${r.fieldIds.size === 1 ? 'campo' : 'campos'}`}
-                >
-                  <span aria-hidden>{pest?.emoji ?? '🔍'}</span>
-                  <span className="text-xs font-medium text-[#2d4a1e]">
-                    {pest?.nameEs ?? r.pestId}
-                  </span>
-                  <span className="text-xs text-[#7a8a6a]">
-                    × {r.count} · últ. {fmtDate(r.lastDate)}
-                  </span>
-                </div>
-              )
-            })}
-          </div>
         </>
       )}
     </section>

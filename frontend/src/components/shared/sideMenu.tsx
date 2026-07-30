@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { Settings, LogOut, LayoutDashboard, Map, Calculator, Package } from 'lucide-react'
+import { Settings, LogOut, LayoutDashboard, Map, Calculator, NotebookPen } from 'lucide-react'
 import { useAuthStore } from '@/store/useAuthStore'
 import { useLogout } from '@/features/auth/hooks/useAuth'
 
@@ -28,8 +28,8 @@ export default function SideMenu() {
         <button onClick={() => navigate('/dashboard')} aria-label="Panel de control" title="Panel de control" className={itemClass}>
           <LayoutDashboard size={20} />
         </button>
-        <button onClick={() => navigate('/inventory')} aria-label="Inventario" title="Inventario" className={itemClass}>
-          <Package size={20} />
+        <button onClick={() => navigate('/inventory')} aria-label="Cuaderno de campo" title="Cuaderno de campo" className={itemClass}>
+          <NotebookPen size={20} />
         </button>
         <button onClick={() => navigate('/simulator')} aria-label="Simulador" title="Simulador" className={itemClass}>
           <Calculator size={20} />
