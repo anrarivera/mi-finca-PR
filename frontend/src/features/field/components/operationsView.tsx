@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import {
   X, Check, SkipForward, ChevronDown, ChevronUp,
   AlertCircle, Clock, CheckCircle2, ChevronRight,
@@ -179,7 +180,10 @@ export default function OperationsView({
     o => o.status === 'pending'
   ).length
 
-  return (
+  // Portaled to <body>: hosts can render this from inside the farm
+  // drawer, whose slide transform would otherwise hijack position:fixed
+  // and trap the "fullscreen" view inside the 300px panel.
+  return createPortal(
     <div className="fixed inset-0 z-[2100] flex flex-col bg-[#f5f8f0]">
 
       {/* Header */}
@@ -276,7 +280,8 @@ export default function OperationsView({
           onCancel={() => setModal(null)}
         />
       )}
-    </div>
+    </div>,
+    document.body
   )
 }
 
@@ -612,7 +617,10 @@ export function CheckOffModal({
     ? ['kg', 'lb', 'unidades', 'cajas', 'sacos']
     : ['kg', 'lb', 'L', 'gal', 'oz']
 
-  return (
+  // Portaled to <body>: the farm drawer's slide transform would otherwise
+  // hijack position:fixed and clamp the modal (and its backdrop) to the
+  // 300px drawer panel when opened from a field card.
+  return createPortal(
     <>
       {/* Backdrop — kept light and unblurred when a scope selector is
           shown so the map stays visible; over the map it also goes
@@ -632,14 +640,13 @@ export function CheckOffModal({
       <div className={`fixed inset-0 z-[2300] flex items-center p-4 pointer-events-none ${
         showScopeSelector ? 'justify-end pr-6' : 'justify-center'
       }`}>
-        {/* Parcial/Editar get a decisively wide card (the original was
-            384px) so the scope selector's row labels and plant grids
-            have room; Completa keeps the compact centered card */}
+        {/* Parcial/Editar: fixed 300px card (the farm drawer's width);
+            Completa keeps the compact centered card */}
         <div
           className={`bg-white rounded-2xl shadow-xl overflow-hidden max-h-[92vh] overflow-y-auto pointer-events-auto ${
             mode === 'complete' ? 'w-full max-w-sm' : ''
           }`}
-          style={mode !== 'complete' ? { width: 480, maxWidth: '100%' } : undefined}
+          style={mode !== 'complete' ? { width: 300, maxWidth: '100%' } : undefined}
         >
 
           {/* Header */}
@@ -775,7 +782,8 @@ export function CheckOffModal({
 
         </div>
       </div>
-    </>
+    </>,
+    document.body
   )
 }
 
