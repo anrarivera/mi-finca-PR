@@ -29,11 +29,13 @@ type Props = {
   focusRequest?: { fieldId: string; nonce: number } | null
   /** Card click → select that field on the map (two-way selection). */
   onSelectField: (fieldId: string) => void
+  /** Card double-click → zoom the map to that field (no editor). */
+  onZoomToField: (fieldId: string) => void
 }
 
 export default function FarmDrawer({
   isOpen, onOpenChange, onAddFarm, onEditField, onDeleteField,
-  onFlyToFarm, onOpenFieldEditor, focusRequest, onSelectField,
+  onFlyToFarm, onOpenFieldEditor, focusRequest, onSelectField, onZoomToField,
 }: Props) {
   const [level, setLevel] = useState<'farms' | 'fields'>('farms')
 
@@ -150,6 +152,7 @@ export default function FarmDrawer({
               focusFieldId={focusRequest?.fieldId ?? null}
               focusNonce={focusRequest?.nonce ?? 0}
               onSelectField={onSelectField}
+              onZoomToField={onZoomToField}
               showBackButton={farms.length > 1}
               onBack={handleBackToFarms}
               onClose={() => onOpenChange(false)}
@@ -332,11 +335,12 @@ function FarmList({
 
 // ── Level 2: Field list for a farm ────────────────────────────────────
 // Cards are the shared FieldSummaryCard (same one the field editor uses):
-// single click selects on the map, double click / Editar opens the editor
-// for that field, and the card owns check-off + the full operations UI.
+// single click selects on the map, double click zooms the map to the
+// field, Editar opens the editor for that field, and the card owns
+// check-off + the full operations UI.
 function FieldList({
-  farm, fields, focusFieldId, focusNonce, onSelectField, showBackButton,
-  onBack, onClose, onEditField, onDeleteField,
+  farm, fields, focusFieldId, focusNonce, onSelectField, onZoomToField,
+  showBackButton, onBack, onClose, onEditField, onDeleteField,
   onToggleDisplay, onOpenFieldEditor,
 }: {
   farm: Farm
@@ -344,6 +348,7 @@ function FieldList({
   focusFieldId: string | null
   focusNonce: number
   onSelectField: (fieldId: string) => void
+  onZoomToField: (fieldId: string) => void
   showBackButton: boolean
   onBack: () => void
   onClose: () => void
@@ -435,6 +440,7 @@ function FieldList({
                 focusNonce={focusNonce}
                 onSelect={() => onSelectField(field.id)}
                 onOpenEditor={() => onEditField(field.id)}
+                onCardDoubleClick={() => onZoomToField(field.id)}
                 onDelete={() => handleDeleteField(field.id)}
                 onToggleDisplay={() => onToggleDisplay(field)}
               />

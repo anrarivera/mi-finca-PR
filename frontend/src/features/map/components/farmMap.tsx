@@ -33,16 +33,19 @@ L.Icon.Default.mergeOptions({
 const PR_CENTER: [number, number] = [18.2208, -66.5901]
 const DEFAULT_ZOOM = 9
 
-// ─── Map controller — flies to a farm boundary ────────────────────────
-function MapController({ targetFarm }: { targetFarm: Farm | null }) {
+// ─── Map controller — flies to a farm boundary. The nonce re-triggers
+//     the flight for the same farm (e.g. zooming back out of a field). ──
+function MapController({ target }: { target: { farm: Farm; nonce: number } | null }) {
   const map = useMap()
   useEffect(() => {
-    if (!targetFarm?.boundary || targetFarm.boundary.length < 3) return
+    const farm = target?.farm
+    if (!farm?.boundary || farm.boundary.length < 3) return
     const bounds = L.latLngBounds(
-      targetFarm.boundary.map(p => L.latLng(p.lat, p.lng))
+      farm.boundary.map(p => L.latLng(p.lat, p.lng))
     )
     map.flyToBounds(bounds, { padding: [40, 40], duration: 1.2 })
-  }, [targetFarm?.id])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [target?.farm.id, target?.nonce])
   return null
 }
 
@@ -256,7 +259,7 @@ type Props = {
 export default function FarmMap({ center = PR_CENTER, zoom = DEFAULT_ZOOM }: Props) {
   const drawing = useDrawing()
   const [showModal, setShowModal] = useState(false)
-  const [flyTarget, setFlyTarget] = useState<Farm | null>(null)
+  const [flyTarget, setFlyTarget] = useState<{ farm: Farm; nonce: number } | null>(null)
   // Field selected by a single map click — opens the farm drawer focused on
   // that field's card (double click starts editing instead). The nonce
   // re-triggers the drawer when the same field is clicked again.
@@ -284,6 +287,17 @@ export default function FarmMap({ center = PR_CENTER, zoom = DEFAULT_ZOOM }: Pro
     ? fields.filter(f => f.farmId === activeFarm.id)
     : []
 
+  function flyToFarm(farm: Farm) {
+    setFlyTarget(prev => ({ farm, nonce: (prev?.nonce ?? 0) + 1 }))
+  }
+
+  // Fly the map to a field — same zoom the map's own field double-click
+  // performs, reused by the drawer cards.
+  function zoomToField(fieldId: string) {
+    const field = fields.find(f => f.id === fieldId)
+    if (field) setZoomTarget(prev => ({ field, nonce: (prev?.nonce ?? 0) + 1 }))
+  }
+
   // ── On-map field editing session — replaces the old full-screen
   //    editor. While active, the drawer and farm-boundary tools yield
   //    to the editing panel and map layer. ─────────────────────────────
@@ -306,8 +320,18 @@ export default function FarmMap({ center = PR_CENTER, zoom = DEFAULT_ZOOM }: Pro
     if (farms.length === 0) return
     const target = farms.find(f => f.id === favoriteFarmId) ?? farms[0]
     setActiveFarm(target)
-    setFlyTarget(target)
+    flyToFarm(target)
   }, [farms.length])
+
+  // Closing the field editor zooms back out to the whole farm.
+  const wasEditing = useRef(false)
+  useEffect(() => {
+    if (wasEditing.current && !fieldEditing.active && activeFarm) {
+      flyToFarm(activeFarm)
+    }
+    wasEditing.current = fieldEditing.active
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fieldEditing.active])
 
   // When active farm loads, restore its boundary into the drawing layer
   useEffect(() => {
@@ -433,7 +457,7 @@ async function handleDeleteFarm() {
           maxNativeZoom={19}
         />
 
-        <MapController targetFarm={flyTarget} />
+        <MapController target={flyTarget} />
         <FieldZoomController target={zoomTarget} />
 
         <DrawingLayer
@@ -489,11 +513,11 @@ async function handleDeleteFarm() {
           setFocusRequest(prev => ({ fieldId, nonce: (prev?.nonce ?? 0) + 1 }))
         }
         onAddFarm={() => setShowModal(true)}
+        // Card double-click just zooms to the field; only the Editar
+        // button (onEditField) opens the editor — zooming there too.
+        onZoomToField={zoomToField}
         onEditField={(fieldId) => {
-          // Same zoom the map's own field double-click performs, so the
-          // field fills the view when the editor opens from the drawer.
-          const field = fields.find(f => f.id === fieldId)
-          if (field) setZoomTarget(prev => ({ field, nonce: (prev?.nonce ?? 0) + 1 }))
+          zoomToField(fieldId)
           handleOpenFieldEditor(fieldId)
         }}
         onDeleteField={(fieldId) => {
@@ -503,7 +527,7 @@ async function handleDeleteFarm() {
         }}
         onFlyToFarm={(farm) => {
           setActiveFarm(farm)
-          setFlyTarget(farm)
+          flyToFarm(farm)
         }}
         // The drawer passes the FARM id here — don't let it be mistaken
         // for a field id; start a NEW field instead.

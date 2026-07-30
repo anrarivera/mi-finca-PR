@@ -53,8 +53,11 @@ type Props = {
   focusNonce?: number
   /** Single click on the card. */
   onSelect?: () => void
-  /** Double click on the card, and the "Editar" button. */
+  /** The "Editar" button — and the card double click unless overridden. */
   onOpenEditor: () => void
+  /** Overrides the card double click (e.g. the farm drawer zooms to the
+      field instead of opening the editor). */
+  onCardDoubleClick?: () => void
   /** Called after the in-card confirmation — host performs the delete. */
   onDelete: () => void
   /** Pin/shape toggle — map context only; omit to hide the toggle. */
@@ -63,7 +66,7 @@ type Props = {
 
 export default function FieldSummaryCard({
   field, focused = false, focusNonce = 0,
-  onSelect, onOpenEditor, onDelete, onToggleDisplay,
+  onSelect, onOpenEditor, onCardDoubleClick, onDelete, onToggleDisplay,
 }: Props) {
   const [confirmDelete, setConfirmDelete] = useState(false)
   // Self-contained flows: quick check-off/partial modal + full ops screen
@@ -102,7 +105,7 @@ export default function FieldSummaryCard({
     <div
       ref={cardRef}
       onClick={onSelect}
-      onDoubleClick={onOpenEditor}
+      onDoubleClick={onCardDoubleClick ?? onOpenEditor}
       className={`px-4 py-3 hover:bg-[#fafcf8] transition-colors cursor-pointer ${
         focused ? 'bg-[#f5f8f0] border-l-2 border-l-[#639922]' : ''
       }`}
