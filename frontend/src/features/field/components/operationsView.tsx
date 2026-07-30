@@ -635,7 +635,7 @@ export function CheckOffModal({
         {/* Wider when the scope selector is shown (Parcial / Editar) so
             row labels and plant grids aren't cramped */}
         <div className={`bg-white rounded-2xl shadow-xl w-full overflow-hidden max-h-[92vh] overflow-y-auto pointer-events-auto ${
-          showScopeSelector ? 'max-w-md' : 'max-w-sm'
+          showScopeSelector ? 'max-w-lg' : 'max-w-sm'
         }`}>
 
           {/* Header */}
