@@ -20,6 +20,7 @@ import CreateFarmModal from '@/features/farm/components/createFarmModal'
 import { useFieldStore } from '@/store/useFieldStore'
 import { useFarmStore } from '@/store/useFarmStore'
 import type { Farm } from '@/store/useFarmStore'
+import type { PlacedField as FieldModel } from '@/features/field/types'
 import { toast } from '@/store/useToastStore'
 
 delete (L.Icon.Default.prototype as any)._getIconUrl
@@ -42,6 +43,26 @@ function MapController({ targetFarm }: { targetFarm: Farm | null }) {
     )
     map.flyToBounds(bounds, { padding: [40, 40], duration: 1.2 })
   }, [targetFarm?.id])
+  return null
+}
+
+// ─── Field zoom controller — flies to a field's bounds (same zoom the
+//     map's own field double-click does in PlacedField) ────────────────
+function FieldZoomController({ target }: {
+  target: { field: FieldModel; nonce: number } | null
+}) {
+  const map = useMap()
+  useEffect(() => {
+    if (!target) return
+    const f = target.field
+    if (f.boundary && f.boundary.length >= 3) {
+      const bounds = L.latLngBounds(f.boundary.map(p => L.latLng(p.lat, p.lng)))
+      map.flyToBounds(bounds, { padding: [60, 60], duration: 0.8 })
+    } else {
+      map.flyTo(L.latLng(f.farmLat, f.farmLng), Math.max(map.getZoom(), 18))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [target?.nonce])
   return null
 }
 
@@ -243,6 +264,9 @@ export default function FarmMap({ center = PR_CENTER, zoom = DEFAULT_ZOOM }: Pro
   // Farm drawer open state lives here so it survives the drawer unmounting
   // during a field-editing session — closing the editor reveals it again.
   const [drawerOpen, setDrawerOpen] = useState(false)
+  // Fly-to-field request (drawer card double-click / Editar). The nonce
+  // re-triggers the flight when the same field is requested again.
+  const [zoomTarget, setZoomTarget] = useState<{ field: FieldModel; nonce: number } | null>(null)
   const boundaryLoaded = useRef(false)
 
   const { fields, removeField } = useFieldStore()
@@ -410,6 +434,7 @@ async function handleDeleteFarm() {
         />
 
         <MapController targetFarm={flyTarget} />
+        <FieldZoomController target={zoomTarget} />
 
         <DrawingLayer
           mode={drawing.mode}
@@ -464,7 +489,13 @@ async function handleDeleteFarm() {
           setFocusRequest(prev => ({ fieldId, nonce: (prev?.nonce ?? 0) + 1 }))
         }
         onAddFarm={() => setShowModal(true)}
-        onEditField={(fieldId) => handleOpenFieldEditor(fieldId)}
+        onEditField={(fieldId) => {
+          // Same zoom the map's own field double-click performs, so the
+          // field fills the view when the editor opens from the drawer.
+          const field = fields.find(f => f.id === fieldId)
+          if (field) setZoomTarget(prev => ({ field, nonce: (prev?.nonce ?? 0) + 1 }))
+          handleOpenFieldEditor(fieldId)
+        }}
         onDeleteField={(fieldId) => {
           if (!activeFarm) return
           removeField(fieldId)
