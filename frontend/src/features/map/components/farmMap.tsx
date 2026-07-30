@@ -336,16 +336,6 @@ export default function FarmMap({ center = PR_CENTER, zoom = DEFAULT_ZOOM }: Pro
     flyToFarm(target)
   }, [farms.length])
 
-  // Closing the field editor zooms back out to the whole farm.
-  const wasEditing = useRef(false)
-  useEffect(() => {
-    if (wasEditing.current && !fieldEditing.active && activeFarm) {
-      flyToFarm(activeFarm)
-    }
-    wasEditing.current = fieldEditing.active
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fieldEditing.active])
-
   // When active farm loads, restore its boundary into the drawing layer
   useEffect(() => {
     if (!activeFarm?.boundary || activeFarm.boundary.length < 3) return
