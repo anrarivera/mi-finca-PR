@@ -320,7 +320,9 @@ function PlantingEventCard({
   )
 
   return (
-    <div className="bg-white rounded-xl border border-[#e0e8d8] overflow-hidden">
+    // shrink-0: overflow-hidden would otherwise let the flex column crush
+    // the cards to fit instead of letting the list scroll
+    <div className="bg-white rounded-xl border border-[#e0e8d8] overflow-hidden shrink-0">
 
       {/* Event header */}
       <button
@@ -598,8 +600,10 @@ export function CheckOffModal({
     || ['fertilization', 'spray', 'harvest'].includes(operation.type)
   // The scope selector (rows / plants / whole field) applies to EVERY
   // operation type — "fertilized rows 1–3", "sprayed just these plants",
-  // not only harvests.
-  const showScopeSelector = targets.rows.length > 0 || targets.freePlants.length > 0
+  // not only harvests. Hidden when completing: "Completa" means the whole
+  // field (empty selection = whole field); a subset goes through "Parcial".
+  const showScopeSelector = mode !== 'complete'
+    && (targets.rows.length > 0 || targets.freePlants.length > 0)
   // Backdrop goes transparent to clicks only when the map is behind AND
   // there is something to select on it.
   const clickThrough = showScopeSelector && mapInteractive

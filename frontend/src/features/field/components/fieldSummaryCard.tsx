@@ -161,9 +161,13 @@ export default function FieldSummaryCard({
 
       {/* Current operation — check it off without leaving the card */}
       {next && (
-        <div className={`flex items-center gap-2 mb-2.5 px-2 py-1.5 rounded-lg ${
-          nextIsDue ? 'bg-red-50/70' : 'bg-[#f5f8f0]'
-        }`}>
+        <div
+          onDoubleClick={(e) => { e.stopPropagation(); setShowOps(true) }}
+          title="Doble clic para ver todas las operaciones"
+          className={`flex items-center gap-2 mb-2.5 px-2 py-1.5 rounded-lg ${
+            nextIsDue ? 'bg-red-50/70' : 'bg-[#f5f8f0]'
+          }`}
+        >
           <div className="flex-1 min-w-0">
             <p className="text-[10px] font-medium text-[#2d4a1e] truncate">
               {nextCrop?.emoji ?? '🌱'} {next.op.labelEs}
