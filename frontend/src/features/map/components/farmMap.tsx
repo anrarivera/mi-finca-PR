@@ -336,6 +336,20 @@ export default function FarmMap({ center = PR_CENTER, zoom = DEFAULT_ZOOM }: Pro
     flyToFarm(target)
   }, [farms.length])
 
+  // Closing the field editor keeps the edited field selected — a map
+  // double-click skips the single-click select, and a cancel has no
+  // onSaved, so restore the selection on the way out for both.
+  const lastEditedFieldId = useRef<string | null>(null)
+  useEffect(() => {
+    if (fieldEditing.active) {
+      if (fieldEditing.editingFieldId) lastEditedFieldId.current = fieldEditing.editingFieldId
+    } else if (lastEditedFieldId.current) {
+      const fieldId = lastEditedFieldId.current
+      lastEditedFieldId.current = null
+      setFocusRequest(prev => ({ fieldId, nonce: (prev?.nonce ?? 0) + 1 }))
+    }
+  }, [fieldEditing.active, fieldEditing.editingFieldId])
+
   // When active farm loads, restore its boundary into the drawing layer
   useEffect(() => {
     if (!activeFarm?.boundary || activeFarm.boundary.length < 3) return
