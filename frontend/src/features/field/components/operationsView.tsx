@@ -128,6 +128,10 @@ type Props = {
   freePlants: PlantInstance[]
   /** Farm operations log — used to show partial-log progress per row. */
   farmOperations: FarmOperation[]
+  /** Scouting findings card, rendered above the calendar. Passed as a node
+      by the container (not imported) to keep operationsView ↔ scouting
+      import-cycle free — the finding modal reuses HarvestSelector. */
+  findingsSection?: React.ReactNode
   onClose: () => void
   onCompleteOperation: (eventId: string, operationId: string, data: CheckOffFormData) => void
   onSkipOperation: (eventId: string, operationId: string) => void
@@ -141,7 +145,7 @@ type Props = {
 
 export default function OperationsView({
   plantingEvents, fieldName, fieldId, fieldRows, freePlants, farmOperations,
-  onClose, onCompleteOperation, onSkipOperation,
+  findingsSection, onClose, onCompleteOperation, onSkipOperation,
   onUndoOperation, onEditOperation, onPartialLog,
 }: Props) {
   const [modal, setModal] = useState<{
@@ -230,6 +234,9 @@ export default function OperationsView({
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-4 w-full">
+
+        {/* Scouting findings — what the farmer SAW, above what's to DO */}
+        {findingsSection}
 
         {sortedEvents.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-64 gap-3">

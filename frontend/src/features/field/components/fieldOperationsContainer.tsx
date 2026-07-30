@@ -1,4 +1,5 @@
 import OperationsView from './operationsView'
+import FindingsSection from '@/features/scouting/components/findingsSection'
 import { useFieldStore } from '@/store/useFieldStore'
 import {
   useCompleteRecommendedOp, useSkipRecommendedOp, useUndoRecommendedOp,
@@ -43,6 +44,15 @@ export default function FieldOperationsContainer({ farmId, fieldId, onClose }: P
       fieldRows={field.rows ?? []}
       freePlants={field.freePlants ?? []}
       farmOperations={farmOperations ?? []}
+      findingsSection={
+        <FindingsSection
+          farmId={farmId}
+          fieldId={field.id}
+          fieldRows={field.rows ?? []}
+          freePlants={field.freePlants ?? []}
+          plantingEvents={field.plantingEvents ?? []}
+        />
+      }
       onClose={onClose}
       onCompleteOperation={(eventId, opId, data) => {
         completeOp.mutate(
