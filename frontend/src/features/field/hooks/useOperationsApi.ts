@@ -107,15 +107,43 @@ export function useCreateOperation(farmId: string) {
   })
 }
 
-// ── Due-soon badge counts ─────────────────────────────────────────────
-// Server-authoritative overdue / due-within-14-days counts across the whole
-// farm, including livestock recommendations (GET /recommended-operations/
-// due-soon). Complements the client-derived per-field health numbers.
+// ── Due-soon operations ───────────────────────────────────────────────
+// Server-authoritative overdue / due-within-14-days operations across the
+// whole farm, INCLUDING livestock recommendations the client-derived field
+// numbers can't see (GET /recommended-operations/due-soon). Feeds the
+// dashboard's Labores panel and the badge counts.
+
+// One open recommendation with the labeling context the server includes.
+export type DueSoonOperation = {
+  id: string
+  type: string
+  labelEs: string
+  recommendedDate: string
+  status: 'pending' | 'due'
+  plantingEventId: string | null
+  livestockUnitId: string | null
+  product: string | null
+  quantity: number | null
+  unit: string | null
+  notes: string | null
+  plantingEvent: {
+    id: string
+    fieldId: string
+    cropTypeId: string
+    plantingDate: string
+  } | null
+  livestockUnit: { id: string; name: string; animalType: string } | null
+}
+
 export function useDueSoonOperations(farmId: string | null) {
   return useQuery({
     queryKey: ['recommended-operations', 'due-soon', farmId],
     queryFn: () =>
-      api.get<{ overdueCount: number; dueSoonCount: number }>(
+      api.get<{
+        overdueCount: number
+        dueSoonCount: number
+        operations: DueSoonOperation[]
+      }>(
         `/api/v1/farms/${farmId}/recommended-operations/due-soon`
       ),
     enabled: !!farmId,
