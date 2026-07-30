@@ -12,6 +12,7 @@ import {
 import {
   findingScopeSummary, rowsCoveringFinding, eventForFinding,
 } from '../utils/findingScope'
+import { findingExtentPct } from '../utils/fieldHealth'
 import FindingModal from './findingModal'
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -125,6 +126,9 @@ export default function FindingsSection({
             const isClosed = f.status === 'resolved'
             const dateFormatted = new Date(f.foundDate + 'T12:00:00')
               .toLocaleDateString('es-PR', { day: 'numeric', month: 'short' })
+            // Derived extent (incidencia) — how much of the field the
+            // scope covers; severity stays the scout's judgment.
+            const extentPct = findingExtentPct(f, { rows: fieldRows, freePlants })
 
             return (
               <div
@@ -153,6 +157,7 @@ export default function FindingsSection({
                   </div>
                   <p className="text-[10px] text-[#9aab8a] mt-0.5">
                     {dateFormatted} · {findingScopeSummary(f, fieldRows)}
+                    {extentPct !== null && extentPct > 0 && ` (≈${extentPct}% del campo)`}
                     {f.status !== 'open' && ` · ${FINDING_STATUS_LABELS[f.status]}`}
                     {f.treatmentRecommendedOperationId && ' · 💧 labor creada'}
                   </p>

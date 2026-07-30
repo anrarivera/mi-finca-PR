@@ -38,6 +38,10 @@ type Props = {
   /** Unresolved scouting findings — paints affected rows/plants amber→red
       by severity until the finding is resolved. */
   findingMarks?: FindingMarks
+  /** Health traffic-light color (derived from findings) — replaces the
+      stored field.color for the fill and pin so the zoomed-out map reads
+      as a dashboard: gray = bare, green = healthy, amber→red = alert. */
+  displayColor?: string
 }
 
 // A row's geometry: the drawn path when present, else the start→end segment.
@@ -74,8 +78,9 @@ function createPinIcon(color: string, name: string): L.DivIcon {
 
 export default function PlacedField({
   field, onSelect, onOpenEditor, detailed = false, plantMarks = EMPTY_MARKS,
-  findingMarks = EMPTY_FINDING_MARKS,
+  findingMarks = EMPTY_FINDING_MARKS, displayColor,
 }: Props) {
+  const fieldColor = displayColor ?? field.color
   const { updateField } = useFieldStore()
   // Live harvest-modal selection — paints chosen rows/plants amber.
   const harvestHighlight = useHarvestHighlightStore(s => s.highlight)
@@ -144,7 +149,7 @@ export default function PlacedField({
     return (
       <Marker
         position={L.latLng(field.farmLat, field.farmLng)}
-        icon={createPinIcon(field.color, field.name)}
+        icon={createPinIcon(fieldColor, field.name)}
         eventHandlers={eventHandlers}
       />
     )
@@ -156,7 +161,7 @@ export default function PlacedField({
     return (
       <Marker
         position={L.latLng(field.farmLat, field.farmLng)}
-        icon={createPinIcon(field.color, field.name)}
+        icon={createPinIcon(fieldColor, field.name)}
         eventHandlers={eventHandlers}
       />
     )
@@ -178,8 +183,8 @@ export default function PlacedField({
         positions={positions}
         pathOptions={{
           // Selected field (drawer card / map click) gets a stronger outline
-          color: detailed ? '#2d4a1e' : field.color,
-          fillColor: field.color,
+          color: detailed ? '#2d4a1e' : fieldColor,
+          fillColor: fieldColor,
           fillOpacity: isHovered || detailed ? 0.5 : field.isPositioning ? 0.3 : 0.4,
           weight: detailed ? 3 : field.isPositioning ? 2.5 : 2,
           dashArray: field.isPositioning ? '6 4' : undefined,
