@@ -9,6 +9,19 @@
 
 export type FindingStatus = 'open' | 'treated' | 'resolved'
 
+// One scouting visit — the re-inspection trail ("seguimiento"). The
+// finding's own severity/scope always mirror the LAST observation.
+export type FindingObservation = {
+  id: string
+  findingId: string
+  date: string
+  severity: number
+  rowIds: string[]
+  plantIds: string[]
+  notes: string | null
+  createdAt: string
+}
+
 export type Finding = {
   id: string
   fieldId: string
@@ -25,6 +38,8 @@ export type Finding = {
   /** The treatment labor created from this finding ("Crear labor"), if any. */
   treatmentRecommendedOperationId: string | null
   createdAt: string
+  /** Oldest → newest; the last one is this finding's current state. */
+  observations?: FindingObservation[]
 }
 
 export const SEVERITY_LABELS: Record<number, string> = {

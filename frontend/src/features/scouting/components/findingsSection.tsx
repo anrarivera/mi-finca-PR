@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Bug, Plus, X } from 'lucide-react'
+import { Bug, Plus, X, TrendingDown, TrendingUp, MoveRight } from 'lucide-react'
 import type { FieldRow, PlantInstance, PlantingEvent } from '@/features/field/types'
 import { toast } from '@/store/useToastStore'
 import {
@@ -11,8 +11,9 @@ import {
 } from '../types'
 import {
   findingScopeSummary, rowsCoveringFinding, eventForFinding,
+  canCreateTreatmentLabor,
 } from '../utils/findingScope'
-import { findingExtentPct } from '../utils/fieldHealth'
+import { findingExtentPct, findingTrend } from '../utils/fieldHealth'
 import FindingModal from './findingModal'
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -43,6 +44,8 @@ export default function FindingsSection({
   const deleteFinding = useDeleteFinding(farmId)
   const createTreatment = useCreateTreatmentOp(farmId)
   const [capturing, setCapturing] = useState(false)
+  // Re-inspection ("Actualizar") — appends an observation to this finding.
+  const [updating, setUpdating] = useState<Finding | null>(null)
 
   const findings = useMemo(
     () => (allFindings ?? [])
@@ -129,6 +132,8 @@ export default function FindingsSection({
             // Derived extent (incidencia) — how much of the field the
             // scope covers; severity stays the scout's judgment.
             const extentPct = findingExtentPct(f, { rows: fieldRows, freePlants })
+            const trend = findingTrend(f)
+            const history = f.observations ?? []
 
             return (
               <div
@@ -154,6 +159,22 @@ export default function FindingsSection({
                     >
                       {SEVERITY_LABELS[f.severity]}
                     </span>
+                    {/* Direction of the last re-inspection */}
+                    {trend === 'improving' && (
+                      <span className="flex items-center gap-0.5 text-[9px] font-medium text-[#639922] shrink-0">
+                        <TrendingDown size={9} /> mejorando
+                      </span>
+                    )}
+                    {trend === 'worsening' && (
+                      <span className="flex items-center gap-0.5 text-[9px] font-medium text-red-500 shrink-0">
+                        <TrendingUp size={9} /> empeorando
+                      </span>
+                    )}
+                    {trend === 'stable' && (
+                      <span className="flex items-center gap-0.5 text-[9px] font-medium text-[#9aab8a] shrink-0">
+                        <MoveRight size={9} /> estable
+                      </span>
+                    )}
                   </div>
                   <p className="text-[10px] text-[#9aab8a] mt-0.5">
                     {dateFormatted} · {findingScopeSummary(f, fieldRows)}
@@ -164,12 +185,40 @@ export default function FindingsSection({
                   {f.notes && (
                     <p className="text-[10px] text-[#7a8a6a] mt-0.5 truncate">{f.notes}</p>
                   )}
+                  {/* Re-inspection trail — like partial logs under an
+                      operation row; the last entry is the current state */}
+                  {history.length > 1 && (
+                    <div className="mt-1 flex flex-col gap-0.5">
+                      {history.map(obs => (
+                        <p key={obs.id} className="text-[10px] text-[#9aab8a]">
+                          <span style={{ color: SEVERITY_COLORS[obs.severity] }}>●</span>
+                          {' '}
+                          {new Date(obs.date + 'T12:00:00')
+                            .toLocaleDateString('es-PR', { day: 'numeric', month: 'short' })}
+                          {' · '}{SEVERITY_LABELS[obs.severity]}
+                          {' · '}{findingScopeSummary(obs, fieldRows)}
+                          {(() => {
+                            const pct = findingExtentPct(obs, { rows: fieldRows, freePlants })
+                            return pct !== null && pct > 0 ? ` (≈${pct}%)` : ''
+                          })()}
+                        </p>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {/* Actions by status */}
+                {f.status !== 'resolved' && (
+                  <button onClick={() => setUpdating(f)}
+                    className={`${smallBtn} text-[#7a8a6a] hover:text-[#2d4a1e]`}
+                    title="Registrar un seguimiento — cómo se ve hoy"
+                  >
+                    Actualizar
+                  </button>
+                )}
                 {f.status === 'open' && (
                   <>
-                    {!f.treatmentRecommendedOperationId && (
+                    {canCreateTreatmentLabor(f, plantingEvents) && (
                       <button onClick={() => handleCreateTreatment(f)}
                         className={`${smallBtn} text-[#2d4a1e] font-semibold hover:text-[#639922]`}
                         title="Crear una labor de tratamiento en el calendario"
@@ -222,14 +271,16 @@ export default function FindingsSection({
         </div>
       )}
 
-      {/* Capture modal — portaled, map taps work */}
-      {capturing && (
+      {/* Capture / re-inspection modal — portaled, map taps work */}
+      {(capturing || updating) && (
         <FindingModal
+          key={updating?.id ?? 'new'}
           farmId={farmId}
           fieldId={fieldId}
           fieldRows={fieldRows}
           freePlants={freePlants}
-          onClose={() => setCapturing(false)}
+          updateOf={updating ?? undefined}
+          onClose={() => { setCapturing(false); setUpdating(null) }}
         />
       )}
     </div>

@@ -22,9 +22,13 @@ export function fieldScopeTargets(field: {
   }
 }
 
-// Human summary of a finding's scope: "Todo el campo", "Hileras 1, 3",
-// "Hilera 2 + 4 plantas", "5 plantas".
-export function findingScopeSummary(finding: Finding, rows: FieldRow[]): string {
+// Human summary of a scope: "Todo el campo", "Hileras 1, 3",
+// "Hilera 2 + 4 plantas", "5 plantas". Accepts findings and observations
+// alike — anything carrying the {rowIds, plantIds} shape.
+export function findingScopeSummary(
+  finding: Pick<Finding, 'rowIds' | 'plantIds'>,
+  rows: FieldRow[]
+): string {
   if (finding.rowIds.length === 0 && finding.plantIds.length === 0) {
     return 'Todo el campo'
   }
@@ -114,6 +118,21 @@ export function eventForFinding(
   return [...events].sort(
     (a, b) => b.plantingDate.localeCompare(a.plantingDate)
   )[0]
+}
+
+// Whether "Crear labor" is available: one OPEN treatment at a time, but a
+// finding that worsened after its labor was completed (or skipped) can get
+// a new one. A linked labor missing from the calendar counts as gone (the
+// server re-validates either way).
+export function canCreateTreatmentLabor(
+  finding: Finding,
+  plantingEvents: PlantingEvent[]
+): boolean {
+  if (!finding.treatmentRecommendedOperationId) return true
+  const op = plantingEvents
+    .flatMap(e => e.operations)
+    .find(o => o.id === finding.treatmentRecommendedOperationId)
+  return !op || op.status === 'completed' || op.status === 'skipped'
 }
 
 // ── Map paint ─────────────────────────────────────────────────────────

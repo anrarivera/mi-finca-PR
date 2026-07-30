@@ -78,6 +78,34 @@ export function useDeleteFinding(farmId: string) {
   })
 }
 
+// ── Re-inspection ("seguimiento") — the Parcial of findings ───────────
+// Appends a dated severity + scope observation; the server mirrors it onto
+// the finding so map paint and field health read the new state instantly
+// after the refetch. Status is untouched — that stays the farmer's call.
+export function useAddObservation(farmId: string) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (vars: {
+      findingId: string
+      data: {
+        date?: string
+        severity: number
+        notes?: string
+        rowIds?: string[]
+        plantIds?: string[]
+      }
+    }) =>
+      api.post<Finding>(
+        `/api/v1/farms/${farmId}/findings/${vars.findingId}/observations`,
+        vars.data
+      ),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['findings', farmId] })
+    },
+  })
+}
+
 // ── "Crear labor" — one coarse treatment recommendation from a finding ──
 // The client picks the planting event (it knows which event the affected
 // plants belong to) and composes the label/notes; the farmer confirms the

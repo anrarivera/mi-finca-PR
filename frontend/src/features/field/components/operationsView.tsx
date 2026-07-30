@@ -84,8 +84,9 @@ export function harvestTargetsForOperation(
 }
 
 // Expand a stored selection (rowIds = whole rows, plantIds = loose plants)
-// back into the canonical plant-id set the selector edits.
-function selectionToPlantSet(
+// back into the canonical plant-id set the selector edits. Exported for the
+// scouting update flow, which preloads a finding's current scope.
+export function selectionToPlantSet(
   targets: HarvestTargets,
   rowIds: string[] | undefined,
   plantIds: string[] | undefined

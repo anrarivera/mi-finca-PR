@@ -3,7 +3,9 @@ import type { FieldRow, PlantInstance, PlantingEvent } from '@/features/field/ty
 import type { Finding } from '../types'
 import {
   findingScopeSummary, rowsCoveringFinding, eventForFinding, buildFindingMarks,
+  canCreateTreatmentLabor,
 } from './findingScope'
+import type { RecommendedOperation } from '@/features/field/types'
 
 function mkPlant(id: string, cropTypeId = 'plantain', plantingDate = '2026-01-15'): PlantInstance {
   return { id, cropTypeId, lat: 18.2, lng: -66.5, plantingDate }
@@ -104,6 +106,39 @@ describe('eventForFinding', () => {
 
   it('returns null with no planting events', () => {
     expect(eventForFinding(mkFinding({}), { ...field, plantingEvents: [] }, [])).toBeNull()
+  })
+})
+
+describe('canCreateTreatmentLabor', () => {
+  function mkOp(id: string, status: RecommendedOperation['status']): RecommendedOperation {
+    return {
+      id, plantingEventId: 'ev-1', templateId: 'finding_treatment',
+      type: 'spray', labelEs: 'Tratamiento', recommendedDate: '2026-07-30', status,
+    }
+  }
+  const eventsWith = (op: RecommendedOperation) => [
+    { ...mkEvent('ev-1', 'plantain', ['row-a']), operations: [op] },
+  ]
+
+  it('allows a first labor', () => {
+    expect(canCreateTreatmentLabor(mkFinding({}), [])).toBe(true)
+  })
+
+  it('blocks while the linked labor is still open', () => {
+    const f = mkFinding({ treatmentRecommendedOperationId: 'op-1' })
+    expect(canCreateTreatmentLabor(f, eventsWith(mkOp('op-1', 'pending')))).toBe(false)
+    expect(canCreateTreatmentLabor(f, eventsWith(mkOp('op-1', 'due')))).toBe(false)
+  })
+
+  it('allows a new labor once the previous is completed or skipped', () => {
+    const f = mkFinding({ treatmentRecommendedOperationId: 'op-1' })
+    expect(canCreateTreatmentLabor(f, eventsWith(mkOp('op-1', 'completed')))).toBe(true)
+    expect(canCreateTreatmentLabor(f, eventsWith(mkOp('op-1', 'skipped')))).toBe(true)
+  })
+
+  it('treats a labor missing from the calendar as gone', () => {
+    const f = mkFinding({ treatmentRecommendedOperationId: 'op-deleted' })
+    expect(canCreateTreatmentLabor(f, eventsWith(mkOp('op-1', 'pending')))).toBe(true)
   })
 })
 

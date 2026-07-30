@@ -3,9 +3,10 @@ import type { FieldRow, PlantInstance } from '@/features/field/types'
 import type { Finding } from '../types'
 import { SEVERITY_COLORS } from '../types'
 import {
-  findingExtent, findingExtentPct, fieldHealth, totalPlantCount,
+  findingExtent, findingExtentPct, fieldHealth, totalPlantCount, findingTrend,
   FIELD_HEALTH_COLORS, SEVERITY_COLORS_SOFT,
 } from './fieldHealth'
+import type { FindingObservation } from '../types'
 
 function mkPlant(id: string): PlantInstance {
   return { id, cropTypeId: 'plantain', lat: 18.2, lng: -66.5, plantingDate: '2026-01-15' }
@@ -64,6 +65,39 @@ describe('findingExtent', () => {
   it('extent % hides for field-level findings', () => {
     expect(findingExtentPct(mkFinding({}), field)).toBeNull()
     expect(findingExtentPct(mkFinding({ plantIds: ['a1'] }), field)).toBe(5)
+  })
+})
+
+function mkObs(severity: number, date: string): FindingObservation {
+  return {
+    id: `obs-${date}`, findingId: 'f1', date, severity,
+    rowIds: [], plantIds: [], notes: null, createdAt: `${date}T00:00:00Z`,
+  }
+}
+
+describe('findingTrend', () => {
+  it('needs at least two observations', () => {
+    expect(findingTrend(mkFinding({}))).toBeNull()
+    expect(findingTrend(mkFinding({ observations: [mkObs(3, '2026-07-01')] }))).toBeNull()
+  })
+
+  it('compares the last two observations', () => {
+    expect(findingTrend(mkFinding({
+      observations: [mkObs(3, '2026-07-01'), mkObs(2, '2026-07-15')],
+    }))).toBe('improving')
+    expect(findingTrend(mkFinding({
+      observations: [mkObs(1, '2026-07-01'), mkObs(2, '2026-07-15')],
+    }))).toBe('worsening')
+    expect(findingTrend(mkFinding({
+      observations: [mkObs(2, '2026-07-01'), mkObs(2, '2026-07-15')],
+    }))).toBe('stable')
+  })
+
+  it('only the LAST step counts, not the overall arc', () => {
+    // 1 → 3 → 2: got much worse then slightly better — reads "mejorando"
+    expect(findingTrend(mkFinding({
+      observations: [mkObs(1, '2026-07-01'), mkObs(3, '2026-07-10'), mkObs(2, '2026-07-20')],
+    }))).toBe('improving')
   })
 })
 
