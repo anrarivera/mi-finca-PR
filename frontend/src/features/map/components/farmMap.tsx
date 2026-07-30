@@ -298,6 +298,19 @@ export default function FarmMap({ center = PR_CENTER, zoom = DEFAULT_ZOOM }: Pro
     if (field) setZoomTarget(prev => ({ field, nonce: (prev?.nonce ?? 0) + 1 }))
   }
 
+  // Clear the field selection and zoom back out to the whole farm.
+  function unselectField() {
+    setFocusRequest(null)
+    if (activeFarm) flyToFarm(activeFarm)
+  }
+
+  // Field/card single click toggles: clicking the selected field again
+  // unselects it (and zooms out).
+  function toggleSelectField(fieldId: string) {
+    if (focusRequest?.fieldId === fieldId) unselectField()
+    else setFocusRequest(prev => ({ fieldId, nonce: (prev?.nonce ?? 0) + 1 }))
+  }
+
   // ── On-map field editing session — replaces the old full-screen
   //    editor. While active, the drawer and farm-boundary tools yield
   //    to the editing panel and map layer. ─────────────────────────────
@@ -482,7 +495,7 @@ async function handleDeleteFarm() {
               plantMarks={plantMarks}
               onSelect={(fieldId) => {
                 if (fieldEditing.active) return // don't switch mid-edit
-                setFocusRequest(prev => ({ fieldId, nonce: (prev?.nonce ?? 0) + 1 }))
+                toggleSelectField(fieldId)
               }}
               onOpenEditor={(fieldId) => {
                 // Double-clicking another field mid-edit switches the
@@ -506,12 +519,15 @@ async function handleDeleteFarm() {
       {!fieldEditing.active && (
       <FarmDrawer
         isOpen={drawerOpen}
-        onOpenChange={setDrawerOpen}
+        onOpenChange={(open) => {
+          setDrawerOpen(open)
+          // Hiding the drawer clears the selection and zooms back out
+          if (!open) unselectField()
+        }}
         focusRequest={focusRequest}
-        onSelectField={(fieldId) =>
-          // Card click → select the field on the map (highlight + plants)
-          setFocusRequest(prev => ({ fieldId, nonce: (prev?.nonce ?? 0) + 1 }))
-        }
+        // Card click → select the field on the map (highlight + plants);
+        // clicking the selected card again unselects and zooms out
+        onSelectField={toggleSelectField}
         onAddFarm={() => setShowModal(true)}
         // Card double-click just zooms to the field; only the Editar
         // button (onEditField) opens the editor — zooming there too.
