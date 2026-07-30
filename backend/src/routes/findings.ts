@@ -1,0 +1,293 @@
+import { Router, Request, Response, NextFunction } from 'express'
+import { prisma } from '../lib/prisma'
+import { requireAuth } from '../middleware/auth'
+import { Errors } from '../lib/errors'
+import { requireFields, requireValidId } from '../lib/validate'
+
+// ──────────────────────────────────────────────────────────────────────────
+// Scouting findings — pest/disease observations tied to a field, with the
+// same tri-level scope as operations (rowIds = fully affected rows,
+// plantIds = individual plants, both empty = field-level observation).
+// Findings record what the farmer SAW; the operations log records what the
+// farmer DID. The only bridge is /:id/create-operation, which turns a
+// finding into ONE coarse treatment labor in the recommendation calendar.
+// Mounted at /api/v1/farms/:farmId/findings
+// ──────────────────────────────────────────────────────────────────────────
+
+const router = Router({ mergeParams: true })
+
+router.use(requireAuth)
+
+const FINDING_STATUSES = ['open', 'treated', 'resolved']
+const TREATMENT_TYPES = ['spray', 'cultivation', 'fertilization', 'monitoring']
+
+async function requireFarmOwnership(userId: string, farmId: string) {
+  const farm = await prisma.farm.findFirst({
+    where: { id: farmId, userId, deletedAt: { equals: null } },
+  })
+  if (!farm) throw Errors.notFound('Farm')
+  return farm
+}
+
+// A finding belongs to a farm through its field.
+function ownedByFarm(farmId: string) {
+  return { field: { farmId, deletedAt: { equals: null } } }
+}
+
+function toDateStr(val: any): string {
+  if (!val) return ''
+  if (val instanceof Date) return val.toISOString().split('T')[0]
+  return String(val).split('T')[0]
+}
+
+function serializeFinding(finding: any) {
+  return {
+    ...finding,
+    foundDate: toDateStr(finding.foundDate),
+  }
+}
+
+function todayUtc(): Date {
+  const d = new Date()
+  d.setUTCHours(0, 0, 0, 0)
+  return d
+}
+
+function requireIdArray(val: unknown, name: string) {
+  if (val !== undefined &&
+      (!Array.isArray(val) || val.some((v: unknown) => typeof v !== 'string'))) {
+    throw Errors.validation(`${name} must be an array of ids`)
+  }
+}
+
+function requireSeverity(val: unknown) {
+  if (typeof val !== 'number' || !Number.isInteger(val) || val < 1 || val > 3) {
+    throw Errors.validation('severity must be an integer between 1 and 3')
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// GET /api/v1/farms/:farmId/findings
+// All findings for the farm, filterable: ?fieldId=...&status=open
+// ─────────────────────────────────────────────────────────────────────
+router.get('/', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const farmId = req.params.farmId as string
+    const userId = req.user!.userId
+
+    await requireFarmOwnership(userId, farmId)
+
+    const { fieldId, status } = req.query
+    if (status && !FINDING_STATUSES.includes(String(status))) {
+      throw Errors.validation(`status must be one of: ${FINDING_STATUSES.join(', ')}`)
+    }
+
+    const findings = await prisma.finding.findMany({
+      where: {
+        ...ownedByFarm(farmId),
+        ...(fieldId ? { fieldId: String(fieldId) } : {}),
+        ...(status ? { status: String(status) } : {}),
+      },
+      orderBy: [{ foundDate: 'desc' }, { createdAt: 'desc' }],
+    })
+
+    res.json({ success: true, data: findings.map(serializeFinding) })
+  } catch (err) {
+    next(err)
+  }
+})
+
+// ─────────────────────────────────────────────────────────────────────
+// POST /api/v1/farms/:farmId/findings
+// Register a finding: pest + severity + scope (+ optional notes/date).
+// ─────────────────────────────────────────────────────────────────────
+router.post('/', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const farmId = req.params.farmId as string
+    const userId = req.user!.userId
+
+    requireFields(req.body, ['fieldId', 'pestId', 'severity'])
+    await requireFarmOwnership(userId, farmId)
+
+    const { fieldId, pestId, severity, foundDate, notes, rowIds, plantIds } = req.body
+    requireSeverity(severity)
+    requireIdArray(rowIds, 'rowIds')
+    requireIdArray(plantIds, 'plantIds')
+
+    const field = await prisma.field.findFirst({
+      where: { id: fieldId, farmId, deletedAt: { equals: null } },
+    })
+    if (!field) throw Errors.notFound('Field')
+
+    const finding = await prisma.finding.create({
+      data: {
+        fieldId,
+        pestId: String(pestId),
+        severity,
+        foundDate: new Date(foundDate ?? todayUtc()),
+        notes: notes ?? null,
+        rowIds: rowIds ?? [],
+        plantIds: plantIds ?? [],
+      },
+    })
+
+    res.status(201).json({ success: true, data: serializeFinding(finding) })
+  } catch (err) {
+    next(err)
+  }
+})
+
+// ─────────────────────────────────────────────────────────────────────
+// PATCH /api/v1/farms/:farmId/findings/:id
+// Update a finding — mostly the manual status lifecycle (open → treated →
+// resolved), but severity/scope/notes corrections are allowed too.
+// ─────────────────────────────────────────────────────────────────────
+router.patch('/:id', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const farmId = req.params.farmId as string
+    const id = req.params.id as string
+    const userId = req.user!.userId
+
+    requireValidId(id, 'Finding')
+    await requireFarmOwnership(userId, farmId)
+
+    const existing = await prisma.finding.findFirst({
+      where: { id, ...ownedByFarm(farmId) },
+    })
+    if (!existing) throw Errors.notFound('Finding')
+
+    const { pestId, severity, status, foundDate, notes, rowIds, plantIds } = req.body
+
+    if (status !== undefined && !FINDING_STATUSES.includes(status)) {
+      throw Errors.validation(`status must be one of: ${FINDING_STATUSES.join(', ')}`)
+    }
+    if (severity !== undefined) requireSeverity(severity)
+    requireIdArray(rowIds, 'rowIds')
+    requireIdArray(plantIds, 'plantIds')
+
+    const updateData: Record<string, unknown> = {}
+    if (pestId !== undefined) updateData.pestId = String(pestId)
+    if (severity !== undefined) updateData.severity = severity
+    if (status !== undefined) updateData.status = status
+    if (foundDate !== undefined) updateData.foundDate = new Date(foundDate)
+    if (notes !== undefined) updateData.notes = notes
+    if (rowIds !== undefined) updateData.rowIds = rowIds
+    if (plantIds !== undefined) updateData.plantIds = plantIds
+
+    const updated = await prisma.finding.update({
+      where: { id },
+      data: updateData,
+    })
+
+    res.json({ success: true, data: serializeFinding(updated) })
+  } catch (err) {
+    next(err)
+  }
+})
+
+// ─────────────────────────────────────────────────────────────────────
+// DELETE /api/v1/farms/:farmId/findings/:id
+// Hard delete — findings are lightweight observations; any treatment labor
+// created from one lives on in the calendar untouched.
+// ─────────────────────────────────────────────────────────────────────
+router.delete('/:id', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const farmId = req.params.farmId as string
+    const id = req.params.id as string
+    const userId = req.user!.userId
+
+    requireValidId(id, 'Finding')
+    await requireFarmOwnership(userId, farmId)
+
+    const existing = await prisma.finding.findFirst({
+      where: { id, ...ownedByFarm(farmId) },
+    })
+    if (!existing) throw Errors.notFound('Finding')
+
+    await prisma.finding.delete({ where: { id } })
+
+    res.json({ success: true, data: { success: true } })
+  } catch (err) {
+    next(err)
+  }
+})
+
+// ─────────────────────────────────────────────────────────────────────
+// POST /api/v1/farms/:farmId/findings/:id/create-operation
+// "Crear labor": one coarse treatment recommendation from a finding.
+// The client picks the planting event (it knows which event the affected
+// plants belong to) and sends the display label; the suggested scope
+// travels in the notes — the farmer confirms the real scope at check-off
+// with the normal selector. Body: { plantingEventId, labelEs, type?,
+// recommendedDate?, notes? }.
+// ─────────────────────────────────────────────────────────────────────
+router.post('/:id/create-operation', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const farmId = req.params.farmId as string
+    const id = req.params.id as string
+    const userId = req.user!.userId
+
+    requireValidId(id, 'Finding')
+    requireFields(req.body, ['plantingEventId', 'labelEs'])
+    await requireFarmOwnership(userId, farmId)
+
+    const finding = await prisma.finding.findFirst({
+      where: { id, ...ownedByFarm(farmId) },
+    })
+    if (!finding) throw Errors.notFound('Finding')
+    if (finding.treatmentRecommendedOperationId) {
+      throw Errors.conflict('A treatment operation already exists for this finding')
+    }
+
+    const { plantingEventId, labelEs, type, recommendedDate, notes } = req.body
+
+    if (type !== undefined && !TREATMENT_TYPES.includes(type)) {
+      throw Errors.validation(`type must be one of: ${TREATMENT_TYPES.join(', ')}`)
+    }
+
+    // The recommendation calendar hangs off planting events — the event must
+    // belong to the same field the finding is on.
+    const event = await prisma.plantingEvent.findFirst({
+      where: { id: plantingEventId, fieldId: finding.fieldId },
+    })
+    if (!event) throw Errors.notFound('Planting event')
+
+    const date = new Date(recommendedDate ?? todayUtc())
+
+    const result = await prisma.$transaction(async (tx) => {
+      const recOp = await tx.recommendedOperation.create({
+        data: {
+          plantingEventId,
+          templateId: 'finding_treatment',
+          type: type ?? 'spray',
+          labelEs: String(labelEs),
+          recommendedDate: date,
+          status: date < todayUtc() ? 'due' : 'pending',
+          notes: notes ?? null,
+        },
+      })
+      const updated = await tx.finding.update({
+        where: { id: finding.id },
+        data: { treatmentRecommendedOperationId: recOp.id },
+      })
+      return { recOp, finding: updated }
+    })
+
+    res.status(201).json({
+      success: true,
+      data: {
+        finding: serializeFinding(result.finding),
+        recommendedOperation: {
+          ...result.recOp,
+          quantity: result.recOp.quantity !== null ? Number(result.recOp.quantity) : null,
+          recommendedDate: toDateStr(result.recOp.recommendedDate),
+          completedDate: result.recOp.completedDate ? toDateStr(result.recOp.completedDate) : null,
+        },
+      },
+    })
+  } catch (err) {
+    next(err)
+  }
+})
+
+export default router

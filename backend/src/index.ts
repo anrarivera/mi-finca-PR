@@ -14,6 +14,7 @@ import operationRoutes from './routes/operations'
 import recommendedOperationRoutes from './routes/recommendedOperations'
 import cropRoutes from './routes/crops'
 import userRoutes from './routes/users'
+import findingRoutes from './routes/findings'
 
 // After the farms routes line:
 const app = express()
@@ -57,6 +58,8 @@ app.use('/api/v1/farms/:farmId/harvests', harvestRoutes)
 // Operations log + recommendation calendar (SDD §4.5 / §4.6)
 app.use('/api/v1/farms/:farmId/operations', operationRoutes)
 app.use('/api/v1/farms/:farmId/recommended-operations', recommendedOperationRoutes)
+// Scouting findings — pest observations + "crear labor" bridge
+app.use('/api/v1/farms/:farmId/findings', findingRoutes)
 app.use('/api/v1/crops', cropRoutes)
 app.use('/api/v1/users', userRoutes)
 
