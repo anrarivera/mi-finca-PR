@@ -39,6 +39,7 @@ export default function FieldOperationsContainer({ farmId, fieldId, onClose }: P
     <OperationsView
       plantingEvents={field.plantingEvents ?? []}
       fieldName={field.name}
+      fieldId={field.id}
       fieldRows={field.rows ?? []}
       freePlants={field.freePlants ?? []}
       farmOperations={farmOperations ?? []}

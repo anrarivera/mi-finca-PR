@@ -12,7 +12,8 @@ import { getCropById } from '../data/cropLibrary'
 import { useHarvestHighlightStore } from '@/store/useHarvestHighlightStore'
 
 // ──────────────────────────────────────────────────────────────────────────
-// Operations view — the calendar check-off screen (SDD §6.2), now with:
+// Operations view — the calendar check-off drawer (SDD §6.2), docked left
+// with the map visible beside it, now with:
 //  - Undo:   completed/skipped items can be reopened ("Deshacer"/"Reactivar")
 //  - Edit:   completed items can be corrected without redoing them
 //  - Partial logs: harvests too big for one day are logged day by day
@@ -118,6 +119,8 @@ function plantSetToSelection(
 type Props = {
   plantingEvents: PlantingEvent[]
   fieldName: string
+  /** The field's id — scopes the check-off modal's map toggles. */
+  fieldId: string
   /** The field's rows — feeds the harvest selector in the modal. */
   fieldRows: FieldRow[]
   /** The field's free-standing plants — also selectable in harvests. */
@@ -136,8 +139,8 @@ type Props = {
 }
 
 export default function OperationsView({
-  plantingEvents, fieldName, fieldRows, freePlants, farmOperations, onClose,
-  onCompleteOperation, onSkipOperation,
+  plantingEvents, fieldName, fieldId, fieldRows, freePlants, farmOperations,
+  onClose, onCompleteOperation, onSkipOperation,
   onUndoOperation, onEditOperation, onPartialLog,
 }: Props) {
   const [modal, setModal] = useState<{
@@ -181,10 +184,14 @@ export default function OperationsView({
   ).length
 
   // Portaled to <body>: hosts can render this from inside the farm
-  // drawer, whose slide transform would otherwise hijack position:fixed
-  // and trap the "fullscreen" view inside the 300px panel.
+  // drawer, whose slide transform would otherwise hijack position:fixed.
+  // Rendered as a left-docked drawer — the map stays visible beside it so
+  // the check-off modal's row/plant map toggles remain usable.
   return createPortal(
-    <div className="fixed inset-0 z-[2100] flex flex-col bg-[#f5f8f0]">
+    <div
+      className="fixed left-0 top-0 bottom-0 z-[2100] flex flex-col bg-[#f5f8f0] shadow-2xl border-r border-[#e0e8d8]"
+      style={{ width: 420, maxWidth: '100vw' }}
+    >
 
       {/* Header */}
       <div className="h-12 bg-[#2d4a1e] flex items-center justify-between px-4 shrink-0">
@@ -219,7 +226,7 @@ export default function OperationsView({
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-4 max-w-4xl mx-auto w-full">
+      <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-4 w-full">
 
         {sortedEvents.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-64 gap-3">
@@ -250,11 +257,14 @@ export default function OperationsView({
         )}
       </div>
 
-      {/* Check-off / partial / edit modal */}
+      {/* Check-off / partial / edit modal — the map is visible beside
+          this drawer, so rows/plants can be toggled right on it */}
       {modal && (
         <CheckOffModal
           mode={modal.mode}
           operation={modal.operation}
+          mapInteractive
+          fieldId={fieldId}
           harvestTargets={harvestTargetsForOperation(
             modal.operation, plantingEvents, { rows: fieldRows, freePlants }
           )}
