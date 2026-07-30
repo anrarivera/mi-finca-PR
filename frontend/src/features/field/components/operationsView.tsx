@@ -84,8 +84,9 @@ export function harvestTargetsForOperation(
 }
 
 // Expand a stored selection (rowIds = whole rows, plantIds = loose plants)
-// back into the canonical plant-id set the selector edits.
-function selectionToPlantSet(
+// back into the canonical plant-id set the selector edits. Exported for the
+// scouting update flow, which preloads a finding's current scope.
+export function selectionToPlantSet(
   targets: HarvestTargets,
   rowIds: string[] | undefined,
   plantIds: string[] | undefined
@@ -99,7 +100,8 @@ function selectionToPlantSet(
 
 // Compress a plant-id set into { rowIds, plantIds }: rows where every plant
 // is selected become rowIds; everything else stays as individual plantIds.
-function plantSetToSelection(
+// Exported for the scouting finding modal, which stores the same shape.
+export function plantSetToSelection(
   targets: HarvestTargets,
   selected: Set<string>
 ): { rowIds?: string[]; plantIds?: string[] } {
@@ -127,6 +129,10 @@ type Props = {
   freePlants: PlantInstance[]
   /** Farm operations log — used to show partial-log progress per row. */
   farmOperations: FarmOperation[]
+  /** Scouting findings card, rendered above the calendar. Passed as a node
+      by the container (not imported) to keep operationsView ↔ scouting
+      import-cycle free — the finding modal reuses HarvestSelector. */
+  findingsSection?: React.ReactNode
   onClose: () => void
   onCompleteOperation: (eventId: string, operationId: string, data: CheckOffFormData) => void
   onSkipOperation: (eventId: string, operationId: string) => void
@@ -140,7 +146,7 @@ type Props = {
 
 export default function OperationsView({
   plantingEvents, fieldName, fieldId, fieldRows, freePlants, farmOperations,
-  onClose, onCompleteOperation, onSkipOperation,
+  findingsSection, onClose, onCompleteOperation, onSkipOperation,
   onUndoOperation, onEditOperation, onPartialLog,
 }: Props) {
   const [modal, setModal] = useState<{
@@ -229,6 +235,9 @@ export default function OperationsView({
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-4 w-full">
+
+        {/* Scouting findings — what the farmer SAW, above what's to DO */}
+        {findingsSection}
 
         {sortedEvents.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-64 gap-3">
@@ -803,8 +812,9 @@ export function CheckOffModal({
 // Fully flexible: whole rows (tri-state checkbox), individual plants inside
 // a row (expand it), "the first N plants of a row" (quick input), and
 // free-standing plants. The canonical state is a set of plant ids owned by
-// the modal; this component is a controlled view over it.
-function HarvestSelector({ title, targets, selected, onChange, mapToggles = false, fieldId }: {
+// the modal; this component is a controlled view over it. Exported for the
+// scouting finding modal, which selects scope the exact same way.
+export function HarvestSelector({ title, targets, selected, onChange, mapToggles = false, fieldId }: {
   /** Type-aware heading, e.g. "¿Qué cosechaste?" / "¿Qué alcanzó esta labor?" */
   title: string
   targets: HarvestTargets

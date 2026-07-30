@@ -4,6 +4,10 @@ import * as L from 'leaflet'
 import { useFieldStore } from '@/store/useFieldStore'
 import { useHarvestHighlightStore } from '@/store/useHarvestHighlightStore'
 import { plantVisualStatus, PLANT_STATUS_STYLE, type PlantMarks } from '../utils/plantStatus'
+import {
+  EMPTY_FINDING_MARKS, type FindingMarks,
+} from '@/features/scouting/utils/findingScope'
+import { SEVERITY_COLORS } from '@/features/scouting/types'
 import type { PlacedField as PlacedFieldType, FieldRow } from '../types'
 
 const EMPTY_MARKS: PlantMarks = { plantIds: new Set(), rowIds: new Set() }
@@ -31,6 +35,13 @@ type Props = {
   detailed?: boolean
   /** Plant/row ids covered by operations — colors removed plants red. */
   plantMarks?: PlantMarks
+  /** Unresolved scouting findings — paints affected rows/plants amber→red
+      by severity until the finding is resolved. */
+  findingMarks?: FindingMarks
+  /** Health traffic-light color (derived from findings) — replaces the
+      stored field.color for the fill and pin so the zoomed-out map reads
+      as a dashboard: gray = bare, green = healthy, amber→red = alert. */
+  displayColor?: string
 }
 
 // A row's geometry: the drawn path when present, else the start→end segment.
@@ -67,7 +78,9 @@ function createPinIcon(color: string, name: string): L.DivIcon {
 
 export default function PlacedField({
   field, onSelect, onOpenEditor, detailed = false, plantMarks = EMPTY_MARKS,
+  findingMarks = EMPTY_FINDING_MARKS, displayColor,
 }: Props) {
+  const fieldColor = displayColor ?? field.color
   const { updateField } = useFieldStore()
   // Live harvest-modal selection — paints chosen rows/plants amber.
   const harvestHighlight = useHarvestHighlightStore(s => s.highlight)
@@ -136,7 +149,7 @@ export default function PlacedField({
     return (
       <Marker
         position={L.latLng(field.farmLat, field.farmLng)}
-        icon={createPinIcon(field.color, field.name)}
+        icon={createPinIcon(fieldColor, field.name)}
         eventHandlers={eventHandlers}
       />
     )
@@ -148,7 +161,7 @@ export default function PlacedField({
     return (
       <Marker
         position={L.latLng(field.farmLat, field.farmLng)}
-        icon={createPinIcon(field.color, field.name)}
+        icon={createPinIcon(fieldColor, field.name)}
         eventHandlers={eventHandlers}
       />
     )
@@ -170,8 +183,8 @@ export default function PlacedField({
         positions={positions}
         pathOptions={{
           // Selected field (drawer card / map click) gets a stronger outline
-          color: detailed ? '#2d4a1e' : field.color,
-          fillColor: field.color,
+          color: detailed ? '#2d4a1e' : fieldColor,
+          fillColor: fieldColor,
           fillOpacity: isHovered || detailed ? 0.5 : field.isPositioning ? 0.3 : 0.4,
           weight: detailed ? 3 : field.isPositioning ? 2.5 : 2,
           dashArray: field.isPositioning ? '6 4' : undefined,
@@ -190,16 +203,19 @@ export default function PlacedField({
           Rows selected in an open harvest modal highlight amber. */}
       {field.rows.map(row => {
         const inHarvest = harvestHighlight?.rowIds.includes(row.id) ?? false
+        // Unresolved finding on this row — solid amber→red by severity.
+        // The live selection highlight wins while a selector is open.
+        const rowSev = findingMarks.rowSeverity.get(row.id)
         return (
           <Fragment key={row.id}>
             <Polyline
               positions={rowPositions(row)}
               interactive={false}
               pathOptions={{
-                color: inHarvest ? '#f59e0b' : 'white',
-                weight: inHarvest ? 3.5 : detailed ? 2 : 1.5,
-                opacity: inHarvest ? 1 : detailed ? 0.9 : 0.6,
-                dashArray: inHarvest ? undefined : '1 6',
+                color: inHarvest ? '#f59e0b' : rowSev ? SEVERITY_COLORS[rowSev] : 'white',
+                weight: inHarvest ? 3.5 : rowSev ? 3 : detailed ? 2 : 1.5,
+                opacity: inHarvest ? 1 : rowSev ? 0.95 : detailed ? 0.9 : 0.6,
+                dashArray: inHarvest || rowSev ? undefined : '1 6',
                 lineCap: 'round',
               }}
             />
@@ -226,16 +242,18 @@ export default function PlacedField({
       {plants.map(({ plant, rowId }) => {
         const style = PLANT_STATUS_STYLE[plantVisualStatus(plant, plantMarks, rowId)]
         const inHarvest = harvestHighlight?.plantIds.includes(plant.id) ?? false
+        // Individually affected plant — severity fill until resolved.
+        const plantSev = findingMarks.plantSeverity.get(plant.id)
         return (
           <Fragment key={plant.id}>
             <CircleMarker
               center={L.latLng(plant.lat, plant.lng)}
-              radius={inHarvest ? 4 : 2.5}
+              radius={inHarvest ? 4 : plantSev ? 3.5 : 2.5}
               interactive={false}
               pathOptions={{
-                color: inHarvest ? '#f59e0b' : style.color,
+                color: inHarvest ? '#f59e0b' : plantSev ? '#7f1d1d' : style.color,
                 weight: inHarvest ? 2 : 1,
-                fillColor: style.fillColor,
+                fillColor: plantSev ? SEVERITY_COLORS[plantSev] : style.fillColor,
                 fillOpacity: 1,
               }}
             />

@@ -1,8 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import {
   MapPin, Layers, Pencil, Trash2,
-  ToggleLeft, ToggleRight, AlertCircle, Clock, CalendarDays,
+  ToggleLeft, ToggleRight, AlertCircle, Clock, CalendarDays, Bug,
 } from 'lucide-react'
+import FindingModal from '@/features/scouting/components/findingModal'
+import { useFindings } from '@/features/scouting/hooks/useFindingsApi'
+import { fieldHealth } from '@/features/scouting/utils/fieldHealth'
+import { SEVERITY_COLORS } from '@/features/scouting/types'
 import { computeCropSummary } from '../utils/rowCalculator'
 import { getFieldOperationHealth } from '../utils/operationStatus'
 import { getCropById } from '../data/cropLibrary'
@@ -76,6 +80,8 @@ export default function FieldSummaryCard({
     event: PlantingEvent
   } | null>(null)
   const [showOps, setShowOps] = useState(false)
+  // "Registrar hallazgo" — scouting capture for this field
+  const [reportingFinding, setReportingFinding] = useState(false)
   const completeOp = useCompleteRecommendedOp(field.farmId)
   const skipOp = useSkipRecommendedOp(field.farmId)
   const partialOp = useLogPartialRecommendedOp(field.farmId)
@@ -109,6 +115,16 @@ export default function FieldSummaryCard({
   const summary = computeCropSummary(field.rows ?? [], field.freePlants ?? [], getCropById)
   const health = getFieldOperationHealth(field.plantingEvents ?? [])
 
+  // Scouting traffic light: the dot shows derived health (gray/green/
+  // amber→red) instead of the stored identity color; the badge counts
+  // unresolved findings even when they're below the field-tint threshold.
+  const { data: farmFindings } = useFindings(field.farmId)
+  const scoutHealth = fieldHealth(
+    { id: field.id, rows: field.rows ?? [], freePlants: field.freePlants ?? [] },
+    farmFindings ?? []
+  )
+  const findingBadgeColor = SEVERITY_COLORS[scoutHealth.maxUnresolvedSeverity ?? 1]
+
   // Most urgent open calendar item — checkable right from the card
   const next = nextOperation(field)
   const nextCrop = next ? getCropById(next.event.cropTypeId) : null
@@ -140,11 +156,23 @@ export default function FieldSummaryCard({
       <div className="flex items-center justify-between mb-1">
         <div className="flex items-center gap-2 min-w-0">
           <div className="w-3 h-3 rounded-full shrink-0"
-            style={{ backgroundColor: field.color }}
+            style={{ backgroundColor: scoutHealth.color }}
           />
           <span className="text-sm font-medium text-[#2d4a1e] truncate">{field.name}</span>
         </div>
         <div className="flex items-center gap-1 shrink-0">
+          {scoutHealth.unresolvedCount > 0 && (
+            <div
+              className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full"
+              style={{ backgroundColor: `${findingBadgeColor}1f` }}
+              title="Hallazgos sin resolver"
+            >
+              <Bug size={8} style={{ color: findingBadgeColor }} />
+              <span className="text-[9px] font-bold" style={{ color: findingBadgeColor }}>
+                {scoutHealth.unresolvedCount}
+              </span>
+            </div>
+          )}
           {health.overdue > 0 && (
             <div className="flex items-center gap-0.5 px-1.5 py-0.5 bg-red-50 rounded-full">
               <AlertCircle size={8} className="text-red-500" />
@@ -285,6 +313,14 @@ export default function FieldSummaryCard({
           >
             <Trash2 size={10} /> Eliminar
           </button>
+          {/* Scouting: register a pest/disease finding on this field */}
+          <button
+            onClick={(e) => { e.stopPropagation(); setReportingFinding(true) }}
+            title="Registrar hallazgo de plaga o enfermedad"
+            className="shrink-0 flex items-center justify-center px-2 py-1.5 text-[#b8860b] border border-[#e8dcc0] rounded-lg hover:bg-amber-50 hover:border-amber-200 transition-colors"
+          >
+            <Bug size={11} />
+          </button>
         </div>
       ) : (
         <div className="flex flex-col gap-1.5">
@@ -321,6 +357,17 @@ export default function FieldSummaryCard({
             farmId={field.farmId}
             fieldId={field.id}
             onClose={() => setShowOps(false)}
+          />
+        )}
+
+        {/* Scouting capture — pest + severity + where (map taps work) */}
+        {reportingFinding && (
+          <FindingModal
+            farmId={field.farmId}
+            fieldId={field.id}
+            fieldRows={field.rows ?? []}
+            freePlants={field.freePlants ?? []}
+            onClose={() => setReportingFinding(false)}
           />
         )}
 

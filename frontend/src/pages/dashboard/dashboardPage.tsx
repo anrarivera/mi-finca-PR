@@ -17,6 +17,7 @@ import { collectHarvestEntries, totalHarvestsByCrop } from '@/features/field/uti
 import LivestockSection from '@/features/livestock/components/livestockSection'
 import OperationsCalendar from '@/features/field/components/operationsCalendar'
 import OperationsLogSection from '@/features/field/components/operationsLogSection'
+import SanidadSection from '@/features/scouting/components/sanidadSection'
 import type { Recommendation } from '@/features/recommendations/types'
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -199,6 +200,10 @@ export default function DashboardPage() {
               )}
             </section>
           </div>
+
+          {/* ── Sanidad — the compact sanitary report: field traffic
+                 lights, active findings, pest recurrence, CSV export ── */}
+          <SanidadSection />
 
           {/* ── Server-backed operations log (SDD §4.5) — what was
                  actually logged, plus overdue badges and CSV export ── */}

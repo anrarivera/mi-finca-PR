@@ -86,6 +86,7 @@ model Field {
   plantingEvents PlantingEvent[]
   operations     Operation[]
   harvestYields  HarvestYield[]
+  findings       Finding[]
 
   @@map("fields")
 }
@@ -160,8 +161,56 @@ model RecommendedOperation {
   plantingEvent       PlantingEvent? @relation(fields: [plantingEventId], references: [id], onDelete: Cascade)
   livestockUnit       LivestockUnit? @relation(fields: [livestockUnitId], references: [id])
   completedOperation  Operation? @relation(fields: [completedOperationId], references: [id])
+  treatedFindings     Finding[]
 
   @@map("recommended_operations")
+}
+
+// A scouting finding — a pest/disease observation (SDD: scouting feature).
+// Separate entity from the operations log: findings are what the farmer SAW,
+// operations are what the farmer DID. Linked to a treatment labor only by id
+// reference, never merged. Scope reuses the tri-level model of operations:
+// rowIds = fully affected rows, plantIds = individual plants outside those
+// rows, both empty = field-level observation (sample-based scouting).
+model Finding {
+  id        String   @id @default(uuid())
+  fieldId   String
+  pestId    String
+  severity  Int      @default(1) // 1 leve · 2 moderada · 3 severa
+  status    String   @default("open") // open | treated | resolved
+  foundDate DateTime @db.Date
+  notes     String?
+  rowIds    Json     @default("[]")
+  plantIds  Json     @default("[]")
+  // The treatment labor "Crear labor" generated from this finding — cleared
+  // if that recommendation is ever deleted, so a new one can be created.
+  treatmentRecommendedOperationId String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  field     Field    @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+  treatmentRecommendedOperation RecommendedOperation? @relation(fields: [treatmentRecommendedOperationId], references: [id], onDelete: SetNull)
+  observations FindingObservation[]
+
+  @@map("findings")
+}
+
+// One scouting visit to a finding — the re-inspection trail ("seguimiento",
+// the Parcial of findings). The finding's own severity/scope mirror the
+// LATEST observation so map paint and field health read the current state;
+// the history here answers whether the treatment worked. Every finding has
+// at least one observation (created with it).
+model FindingObservation {
+  id        String   @id @default(uuid())
+  findingId String
+  date      DateTime @db.Date
+  severity  Int
+  rowIds    Json     @default("[]")
+  plantIds  Json     @default("[]")
+  notes     String?
+  createdAt DateTime @default(now())
+  finding   Finding  @relation(fields: [findingId], references: [id], onDelete: Cascade)
+
+  @@map("finding_observations")
 }
 
 model Operation {

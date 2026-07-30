@@ -16,6 +16,9 @@ import {
 } from '@/features/field/components/mapFieldEditing'
 import { useOperations } from '@/features/field/hooks/useOperationsApi'
 import { buildPlantMarks } from '@/features/field/utils/plantStatus'
+import { useFindings } from '@/features/scouting/hooks/useFindingsApi'
+import { buildFindingMarks } from '@/features/scouting/utils/findingScope'
+import { fieldHealth } from '@/features/scouting/utils/fieldHealth'
 import CreateFarmModal from '@/features/farm/components/createFarmModal'
 import { useFieldStore } from '@/store/useFieldStore'
 import { useFarmStore } from '@/store/useFarmStore'
@@ -328,6 +331,24 @@ export default function FarmMap({ center = PR_CENTER, zoom = DEFAULT_ZOOM }: Pro
   const { data: farmOps } = useOperations(activeFarm?.id ?? null)
   const plantMarks = useMemo(() => buildPlantMarks(farmOps ?? []), [farmOps])
 
+  // Unresolved scouting findings — paint affected rows/plants amber→red.
+  const { data: farmFindings } = useFindings(activeFarm?.id ?? null)
+  const findingMarks = useMemo(() => buildFindingMarks(farmFindings ?? []), [farmFindings])
+
+  // Traffic-light field colors: gray = bare, green = healthy, amber→red =
+  // alerting findings (severa always; leve/moderada past the extent
+  // threshold). The stored field.color is no longer shown on the map.
+  const healthColors = useMemo(
+    () => new Map(farmFields.map(f => [
+      f.id,
+      fieldHealth(
+        { id: f.id, rows: f.rows ?? [], freePlants: f.freePlants ?? [] },
+        farmFindings ?? []
+      ).color,
+    ])),
+    [farmFields, farmFindings]
+  )
+
   // On mount — fly to favorite or first farm
   useEffect(() => {
     if (farms.length === 0) return
@@ -497,6 +518,8 @@ async function handleDeleteFarm() {
               field={field}
               detailed={field.id === focusRequest?.fieldId}
               plantMarks={plantMarks}
+              findingMarks={findingMarks}
+              displayColor={healthColors.get(field.id)}
               onSelect={(fieldId) => {
                 if (fieldEditing.active) return // don't switch mid-edit
                 toggleSelectField(fieldId)
