@@ -1,12 +1,11 @@
 import { useState } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useResetPassword } from '@/features/auth/hooks/useAuth'
 import { Eye, EyeOff, Loader2, CheckCircle } from 'lucide-react'
 
 export default function ResetPasswordPage() {
   const [searchParams] = useSearchParams()
   const token = searchParams.get('token') || ''
-  const navigate = useNavigate()
   const resetPassword = useResetPassword()
 
   const [password, setPassword] = useState('')

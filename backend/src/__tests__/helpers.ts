@@ -68,14 +68,20 @@ export async function createTestField(token: string, farmId: string, overrides?:
 // ── Cleanup — wipe test data between tests ────────────────────────
 export async function cleanDatabase() {
   // Delete in order to respect foreign keys
+  await prisma.findingObservation.deleteMany()
+  await prisma.finding.deleteMany()
+  await prisma.harvestYield.deleteMany()
+  await prisma.recommendedOperation.deleteMany()
   await prisma.operation.deleteMany()
   await prisma.plantingEvent.deleteMany()
   await prisma.plantInstance.deleteMany()
   await prisma.fieldRow.deleteMany()
   await prisma.field.deleteMany()
+  await prisma.livestockUnit.deleteMany()
   await prisma.farm.deleteMany()
   await prisma.refreshToken.deleteMany()
-  await prisma.passwordResetToken.deleteMany()
-  await prisma.emailVerificationToken.deleteMany()
+  // Single-use email links (verification / reset / change-email) all live
+  // in action_tokens now — the old per-type token tables are gone.
+  await prisma.actionToken.deleteMany()
   await prisma.user.deleteMany()
 }

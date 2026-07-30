@@ -1,10 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import { Check, X } from 'lucide-react'
 import CropSelector from './cropSelector'
 import {
   canvasToLatlng,
   calculateRowPlantPositions,
-  CANVAS_W, CANVAS_H,
 } from '../utils/canvasGeo'
 import type { BBox } from '../utils/canvasGeo'
 import { todayISO } from '../types'
@@ -27,21 +26,21 @@ export default function RowConfigPanel({ rowDraft, bbox, onConfirm, onCancel }: 
   const [companionCropId, setCompanionCropId] = useState('')
   const [spacingFt, setSpacingFt] = useState(6)
   const [plantingDate, setPlantingDate] = useState(todayISO())
-  const [plantCount, setPlantCount] = useState(0)
 
   // Convert draft canvas points to lat/lng
   const startGeo = canvasToLatlng(rowDraft.startX, rowDraft.startY, bbox)
   const endGeo = canvasToLatlng(rowDraft.endX, rowDraft.endY, bbox)
 
-  useEffect(() => {
-    if (!primaryCropId) { setPlantCount(0); return }
-    const positions = calculateRowPlantPositions(
+  // Derived, not stored — the preview count is a pure function of the
+  // draft line and spacing.
+  const plantCount = useMemo(() => {
+    if (!primaryCropId) return 0
+    return calculateRowPlantPositions(
       startGeo.lat, startGeo.lng,
       endGeo.lat, endGeo.lng,
       spacingFt
-    )
-    setPlantCount(positions.length)
-  }, [primaryCropId, spacingFt, rowDraft, bbox])
+    ).length
+  }, [primaryCropId, spacingFt, startGeo.lat, startGeo.lng, endGeo.lat, endGeo.lng])
 
   function handleConfirm() {
     if (!primaryCropId) return

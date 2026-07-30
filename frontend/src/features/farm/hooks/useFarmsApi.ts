@@ -19,7 +19,7 @@ type ApiFarm = {
 
 // ── Fetch all farms ───────────────────────────────────────────────────
 export function useFarms() {
-  const { farms, addFarm, setActiveFarm, favoriteFarmId } = useFarmStore()
+  const { addFarm, setActiveFarm } = useFarmStore()
 
   return useQuery({
     queryKey: ['farms'],

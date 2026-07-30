@@ -19,5 +19,18 @@ export default defineConfig([
       ecmaVersion: 2020,
       globals: globals.browser,
     },
+    rules: {
+      // Files here deliberately export components alongside their helpers
+      // (selector utils, dialog hooks) — the rule only affects HMR
+      // granularity, so keep it visible but non-blocking.
+      'react-refresh/only-export-components': 'warn',
+      // A leading underscore marks intentionally unused (e.g. destructuring
+      // a key away: `const { farmId: _ignored, ...updates } = data`).
+      '@typescript-eslint/no-unused-vars': ['error', {
+        argsIgnorePattern: '^_',
+        varsIgnorePattern: '^_',
+        destructuredArrayIgnorePattern: '^_',
+      }],
+    },
   },
 ])

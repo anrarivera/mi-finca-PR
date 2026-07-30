@@ -11,6 +11,8 @@ function makeFarm(overrides: Partial<Farm> = {}): Farm {
     id: 'farm1',
     name: 'Finca Test',
     location: 'Gurabo, PR',
+    farmType: 'mixed',
+    isFavorite: false,
     totalAreaAcres: 2,
     createdAt: '2026-01-01T00:00:00.000Z',
     boundary: [

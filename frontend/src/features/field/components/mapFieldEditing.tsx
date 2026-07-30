@@ -128,7 +128,10 @@ export function useMapFieldEditing(
     const all = row.plants.every(p => selectedPlantIds.has(p.id))
     setSelectedPlantIds(prev => {
       const next = new Set(prev)
-      row.plants.forEach(p => { all ? next.delete(p.id) : next.add(p.id) })
+      row.plants.forEach(p => {
+        if (all) next.delete(p.id)
+        else next.add(p.id)
+      })
       return next
     })
   }
@@ -136,7 +139,8 @@ export function useMapFieldEditing(
   function togglePlantSelected(plantId: string, rowId?: string) {
     setSelectedPlantIds(prev => {
       const next = new Set(prev)
-      next.has(plantId) ? next.delete(plantId) : next.add(plantId)
+      if (next.has(plantId)) next.delete(plantId)
+      else next.add(plantId)
       return next
     })
     // Map click → panel opens the row so the checked plant is visible.
@@ -275,13 +279,12 @@ export function useMapFieldEditing(
         boundary: boundaryLatLng,
         farmLat: boundaryLatLng.reduce((s, p) => s + p.lat, 0) / boundaryLatLng.length,
         farmLng: boundaryLatLng.reduce((s, p) => s + p.lng, 0) / boundaryLatLng.length,
-        rotation: 0,
         isPositioning: false,
         displayMode: 'shape' as const,
         rows: editor.rows,
         freePlants: editor.freePlants,
         plantingEvents: editor.plantingEvents,
-      } as any)
+      })
       addFieldIdToFarm(farmId, saved.id)
       toast.success('Campo guardado')
       opts?.onSaved?.(saved.id)
@@ -362,7 +365,7 @@ function BoundaryVertex({
 
       function onMouseMove(ev: MouseEvent) {
         isDragging.current = true
-        const containerPoint = map.mouseEventToContainerPoint(ev as any)
+        const containerPoint = map.mouseEventToContainerPoint(ev as unknown as MouseEvent)
         const latlng = map.containerPointToLatLng(containerPoint)
         editor.movePoint(index, latlngToCanvas(latlng.lat, latlng.lng, bbox!))
       }
@@ -453,7 +456,7 @@ export function MapFieldEditingLayer({
 
     let start: CanvasPoint | null = null
     function toCanvas(ev: MouseEvent): CanvasPoint {
-      const latlng = map.containerPointToLatLng(map.mouseEventToContainerPoint(ev as any))
+      const latlng = map.containerPointToLatLng(map.mouseEventToContainerPoint(ev as unknown as MouseEvent))
       return latlngToCanvas(latlng.lat, latlng.lng, bbox!)
     }
     function onDown(ev: MouseEvent) {

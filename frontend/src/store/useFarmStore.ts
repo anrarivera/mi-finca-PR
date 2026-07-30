@@ -1,5 +1,4 @@
 import { create } from 'zustand'
-import type { PlacedField } from '@/features/field/types'
 
 export type Farm = {
   id: string
@@ -30,7 +29,7 @@ type FarmStore = {
   removeFieldIdFromFarm: (farmId: string, fieldId: string) => void
 }
 
-export const useFarmStore = create<FarmStore>((set, get) => ({
+export const useFarmStore = create<FarmStore>((set) => ({
   farms: [],
   activeFarmId: null,
   activeFarm: null,

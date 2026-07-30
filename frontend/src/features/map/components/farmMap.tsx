@@ -26,7 +26,7 @@ import type { Farm } from '@/store/useFarmStore'
 import type { PlacedField as FieldModel } from '@/features/field/types'
 import { toast } from '@/store/useToastStore'
 
-delete (L.Icon.Default.prototype as any)._getIconUrl
+delete (L.Icon.Default.prototype as { _getIconUrl?: unknown })._getIconUrl
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
   iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
@@ -122,7 +122,7 @@ function DraggablePoint({
         if (dx > 4 || dy > 4) {
           isDragging.current = true
           safeEl.style.cursor = 'grabbing'
-          const containerPoint = map.mouseEventToContainerPoint(e as any)
+          const containerPoint = map.mouseEventToContainerPoint(e as unknown as MouseEvent)
           const latlng = map.containerPointToLatLng(containerPoint)
           onMove(index, latlng)
         }
@@ -355,6 +355,7 @@ export default function FarmMap({ center = PR_CENTER, zoom = DEFAULT_ZOOM }: Pro
     const target = farms.find(f => f.id === favoriteFarmId) ?? farms[0]
     setActiveFarm(target)
     flyToFarm(target)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [farms.length])
 
   // Closing the field editor keeps the edited field selected — a map

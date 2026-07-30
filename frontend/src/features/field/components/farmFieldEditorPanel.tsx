@@ -91,7 +91,8 @@ export default function FarmFieldEditorPanel({
   const toggleExpand = (rowId: string) =>
     setExpandedRows(prev => {
       const next = new Set(prev)
-      next.has(rowId) ? next.delete(rowId) : next.add(rowId)
+      if (next.has(rowId)) next.delete(rowId)
+      else next.add(rowId)
       return next
     })
 

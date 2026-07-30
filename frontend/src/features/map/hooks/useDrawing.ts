@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useMemo } from 'react'
 import * as L from 'leaflet'
 
 export type DrawingMode = 'idle' | 'drawing' | 'complete' | 'editing'
@@ -74,8 +74,17 @@ export function findNearestEdgeIndex(
 export function useDrawing() {
   const [mode, setMode] = useState<DrawingMode>('idle')
   const [points, setPoints] = useState<L.LatLng[]>([])
-  const [areaAcres, setAreaAcres] = useState<number | null>(null)
   const [selectedPointIndex, setSelectedPointIndex] = useState<number | null>(null)
+
+  // Derived, not stored: the area is a pure function of the polygon, shown
+  // once a shape exists (complete/editing) and cleared with the points.
+  const areaAcres = useMemo(
+    () =>
+      (mode === 'complete' || mode === 'editing') && points.length >= 3
+        ? parseFloat(calculateAcres(points).toFixed(2))
+        : null,
+    [mode, points]
+  )
 
   // ── Keyboard handler for delete/escape during editing ──────────────
   useEffect(() => {
@@ -113,29 +122,15 @@ export function useDrawing() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [mode, selectedPointIndex])
 
-  // Recalculate area whenever points change in complete/editing mode
-  useEffect(() => {
-    if ((mode === 'complete' || mode === 'editing') && points.length >= 3) {
-      const acres = calculateAcres(points)
-      setAreaAcres(parseFloat(acres.toFixed(2)))
-    }
-  }, [points, mode])
-
   const loadBoundary = useCallback((points: L.LatLng[]) => {
     setPoints(points)
     setMode('complete')
     setSelectedPointIndex(null)
-    // Calculate area from loaded points
-    if (points.length >= 3) {
-      const area = calculateGeodesicArea(points)
-      setAreaAcres(area)
-    }
   }, [])
-  
+
   const startDrawing = useCallback(() => {
     setMode('drawing')
     setPoints([])
-    setAreaAcres(null)
     setSelectedPointIndex(null)
   }, [])
 
@@ -145,8 +140,6 @@ export function useDrawing() {
 
   const completeDrawing = useCallback((currentPoints: L.LatLng[]) => {
     if (currentPoints.length < 3) return
-    const acres = calculateAcres(currentPoints)
-    setAreaAcres(parseFloat(acres.toFixed(2)))
     setMode('complete')
     setSelectedPointIndex(null)
   }, [])
@@ -164,7 +157,6 @@ export function useDrawing() {
   const clearDrawing = useCallback(() => {
     setMode('idle')
     setPoints([])
-    setAreaAcres(null)
     setSelectedPointIndex(null)
   }, [])
 

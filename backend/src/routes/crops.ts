@@ -109,6 +109,12 @@ router.put('/:id', requireAuth, async (req: Request, res: Response, next: NextFu
     await findOwnedCustomCrop(req.user!.userId, cropId)
     const body = parseBody(cropBodySchema.partial(), req.body)
 
+    // schedule: null → removed. deleteMany on the model (not the to-one
+    // relation, which doesn't accept it) is a no-op when none exists.
+    if (body.schedule === null) {
+      await prisma.cropSchedule.deleteMany({ where: { cropTypeId: cropId } })
+    }
+
     const crop = await prisma.cropType.update({
       where: { id: cropId },
       data: {
@@ -116,10 +122,8 @@ router.put('/:id', requireAuth, async (req: Request, res: Response, next: NextFu
         ...(body.nameEs !== undefined ? { nameEs: body.nameEs } : {}),
         ...(body.emoji !== undefined ? { emoji: body.emoji } : {}),
         ...(body.category !== undefined ? { category: body.category } : {}),
-        // schedule: undefined → untouched, null → removed, object → replaced
-        ...(body.schedule === null
-          ? { schedule: { deleteMany: {} } }
-          : body.schedule !== undefined
+        // schedule: undefined → untouched, object → replaced (null handled above)
+        ...(body.schedule !== undefined && body.schedule !== null
           ? {
               schedule: {
                 upsert: {

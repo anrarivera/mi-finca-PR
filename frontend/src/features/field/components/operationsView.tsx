@@ -886,13 +886,19 @@ export function HarvestSelector({ title, targets, selected, onChange, mapToggles
   }
 
   function togglePlant(id: string) {
-    mutate(next => { next.has(id) ? next.delete(id) : next.add(id) })
+    mutate(next => {
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+    })
   }
 
   function toggleRow(row: FieldRow) {
     const all = row.plants.every(p => selected.has(p.id))
     mutate(next => {
-      row.plants.forEach(p => { all ? next.delete(p.id) : next.add(p.id) })
+      row.plants.forEach(p => {
+        if (all) next.delete(p.id)
+        else next.add(p.id)
+      })
     })
   }
 
@@ -909,7 +915,8 @@ export function HarvestSelector({ title, targets, selected, onChange, mapToggles
   function toggleExpand(rowId: string) {
     setExpandedRows(prev => {
       const next = new Set(prev)
-      next.has(rowId) ? next.delete(rowId) : next.add(rowId)
+      if (next.has(rowId)) next.delete(rowId)
+      else next.add(rowId)
       return next
     })
   }
