@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
+import { toast } from '@/store/useToastStore'
 import type { Finding, FindingStatus } from '../types'
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -75,6 +76,34 @@ export function useDeleteFinding(farmId: string) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['findings', farmId] })
     },
+  })
+}
+
+// ── CSV export — the sanitary record on paper ─────────────────────────
+// One row per observation (full re-inspection history). Streams a file,
+// so it bypasses the JSON ApiClient — same pattern as the operations
+// export: fetch with the Bearer token, hand the blob to the browser.
+export function useExportFindings(farmId: string) {
+  return useMutation({
+    mutationFn: async () => {
+      const { useAuthStore } = await import('@/store/useAuthStore')
+      const token = useAuthStore.getState().accessToken
+      const base = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+      const res = await fetch(`${base}/api/v1/farms/${farmId}/findings/export?format=csv`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        credentials: 'include',
+      })
+      if (!res.ok) throw new Error('No se pudo exportar el registro sanitario')
+      const blob = await res.blob()
+      const disposition = res.headers.get('Content-Disposition') ?? ''
+      const match = /filename="([^"]+)"/.exec(disposition)
+      const a = document.createElement('a')
+      a.href = URL.createObjectURL(blob)
+      a.download = match?.[1] ?? 'sanidad.csv'
+      a.click()
+      URL.revokeObjectURL(a.href)
+    },
+    onError: () => toast.error('No se pudo exportar el registro sanitario'),
   })
 }
 

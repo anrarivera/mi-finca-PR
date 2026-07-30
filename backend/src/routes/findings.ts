@@ -114,6 +114,67 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
 })
 
 // ─────────────────────────────────────────────────────────────────────
+// GET /api/v1/farms/:farmId/findings/export
+// Sanitary record as CSV — one row per observation, so the file shows the
+// full re-inspection history certifiers ask for. Registered before any
+// /:id route so "export" is never captured as an id.
+// ─────────────────────────────────────────────────────────────────────
+router.get('/export', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const farmId = req.params.farmId as string
+    const userId = req.user!.userId
+
+    const farm = await requireFarmOwnership(userId, farmId)
+
+    const format = String(req.query.format ?? 'csv').toLowerCase()
+    if (format !== 'csv') {
+      throw Errors.validation('Only CSV export is supported (format=csv)')
+    }
+
+    const findings = await prisma.finding.findMany({
+      where: ownedByFarm(farmId),
+      include: {
+        field: { select: { name: true } },
+        ...observationsInclude,
+      },
+      orderBy: [{ foundDate: 'desc' }, { createdAt: 'desc' }],
+    })
+
+    // Minimal CSV escaping: wrap in quotes, double any embedded quotes.
+    const esc = (v: unknown) => {
+      if (v === null || v === undefined) return ''
+      const s = String(v)
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
+    }
+
+    const header = 'finding_date,observation_date,field,pest,severity,status,rows_affected,plants_affected,has_treatment,notes'
+    const rows = findings.flatMap(f =>
+      f.observations.map(obs =>
+        [
+          toDateStr(f.foundDate),
+          toDateStr(obs.date),
+          f.field?.name ?? '',
+          f.pestId,
+          obs.severity,
+          f.status,
+          Array.isArray(obs.rowIds) ? (obs.rowIds as unknown[]).length || '' : '',
+          Array.isArray(obs.plantIds) ? (obs.plantIds as unknown[]).length || '' : '',
+          f.treatmentRecommendedOperationId ? 'yes' : '',
+          obs.notes ?? '',
+        ].map(esc).join(',')
+      )
+    )
+
+    const filename = `sanidad-${farm.name.replace(/[^\w\-]+/g, '_')}.csv`
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8')
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`)
+    res.send([header, ...rows].join('\n'))
+  } catch (err) {
+    next(err)
+  }
+})
+
+// ─────────────────────────────────────────────────────────────────────
 // POST /api/v1/farms/:farmId/findings
 // Register a finding: pest + severity + scope (+ optional notes/date).
 // ─────────────────────────────────────────────────────────────────────
