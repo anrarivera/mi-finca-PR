@@ -632,13 +632,14 @@ export function CheckOffModal({
       <div className={`fixed inset-0 z-[2300] flex items-center p-4 pointer-events-none ${
         showScopeSelector ? 'justify-end pr-6' : 'justify-center'
       }`}>
-        {/* Parcial/Editar match the farm drawer's 300px panel width;
-            Completa keeps the compact centered card */}
+        {/* Parcial/Editar get a decisively wide card (the original was
+            384px) so the scope selector's row labels and plant grids
+            have room; Completa keeps the compact centered card */}
         <div
           className={`bg-white rounded-2xl shadow-xl overflow-hidden max-h-[92vh] overflow-y-auto pointer-events-auto ${
             mode === 'complete' ? 'w-full max-w-sm' : ''
           }`}
-          style={mode !== 'complete' ? { width: 300, maxWidth: '100%' } : undefined}
+          style={mode !== 'complete' ? { width: 480, maxWidth: '100%' } : undefined}
         >
 
           {/* Header */}
