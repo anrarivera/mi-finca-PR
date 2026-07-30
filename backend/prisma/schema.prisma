@@ -189,8 +189,28 @@ model Finding {
   updatedAt DateTime @updatedAt
   field     Field    @relation(fields: [fieldId], references: [id], onDelete: Cascade)
   treatmentRecommendedOperation RecommendedOperation? @relation(fields: [treatmentRecommendedOperationId], references: [id], onDelete: SetNull)
+  observations FindingObservation[]
 
   @@map("findings")
+}
+
+// One scouting visit to a finding — the re-inspection trail ("seguimiento",
+// the Parcial of findings). The finding's own severity/scope mirror the
+// LATEST observation so map paint and field health read the current state;
+// the history here answers whether the treatment worked. Every finding has
+// at least one observation (created with it).
+model FindingObservation {
+  id        String   @id @default(uuid())
+  findingId String
+  date      DateTime @db.Date
+  severity  Int
+  rowIds    Json     @default("[]")
+  plantIds  Json     @default("[]")
+  notes     String?
+  createdAt DateTime @default(now())
+  finding   Finding  @relation(fields: [findingId], references: [id], onDelete: Cascade)
+
+  @@map("finding_observations")
 }
 
 model Operation {

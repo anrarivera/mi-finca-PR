@@ -44,7 +44,22 @@ function serializeFinding(finding: any) {
   return {
     ...finding,
     foundDate: toDateStr(finding.foundDate),
+    ...(finding.observations
+      ? { observations: finding.observations.map(serializeObservation) }
+      : {}),
   }
+}
+
+function serializeObservation(obs: any) {
+  return { ...obs, date: toDateStr(obs.date) }
+}
+
+// Observations are the re-inspection trail — oldest first, so the last
+// entry is the finding's current state.
+const observationsInclude = {
+  observations: {
+    orderBy: [{ date: 'asc' as const }, { createdAt: 'asc' as const }],
+  },
 }
 
 function todayUtc(): Date {
@@ -88,6 +103,7 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
         ...(fieldId ? { fieldId: String(fieldId) } : {}),
         ...(status ? { status: String(status) } : {}),
       },
+      include: observationsInclude,
       orderBy: [{ foundDate: 'desc' }, { createdAt: 'desc' }],
     })
 
@@ -119,16 +135,30 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
     })
     if (!field) throw Errors.notFound('Field')
 
+    const date = new Date(foundDate ?? todayUtc())
+
+    // The finding and its first observation are born together — the
+    // observation trail is the history, the finding mirrors the latest.
     const finding = await prisma.finding.create({
       data: {
         fieldId,
         pestId: String(pestId),
         severity,
-        foundDate: new Date(foundDate ?? todayUtc()),
+        foundDate: date,
         notes: notes ?? null,
         rowIds: rowIds ?? [],
         plantIds: plantIds ?? [],
+        observations: {
+          create: {
+            date,
+            severity,
+            rowIds: rowIds ?? [],
+            plantIds: plantIds ?? [],
+            notes: notes ?? null,
+          },
+        },
       },
+      include: observationsInclude,
     })
 
     res.status(201).json({ success: true, data: serializeFinding(finding) })
@@ -186,6 +216,62 @@ router.patch('/:id', async (req: Request, res: Response, next: NextFunction) => 
 })
 
 // ─────────────────────────────────────────────────────────────────────
+// POST /api/v1/farms/:farmId/findings/:id/observations
+// Register a re-inspection ("seguimiento") — the Parcial of findings: a
+// dated severity + scope entry against the same finding. The finding's
+// own severity/scope mirror the latest observation, so map paint and
+// field health always read the current state. Status is NOT touched —
+// improving vs. reopening stays the farmer's call.
+// ─────────────────────────────────────────────────────────────────────
+router.post('/:id/observations', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const farmId = req.params.farmId as string
+    const id = req.params.id as string
+    const userId = req.user!.userId
+
+    requireValidId(id, 'Finding')
+    requireFields(req.body, ['severity'])
+    await requireFarmOwnership(userId, farmId)
+
+    const finding = await prisma.finding.findFirst({
+      where: { id, ...ownedByFarm(farmId) },
+    })
+    if (!finding) throw Errors.notFound('Finding')
+
+    const { date, severity, notes, rowIds, plantIds } = req.body
+    requireSeverity(severity)
+    requireIdArray(rowIds, 'rowIds')
+    requireIdArray(plantIds, 'plantIds')
+
+    const obsDate = new Date(date ?? todayUtc())
+
+    const updated = await prisma.finding.update({
+      where: { id: finding.id },
+      data: {
+        // Mirror of the latest state — history lives in the observations.
+        severity,
+        rowIds: rowIds ?? [],
+        plantIds: plantIds ?? [],
+        observations: {
+          create: {
+            date: obsDate,
+            severity,
+            rowIds: rowIds ?? [],
+            plantIds: plantIds ?? [],
+            notes: notes ?? null,
+          },
+        },
+      },
+      include: observationsInclude,
+    })
+
+    res.status(201).json({ success: true, data: serializeFinding(updated) })
+  } catch (err) {
+    next(err)
+  }
+})
+
+// ─────────────────────────────────────────────────────────────────────
 // DELETE /api/v1/farms/:farmId/findings/:id
 // Hard delete — findings are lightweight observations; any treatment labor
 // created from one lives on in the calendar untouched.
@@ -235,8 +321,15 @@ router.post('/:id/create-operation', async (req: Request, res: Response, next: N
       where: { id, ...ownedByFarm(farmId) },
     })
     if (!finding) throw Errors.notFound('Finding')
+    // One OPEN labor at a time — but a finding that worsened after its
+    // treatment was completed (or skipped) can get a new one.
     if (finding.treatmentRecommendedOperationId) {
-      throw Errors.conflict('A treatment operation already exists for this finding')
+      const previous = await prisma.recommendedOperation.findUnique({
+        where: { id: finding.treatmentRecommendedOperationId },
+      })
+      if (previous && previous.status !== 'completed' && previous.status !== 'skipped') {
+        throw Errors.conflict('An open treatment operation already exists for this finding')
+      }
     }
 
     const { plantingEventId, labelEs, type, recommendedDate, notes } = req.body
