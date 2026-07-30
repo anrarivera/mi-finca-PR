@@ -14,6 +14,10 @@ import type { PlacedField } from '@/features/field/types'
 import { toast } from '@/store/useToastStore'
 
 type Props = {
+  /** Open state lives in the host so it survives the drawer unmounting
+      while the on-map field editor is active. */
+  isOpen: boolean
+  onOpenChange: (open: boolean) => void
   onAddFarm: () => void
   /** Open the field editor editing this specific field. */
   onEditField: (fieldId: string) => void
@@ -28,17 +32,16 @@ type Props = {
 }
 
 export default function FarmDrawer({
-  onAddFarm, onEditField, onDeleteField,
+  isOpen, onOpenChange, onAddFarm, onEditField, onDeleteField,
   onFlyToFarm, onOpenFieldEditor, focusRequest, onSelectField,
 }: Props) {
-  const [isOpen, setIsOpen] = useState(false)
   const [level, setLevel] = useState<'farms' | 'fields'>('farms')
 
   // A field was clicked on the map — open the drawer at the fields level;
   // the matching card highlights and scrolls into view.
   useEffect(() => {
     if (!focusRequest) return
-    setIsOpen(true)
+    onOpenChange(true)
     setLevel('fields')
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusRequest?.nonce])
@@ -91,7 +94,7 @@ export default function FarmDrawer({
     <>
       {/* ── Drawer toggle tab ─────────────────────────────────────── */}
       <button
-        onClick={() => setIsOpen(p => !p)}
+        onClick={() => onOpenChange(!isOpen)}
         className="absolute left-0 top-1/2 -translate-y-1/2 z-[1001] bg-white border border-[#e0e8d8] border-l-0 rounded-r-lg px-1.5 py-4 flex flex-col items-center gap-1.5 shadow-md hover:bg-[#f5f8f0] transition-all"
         style={{
           marginLeft: isOpen ? 300 : 0,
@@ -138,7 +141,7 @@ export default function FarmDrawer({
               onSetFavorite={setFavoriteFarm}
               onDelete={handleDeleteFarm}
               onAddFarm={onAddFarm}
-              onClose={() => setIsOpen(false)}
+              onClose={() => onOpenChange(false)}
             />
           : activeFarm
           ? <FieldList
@@ -149,7 +152,7 @@ export default function FarmDrawer({
               onSelectField={onSelectField}
               showBackButton={farms.length > 1}
               onBack={handleBackToFarms}
-              onClose={() => setIsOpen(false)}
+              onClose={() => onOpenChange(false)}
               onEditField={onEditField}
               onDeleteField={(fieldId) => {
                 onDeleteField(fieldId)

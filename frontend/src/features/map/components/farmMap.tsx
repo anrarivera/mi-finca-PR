@@ -240,6 +240,9 @@ export default function FarmMap({ center = PR_CENTER, zoom = DEFAULT_ZOOM }: Pro
   // that field's card (double click starts editing instead). The nonce
   // re-triggers the drawer when the same field is clicked again.
   const [focusRequest, setFocusRequest] = useState<{ fieldId: string; nonce: number } | null>(null)
+  // Farm drawer open state lives here so it survives the drawer unmounting
+  // during a field-editing session — closing the editor reveals it again.
+  const [drawerOpen, setDrawerOpen] = useState(false)
   const boundaryLoaded = useRef(false)
 
   const { fields, removeField } = useFieldStore()
@@ -338,8 +341,14 @@ async function handleDeleteFarm() {
       alert('Primero guarda el límite de tu finca antes de añadir campos.')
       return
     }
-    if (typeof fieldId === 'string') fieldEditing.startEdit(fieldId)
-    else fieldEditing.startNew()
+    if (typeof fieldId === 'string') {
+      // Editing an existing field: leave the farm drawer open behind the
+      // editor so it's there when the editing session ends.
+      setDrawerOpen(true)
+      fieldEditing.startEdit(fieldId)
+    } else {
+      fieldEditing.startNew()
+    }
   }
 
   async function handleCreateFarm(data: { name: string; location: string }) {
@@ -447,6 +456,8 @@ async function handleDeleteFarm() {
       {/* While editing a field, the drawer is replaced by the editor panel */}
       {!fieldEditing.active && (
       <FarmDrawer
+        isOpen={drawerOpen}
+        onOpenChange={setDrawerOpen}
         focusRequest={focusRequest}
         onSelectField={(fieldId) =>
           // Card click → select the field on the map (highlight + plants)
