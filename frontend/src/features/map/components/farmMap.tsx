@@ -16,6 +16,8 @@ import {
 } from '@/features/field/components/mapFieldEditing'
 import { useOperations } from '@/features/field/hooks/useOperationsApi'
 import { buildPlantMarks } from '@/features/field/utils/plantStatus'
+import { useFindings } from '@/features/scouting/hooks/useFindingsApi'
+import { buildFindingMarks } from '@/features/scouting/utils/findingScope'
 import CreateFarmModal from '@/features/farm/components/createFarmModal'
 import { useFieldStore } from '@/store/useFieldStore'
 import { useFarmStore } from '@/store/useFarmStore'
@@ -328,6 +330,10 @@ export default function FarmMap({ center = PR_CENTER, zoom = DEFAULT_ZOOM }: Pro
   const { data: farmOps } = useOperations(activeFarm?.id ?? null)
   const plantMarks = useMemo(() => buildPlantMarks(farmOps ?? []), [farmOps])
 
+  // Unresolved scouting findings — paint affected rows/plants amber→red.
+  const { data: farmFindings } = useFindings(activeFarm?.id ?? null)
+  const findingMarks = useMemo(() => buildFindingMarks(farmFindings ?? []), [farmFindings])
+
   // On mount — fly to favorite or first farm
   useEffect(() => {
     if (farms.length === 0) return
@@ -497,6 +503,7 @@ async function handleDeleteFarm() {
               field={field}
               detailed={field.id === focusRequest?.fieldId}
               plantMarks={plantMarks}
+              findingMarks={findingMarks}
               onSelect={(fieldId) => {
                 if (fieldEditing.active) return // don't switch mid-edit
                 toggleSelectField(fieldId)
