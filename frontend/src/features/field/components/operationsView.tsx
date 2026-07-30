@@ -632,10 +632,10 @@ export function CheckOffModal({
       <div className={`fixed inset-0 z-[2300] flex items-center p-4 pointer-events-none ${
         showScopeSelector ? 'justify-end pr-6' : 'justify-center'
       }`}>
-        {/* Wider when the scope selector is shown (Parcial / Editar) so
-            row labels and plant grids aren't cramped */}
+        {/* Parcial/Editar get a wide card — the scope selector's row
+            labels and plant grids need the room; Completa stays compact */}
         <div className={`bg-white rounded-2xl shadow-xl w-full overflow-hidden max-h-[92vh] overflow-y-auto pointer-events-auto ${
-          showScopeSelector ? 'max-w-lg' : 'max-w-sm'
+          mode !== 'complete' ? 'max-w-xl' : 'max-w-sm'
         }`}>
 
           {/* Header */}
