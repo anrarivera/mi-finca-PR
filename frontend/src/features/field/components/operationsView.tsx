@@ -215,7 +215,7 @@ export default function OperationsView({
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-4 max-w-2xl mx-auto w-full">
+      <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-4 max-w-4xl mx-auto w-full">
 
         {sortedEvents.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-64 gap-3">
@@ -295,10 +295,14 @@ function PlantingEventCard({
   const [expanded, setExpanded] = useState(true)
   const crop = getCropById(event.cropTypeId)
 
-  const due = event.operations.filter(o => o.status === 'due')
-  const pending = event.operations.filter(o => o.status === 'pending')
-  const completed = event.operations.filter(o => o.status === 'completed')
-  const skipped = event.operations.filter(o => o.status === 'skipped')
+  // Each group ordered by due date — a reopened operation slots back into
+  // its date position instead of staying where the server left it.
+  const byDueDate = (a: RecommendedOperation, b: RecommendedOperation) =>
+    a.recommendedDate.localeCompare(b.recommendedDate)
+  const due = event.operations.filter(o => o.status === 'due').sort(byDueDate)
+  const pending = event.operations.filter(o => o.status === 'pending').sort(byDueDate)
+  const completed = event.operations.filter(o => o.status === 'completed').sort(byDueDate)
+  const skipped = event.operations.filter(o => o.status === 'skipped').sort(byDueDate)
 
   const plantingDateFormatted = new Date(event.plantingDate + 'T12:00:00')
     .toLocaleDateString('es-PR', { day: 'numeric', month: 'long', year: 'numeric' })
@@ -427,31 +431,23 @@ function OperationRow({
   return (
     <div className={`flex items-center gap-3 px-4 py-3 ${statusStyles[status]}`}>
 
-      {/* Status indicator / check button */}
-      {status === 'completed' ? (
+      {/* Status indicator — open items complete via the "Completa" button */}
+      {status === 'completed' && (
         <div className="w-7 h-7 rounded-full bg-[#eaf3de] flex items-center justify-center shrink-0">
           <Check size={14} className="text-[#639922]" />
         </div>
-      ) : status === 'skipped' ? (
+      )}
+      {status === 'skipped' && (
         <div className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center shrink-0">
           <SkipForward size={14} className="text-gray-400" />
         </div>
-      ) : (
-        <button
-          onClick={onCheckOff}
-          className={`w-7 h-7 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors hover:bg-[#eaf3de] ${
-            status === 'due'
-              ? 'border-red-400 hover:border-[#639922]'
-              : 'border-[#c0d8a0] hover:border-[#639922]'
-          }`}
-        />
       )}
 
       {/* Operation details */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5">
           <span className="text-sm">{operationTypeEmoji[operation.type] ?? '📋'}</span>
-          <p className={`text-xs font-medium truncate ${
+          <p className={`text-xs font-medium ${
             status === 'completed' || status === 'skipped'
               ? 'text-[#9aab8a] line-through'
               : 'text-[#2d4a1e]'
@@ -487,6 +483,12 @@ function OperationRow({
       {/* Row actions by status */}
       {isOpen && (
         <>
+          <button onClick={onCheckOff}
+            className={`${smallBtn} text-[#2d4a1e] font-semibold hover:text-[#639922]`}
+            title="Marcar como realizada"
+          >
+            Completa
+          </button>
           {/* Partial logging works for every type: "fertilized rows 1–3
               today, the rest tomorrow" — the item stays open until done */}
           <button onClick={onPartial}
@@ -553,7 +555,7 @@ const MODAL_COPY: Record<ModalMode, { title: string; confirm: string; dateLabel:
 
 export function CheckOffModal({
   mode, operation, harvestTargets, initialSelection, mapInteractive = false,
-  onConfirm, onCancel,
+  fieldId, onConfirm, onCancel,
 }: {
   mode: ModalMode
   operation: RecommendedOperation
@@ -565,6 +567,9 @@ export function CheckOffModal({
       lets clicks through so rows/plants can be toggled right on the map.
       Leave false in fullscreen contexts (clicks would hit the list). */
   mapInteractive?: boolean
+  /** The field the operation belongs to — scopes map toggles so only that
+      field's rows/plants become clickable while the selector is open. */
+  fieldId?: string
   onConfirm: (data: CheckOffFormData) => void
   onCancel: () => void
 }) {
@@ -709,6 +714,7 @@ export function CheckOffModal({
                 selected={selectedPlants}
                 onChange={setSelectedPlants}
                 mapToggles={clickThrough}
+                fieldId={fieldId}
               />
             )}
 
@@ -766,7 +772,7 @@ export function CheckOffModal({
 // a row (expand it), "the first N plants of a row" (quick input), and
 // free-standing plants. The canonical state is a set of plant ids owned by
 // the modal; this component is a controlled view over it.
-function HarvestSelector({ title, targets, selected, onChange, mapToggles = false }: {
+function HarvestSelector({ title, targets, selected, onChange, mapToggles = false, fieldId }: {
   /** Type-aware heading, e.g. "¿Qué cosechaste?" / "¿Qué alcanzó esta labor?" */
   title: string
   targets: HarvestTargets
@@ -774,6 +780,8 @@ function HarvestSelector({ title, targets, selected, onChange, mapToggles = fals
   onChange: (next: Set<string>) => void
   /** Accept clicks from the map (only when the map is actually behind). */
   mapToggles?: boolean
+  /** Scopes the map toggles to this field's rows/plants. */
+  fieldId?: string
 }) {
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
   const rowRefs = useRef<Record<string, HTMLDivElement | null>>({})
@@ -797,6 +805,7 @@ function HarvestSelector({ title, targets, selected, onChange, mapToggles = fals
   useEffect(() => {
     if (!mapToggles) return
     setToggles({
+      fieldId,
       toggleRow: (rowId) => {
         const target = targets.rows.find(({ row }) => row.id === rowId)
         if (target) toggleRow(target.row)

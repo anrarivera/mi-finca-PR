@@ -11,7 +11,9 @@ import {
 } from '../utils/canvasGeo'
 import { CheckOffModal, harvestTargetsForOperation } from './operationsView'
 import FieldOperationsContainer from './fieldOperationsContainer'
-import { useCompleteRecommendedOp } from '../hooks/useOperationsApi'
+import {
+  useCompleteRecommendedOp, useSkipRecommendedOp, useLogPartialRecommendedOp,
+} from '../hooks/useOperationsApi'
 import { toast } from '@/store/useToastStore'
 import type { PlacedField, PlantingEvent, RecommendedOperation } from '../types'
 
@@ -64,13 +66,16 @@ export default function FieldSummaryCard({
   onSelect, onOpenEditor, onDelete, onToggleDisplay,
 }: Props) {
   const [confirmDelete, setConfirmDelete] = useState(false)
-  // Self-contained flows: quick check-off modal + full operations screen
+  // Self-contained flows: quick check-off/partial modal + full ops screen
   const [checking, setChecking] = useState<{
+    mode: 'complete' | 'partial'
     op: RecommendedOperation
     event: PlantingEvent
   } | null>(null)
   const [showOps, setShowOps] = useState(false)
   const completeOp = useCompleteRecommendedOp(field.farmId)
+  const skipOp = useSkipRecommendedOp(field.farmId)
+  const partialOp = useLogPartialRecommendedOp(field.farmId)
   const cardRef = useRef<HTMLDivElement | null>(null)
 
   const summary = computeCropSummary(field.rows ?? [], field.freePlants ?? [], getCropById)
@@ -159,16 +164,6 @@ export default function FieldSummaryCard({
         <div className={`flex items-center gap-2 mb-2.5 px-2 py-1.5 rounded-lg ${
           nextIsDue ? 'bg-red-50/70' : 'bg-[#f5f8f0]'
         }`}>
-          <button
-            onClick={(e) => { e.stopPropagation(); setChecking({ op: next.op, event: next.event }) }}
-            aria-label={`Completar ${next.op.labelEs}`}
-            title="Marcar como realizada"
-            className={`w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors hover:bg-[#eaf3de] ${
-              nextIsDue
-                ? 'border-red-400 hover:border-[#639922]'
-                : 'border-[#c0d8a0] hover:border-[#639922]'
-            }`}
-          />
           <div className="flex-1 min-w-0">
             <p className="text-[10px] font-medium text-[#2d4a1e] truncate">
               {nextCrop?.emoji ?? '🌱'} {next.op.labelEs}
@@ -178,6 +173,39 @@ export default function FieldSummaryCard({
               {nextCrop ? ` · ${nextCrop.nameEs}` : ''}
             </p>
           </div>
+          {/* Same actions as the operations-screen rows */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              setChecking({ mode: 'complete', op: next.op, event: next.event })
+            }}
+            title="Marcar como realizada"
+            className="text-[10px] shrink-0 text-[#2d4a1e] font-semibold hover:text-[#639922] transition-colors"
+          >
+            Completa
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              setChecking({ mode: 'partial', op: next.op, event: next.event })
+            }}
+            title="Registrar avance sin completar la labor"
+            className="text-[10px] shrink-0 text-[#639922] hover:text-[#2d4a1e] font-medium transition-colors"
+          >
+            Parcial
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              skipOp.mutate(
+                { fieldId: field.id, eventId: next.event.id, operationId: next.op.id },
+                { onSuccess: () => toast.success('Operación omitida') }
+              )
+            }}
+            className="text-[10px] shrink-0 text-[#c0d0b0] hover:text-[#9aab8a] transition-colors"
+          >
+            Omitir
+          </button>
         </div>
       )}
 
@@ -248,43 +276,70 @@ export default function FieldSummaryCard({
         </div>
       )}
 
-      {/* Full operations UI — same screen as everywhere else */}
-      {showOps && (
-        <FieldOperationsContainer
-          farmId={field.farmId}
-          fieldId={field.id}
-          onClose={() => setShowOps(false)}
-        />
-      )}
+      {/* Modals render inside this clickable card — fence their clicks off
+          so they don't bubble into the card's select/double-click actions
+          (which would select fields on the map or open the editor). */}
+      <div
+        onClick={(e) => e.stopPropagation()}
+        onDoubleClick={(e) => e.stopPropagation()}
+      >
+        {/* Full operations UI — same screen as everywhere else */}
+        {showOps && (
+          <FieldOperationsContainer
+            farmId={field.farmId}
+            fieldId={field.id}
+            onClose={() => setShowOps(false)}
+          />
+        )}
 
-      {/* Quick check-off modal — flexible harvest selection included */}
-      {checking && (
-        <CheckOffModal
-          mode="complete"
-          operation={checking.op}
-          harvestTargets={harvestTargetsForOperation(
-            checking.op,
-            field.plantingEvents ?? [],
-            { rows: field.rows ?? [], freePlants: field.freePlants ?? [] }
-          )}
-          // The card lives over the farm map — rows/plants can be toggled
-          // by clicking them right on the imagery.
-          mapInteractive
-          onConfirm={(data) => {
-            completeOp.mutate(
-              {
-                fieldId: field.id,
-                eventId: checking.event.id,
-                operationId: checking.op.id,
-                data,
-              },
-              { onSuccess: () => toast.success('Operación registrada') }
-            )
-            setChecking(null)
-          }}
-          onCancel={() => setChecking(null)}
-        />
-      )}
+        {/* Quick check-off / partial modal — flexible selection included */}
+        {checking && (
+          <CheckOffModal
+            mode={checking.mode}
+            operation={checking.op}
+            harvestTargets={harvestTargetsForOperation(
+              checking.op,
+              field.plantingEvents ?? [],
+              { rows: field.rows ?? [], freePlants: field.freePlants ?? [] }
+            )}
+            // The card lives over the farm map — rows/plants can be toggled
+            // by clicking them right on the imagery.
+            mapInteractive
+            fieldId={field.id}
+            onConfirm={(data) => {
+              if (checking.mode === 'partial') {
+                partialOp.mutate(
+                  {
+                    operationId: checking.op.id,
+                    data: {
+                      date: data.completedDate,
+                      product: data.product,
+                      quantity: data.quantity,
+                      unit: data.unit,
+                      notes: data.notes,
+                      rowIds: data.rowIds,
+                      plantIds: data.plantIds,
+                    },
+                  },
+                  { onSuccess: () => toast.success('Avance parcial registrado') }
+                )
+              } else {
+                completeOp.mutate(
+                  {
+                    fieldId: field.id,
+                    eventId: checking.event.id,
+                    operationId: checking.op.id,
+                    data,
+                  },
+                  { onSuccess: () => toast.success('Operación registrada') }
+                )
+              }
+              setChecking(null)
+            }}
+            onCancel={() => setChecking(null)}
+          />
+        )}
+      </div>
     </div>
   )
 }

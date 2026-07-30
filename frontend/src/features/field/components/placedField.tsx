@@ -74,6 +74,12 @@ export default function PlacedField({
   // While a scope selector is open, map clicks on rows/plants toggle them
   // in it — and the field's own click/dblclick actions are suspended.
   const mapToggles = useHarvestHighlightStore(s => s.toggles)
+  // Only the selector's own field grows hit targets and shows its plants;
+  // other fields would otherwise light up as if they were selected.
+  const fieldToggles =
+    mapToggles && (!mapToggles.fieldId || mapToggles.fieldId === field.id)
+      ? mapToggles
+      : null
   const [isHovered, setIsHovered] = useState(false)
   const isDragging = useRef(false)
   const clickTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -149,9 +155,9 @@ export default function PlacedField({
   }
 
   const positions = field.boundary.map(p => L.latLng(p.lat, p.lng))
-  // Plants draw for the selected field — and for every field while a scope
-  // selector is open, so they can be clicked to toggle their selection.
-  const plants = detailed || mapToggles
+  // Plants draw for the selected field — and while ITS scope selector is
+  // open, so they can be clicked to toggle their selection.
+  const plants = detailed || fieldToggles
     ? [
         ...field.rows.flatMap(r => r.plants.map(p => ({ plant: p, rowId: r.id as string | undefined }))),
         ...field.freePlants.map(p => ({ plant: p, rowId: undefined as string | undefined })),
@@ -199,14 +205,14 @@ export default function PlacedField({
             />
             {/* Invisible wide hit line — click toggles the row in the
                 open scope selector */}
-            {mapToggles && (
+            {fieldToggles && (
               <Polyline
                 positions={rowPositions(row)}
                 pathOptions={{ opacity: 0, weight: 16 }}
                 eventHandlers={{
                   click: (e) => {
                     L.DomEvent.stopPropagation(e.originalEvent)
-                    mapToggles.toggleRow(row.id)
+                    fieldToggles.toggleRow(row.id)
                   },
                 }}
               />
@@ -236,7 +242,7 @@ export default function PlacedField({
             {/* Invisible bigger hit circle — click toggles the plant in
                 the open scope selector (drawn after the row hit lines so
                 plants win where they overlap) */}
-            {mapToggles && (
+            {fieldToggles && (
               <CircleMarker
                 center={L.latLng(plant.lat, plant.lng)}
                 radius={8}
@@ -244,7 +250,7 @@ export default function PlacedField({
                 eventHandlers={{
                   click: (e) => {
                     L.DomEvent.stopPropagation(e.originalEvent)
-                    mapToggles.togglePlant(plant.id)
+                    fieldToggles.togglePlant(plant.id)
                   },
                 }}
               />

@@ -18,6 +18,9 @@ export type HarvestHighlight = {
 }
 
 export type MapSelectionToggles = {
+  /** The field the open selector belongs to — only that field renders
+      clickable plants/rows on the map while the selector is open. */
+  fieldId?: string
   /** Toggle a whole row by id — no-op for rows outside the selector. */
   toggleRow: (rowId: string) => void
   /** Toggle a single plant by id — no-op for plants outside the selector. */
