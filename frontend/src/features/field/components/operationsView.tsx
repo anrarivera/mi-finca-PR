@@ -99,7 +99,8 @@ function selectionToPlantSet(
 
 // Compress a plant-id set into { rowIds, plantIds }: rows where every plant
 // is selected become rowIds; everything else stays as individual plantIds.
-function plantSetToSelection(
+// Exported for the scouting finding modal, which stores the same shape.
+export function plantSetToSelection(
   targets: HarvestTargets,
   selected: Set<string>
 ): { rowIds?: string[]; plantIds?: string[] } {
@@ -803,8 +804,9 @@ export function CheckOffModal({
 // Fully flexible: whole rows (tri-state checkbox), individual plants inside
 // a row (expand it), "the first N plants of a row" (quick input), and
 // free-standing plants. The canonical state is a set of plant ids owned by
-// the modal; this component is a controlled view over it.
-function HarvestSelector({ title, targets, selected, onChange, mapToggles = false, fieldId }: {
+// the modal; this component is a controlled view over it. Exported for the
+// scouting finding modal, which selects scope the exact same way.
+export function HarvestSelector({ title, targets, selected, onChange, mapToggles = false, fieldId }: {
   /** Type-aware heading, e.g. "¿Qué cosechaste?" / "¿Qué alcanzó esta labor?" */
   title: string
   targets: HarvestTargets

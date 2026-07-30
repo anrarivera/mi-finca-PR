@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import {
   MapPin, Layers, Pencil, Trash2,
-  ToggleLeft, ToggleRight, AlertCircle, Clock, CalendarDays,
+  ToggleLeft, ToggleRight, AlertCircle, Clock, CalendarDays, Bug,
 } from 'lucide-react'
+import FindingModal from '@/features/scouting/components/findingModal'
 import { computeCropSummary } from '../utils/rowCalculator'
 import { getFieldOperationHealth } from '../utils/operationStatus'
 import { getCropById } from '../data/cropLibrary'
@@ -76,6 +77,8 @@ export default function FieldSummaryCard({
     event: PlantingEvent
   } | null>(null)
   const [showOps, setShowOps] = useState(false)
+  // "Registrar hallazgo" — scouting capture for this field
+  const [reportingFinding, setReportingFinding] = useState(false)
   const completeOp = useCompleteRecommendedOp(field.farmId)
   const skipOp = useSkipRecommendedOp(field.farmId)
   const partialOp = useLogPartialRecommendedOp(field.farmId)
@@ -285,6 +288,14 @@ export default function FieldSummaryCard({
           >
             <Trash2 size={10} /> Eliminar
           </button>
+          {/* Scouting: register a pest/disease finding on this field */}
+          <button
+            onClick={(e) => { e.stopPropagation(); setReportingFinding(true) }}
+            title="Registrar hallazgo de plaga o enfermedad"
+            className="shrink-0 flex items-center justify-center px-2 py-1.5 text-[#b8860b] border border-[#e8dcc0] rounded-lg hover:bg-amber-50 hover:border-amber-200 transition-colors"
+          >
+            <Bug size={11} />
+          </button>
         </div>
       ) : (
         <div className="flex flex-col gap-1.5">
@@ -321,6 +332,17 @@ export default function FieldSummaryCard({
             farmId={field.farmId}
             fieldId={field.id}
             onClose={() => setShowOps(false)}
+          />
+        )}
+
+        {/* Scouting capture — pest + severity + where (map taps work) */}
+        {reportingFinding && (
+          <FindingModal
+            farmId={field.farmId}
+            fieldId={field.id}
+            fieldRows={field.rows ?? []}
+            freePlants={field.freePlants ?? []}
+            onClose={() => setReportingFinding(false)}
           />
         )}
 
