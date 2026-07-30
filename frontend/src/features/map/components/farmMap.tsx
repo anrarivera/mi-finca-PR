@@ -533,9 +533,13 @@ async function handleDeleteFarm() {
         // clicking the selected card again unselects and zooms out
         onSelectField={toggleSelectField}
         onAddFarm={() => setShowModal(true)}
-        // Card double-click just zooms to the field; only the Editar
-        // button (onEditField) opens the editor — zooming there too.
-        onZoomToField={zoomToField}
+        // Card double-click selects the field (never toggles it off) and
+        // zooms to it; only the Editar button (onEditField) opens the
+        // editor — zooming there too.
+        onZoomToField={(fieldId) => {
+          setFocusRequest(prev => ({ fieldId, nonce: (prev?.nonce ?? 0) + 1 }))
+          zoomToField(fieldId)
+        }}
         onEditField={(fieldId) => {
           zoomToField(fieldId)
           handleOpenFieldEditor(fieldId)
