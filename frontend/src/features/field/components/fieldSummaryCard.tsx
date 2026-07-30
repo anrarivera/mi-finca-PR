@@ -81,6 +81,31 @@ export default function FieldSummaryCard({
   const partialOp = useLogPartialRecommendedOp(field.farmId)
   const cardRef = useRef<HTMLDivElement | null>(null)
 
+  // Defer the single-click action so a double click can cancel it —
+  // otherwise the two clicks of a dblclick toggle the selection off
+  // before the double-click handler runs (mirrors PlacedField on the map).
+  const clickTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => () => {
+    if (clickTimer.current) clearTimeout(clickTimer.current)
+  }, [])
+
+  function handleCardClick() {
+    if (!onSelect) return
+    if (clickTimer.current) clearTimeout(clickTimer.current)
+    clickTimer.current = setTimeout(() => {
+      clickTimer.current = null
+      onSelect()
+    }, 250)
+  }
+
+  function handleCardDoubleClick() {
+    if (clickTimer.current) {
+      clearTimeout(clickTimer.current)
+      clickTimer.current = null
+    }
+    ;(onCardDoubleClick ?? onOpenEditor)()
+  }
+
   const summary = computeCropSummary(field.rows ?? [], field.freePlants ?? [], getCropById)
   const health = getFieldOperationHealth(field.plantingEvents ?? [])
 
@@ -104,8 +129,8 @@ export default function FieldSummaryCard({
   return (
     <div
       ref={cardRef}
-      onClick={onSelect}
-      onDoubleClick={onCardDoubleClick ?? onOpenEditor}
+      onClick={handleCardClick}
+      onDoubleClick={handleCardDoubleClick}
       className={`px-4 py-3 hover:bg-[#fafcf8] transition-colors cursor-pointer ${
         focused ? 'bg-[#f5f8f0] border-l-2 border-l-[#639922]' : ''
       }`}

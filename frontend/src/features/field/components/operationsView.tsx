@@ -189,8 +189,10 @@ export default function OperationsView({
   // the check-off modal's row/plant map toggles remain usable.
   return createPortal(
     <div
-      className="fixed left-0 top-0 bottom-0 z-[2100] flex flex-col bg-[#f5f8f0] shadow-2xl border-r border-[#e0e8d8]"
-      style={{ width: 420, maxWidth: '100vw' }}
+      className="fixed bottom-0 z-[2100] flex flex-col bg-[#f5f8f0] shadow-2xl border-r border-[#e0e8d8]"
+      // Docked inside the app frame: right of the 64px side menu and
+      // below the 64px top nav — those are never covered.
+      style={{ left: 64, top: 64, width: 420, maxWidth: 'calc(100vw - 64px)' }}
     >
 
       {/* Header */}
