@@ -35,6 +35,9 @@ Mi Finca PR is a three-phase agricultural platform:
 - Livestock management (chickens, rabbits, goats, cows, pigs, bees), synced to the API
 - Operations logging with agronomic calendar check-off flow, persisted server-side, with CSV export
 - Automatic harvest yield records from harvest check-offs
+- Pest & disease scouting (hallazgos): plant-level findings with severity + derived extent, dated re-inspections with trend, one-tap treatment labores, and a sanitary record CSV export
+- Field health traffic lights on the map (gray bare · green healthy · amber→red alerting) driven by unresolved findings
+- Panel de control as the "today" page (checkable due labores for crops **and** livestock, recommendations, sanidad alerts) and a tabbed Cuaderno de campo for all records (siembras, labores + calendar, cosechas, sanidad, animales)
 - Rule-based recommendation engine (AI-ready interface)
 - Farm viability simulator with pre-built farm model templates
 - Full email/password auth: verification, password reset, and email change via emailed single-use links
@@ -159,15 +162,15 @@ The **frontend** optionally takes `VITE_API_URL` (defaults to `http://localhost:
 mi-finca-PR/
 ├── backend/
 │   ├── prisma/
-│   │   ├── schema.prisma          # 18 models: users, farms, fields, operations, livestock…
+│   │   ├── schema.prisma          # 20 models: users, farms, fields, operations, findings, livestock…
 │   │   ├── migrations/            # Versioned schema history
 │   │   ├── crops.json             # Built-in crop types + schedules (seed data)
 │   │   └── seed.ts
 │   └── src/
 │       ├── index.ts               # Express app, route mounting, /health
 │       ├── routes/                # auth, farms, fields, operations,
-│       │                          # recommendedOperations, livestock, harvests,
-│       │                          # crops, users
+│       │                          # recommendedOperations, findings, livestock,
+│       │                          # harvests, crops, users
 │       ├── middleware/            # requireAuth / optionalAuth, errorHandler
 │       ├── lib/                   # jwt, prisma, errors, validate, mailer,
 │       │                          # actionTokens, farmUtils
@@ -184,6 +187,8 @@ mi-finca-PR/
 │       │   │                      # crop data, useFieldsApi/useOperationsApi,
 │       │   │                      # canvasGeo + plantingEventManager utils
 │       │   ├── map/               # Leaflet farm map + boundary drawing
+│       │   ├── scouting/          # pest library, findings + observations,
+│       │   │                      # field health traffic lights, sanidad
 │       │   ├── livestock/         # livestock section + useLivestockApi
 │       │   ├── simulator/         # viability projection engine + farm models
 │       │   ├── recommendations/   # rule engine behind RecommendationService
@@ -230,9 +235,10 @@ Public farm map with pins, product listings for crops and animal products, resta
 
 | Document | Description | Status |
 |----------|-------------|--------|
-| [SRS v1.2.1](./docs/MiFincaPR-SRS-Phase1-v1.2.1.md) | Software Requirements Specification, with per-requirement implementation status | ✅ Complete |
+| [SRS v1.3.0](./docs/MiFincaPR-SRS-Phase1-v1.3.0.md) | Software Requirements Specification, with per-requirement implementation status | ✅ Complete |
 | SDD v1.0.0 | Software Design Document (maintained externally as PDF) | ✅ Complete |
 | [SDD Amendment A](./docs/MiFincaPR-SDD-v1.0.0-Amendment-A.md) | Implementation status and deviations from SDD v1.0.0 | ✅ Complete |
+| [SDD Amendment B](./docs/MiFincaPR-SDD-v1.0.0-Amendment-B.md) | Scouting subsystem, today-page/cuaderno split, build & validation hardening | ✅ Complete |
 | API Docs | REST API reference | 📋 Planned — endpoint inventory lives in SDD Amendment A §1.2 for now |
 
 ---

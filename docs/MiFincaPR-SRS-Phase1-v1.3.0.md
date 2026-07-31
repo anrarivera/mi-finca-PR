@@ -2,12 +2,12 @@
 
 | | |
 |---|---|
-| **Version** | 1.2.1 (Markdown edition) |
+| **Version** | 1.3.0 (Markdown edition) |
 | **Status** | Active |
 | **Date** | July 2026 |
 | **Author** | Angel R. Rivera |
 | **Scope** | Phase 1 — Farm Management Tool |
-| **Related** | SDD v1.0.0 (+ Amendment A), README.md |
+| **Related** | SDD v1.0.0 (+ Amendments A–B), README.md |
 
 > **Note on this edition.** SRS v1.2.0 was maintained as a Word document outside
 > the repository. This v1.2.1 Markdown edition brings the requirements into the
@@ -43,6 +43,8 @@ Mi Finca PR is a three-phase product:
 - **Operation** — a real, logged action the farmer performed (fertilized, sprayed, harvested…). May confirm a Recommended Operation ("check-off").
 - **Livestock Unit** — a named group of animals (e.g. "Gallinero Norte", 25 laying hens).
 - **Harvest Yield** — a production record (crop, quantity, unit, date), created automatically when a harvest operation is checked off.
+- **Finding (Hallazgo)** — a scouting observation of a pest or disease on a field: pest, severity (1–3, the scout's judgment of intensity), and scope (rows / plants / whole field). Extent (incidencia, % of the field affected) is derived from the scope, never entered.
+- **Observation (Seguimiento)** — one dated re-inspection of a finding (severity + scope). Every finding owns at least one; the finding always mirrors its latest observation.
 
 ### 1.4 Users
 | User class | Description |
@@ -159,7 +161,21 @@ Mi Finca PR is a three-phase product:
 | FR-I2 | Automation rules combine a sensor condition with an optional weather-forecast condition and fire a notification, log entry, or webhook. | 📋 Phase 2 — `automation_rules` table exists |
 | FR-I3 | The system never actuates hardware directly — webhook emission only. | Design constraint, carried to Phase 2 |
 
-### 3.9 Data & Settings
+### 3.9 Scouting & Sanidad *(added in v1.3.0 — implemented July 2026)*
+
+| ID | Requirement | Status |
+|---|---|---|
+| FR-SC1 | Users can register a finding on a field: pest (from a Spanish-first pest library keyed by crop, field's crops suggested first), severity 1–3, date, notes, and the same tri-level scope selector operations use (rows / individual plants / whole field), including toggling rows and plants by tapping them on the map. | ✅ |
+| FR-SC2 | Findings are a separate entity from operations (what was SEEN vs. what was DONE), linked to a treatment labor only by id reference. | ✅ |
+| FR-SC3 | Finding lifecycle is manual: open → treated → resolved, with reopen and delete. | ✅ |
+| FR-SC4 | "Crear labor" creates ONE coarse treatment recommendation in the calendar from a finding (suggested rows in the notes; real scope confirmed at check-off). A new labor is allowed once the previous one is completed or skipped. | ✅ |
+| FR-SC5 | Findings support dated re-inspections (seguimientos) preserving the full history; rows show a mejorando / empeorando / estable trend cue. | ✅ |
+| FR-SC6 | Extent (incidencia, % of the field) is derived from a finding's scope and displayed per finding/observation. | ✅ |
+| FR-SC7 | The map paints unresolved findings by severity (amber→red rows and plant dots), and each field's fill/pin/card dot is a derived health traffic light: gray bare · green healthy · severity color when alerting. Severa alerts at any extent; leve/moderada only past a 10 % extent threshold; treated-only alerts render desaturated until resolved. | ✅ |
+| FR-SC8 | A Sanidad summary (field traffic-light counts + active findings) appears on the Panel de control; the sanitary records (pest recurrence, full history, CSV export with one row per observation) live in the cuaderno de campo. | ✅ |
+| FR-SC9 | Walk mode (guided row-by-row capture) and per-crop scouting suggestions from the rule engine. | 📋 Phase 2 |
+
+### 3.10 Data & Settings
 
 | ID | Requirement | Status |
 |---|---|---|
@@ -177,7 +193,7 @@ Mi Finca PR is a three-phase product:
 | NFR-1 | **Data isolation:** every farm-data query is scoped to the authenticated user; cross-account access is impossible at the API layer. | ✅ |
 | NFR-2 | **Speed of logging:** checking off an operation takes ≤ 30 s and ≤ 3 taps from the operations view. | ✅ |
 | NFR-3 | **Security:** access tokens never in localStorage; refresh tokens HttpOnly; single-use hashed email tokens; bcrypt cost 12; Helmet + CORS allow-list. | ✅ |
-| NFR-4 | **Validation:** all inputs validated server-side (Zod on auth/crops/users; field-level validators elsewhere); coordinates bounded (lat ±90, lng ±180 — 🟡 enforced client-side, server-side pending). | 🟡 |
+| NFR-4 | **Validation:** all inputs validated server-side (Zod on auth/crops/users; field-level validators elsewhere); coordinates bounded (lat ±90, lng ±180) server-side on every farm/field/livestock geometry input. | ✅ |
 | NFR-5 | **Availability of map data:** satellite tiles require no API key. | ✅ |
 | NFR-6 | **API convention:** all JSON responses use `{ success, data | error: { code, message, details? } }`; errors use standard codes (SDD §11). | ✅ |
 | NFR-7 | **Offline logging** (mobile queue with retry). | 📋 Phase 2 |
@@ -209,6 +225,7 @@ Phase 1 is accepted when a farmer can, end to end and persisted server-side:
 5. Register livestock and see it on any device they log into. ✅
 6. Export their operations log (CSV) and calendar (ICS). ✅
 7. Run a viability simulation for their acreage. ✅
+8. Register a pest finding, follow it with re-inspections to resolution, and export the sanitary record (CSV). ✅ *(added v1.3.0)*
 
 Items marked 📋 above (mobile app, offline queue, IoT, OAuth, photos, i18n)
 are explicitly **out of Phase 1 acceptance** and tracked for Phase 2.
@@ -222,3 +239,4 @@ are explicitly **out of Phase 1 acceptance** and tracked for Phase 2.
 | 1.0.0 | 2025 | Angel R. Rivera | Initial SRS (Word) |
 | 1.2.0 | 2026 | Angel R. Rivera | Field editor rework, planting events, simulator (Word) |
 | 1.2.1 | July 2026 | Angel R. Rivera (with Claude Code) | Markdown edition committed to repo; per-requirement implementation status; Phase 1 acceptance criteria |
+| 1.3.0 | July 2026 | Angel R. Rivera (with Claude Code) | Scouting & Sanidad section (findings, re-inspections, field health traffic lights, sanitary report); NFR-4 → ✅ (server-side coordinate bounds); acceptance item 8 |

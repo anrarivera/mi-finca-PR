@@ -123,3 +123,4 @@ changes and are currently stale — known, deliberately deferred).
 | Amendment | Date | Changes |
 |---|---|---|
 | A | July 2026 | First implementation-status amendment; documents backend build-out, MVP wiring branch (`mvp-completion`), deviations, Phase 2 deferrals |
+| B | July 2026 | Scouting subsystem, today-page/cuaderno split, hardening — see `MiFincaPR-SDD-v1.0.0-Amendment-B.md` |
