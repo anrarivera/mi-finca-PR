@@ -2,7 +2,9 @@ import { Router, Request, Response, NextFunction } from 'express'
 import { requireAuth } from '../middleware/auth'
 import { prisma } from '../lib/prisma'
 import { Errors } from '../lib/errors'
-import { requireFields, requireValidId } from '../lib/validate'
+import {
+  requireFields, requireValidId, requireLat, requireLng, requireBoundaryBounds,
+} from '../lib/validate'
 
 const router = Router({ mergeParams: true })
 
@@ -18,6 +20,34 @@ function toDateStr(val: any): string {
   if (!val) return ''
   if (val instanceof Date) return val.toISOString().split('T')[0]
   return String(val).split('T')[0]
+}
+
+// Bounds-check every coordinate a field payload can carry (SRS NFR-4).
+// Undefined pieces mean "not updating that part" and pass through.
+function requireGeometryBounds(payload: {
+  boundary?: unknown
+  farmLat?: unknown
+  farmLng?: unknown
+  rows?: any[]
+  freePlants?: any[]
+}) {
+  requireBoundaryBounds(payload.boundary, 'boundary')
+  if (payload.farmLat !== undefined) requireLat(payload.farmLat, 'farmLat')
+  if (payload.farmLng !== undefined) requireLng(payload.farmLng, 'farmLng')
+  ;(payload.rows ?? []).forEach((row: any, i: number) => {
+    requireLat(row?.startLat, `rows[${i}].startLat`)
+    requireLng(row?.startLng, `rows[${i}].startLng`)
+    requireLat(row?.endLat, `rows[${i}].endLat`)
+    requireLng(row?.endLng, `rows[${i}].endLng`)
+    ;(row?.plants ?? []).forEach((p: any, j: number) => {
+      requireLat(p?.lat, `rows[${i}].plants[${j}].lat`)
+      requireLng(p?.lng, `rows[${i}].plants[${j}].lng`)
+    })
+  })
+  ;(payload.freePlants ?? []).forEach((p: any, i: number) => {
+    requireLat(p?.lat, `freePlants[${i}].lat`)
+    requireLng(p?.lng, `freePlants[${i}].lng`)
+  })
 }
 
 // Ray-casting point-in-polygon for lat/lng coordinates
@@ -170,6 +200,7 @@ router.post('/', requireAuth, async (req: Request, res: Response, next: NextFunc
     } = req.body
 
     requireFields(req.body, ['name', 'color', 'shape', 'farmLat', 'farmLng'])
+    requireGeometryBounds({ boundary, farmLat, farmLng, rows, freePlants })
     const farm = await requireFarmOwnership(userId, farmId)
 
     // Validate field boundary is inside farm boundary
@@ -297,6 +328,8 @@ router.patch('/:id', requireAuth, async (req: Request, res: Response, next: Next
       displayMode, isPositioning, isSimulated, farmModelId,
       rows, freePlants, plantingEvents,
     } = req.body
+
+    requireGeometryBounds({ boundary, farmLat, farmLng, rows, freePlants })
 
     // Validate field boundary is inside farm boundary
     if (boundary && boundary.length >= 3) {

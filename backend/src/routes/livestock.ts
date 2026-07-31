@@ -2,7 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express'
 import { prisma } from '../lib/prisma'
 import { requireAuth } from '../middleware/auth'
 import { Errors } from '../lib/errors'
-import { requireFields, requireValidId } from '../lib/validate'
+import { requireFields, requireValidId, requireLat, requireLng } from '../lib/validate'
 
 const router = Router({ mergeParams: true }) // mounted at /api/v1/farms/:farmId/livestock
 
@@ -59,6 +59,10 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
     await requireFarmOwnership(userId, farmId)
 
     const { name, animalType, currentCount, acquisitionDate, farmLat, farmLng, notes } = req.body
+
+    // Placement pin is optional, but when present it must be real (NFR-4)
+    if (farmLat != null) requireLat(farmLat, 'farmLat')
+    if (farmLng != null) requireLng(farmLng, 'farmLng')
 
     const unit = await prisma.livestockUnit.create({
       data: {
@@ -120,6 +124,10 @@ router.patch('/:id', async (req: Request, res: Response, next: NextFunction) => 
     if (!existing) throw Errors.notFound('Livestock unit')
 
     const { name, animalType, currentCount, acquisitionDate, farmLat, farmLng, notes } = req.body
+
+    // Placement pin can be updated or cleared (null); real values only (NFR-4)
+    if (farmLat != null) requireLat(farmLat, 'farmLat')
+    if (farmLng != null) requireLng(farmLng, 'farmLng')
 
     const updateData: Record<string, unknown> = {}
     if (name !== undefined) updateData.name = name

@@ -2,7 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express'
 import { prisma } from '../lib/prisma'
 import { requireAuth } from '../middleware/auth'
 import { Errors } from '../lib/errors'
-import { requireFields, requireValidId } from '../lib/validate'
+import { requireFields, requireValidId, requireBoundaryBounds } from '../lib/validate'
 import { calculateAreaAcres, formatFarm } from '../lib/farmUtils'
 
 const router = Router()
@@ -150,6 +150,9 @@ router.patch('/:id', async (req: Request, res: Response, next: NextFunction) => 
     if (farmType && !validTypes.includes(farmType)) {
       throw Errors.validation(`farmType must be one of: ${validTypes.join(', ')}`)
     }
+
+    // Boundary points must be real WGS84 coordinates (SRS NFR-4)
+    requireBoundaryBounds(boundary, 'boundary')
 
     // If setting this farm as favorite, unset all other farms first
     if (isFavorite === true) {
