@@ -74,6 +74,36 @@ export async function createTestField(token: string, farmId: string, overrides?:
   return res.body.data?.field
 }
 
+// ── Recommendation seeding — the calendar rows the check-off flows act
+// on. Created directly via prisma: through the API they only arise from
+// full field payloads with planting events, which isn't what these tests
+// are exercising. ──────────────────────────────────────────────────────
+export async function seedRecommendedOp(fieldId: string, overrides?: {
+  recommendedDate?: string
+  status?: string
+  type?: string
+}) {
+  const event = await prisma.plantingEvent.create({
+    data: {
+      fieldId,
+      cropTypeId: 'platano',
+      plantingDate: new Date('2026-06-01'),
+      plantCount: 10,
+    },
+  })
+  const recOp = await prisma.recommendedOperation.create({
+    data: {
+      plantingEventId: event.id,
+      templateId: 'test-template',
+      type: overrides?.type ?? 'fertilization',
+      labelEs: 'Fertilización de prueba',
+      recommendedDate: new Date(overrides?.recommendedDate ?? '2026-08-05'),
+      status: overrides?.status ?? 'pending',
+    },
+  })
+  return { event, recOp }
+}
+
 // ── Cleanup — wipe test data between tests ────────────────────────
 export async function cleanDatabase() {
   // Delete in order to respect foreign keys
