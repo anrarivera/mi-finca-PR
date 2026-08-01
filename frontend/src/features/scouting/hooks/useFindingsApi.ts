@@ -86,20 +86,12 @@ export function useDeleteFinding(farmId: string) {
 export function useExportFindings(farmId: string) {
   return useMutation({
     mutationFn: async () => {
-      const { useAuthStore } = await import('@/store/useAuthStore')
-      const token = useAuthStore.getState().accessToken
-      const { API_URL } = await import('@/lib/api')
-      const res = await fetch(`${API_URL}/api/v1/farms/${farmId}/findings/export?format=csv`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-        credentials: 'include',
-      })
-      if (!res.ok) throw new Error('No se pudo exportar el registro sanitario')
-      const blob = await res.blob()
-      const disposition = res.headers.get('Content-Disposition') ?? ''
-      const match = /filename="([^"]+)"/.exec(disposition)
+      const { api } = await import('@/lib/api')
+      const { blob, filename } =
+        await api.download(`/api/v1/farms/${farmId}/findings/export?format=csv`)
       const a = document.createElement('a')
       a.href = URL.createObjectURL(blob)
-      a.download = match?.[1] ?? 'sanidad.csv'
+      a.download = filename ?? 'sanidad.csv'
       a.click()
       URL.revokeObjectURL(a.href)
     },

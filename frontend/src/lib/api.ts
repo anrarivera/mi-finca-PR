@@ -56,19 +56,14 @@ class ApiClient {
     return this.refreshing
   }
 
-  private async request<T>(method: string, path: string, body?: unknown): Promise<T> {
-    const doFetch = () => fetch(`${this.baseUrl}${path}`, {
-      method,
-      headers: this.getHeaders(),
-      credentials: 'include',
-      body: body ? JSON.stringify(body) : undefined,
-    })
-
+  // Expired access token mid-session: refresh and retry ONCE. The auth
+  // endpoints are exempt — a 401 there is the actual answer, and the
+  // refresh call itself must never recurse.
+  private async fetchWithRefresh(
+    path: string,
+    doFetch: () => Promise<Response>
+  ): Promise<Response> {
     let res = await doFetch()
-
-    // Expired access token mid-session: refresh and retry ONCE. The auth
-    // endpoints are exempt — a 401 there is the actual answer, and the
-    // refresh call itself must never recurse.
     if (res.status === 401 && !path.startsWith('/api/v1/auth/')) {
       if (await this.tryRefresh()) {
         res = await doFetch()
@@ -78,8 +73,32 @@ class ApiClient {
         useAuthStore.getState().clearAuth()
       }
     }
+    return res
+  }
 
+  private async request<T>(method: string, path: string, body?: unknown): Promise<T> {
+    const res = await this.fetchWithRefresh(path, () => fetch(`${this.baseUrl}${path}`, {
+      method,
+      headers: this.getHeaders(),
+      credentials: 'include',
+      body: body ? JSON.stringify(body) : undefined,
+    }))
     return this.handleResponse<T>(res)
+  }
+
+  // Authenticated file download — same silent-refresh behavior as request(),
+  // but hands back the raw blob plus the server-suggested filename instead
+  // of parsing a JSON envelope.
+  async download(path: string): Promise<{ blob: Blob; filename: string | null }> {
+    const res = await this.fetchWithRefresh(path, () => fetch(`${this.baseUrl}${path}`, {
+      method: 'GET',
+      headers: this.getHeaders(),
+      credentials: 'include',
+    }))
+    if (!res.ok) throw new Error(`Download failed (${res.status})`)
+    const disposition = res.headers.get('Content-Disposition') ?? ''
+    const match = /filename="([^"]+)"/.exec(disposition)
+    return { blob: await res.blob(), filename: match?.[1] ?? null }
   }
 
   private getHeaders(extra?: Record<string, string>): Record<string, string> {

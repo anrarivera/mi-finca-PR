@@ -331,26 +331,17 @@ export function useDeleteOperation(farmId: string) {
 }
 
 // ── CSV export ────────────────────────────────────────────────────────
-// The export endpoint streams a file, so it bypasses the JSON ApiClient:
-// fetch with the Bearer token and hand the blob to the browser.
+// The export endpoint streams a file — api.download() carries the auth
+// header and the same silent token refresh as every JSON call.
 export function useExportOperations(farmId: string) {
   return useMutation({
     mutationFn: async () => {
-      const { useAuthStore } = await import('@/store/useAuthStore')
-      const token = useAuthStore.getState().accessToken
-      const { API_URL } = await import('@/lib/api')
-      const res = await fetch(`${API_URL}/api/v1/farms/${farmId}/operations/export?format=csv`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-        credentials: 'include',
-      })
-      if (!res.ok) throw new Error('No se pudo exportar el registro de operaciones')
-      const blob = await res.blob()
-      // Trigger a download with the filename the server suggested.
-      const disposition = res.headers.get('Content-Disposition') ?? ''
-      const match = /filename="([^"]+)"/.exec(disposition)
+      const { api } = await import('@/lib/api')
+      const { blob, filename } =
+        await api.download(`/api/v1/farms/${farmId}/operations/export?format=csv`)
       const a = document.createElement('a')
       a.href = URL.createObjectURL(blob)
-      a.download = match?.[1] ?? 'operaciones.csv'
+      a.download = filename ?? 'operaciones.csv'
       a.click()
       URL.revokeObjectURL(a.href)
     },
