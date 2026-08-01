@@ -194,13 +194,16 @@ router.post('/', requireAuth, async (req: Request, res: Response, next: NextFunc
     const farmId = req.params.farmId as string
     const userId = req.user!.userId
     const {
-      name, color, shape, boundary,
+      name, color, shape, boundary, kind,
       farmLat, farmLng,
       displayMode, isPositioning, isSimulated, farmModelId,
       rows = [], freePlants = [], plantingEvents = [],
     } = req.body
 
     requireFields(req.body, ['name', 'color', 'shape', 'farmLat', 'farmLng'])
+    if (kind !== undefined && !['crops', 'livestock'].includes(kind)) {
+      throw Errors.validation("kind must be 'crops' or 'livestock'")
+    }
     requireGeometryBounds({ boundary, farmLat, farmLng, rows, freePlants })
     const { farm } = await requireFarmStructure(userId, farmId)
 
@@ -215,6 +218,7 @@ router.post('/', requireAuth, async (req: Request, res: Response, next: NextFunc
       data: {
         farmId,
         name,
+        kind: kind ?? 'crops',
         color,
         shape,
         boundary: boundary ?? [],

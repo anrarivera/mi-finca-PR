@@ -107,6 +107,9 @@ model Field {
   id             String    @id @default(uuid())
   farmId         String
   name           String
+  // 'crops' (rows/plants) or 'livestock' (a corral — herds are assigned
+  // to it and rendered on the map with head counts).
+  kind           String    @default("crops")
   color          String
   shape          String
   boundary       Json      @default("[]")
@@ -126,6 +129,7 @@ model Field {
   operations     Operation[]
   harvestYields  HarvestYield[]
   findings       Finding[]
+  livestockUnits LivestockUnit[]
 
   @@map("fields")
 }
@@ -280,6 +284,10 @@ model Operation {
   // row 2", or scattered single plants. rowIds = fully covered rows,
   // plantIds = extra individual plants outside those rows.
   plantIds              Json      @default("[]")
+  // Herd-count change carried by this operation (negative = animals left
+  // the herd: slaughtered/sold/died) and why — the livestock ledger.
+  countDelta            Int?
+  countReason           String?
   // Who logged the work — stamped at creation, kept if the member leaves.
   performedByUserId     String?
   createdAt             DateTime  @default(now())
@@ -303,7 +311,12 @@ model HarvestYield {
   // editing/deleting the log entry keeps the yield in sync. Null for yields
   // created directly through the harvests API.
   operationId String?
-  cropTypeId  String
+  // Crop harvests carry cropTypeId; animal production carries
+  // livestockUnitId + productId (milk/eggs/meat/honey). One table = the
+  // farm's unified production ledger.
+  cropTypeId  String?
+  livestockUnitId String?
+  productId   String?
   quantity    Decimal   @db.Decimal(10, 2)
   unit        String
   harvestDate DateTime  @db.Date
@@ -315,6 +328,7 @@ model HarvestYield {
   farm        Farm       @relation(fields: [farmId], references: [id], onDelete: Cascade)
   field       Field?     @relation(fields: [fieldId], references: [id], onDelete: SetNull)
   operation   Operation? @relation(fields: [operationId], references: [id], onDelete: SetNull)
+  livestockUnit LivestockUnit? @relation(fields: [livestockUnitId], references: [id], onDelete: SetNull)
 
   @@map("harvest_yields")
 }
@@ -322,6 +336,10 @@ model HarvestYield {
 model LivestockUnit {
   id              String    @id @default(uuid())
   farmId          String
+  // The corral this herd lives in (a Field with kind 'livestock').
+  // Nullable: herds can exist unassigned; moving herds between corrales
+  // is pasture rotation.
+  fieldId         String?
   name            String
   animalType      String
   currentCount    Int
@@ -333,8 +351,10 @@ model LivestockUnit {
   updatedAt       DateTime  @updatedAt
   deletedAt       DateTime?
   farm            Farm      @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  field           Field?    @relation(fields: [fieldId], references: [id], onDelete: SetNull)
   operations      Operation[]
   recommended     RecommendedOperation[]
+  harvestYields   HarvestYield[]
 
   @@map("livestock_units")
 }

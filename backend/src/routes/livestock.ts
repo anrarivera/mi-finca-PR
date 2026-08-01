@@ -17,6 +17,30 @@ const requireFarmOwnership = (userId: string, farmId: string) =>
 const requireFarmStructure = (userId: string, farmId: string) =>
   requireFarmRole(userId, farmId, 'admin')
 
+// A herd's corral must be one of this farm's livestock-kind fields.
+async function requireCorral(farmId: string, fieldId: string) {
+  const corral = await prisma.field.findFirst({
+    where: { id: fieldId, farmId, kind: 'livestock', deletedAt: { equals: null } },
+  })
+  if (!corral) {
+    throw Errors.validation('El corral debe ser un campo de animales de esta finca')
+  }
+  return corral
+}
+
+// Products an animal can yield — mirrors the frontend animalLibrary.
+// meat products remove animals from the herd (countDelta required).
+const ANIMAL_PRODUCTS: Record<string, string[]> = {
+  chickens: ['eggs', 'meat'],
+  rabbits: ['meat'],
+  goats: ['milk', 'meat'],
+  cows: ['milk', 'meat'],
+  pigs: ['meat'],
+  bees: ['honey'],
+}
+const MEAT_PRODUCTS = new Set(['meat'])
+const COUNT_REASONS = ['slaughtered', 'sold', 'died', 'other']
+
 // Prisma returns Decimal for farmLat/farmLng — convert to numbers
 function serializeLivestock(unit: any) {
   return {
@@ -58,15 +82,17 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
     requireFields(req.body, ['name', 'animalType', 'currentCount', 'acquisitionDate'])
     await requireFarmStructure(userId, farmId)
 
-    const { name, animalType, currentCount, acquisitionDate, farmLat, farmLng, notes } = req.body
+    const { name, animalType, currentCount, acquisitionDate, farmLat, farmLng, notes, fieldId } = req.body
 
     // Placement pin is optional, but when present it must be real (NFR-4)
     if (farmLat != null) requireLat(farmLat, 'farmLat')
     if (farmLng != null) requireLng(farmLng, 'farmLng')
+    if (fieldId != null) await requireCorral(farmId, fieldId)
 
     const unit = await prisma.livestockUnit.create({
       data: {
         farmId,
+        fieldId: fieldId ?? null,
         name,
         animalType,
         currentCount,
@@ -123,7 +149,10 @@ router.patch('/:id', async (req: Request, res: Response, next: NextFunction) => 
     })
     if (!existing) throw Errors.notFound('Livestock unit')
 
-    const { name, animalType, currentCount, acquisitionDate, farmLat, farmLng, notes } = req.body
+    const { name, animalType, currentCount, acquisitionDate, farmLat, farmLng, notes, fieldId } = req.body
+
+    // Corral can be set, moved (pasture rotation), or cleared with null
+    if (fieldId != null) await requireCorral(farmId, fieldId)
 
     // Placement pin can be updated or cleared (null); real values only (NFR-4)
     if (farmLat != null) requireLat(farmLat, 'farmLat')
@@ -137,6 +166,7 @@ router.patch('/:id', async (req: Request, res: Response, next: NextFunction) => 
     if (farmLat !== undefined) updateData.farmLat = farmLat
     if (farmLng !== undefined) updateData.farmLng = farmLng
     if (notes !== undefined) updateData.notes = notes
+    if (fieldId !== undefined) updateData.fieldId = fieldId
 
     const updated = await prisma.livestockUnit.update({
       where: { id },
@@ -144,6 +174,108 @@ router.patch('/:id', async (req: Request, res: Response, next: NextFunction) => 
     })
 
     res.json({ success: true, data: serializeLivestock(updated) })
+  } catch (err) {
+    next(err)
+  }
+})
+
+// ─────────────────────────────────────────────────────────────────────
+// POST /api/v1/farms/:farmId/livestock/:id/production
+// Log production — the livestock parallel of a harvest check-off
+// (operator+ work). Writes an operations-log entry and mirrors it into
+// the unified production ledger (harvest_yields). Meat production is the
+// herd ledger: headCount animals leave the herd atomically, with a reason.
+// ─────────────────────────────────────────────────────────────────────
+router.post('/:id/production', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const farmId = req.params.farmId as string
+    const id = req.params.id as string
+    const userId = req.user!.userId
+
+    requireValidId(id, 'Livestock unit')
+    requireFields(req.body, ['productId', 'quantity', 'unit', 'date'])
+    await requireFarmOwnership(userId, farmId)
+
+    const unit = await prisma.livestockUnit.findFirst({
+      where: { id, farmId, deletedAt: { equals: null } },
+    })
+    if (!unit) throw Errors.notFound('Livestock unit')
+
+    const { productId, quantity, unit: qtyUnit, date, notes, headCount, countReason } = req.body
+
+    const validProducts = ANIMAL_PRODUCTS[unit.animalType] ?? []
+    if (!validProducts.includes(productId)) {
+      throw Errors.validation(
+        `productId must be one of: ${validProducts.join(', ') || '(none for this animal)'}`
+      )
+    }
+    if (typeof quantity !== 'number' || !(quantity > 0)) {
+      throw Errors.validation('quantity must be a positive number')
+    }
+
+    const isMeat = MEAT_PRODUCTS.has(productId)
+    if (isMeat) {
+      if (!Number.isInteger(headCount) || headCount < 1) {
+        throw Errors.validation('headCount (animals leaving the herd) is required for meat production')
+      }
+      if (headCount > unit.currentCount) {
+        throw Errors.validation(
+          `headCount exceeds the herd (${unit.currentCount} ${unit.animalType})`
+        )
+      }
+      if (countReason !== undefined && !COUNT_REASONS.includes(countReason)) {
+        throw Errors.validation(`countReason must be one of: ${COUNT_REASONS.join(', ')}`)
+      }
+    } else if (headCount !== undefined) {
+      throw Errors.validation('headCount only applies to meat production')
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+      const operation = await tx.operation.create({
+        data: {
+          farmId,
+          livestockUnitId: unit.id,
+          type: 'production_record',
+          actualDate: new Date(date),
+          quantity,
+          unit: qtyUnit,
+          notes: notes ?? null,
+          countDelta: isMeat ? -headCount : null,
+          countReason: isMeat ? (countReason ?? 'slaughtered') : null,
+          performedByUserId: userId,
+        },
+      })
+      await tx.harvestYield.create({
+        data: {
+          farmId,
+          livestockUnitId: unit.id,
+          productId,
+          operationId: operation.id,
+          quantity,
+          unit: qtyUnit,
+          harvestDate: new Date(date),
+          notes: notes ?? null,
+        },
+      })
+      const updatedUnit = isMeat
+        ? await tx.livestockUnit.update({
+            where: { id: unit.id },
+            data: { currentCount: { decrement: headCount } },
+          })
+        : unit
+      return { operation, currentCount: updatedUnit.currentCount }
+    })
+
+    res.status(201).json({
+      success: true,
+      data: {
+        operationId: result.operation.id,
+        productId,
+        quantity,
+        unit: qtyUnit,
+        currentCount: result.currentCount,
+      },
+    })
   } catch (err) {
     next(err)
   }
