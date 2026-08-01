@@ -8,6 +8,8 @@ import {
   useDeleteFarm,
 } from '@/features/farm/hooks/useFarmsApi'
 import { useDrawing, findNearestEdgeIndex } from '../hooks/useDrawing'
+import { attachPointerDrag } from '../utils/pointerDrag'
+import { useIsCoarsePointer } from '@/hooks/useViewport'
 import DrawingPanel from './drawingPanel'
 import FarmDrawer from '@/features/farm/components/farmDrawer'
 import PlacedField from '@/features/field/components/placedField'
@@ -96,9 +98,8 @@ function DraggablePoint({
   onClosePolygon: () => void
 }) {
   const markerRef = useRef<L.CircleMarker | null>(null)
-  const isDragging = useRef(false)
-  const mouseDownPos = useRef<{ x: number; y: number } | null>(null)
   const map = useMapEvents({})
+  const coarse = useIsCoarsePointer()
 
   useEffect(() => {
     const marker = markerRef.current
@@ -109,47 +110,17 @@ function DraggablePoint({
 
     safeEl.style.cursor = mode === 'editing' ? 'grab' : 'pointer'
 
-    function onMouseDown(e: MouseEvent) {
-      e.stopPropagation()
-      mouseDownPos.current = { x: e.clientX, y: e.clientY }
-      isDragging.current = false
-      map.dragging.disable()
-
-      function onMouseMove(e: MouseEvent) {
-        if (!mouseDownPos.current) return
-        const dx = Math.abs(e.clientX - mouseDownPos.current.x)
-        const dy = Math.abs(e.clientY - mouseDownPos.current.y)
-        if (dx > 4 || dy > 4) {
-          isDragging.current = true
-          safeEl.style.cursor = 'grabbing'
-          const containerPoint = map.mouseEventToContainerPoint(e as unknown as MouseEvent)
-          const latlng = map.containerPointToLatLng(containerPoint)
-          onMove(index, latlng)
-        }
-      }
-
-      function onMouseUp() {
-        map.dragging.enable()
-        safeEl.style.cursor = mode === 'editing' ? 'grab' : 'pointer'
-        window.removeEventListener('mousemove', onMouseMove)
-        window.removeEventListener('mouseup', onMouseUp)
-        if (!isDragging.current) {
-          if (mode === 'drawing' && isFirst) onClosePolygon()
-          else if (mode === 'editing') onSelect(index)
-        }
-        isDragging.current = false
-        mouseDownPos.current = null
-      }
-
-      window.addEventListener('mousemove', onMouseMove)
-      window.addEventListener('mouseup', onMouseUp)
-    }
-
-    safeEl.addEventListener('mousedown', onMouseDown)
-    return () => safeEl.removeEventListener('mousedown', onMouseDown)
+    return attachPointerDrag(safeEl, map, {
+      onMove: (latlng) => onMove(index, latlng),
+      onTap: () => {
+        if (mode === 'drawing' && isFirst) onClosePolygon()
+        else if (mode === 'editing') onSelect(index)
+      },
+    })
   }, [index, isFirst, mode, map, onMove, onSelect, onClosePolygon])
 
-  const radius = isFirst ? 8 : isSelected ? 8 : 6
+  // Fingers need a bigger target than a mouse cursor
+  const radius = (isFirst ? 8 : isSelected ? 8 : 6) + (coarse ? 4 : 0)
   const fillColor = isSelected ? '#ef4444' : isFirst ? '#639922' : 'white'
   const strokeColor = isSelected ? '#ef4444' : '#2d4a1e'
 
@@ -407,6 +378,16 @@ export default function FarmMap({ center = PR_CENTER, zoom = DEFAULT_ZOOM }: Pro
   }
 }
 
+// Touch path for the dblclick vertex insertion: add a point at the
+// midpoint of the edge after the selected vertex, then drag it into place.
+function handleInsertPointAfterSelected() {
+  const i = drawing.selectedPointIndex
+  if (i === null) return
+  const a = drawing.points[i]
+  const b = drawing.points[(i + 1) % drawing.points.length]
+  drawing.insertPointAfter(i, L.latLng((a.lat + b.lat) / 2, (a.lng + b.lng) / 2))
+}
+
 async function handleDeleteFarm() {
   if (!activeFarm) return
   if (!window.confirm(`¿Eliminar la finca "${activeFarm.name}" y todos sus campos?`)) return
@@ -472,6 +453,7 @@ async function handleDeleteFarm() {
           onDeleteFarm={handleDeleteFarm}
           onUndoPoint={drawing.undoLastPoint}
           onDeleteSelectedPoint={drawing.deleteSelectedPoint}
+          onInsertPointAfterSelected={handleInsertPointAfterSelected}
         />
       )}
 

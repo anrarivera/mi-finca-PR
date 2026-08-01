@@ -20,6 +20,9 @@ type Props = {
       path to these actions on touch. */
   onUndoPoint: () => void
   onDeleteSelectedPoint: () => void
+  /** Touch path for the dblclick vertex insertion — adds a point after
+      the selected vertex. */
+  onInsertPointAfterSelected: () => void
 }
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -48,6 +51,7 @@ export default function DrawingPanel({
   onDeleteFarm,
   onUndoPoint,
   onDeleteSelectedPoint,
+  onInsertPointAfterSelected,
 }: Props) {
   const isPhone = useIsPhone()
   const [menuOpen, setMenuOpen] = useState(false)
@@ -77,6 +81,7 @@ export default function DrawingPanel({
         onComplete={onComplete}
         onClear={onClear}
         onDeleteSelectedPoint={onDeleteSelectedPoint}
+        onInsertPointAfterSelected={onInsertPointAfterSelected}
         onFinishEditing={onFinishEditing}
       />
     )
@@ -183,7 +188,8 @@ export default function DrawingPanel({
 // ─── Active-mode toolbar ──────────────────────────────────────────────
 function Toolbar({
   mode, isPhone, pointCount, areaAcres, selectedPointIndex,
-  onUndoPoint, onComplete, onClear, onDeleteSelectedPoint, onFinishEditing,
+  onUndoPoint, onComplete, onClear, onDeleteSelectedPoint,
+  onInsertPointAfterSelected, onFinishEditing,
 }: {
   mode: 'drawing' | 'editing'
   isPhone: boolean
@@ -194,6 +200,7 @@ function Toolbar({
   onComplete: () => void
   onClear: () => void
   onDeleteSelectedPoint: () => void
+  onInsertPointAfterSelected: () => void
   onFinishEditing: () => void
 }) {
   const status =
@@ -236,10 +243,16 @@ function Toolbar({
       ) : (
         <>
           {selectedPointIndex !== null && (
-            <ToolbarButton
-              label="Eliminar punto" icon={<Trash2 size={15} />} isPhone={isPhone}
-              onClick={onDeleteSelectedPoint} tone="danger"
-            />
+            <>
+              <ToolbarButton
+                label="Añadir punto" icon={<Plus size={15} />} isPhone={isPhone}
+                onClick={onInsertPointAfterSelected}
+              />
+              <ToolbarButton
+                label="Eliminar punto" icon={<Trash2 size={15} />} isPhone={isPhone}
+                onClick={onDeleteSelectedPoint} tone="danger"
+              />
+            </>
           )}
           <ToolbarButton
             label="Terminar" icon={<Check size={15} />} isPhone={isPhone}
