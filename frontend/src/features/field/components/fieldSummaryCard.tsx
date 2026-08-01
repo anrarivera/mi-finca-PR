@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import {
-  MapPin, Layers, Pencil, Trash2,
+  MapPin, Layers, Pencil, Trash2, Locate,
   ToggleLeft, ToggleRight, AlertCircle, Clock, CalendarDays, Bug,
 } from 'lucide-react'
+import { useIsCoarsePointer } from '@/hooks/useViewport'
 import FindingModal from '@/features/scouting/components/findingModal'
 import { useFindings } from '@/features/scouting/hooks/useFindingsApi'
 import { fieldHealth } from '@/features/scouting/utils/fieldHealth'
@@ -86,6 +87,7 @@ export default function FieldSummaryCard({
   const skipOp = useSkipRecommendedOp(field.farmId)
   const partialOp = useLogPartialRecommendedOp(field.farmId)
   const cardRef = useRef<HTMLDivElement | null>(null)
+  const isCoarsePointer = useIsCoarsePointer()
 
   // Defer the single-click action so a double click can cancel it —
   // otherwise the two clicks of a dblclick toggle the selection off
@@ -97,6 +99,12 @@ export default function FieldSummaryCard({
 
   function handleCardClick() {
     if (!onSelect) return
+    // Touch has explicit buttons for the double-click actions, so taps
+    // select immediately instead of waiting out the dblclick window.
+    if (isCoarsePointer) {
+      onSelect()
+      return
+    }
     if (clickTimer.current) clearTimeout(clickTimer.current)
     clickTimer.current = setTimeout(() => {
       clickTimer.current = null
@@ -159,6 +167,17 @@ export default function FieldSummaryCard({
             style={{ backgroundColor: scoutHealth.color }}
           />
           <span className="text-sm font-medium text-[#2d4a1e] truncate">{field.name}</span>
+          {/* Visible path to the double-click zoom — the only one on touch */}
+          {onCardDoubleClick && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onCardDoubleClick() }}
+              onDoubleClick={(e) => e.stopPropagation()}
+              title="Ver en el mapa"
+              className="shrink-0 p-1 pointer-coarse:p-2 rounded text-[#9aab8a] hover:text-[#639922] hover:bg-[#eaf3de] transition-colors"
+            >
+              <Locate size={12} />
+            </button>
+          )}
         </div>
         <div className="flex items-center gap-1 shrink-0">
           {scoutHealth.unresolvedCount > 0 && (

@@ -1,4 +1,4 @@
-import { Pencil, Trash2, Check, Milestone, MoveUpRight, MousePointer, Plus } from 'lucide-react'
+import { Pencil, Trash2, Check, Milestone, MoveUpRight, MousePointer, Plus, Undo2 } from 'lucide-react'
 import type { DrawingMode } from '../hooks/useDrawing'
 
 type Props = {
@@ -14,7 +14,10 @@ type Props = {
   onSave: () => void
   onAddField: () => void    // ← add this
   onDeleteFarm: () => void
-
+  /** On-screen equivalents of the Backspace/Delete shortcuts — the only
+      path to these actions on touch. */
+  onUndoPoint: () => void
+  onDeleteSelectedPoint: () => void
 }
 
 export default function DrawingPanel({
@@ -30,6 +33,8 @@ export default function DrawingPanel({
   onSave,
   onAddField,    // ← add this
   onDeleteFarm,
+  onUndoPoint,
+  onDeleteSelectedPoint,
 }: Props) {
   return (
     <div className="absolute right-4 top-4 z-[1000] w-56 bg-white rounded-xl border border-[#e0e8d8] shadow-lg overflow-hidden">
@@ -68,7 +73,7 @@ export default function DrawingPanel({
             <div className="flex flex-col gap-1">
               <p className="text-xs font-medium text-[#2d4a1e]">Modo dibujo activo</p>
               <p className="text-xs text-[#7a8a6a] leading-relaxed">
-                Clic para añadir puntos. Backspace para deshacer el último punto.
+                Toca o haz clic en el mapa para añadir puntos.
               </p>
             </div>
 
@@ -87,6 +92,14 @@ export default function DrawingPanel({
               >
                 <Check size={13} />
                 Completar forma
+              </button>
+              <button
+                onClick={onUndoPoint}
+                disabled={pointCount === 0}
+                className="w-full flex items-center justify-center gap-2 py-2 text-xs text-[#639922] hover:bg-[#eaf3de] rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <Undo2 size={13} />
+                Deshacer último punto
               </button>
               <button
                 onClick={onClear}
@@ -180,7 +193,7 @@ export default function DrawingPanel({
               <div className="flex items-start gap-2 px-3 py-2 bg-[#f5f8f0] rounded-lg">
                 <MousePointer size={11} className="text-[#639922] mt-0.5 shrink-0" />
                 <p className="text-xs text-[#5a6a4a] leading-relaxed">
-                  <span className="font-medium">Clic en punto</span> — selecciona (Delete para eliminar, Esc para cancelar)
+                  <span className="font-medium">Toca un punto</span> — lo selecciona para poder eliminarlo
                 </p>
               </div>
               <div className="flex items-start gap-2 px-3 py-2 bg-[#f5f8f0] rounded-lg">
@@ -191,13 +204,22 @@ export default function DrawingPanel({
               </div>
             </div>
 
-            {/* Selected point indicator */}
+            {/* Selected point indicator + delete action */}
             {selectedPointIndex !== null && (
-              <div className="flex items-center gap-2 px-3 py-2 bg-red-50 border border-red-100 rounded-lg">
-                <div className="w-2 h-2 rounded-full bg-red-400" />
-                <span className="text-xs text-red-600 font-medium">
-                  Punto {selectedPointIndex + 1} seleccionado — presiona Delete para eliminar
-                </span>
+              <div className="flex flex-col gap-2 px-3 py-2 bg-red-50 border border-red-100 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-red-400" />
+                  <span className="text-xs text-red-600 font-medium">
+                    Punto {selectedPointIndex + 1} seleccionado
+                  </span>
+                </div>
+                <button
+                  onClick={onDeleteSelectedPoint}
+                  className="w-full flex items-center justify-center gap-2 py-2 text-xs font-medium text-white bg-red-500 hover:bg-red-600 rounded-lg transition-colors"
+                >
+                  <Trash2 size={13} />
+                  Eliminar punto
+                </button>
               </div>
             )}
 

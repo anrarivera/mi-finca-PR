@@ -2,6 +2,7 @@ import { Fragment, useEffect, useRef, useState } from 'react'
 import { Polygon, Polyline, CircleMarker, Marker, Tooltip, useMapEvents } from 'react-leaflet'
 import * as L from 'leaflet'
 import { useFieldStore } from '@/store/useFieldStore'
+import { useIsCoarsePointer } from '@/hooks/useViewport'
 import { useHarvestHighlightStore } from '@/store/useHarvestHighlightStore'
 import { plantVisualStatus, PLANT_STATUS_STYLE, type PlantMarks } from '../utils/plantStatus'
 import {
@@ -94,6 +95,7 @@ export default function PlacedField({
       ? mapToggles
       : null
   const [isHovered, setIsHovered] = useState(false)
+  const isCoarsePointer = useIsCoarsePointer()
   const isDragging = useRef(false)
   const clickTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const map = useMapEvents({})
@@ -107,6 +109,12 @@ export default function PlacedField({
     if (isDragging.current || mapToggles) return
     if (field.isPositioning) {
       updateField(field.id, { isPositioning: false })
+      return
+    }
+    // Touch reaches the editor through the drawer card's Editar button, so
+    // taps select immediately instead of waiting out the dblclick window.
+    if (isCoarsePointer) {
+      onSelect(field.id)
       return
     }
     // Defer: if a dblclick follows, this select is cancelled.

@@ -5,6 +5,7 @@ import {
   AlertCircle, Clock,
 } from 'lucide-react'
 import { useDeleteField } from '@/features/field/hooks/useFieldsApi'
+import { useIsPhone } from '@/hooks/useViewport'
 import { useFarmStore } from '@/store/useFarmStore'
 import { useFieldStore } from '@/store/useFieldStore'
 import { getFieldOperationHealth } from '@/features/field/utils/operationStatus'
@@ -38,6 +39,9 @@ export default function FarmDrawer({
   onFlyToFarm, onOpenFieldEditor, focusRequest, onSelectField, onZoomToField,
 }: Props) {
   const [level, setLevel] = useState<'farms' | 'fields'>('farms')
+  // On a phone the drawer takes the full map width, so the side toggle tab
+  // would land off-screen while open — hide it and close via the header.
+  const isPhone = useIsPhone()
 
   // A field was clicked on the map — open the drawer at the fields level;
   // the matching card highlights and scrolls into view.
@@ -94,7 +98,8 @@ export default function FarmDrawer({
 
   return (
     <>
-      {/* ── Drawer toggle tab ─────────────────────────────────────── */}
+      {/* ── Drawer toggle tab (hidden while a full-width drawer is open) ── */}
+      {!(isPhone && isOpen) && (
       <button
         onClick={() => onOpenChange(!isOpen)}
         className="absolute left-0 top-1/2 -translate-y-1/2 z-[1001] bg-white border border-[#e0e8d8] border-l-0 rounded-r-lg px-1.5 py-4 flex flex-col items-center gap-1.5 shadow-md hover:bg-[#f5f8f0] transition-all"
@@ -125,12 +130,13 @@ export default function FarmDrawer({
           </div>
         )}
       </button>
+      )}
 
       {/* ── Drawer panel ─────────────────────────────────────────── */}
       <div
         className="absolute left-0 top-0 h-full z-[1000] bg-white border-r border-[#e0e8d8] shadow-xl flex flex-col overflow-hidden"
         style={{
-          width: 300,
+          width: isPhone ? '100%' : 300,
           transform: isOpen ? 'translateX(0)' : 'translateX(-100%)',
           transition: 'transform 0.3s ease',
         }}
@@ -209,7 +215,7 @@ function FarmList({
           </p>
         </div>
         <button onClick={onClose}
-          className="w-6 h-6 flex items-center justify-center rounded-md text-[#9aab8a] hover:bg-[#e8f0e0] transition-colors"
+          className="w-6 h-6 pointer-coarse:w-11 pointer-coarse:h-11 flex items-center justify-center rounded-md text-[#9aab8a] hover:bg-[#e8f0e0] transition-colors"
         >
           <ChevronLeft size={14} />
         </button>
@@ -292,11 +298,12 @@ function FarmList({
                     </div>
                   </button>
 
-                  {/* Farm actions — visible on hover */}
-                  <div className="hidden group-hover:flex items-center gap-1 px-4 pb-2">
+                  {/* Farm actions — on hover; always shown on touch, where
+                      hover doesn't exist */}
+                  <div className="hidden group-hover:flex pointer-coarse:flex items-center gap-1 px-4 pb-2">
                     <button
                       onClick={(e) => { e.stopPropagation(); onSetFavorite(farm.id) }}
-                      className={`flex items-center gap-1 px-2 py-1 rounded text-[10px] transition-colors ${
+                      className={`flex items-center gap-1 px-2 py-1 pointer-coarse:px-3 pointer-coarse:py-2 rounded text-[10px] transition-colors ${
                         isFavorite
                           ? 'text-amber-500 bg-amber-50'
                           : 'text-[#9aab8a] hover:text-amber-500 hover:bg-amber-50'
@@ -308,7 +315,7 @@ function FarmList({
                     </button>
                     <button
                       onClick={(e) => { e.stopPropagation(); onDelete(farm) }}
-                      className="flex items-center gap-1 px-2 py-1 rounded text-[10px] text-[#9aab8a] hover:text-red-500 hover:bg-red-50 transition-colors"
+                      className="flex items-center gap-1 px-2 py-1 pointer-coarse:px-3 pointer-coarse:py-2 rounded text-[10px] text-[#9aab8a] hover:text-red-500 hover:bg-red-50 transition-colors"
                     >
                       <Trash2 size={10} /> Eliminar
                     </button>
@@ -387,7 +394,7 @@ function FieldList({
           <div className="flex items-center gap-2 min-w-0">
             {showBackButton && (
               <button onClick={onBack}
-                className="text-[#9aab8a] hover:text-[#2d4a1e] transition-colors shrink-0"
+                className="pointer-coarse:p-2.5 text-[#9aab8a] hover:text-[#2d4a1e] transition-colors shrink-0"
               >
                 <ChevronLeft size={16} />
               </button>
@@ -414,7 +421,7 @@ function FieldList({
             </div>
           </div>
           <button onClick={onClose}
-            className="w-6 h-6 flex items-center justify-center rounded-md text-[#9aab8a] hover:bg-[#e8f0e0] transition-colors shrink-0"
+            className="w-6 h-6 pointer-coarse:w-11 pointer-coarse:h-11 flex items-center justify-center rounded-md text-[#9aab8a] hover:bg-[#e8f0e0] transition-colors shrink-0"
           >
             <ChevronLeft size={14} />
           </button>

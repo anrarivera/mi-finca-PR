@@ -470,6 +470,8 @@ async function handleDeleteFarm() {
           onSave={handleSaveFarm}
           onAddField={handleOpenFieldEditor}
           onDeleteFarm={handleDeleteFarm}
+          onUndoPoint={drawing.undoLastPoint}
+          onDeleteSelectedPoint={drawing.deleteSelectedPoint}
         />
       )}
 
