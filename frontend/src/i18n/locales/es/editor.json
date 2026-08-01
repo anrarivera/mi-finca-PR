@@ -201,13 +201,15 @@
     "crops": "Cultivos",
     "livestock": "Animales (corral)",
     "viewOnMap": "Ver en el mapa",
-    "empty": "Sin animales asignados — asígnalos desde el Cuaderno",
+    "empty": "Sin animales asignados todavía.",
     "edit": "Editar",
     "delete": "Eliminar",
     "confirmDelete": "¿Eliminar \"{{name}}\"?",
     "confirmDeleteYes": "Sí, eliminar",
     "select": "Corral",
-    "noneOption": "Sin corral"
+    "noneOption": "Sin corral",
+    "addAnimals": "Añadir animales",
+    "saveFirst": "Guarda el corral primero para poder añadir animales."
   },
   "production": {
     "action": "Producción",

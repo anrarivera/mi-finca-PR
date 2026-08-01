@@ -4,8 +4,13 @@ import {
   Plus, Pencil, Check, Trash2, RotateCcw,
   Leaf, ChevronDown, ChevronUp, ChevronRight, Minus,
   Square, Pentagon, X,
-  LayoutGrid,
+  LayoutGrid, PawPrint,
 } from 'lucide-react'
+import { useLivestockStore } from '@/store/useLivestockStore'
+import { useCreateLivestock } from '@/features/livestock/hooks/useLivestockApi'
+import { getAnimalById } from '@/features/livestock/data/animalLibrary'
+import LivestockFormModal from '@/features/livestock/components/livestockFormModal'
+import { toast } from '@/store/useToastStore'
 import type { FieldShape, FieldRow, PlantInstance, PlacedField } from '../types'
 import type { EditorMode } from '../hooks/useFieldEditor'
 import CropSelector from './cropSelector'
@@ -28,6 +33,8 @@ type Props = {
   isCreatingNew: boolean
   allFields: PlacedField[]
   selectedFieldId: string | null
+  /** Owning farm — herds created from the corral tools attach to it. */
+  farmId: string
   onShapeChange: (s: FieldShape) => void
   onNameChange: (n: string) => void
   onStartNewField: () => void
@@ -65,7 +72,7 @@ export default function FarmFieldEditorPanel({
   mode, shape, name, kind, onKindChange,
   pointCount, selectedPointIndex,
   rows, freePlants,
-  allFields, selectedFieldId, isCreatingNew,
+  allFields, selectedFieldId, isCreatingNew, farmId,
   onShapeChange, onNameChange,
   onStartNewField, onStartDrawing, onComplete, onUndo,
   onSaveField, onCancelField, onDeletePoint,
@@ -119,6 +126,13 @@ export default function FarmFieldEditorPanel({
   const isIdle = mode === 'setup' && !isCreatingNew
   // Corral (livestock) fields have no rows/plants — the crop tools hide.
   const isLivestock = kind === 'livestock'
+  // Herds assigned to the corral being edited + the add-animals modal
+  const livestockUnits = useLivestockStore(s => s.units)
+  const corralHerds = isLivestock && selectedFieldId
+    ? livestockUnits.filter(u => u.fieldId === selectedFieldId)
+    : []
+  const [addingAnimals, setAddingAnimals] = useState(false)
+  const createLivestock = useCreateLivestock()
 
   // ── SETUP — field summary cards (same cards as the farm-map drawer).
   //    Single click selects on the canvas, double click / "Editar" enters
@@ -479,6 +493,56 @@ export default function FarmFieldEditorPanel({
             )}
 
             <div className="flex flex-col gap-2 pt-2 border-t border-[#f0f5e8]">
+              {/* Corral: herds live here — add animals without leaving the
+                  editor (same form the Cuaderno uses, locked to this
+                  corral). New corrales must be saved first: herds attach
+                  to a real field id. */}
+              {isLivestock && (
+                <>
+                  {corralHerds.length > 0 && (
+                    <div className="flex flex-col gap-1">
+                      {corralHerds.map(u => {
+                        const animal = getAnimalById(u.animalType)
+                        return (
+                          <div key={u.id} className="flex items-center gap-2 px-2 py-1.5 bg-[#f5f8f0] rounded-lg min-w-0">
+                            <span className="text-sm shrink-0" aria-hidden>{animal?.emoji ?? '🐾'}</span>
+                            <span className="text-[11px] font-medium text-[#2d4a1e] truncate flex-1 min-w-0">{u.name}</span>
+                            <span className="text-[10px] text-[#7a8a6a] shrink-0">{u.currentCount}</span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                  {selectedFieldId ? (
+                    <button
+                      onClick={() => setAddingAnimals(true)}
+                      className="w-full flex items-center justify-center gap-2 py-2 text-xs text-[#8B7355] border border-[#e0d8c8] rounded-lg hover:bg-[#f5efe5] transition-colors"
+                    >
+                      <PawPrint size={13} /> {t('corral.addAnimals')}
+                    </button>
+                  ) : (
+                    <p className="text-[10px] text-[#9aab8a] leading-relaxed">
+                      {t('corral.saveFirst')}
+                    </p>
+                  )}
+                  {addingAnimals && selectedFieldId && (
+                    <LivestockFormModal
+                      unit={null}
+                      farms={[]}
+                      fixedFarmId={farmId}
+                      fixedFieldId={selectedFieldId}
+                      onClose={() => setAddingAnimals(false)}
+                      onSave={(data) => {
+                        createLivestock.mutate(data, {
+                          onSuccess: () => toast.success(t('livestock.added', { name: data.name })),
+                        })
+                        setAddingAnimals(false)
+                      }}
+                    />
+                  )}
+                </>
+              )}
+
               {/* Crop tools — a corral only needs boundary + name */}
               {!isLivestock && (
                 <>

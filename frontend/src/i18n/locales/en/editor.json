@@ -201,13 +201,15 @@
     "crops": "Crops",
     "livestock": "Animals (corral)",
     "viewOnMap": "View on the map",
-    "empty": "No animals assigned — assign them from the Notebook",
+    "empty": "No animals assigned yet.",
     "edit": "Edit",
     "delete": "Delete",
     "confirmDelete": "Delete \"{{name}}\"?",
     "confirmDeleteYes": "Yes, delete",
     "select": "Corral",
-    "noneOption": "No corral"
+    "noneOption": "No corral",
+    "addAnimals": "Add animals",
+    "saveFirst": "Save the corral first to add animals."
   },
   "production": {
     "action": "Production",

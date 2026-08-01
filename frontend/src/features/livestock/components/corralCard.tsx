@@ -1,10 +1,13 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Pencil, Trash2, Locate, ClipboardList } from 'lucide-react'
+import { Pencil, Trash2, Locate, ClipboardList, Plus } from 'lucide-react'
 import { useFarmStore, canManageStructure } from '@/store/useFarmStore'
 import { useLivestockStore } from '@/store/useLivestockStore'
+import { useCreateLivestock } from '../hooks/useLivestockApi'
 import { getAnimalById } from '../data/animalLibrary'
 import ProductionModal from './productionModal'
+import LivestockFormModal from './livestockFormModal'
+import { toast } from '@/store/useToastStore'
 import type { PlacedField } from '@/features/field/types'
 import type { LivestockUnit } from '../types'
 
@@ -38,6 +41,10 @@ export default function CorralCard({
   const [confirmDelete, setConfirmDelete] = useState(false)
   // Producción modal — per herd (portaled, so the drawer transform is safe)
   const [producing, setProducing] = useState<LivestockUnit | null>(null)
+  // Añadir animales — the same herd form the Cuaderno uses, locked to
+  // this farm + corral
+  const [addingAnimals, setAddingAnimals] = useState(false)
+  const createLivestock = useCreateLivestock()
 
   const herds = useLivestockStore(s => s.units)
     .filter(u => u.fieldId === field.id)
@@ -98,6 +105,16 @@ export default function CorralCard({
         </div>
       )}
 
+      {/* Add animals right here — no trip to the Cuaderno needed */}
+      {canManage && (
+        <button
+          onClick={(e) => { e.stopPropagation(); setAddingAnimals(true) }}
+          className="w-full flex items-center justify-center gap-1.5 py-1.5 pointer-coarse:py-2.5 mb-2.5 text-[10px] font-medium text-[#8B7355] border border-[#e0d8c8] rounded-lg hover:bg-[#f5efe5] transition-colors"
+        >
+          <Plus size={10} /> {t('corral.addAnimals')}
+        </button>
+      )}
+
       {/* Actions — same styles as FieldSummaryCard's action row */}
       {canManage && (!confirmDelete ? (
         <div className="flex items-center gap-2">
@@ -141,6 +158,21 @@ export default function CorralCard({
       <div onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
         {producing && (
           <ProductionModal unit={producing} onClose={() => setProducing(null)} />
+        )}
+        {addingAnimals && (
+          <LivestockFormModal
+            unit={null}
+            farms={[]}
+            fixedFarmId={field.farmId}
+            fixedFieldId={field.id}
+            onClose={() => setAddingAnimals(false)}
+            onSave={(data) => {
+              createLivestock.mutate(data, {
+                onSuccess: () => toast.success(t('livestock.added', { name: data.name })),
+              })
+              setAddingAnimals(false)
+            }}
+          />
         )}
       </div>
     </div>

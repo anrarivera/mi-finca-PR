@@ -326,7 +326,7 @@ export function useMapFieldEditing(
     : []
 
   return {
-    editor, bbox, active, editingFieldId, isCreatingNew,
+    editor, bbox, active, editingFieldId, isCreatingNew, farmId,
     editingRowIds, setEditingRowIds,
     selectedPlantIds, setSelectedPlantIds,
     toggleRowSelected, togglePlantSelected,
@@ -676,6 +676,7 @@ export function MapFieldEditingPanels({ session }: { session: MapFieldEditingSes
         }
       >
         <FarmFieldEditorPanel
+          farmId={session.farmId}
           mode={editor.mode}
           shape={editor.shape}
           name={editor.name}
