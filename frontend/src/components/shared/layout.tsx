@@ -1,5 +1,6 @@
 import TopNav from './topNav'
 import SideMenu from './sideMenu'
+import BottomNav from './bottomNav'
 import DataProvider from './dataProvider'
 import ToastContainer from './toast'
 
@@ -19,6 +20,7 @@ export default function Layout({ children }: Props) {
           </DataProvider>
         </main>
       </div>
+      <BottomNav />
       <ToastContainer />
     </div>
   )
