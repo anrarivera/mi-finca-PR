@@ -88,8 +88,8 @@ export function useExportFindings(farmId: string) {
     mutationFn: async () => {
       const { useAuthStore } = await import('@/store/useAuthStore')
       const token = useAuthStore.getState().accessToken
-      const base = import.meta.env.VITE_API_URL || 'http://localhost:3001'
-      const res = await fetch(`${base}/api/v1/farms/${farmId}/findings/export?format=csv`, {
+      const { API_URL } = await import('@/lib/api')
+      const res = await fetch(`${API_URL}/api/v1/farms/${farmId}/findings/export?format=csv`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         credentials: 'include',
       })

@@ -1,7 +1,13 @@
 import { useAuthStore } from '@/store/useAuthStore'
 import { toast } from '@/store/useToastStore'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+// Default: the API lives on the same host the page was loaded from. That
+// makes LAN dev work with zero config — a phone loading the app from
+// http://192.168.x.x:5173 talks to the API on that same IP, while desktop
+// localhost stays localhost (keeping the sameSite:'strict' refresh cookie
+// first-party in both cases). VITE_API_URL still overrides for production.
+export const API_URL =
+  import.meta.env.VITE_API_URL || `http://${window.location.hostname}:3001`
 
 type ApiResponse<T> = {
   success: true
