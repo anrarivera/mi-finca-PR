@@ -15,6 +15,7 @@ import recommendedOperationRoutes from './routes/recommendedOperations'
 import cropRoutes from './routes/crops'
 import userRoutes from './routes/users'
 import findingRoutes from './routes/findings'
+import memberRoutes from './routes/members'
 
 // After the farms routes line:
 const app = express()
@@ -70,6 +71,8 @@ app.use('/api/v1/farms/:farmId/operations', operationRoutes)
 app.use('/api/v1/farms/:farmId/recommended-operations', recommendedOperationRoutes)
 // Scouting findings — pest observations + "crear labor" bridge
 app.use('/api/v1/farms/:farmId/findings', findingRoutes)
+// Farm team roster + membership management (roles phase 2)
+app.use('/api/v1/farms/:farmId/members', memberRoutes)
 app.use('/api/v1/crops', cropRoutes)
 app.use('/api/v1/users', userRoutes)
 
