@@ -10,7 +10,7 @@ import {
   fieldHealth, findingExtentPct, findingTrend,
   FIELD_HEALTH_COLORS,
 } from '../utils/fieldHealth'
-import { dateLocale } from '@/i18n'
+import { dateLocale, localName } from '@/i18n'
 
 // ──────────────────────────────────────────────────────────────────────────
 // Sanidad — dashboard section (Panel de control): the ALERT half of the
@@ -124,7 +124,7 @@ export default function SanidadSection() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
                         <p className="text-xs font-medium text-[#2d4a1e] truncate">
-                          {pest?.nameEs ?? f.pestId}
+                          {localName(pest, f.pestId)}
                         </p>
                         <span
                           className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full text-white shrink-0"

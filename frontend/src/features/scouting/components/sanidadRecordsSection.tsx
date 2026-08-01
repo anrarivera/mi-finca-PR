@@ -7,7 +7,7 @@ import { useFindings, useExportFindings } from '../hooks/useFindingsApi'
 import { getPestById } from '../data/pestLibrary'
 import { SEVERITY_COLORS, type Finding } from '../types'
 import { findingScopeSummary } from '../utils/findingScope'
-import { dateLocale } from '@/i18n'
+import { dateLocale, localName } from '@/i18n'
 
 // ──────────────────────────────────────────────────────────────────────────
 // Sanidad — cuaderno de campo section: the RECORDS half of the sanitary
@@ -104,7 +104,7 @@ export default function SanidadRecordsSection() {
                 >
                   <span aria-hidden>{pest?.emoji ?? '🔍'}</span>
                   <span className="text-xs font-medium text-[#2d4a1e]">
-                    {pest?.nameEs ?? r.pestId}
+                    {localName(pest, r.pestId)}
                   </span>
                   <span className="text-xs text-[#7a8a6a]">
                     {t('records.timesLast', { times: r.count, date: fmtDate(r.lastDate) })}
@@ -128,7 +128,7 @@ export default function SanidadRecordsSection() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5">
                       <p className="text-xs font-medium text-[#2d4a1e] truncate">
-                        {pest?.nameEs ?? f.pestId}
+                        {localName(pest, f.pestId)}
                       </p>
                       <span
                         className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full text-white shrink-0"

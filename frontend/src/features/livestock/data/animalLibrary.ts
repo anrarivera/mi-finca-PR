@@ -16,6 +16,8 @@ export type AnimalInfo = {
   id: AnimalType
   nameEs: string        // plural, e.g. "Gallinas"
   singularEs: string
+  name: string          // English plural, e.g. "Chickens"
+  singular: string
   emoji: string
   productEs: string     // main product, e.g. "huevos"
   unitNamePlaceholder: string // suggested unit name in the create form
@@ -28,6 +30,8 @@ export const ANIMAL_LIBRARY: AnimalInfo[] = [
     id: 'chickens',
     nameEs: 'Gallinas',
     singularEs: 'gallina',
+    name: 'Chickens',
+    singular: 'chicken',
     emoji: '🐔',
     productEs: 'huevos',
     unitNamePlaceholder: 'Gallinero principal',
@@ -45,6 +49,8 @@ export const ANIMAL_LIBRARY: AnimalInfo[] = [
     id: 'rabbits',
     nameEs: 'Conejos',
     singularEs: 'conejo',
+    name: 'Rabbits',
+    singular: 'rabbit',
     emoji: '🐇',
     productEs: 'carne',
     unitNamePlaceholder: 'Conejera',
@@ -61,6 +67,8 @@ export const ANIMAL_LIBRARY: AnimalInfo[] = [
     id: 'goats',
     nameEs: 'Cabras',
     singularEs: 'cabra',
+    name: 'Goats',
+    singular: 'goat',
     emoji: '🐐',
     productEs: 'leche',
     unitNamePlaceholder: 'Rebaño de cabras',
@@ -78,6 +86,8 @@ export const ANIMAL_LIBRARY: AnimalInfo[] = [
     id: 'cows',
     nameEs: 'Vacas',
     singularEs: 'vaca',
+    name: 'Cows',
+    singular: 'cow',
     emoji: '🐄',
     productEs: 'leche',
     unitNamePlaceholder: 'Ganado',
@@ -95,6 +105,8 @@ export const ANIMAL_LIBRARY: AnimalInfo[] = [
     id: 'pigs',
     nameEs: 'Cerdos',
     singularEs: 'cerdo',
+    name: 'Pigs',
+    singular: 'pig',
     emoji: '🐖',
     productEs: 'carne',
     unitNamePlaceholder: 'Porqueriza',
@@ -111,6 +123,8 @@ export const ANIMAL_LIBRARY: AnimalInfo[] = [
     id: 'bees',
     nameEs: 'Abejas',
     singularEs: 'colmena',
+    name: 'Bees',
+    singular: 'hive',
     emoji: '🐝',
     productEs: 'miel',
     unitNamePlaceholder: 'Apiario',

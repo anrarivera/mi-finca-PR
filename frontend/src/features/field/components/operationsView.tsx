@@ -12,7 +12,7 @@ import type { FarmOperation } from '../hooks/useOperationsApi'
 import { getCropById } from '../data/cropLibrary'
 import { useHarvestHighlightStore } from '@/store/useHarvestHighlightStore'
 import { useIsPhone } from '@/hooks/useViewport'
-import { dateLocale } from '@/i18n'
+import { dateLocale, localName } from '@/i18n'
 
 // ──────────────────────────────────────────────────────────────────────────
 // Operations view — the calendar check-off drawer (SDD §6.2), docked left
@@ -369,7 +369,7 @@ function PlantingEventCard({
         <span className="text-2xl">{crop?.emoji ?? '🌱'}</span>
         <div className="flex-1">
           <p className="text-sm font-semibold text-[#2d4a1e]">
-            {crop?.nameEs ?? event.cropTypeId}
+            {localName(crop, event.cropTypeId)}
           </p>
           <p className="text-[10px] text-[#9aab8a]">
             {t('event.plantedSummary', { count: event.plantCount, date: plantingDateFormatted })}
@@ -987,7 +987,7 @@ export function HarvestSelector({ title, targets, selected, onChange, mapToggles
                     ? <ChevronDown size={11} className="text-[#9aab8a] shrink-0" />
                     : <ChevronRight size={11} className="text-[#9aab8a] shrink-0" />}
                   <span className="text-xs text-[#2d4a1e] truncate">
-                    {t('selector.rowLabel', { num: index + 1 })} · {crop?.emoji ?? '🌱'} {crop?.nameEs ?? row.primaryCropTypeId}
+                    {t('selector.rowLabel', { num: index + 1 })} · {crop?.emoji ?? '🌱'} {localName(crop, row.primaryCropTypeId)}
                   </span>
                   <span className={`text-[10px] shrink-0 ml-auto ${
                     some ? 'text-[#639922] font-medium' : 'text-[#9aab8a]'

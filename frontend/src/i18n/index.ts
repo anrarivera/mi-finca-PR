@@ -54,4 +54,50 @@ export function dateLocale(): string {
   return i18n.language?.startsWith('en') ? 'en-US' : 'es-PR'
 }
 
+const isEnglish = () => i18n.language?.startsWith('en') ?? false
+
+// ── Data-library names ────────────────────────────────────────────────
+// Crops, pests, and animals carry both names in their library entries
+// (name = English, nameEs = Spanish). These pick by UI language, falling
+// back to Spanish for entries without an English name (custom crops).
+// Plain functions, not hooks: call them inside components that already
+// subscribe via useTranslation so language switches re-render them.
+
+export function localName(
+  entity: { name?: string; nameEs: string } | null | undefined,
+  fallback = ''
+): string {
+  if (!entity) return fallback
+  return isEnglish() ? (entity.name || entity.nameEs) : entity.nameEs
+}
+
+export function localSingular(
+  entity: { singular?: string; singularEs: string } | null | undefined,
+  fallback = ''
+): string {
+  if (!entity) return fallback
+  return isEnglish() ? (entity.singular || entity.singularEs) : entity.singularEs
+}
+
+// Category headers are stored as Spanish strings on the data entries (and
+// on user records), so they translate via lookup — unknown (custom)
+// categories pass through untouched.
+const CATEGORY_EN: Record<string, string> = {
+  'Musáceas': 'Bananas & Plantains',
+  'Cítricos': 'Citrus',
+  'Frutas Tropicales': 'Tropical Fruits',
+  'Viandas': 'Root Crops',
+  'Árboles': 'Trees',
+  'Vegetales': 'Vegetables',
+  'Compañeras': 'Companion Plants',
+  'Personalizados': 'Custom',
+  'Insectos': 'Insects',
+  'Enfermedades': 'Diseases',
+  'Otros': 'Others',
+}
+
+export function localCategory(category: string): string {
+  return isEnglish() ? (CATEGORY_EN[category] ?? category) : category
+}
+
 export default i18n

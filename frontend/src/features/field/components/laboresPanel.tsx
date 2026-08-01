@@ -13,7 +13,7 @@ import {
   useLogPartialRecommendedOp, type DueSoonOperation,
 } from '../hooks/useOperationsApi'
 import { toast } from '@/store/useToastStore'
-import { dateLocale } from '@/i18n'
+import { dateLocale, localName } from '@/i18n'
 
 // ──────────────────────────────────────────────────────────────────────────
 // Labores — the dashboard's "what's due" panel, server-backed: the
@@ -96,7 +96,7 @@ export default function LaboresPanel() {
     if (op.plantingEvent) {
       const field = fieldFor(op)
       const crop = getCropById(op.plantingEvent.cropTypeId)
-      return [field?.name, crop?.nameEs].filter(Boolean).join(' · ')
+      return [field?.name, localName(crop) || null].filter(Boolean).join(' · ')
     }
     if (op.livestockUnit) return op.livestockUnit.name
     return ''

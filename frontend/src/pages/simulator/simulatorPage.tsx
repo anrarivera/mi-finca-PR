@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Calculator, Sprout, TrendingUp, TrendingDown, DollarSign, Scale } from 'lucide-react'
-import { dateLocale } from '@/i18n'
+import { dateLocale, localName } from '@/i18n'
 import { useFieldStore } from '@/store/useFieldStore'
 import { computeCropSummary } from '@/features/field/utils/rowCalculator'
 import { getCropById } from '@/features/field/data/cropLibrary'
@@ -115,7 +115,7 @@ export default function SimulatorPage() {
               }`}
             >
               <span className="text-sm font-semibold text-[#2d4a1e]">
-                {model.emoji} {model.nameEs}
+                {model.emoji} {localName(model)}
               </span>
               <span className="text-[11px] text-[#9aab8a]">{model.descriptionEs}</span>
             </button>
@@ -179,11 +179,11 @@ export default function SimulatorPage() {
                       <tr key={c.cropTypeId}>
                         <td className="px-5 py-2 whitespace-nowrap">
                           <span aria-hidden className="mr-1.5">{crop?.emoji ?? '🌱'}</span>
-                          <span className="font-medium text-[#2d4a1e]">{crop?.nameEs ?? c.cropTypeId}</span>
+                          <span className="font-medium text-[#2d4a1e]">{localName(crop, c.cropTypeId)}</span>
                         </td>
                         <td className="px-2 py-2 w-20">
                           <input type="number" min={0} value={c.count} className={inputClass}
-                            aria-label={t('simulator.aria.plantsOf', { name: crop?.nameEs ?? c.cropTypeId })}
+                            aria-label={t('simulator.aria.plantsOf', { name: localName(crop, c.cropTypeId) })}
                             onChange={e => updateRow(c.cropTypeId, { count: Math.max(0, Number(e.target.value) || 0) })}
                           />
                         </td>

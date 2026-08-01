@@ -14,7 +14,7 @@ import {
 } from '../utils/findingScope'
 import { findingExtentPct, findingTrend } from '../utils/fieldHealth'
 import FindingModal from './findingModal'
-import { dateLocale } from '@/i18n'
+import { dateLocale, localName } from '@/i18n'
 
 // ──────────────────────────────────────────────────────────────────────────
 // Findings list for one field — lives at the top of the operations drawer.
@@ -152,7 +152,7 @@ export default function FindingsSection({
                     <p className={`text-xs font-medium ${
                       isClosed ? 'text-[#9aab8a] line-through' : 'text-[#2d4a1e]'
                     }`}>
-                      {pest?.nameEs ?? f.pestId}
+                      {localName(pest, f.pestId)}
                     </p>
                     <span
                       className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full text-white shrink-0"

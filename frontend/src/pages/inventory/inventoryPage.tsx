@@ -14,7 +14,7 @@ import {
   type InventoryRow, type InventoryStatus,
 } from '@/features/inventory/inventoryBuilder'
 import { formatRelativeDaysEs } from '@/features/notifications/notificationBuilder'
-import { dateLocale } from '@/i18n'
+import { dateLocale, localName } from '@/i18n'
 import OperationsLogSection from '@/features/field/components/operationsLogSection'
 import OperationsCalendar from '@/features/field/components/operationsCalendar'
 import HarvestLogSection from '@/features/field/components/harvestLogSection'
@@ -82,7 +82,7 @@ export default function InventoryPage() {
   const presentCrops = useMemo(
     () => [...new Set(allRows.map(r => r.cropTypeId))]
       .map(id => ({ id, crop: getCropById(id) }))
-      .sort((a, b) => (a.crop?.nameEs ?? a.id).localeCompare(b.crop?.nameEs ?? b.id)),
+      .sort((a, b) => localName(a.crop, a.id).localeCompare(localName(b.crop, b.id))),
     [allRows]
   )
 
@@ -95,7 +95,7 @@ export default function InventoryPage() {
     const dir = sortDir === 'asc' ? 1 : -1
     const value = (r: InventoryRow): string | number => {
       switch (sortKey) {
-        case 'crop': return getCropById(r.cropTypeId)?.nameEs ?? r.cropTypeId
+        case 'crop': return localName(getCropById(r.cropTypeId), r.cropTypeId)
         case 'field': return `${r.farmName} ${r.fieldName}`
         case 'plants': return r.plantCount
         case 'planted': return r.plantingDate
@@ -204,7 +204,7 @@ export default function InventoryPage() {
               <option value="all">{t('inventory.filters.allCrops')}</option>
               {presentCrops.map(({ id, crop }) => (
                 <option key={id} value={id}>
-                  {crop ? `${crop.emoji} ${crop.nameEs}` : id}
+                  {crop ? `${crop.emoji} ${localName(crop)}` : id}
                 </option>
               ))}
             </select>
@@ -320,7 +320,7 @@ function InventoryRowView({ row, expanded, onToggle }: {
         <td className="px-3 py-3">
           <span className="flex items-center gap-1.5 font-medium text-[#2d4a1e]">
             <span className="text-sm">{crop?.emoji ?? '🌱'}</span>
-            {crop?.nameEs ?? row.cropTypeId}
+            {localName(crop, row.cropTypeId)}
           </span>
         </td>
         <td className="px-3 py-3 text-[#5a6a4a]">
@@ -447,7 +447,7 @@ function InventoryCardView({ row, expanded, onToggle }: {
       <div className="flex items-center gap-2">
         <span className="text-base">{crop?.emoji ?? '🌱'}</span>
         <span className="flex-1 min-w-0 text-sm font-medium text-[#2d4a1e] truncate">
-          {crop?.nameEs ?? row.cropTypeId}
+          {localName(crop, row.cropTypeId)}
         </span>
         <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold shrink-0 ${status.classes}`}>
           {t(status.labelKey)}

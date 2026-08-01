@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { Search, ChevronDown, X } from 'lucide-react'
 import { CROP_LIBRARY } from '../data/cropLibrary'
 import type { CropType } from '../data/cropLibrary'
+import { localName, localCategory } from '@/i18n'
 
 type Props = {
   value: string | null
@@ -25,6 +26,7 @@ export default function CropSelector({
   const filtered = search.trim()
     ? CROP_LIBRARY.filter(c =>
         c.nameEs.toLowerCase().includes(search.toLowerCase()) ||
+        c.name.toLowerCase().includes(search.toLowerCase()) ||
         c.name.toLowerCase().includes(search.toLowerCase()) ||
         c.category.toLowerCase().includes(search.toLowerCase())
       )
@@ -73,7 +75,7 @@ export default function CropSelector({
           <>
             <span className="text-base leading-none">{selectedCrop.emoji}</span>
             <span className="flex-1 text-[#2d4a1e] font-medium truncate">
-              {selectedCrop.nameEs}
+              {localName(selectedCrop)}
             </span>
           </>
         ) : (
@@ -118,7 +120,7 @@ export default function CropSelector({
               Object.entries(grouped).map(([category, crops]) => (
                 <div key={category}>
                   <div className="px-3 py-1.5 text-[9px] font-semibold text-[#9aab8a] uppercase tracking-wider bg-[#fafcf8] border-b border-[#f0f5e8]">
-                    {category}
+                    {localCategory(category)}
                   </div>
                   {crops.map(crop => (
                     <button
@@ -132,7 +134,7 @@ export default function CropSelector({
                         {crop.emoji}
                       </span>
                       <span className={`${value === crop.id ? 'text-[#2d4a1e] font-medium' : 'text-[#3d5a2a]'}`}>
-                        {crop.nameEs}
+                        {localName(crop)}
                       </span>
                     </button>
                   ))}

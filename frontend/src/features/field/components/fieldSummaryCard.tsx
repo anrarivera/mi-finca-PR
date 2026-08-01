@@ -22,7 +22,7 @@ import {
   useCompleteRecommendedOp, useSkipRecommendedOp, useLogPartialRecommendedOp,
 } from '../hooks/useOperationsApi'
 import { toast } from '@/store/useToastStore'
-import { dateLocale } from '@/i18n'
+import { dateLocale, localName } from '@/i18n'
 import type { PlacedField, PlantingEvent, RecommendedOperation } from '../types'
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -257,7 +257,7 @@ export default function FieldSummaryCard({
             </p>
             <p className={`text-[9px] ${nextIsDue ? 'text-red-500 font-medium' : 'text-[#9aab8a]'}`}>
               {nextIsDue ? t('status.overduePrefix') : ''}{nextDate}
-              {nextCrop ? ` · ${nextCrop.nameEs}` : ''}
+              {nextCrop ? ` · ${localName(nextCrop)}` : ''}
             </p>
           </div>
           {/* Same actions as the operations-screen rows */}

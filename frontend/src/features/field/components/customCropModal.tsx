@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { localCategory } from '@/i18n'
 import { useTranslation } from 'react-i18next'
 import { X, Plus, Trash2, Sprout } from 'lucide-react'
 import { useCropStore } from '@/store/useCropStore'
@@ -157,7 +158,7 @@ export default function CustomCropModal({ onClose, onCreated }: Props) {
               onChange={e => setCategory(e.target.value)}
               className="px-3 py-2 text-sm text-[#2d4a1e] bg-white border border-[#c8dca8] rounded-lg focus:outline-none focus:border-[#639922]"
             >
-              {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+              {CATEGORIES.map(c => <option key={c} value={c}>{localCategory(c)}</option>)}
             </select>
           </label>
 

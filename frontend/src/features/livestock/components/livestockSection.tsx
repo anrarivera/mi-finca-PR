@@ -9,6 +9,7 @@ import { useConfirm } from '@/components/shared/confirmDialog'
 import { toast } from '@/store/useToastStore'
 import { todayISO } from '@/features/field/types'
 import type { AnimalType, LivestockUnit } from '../types'
+import { localName, localSingular } from '@/i18n'
 
 // ──────────────────────────────────────────────────────────────────────────
 // Livestock management — rendered as a Dashboard section. Units belong to a
@@ -34,7 +35,7 @@ export default function LivestockSection() {
     const ok = await confirm({
       title: t('livestock.deleteTitle', { name: unit.name }),
       message: t('livestock.deleteMessage', {
-        animal: animal?.nameEs.toLowerCase() ?? t('livestock.animalsFallback'),
+        animal: localName(animal).toLowerCase() || t('livestock.animalsFallback'),
       }),
       confirmLabel: t('livestock.delete'),
       danger: true,
@@ -88,7 +89,7 @@ export default function LivestockSection() {
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-[#2d4a1e] truncate">{unit.name}</p>
                   <p className="text-[11px] text-[#9aab8a] truncate">
-                    {unit.currentCount} {animal ? (unit.currentCount === 1 ? animal.singularEs : animal.nameEs.toLowerCase()) : t('livestock.animalsFallback')}
+                    {unit.currentCount} {animal ? (unit.currentCount === 1 ? localSingular(animal) : localName(animal).toLowerCase()) : t('livestock.animalsFallback')}
                     {farm ? ` · ${farm.name}` : ''}
                     {unit.notes ? ` · ${unit.notes}` : ''}
                   </p>
@@ -208,7 +209,7 @@ function LivestockFormModal({
                     }`}
                   >
                     <span className="text-xl">{a.emoji}</span>
-                    {a.nameEs}
+                    {localName(a)}
                   </button>
                 ))}
               </div>

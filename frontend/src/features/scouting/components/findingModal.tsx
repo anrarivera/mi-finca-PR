@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { localName } from '@/i18n'
 import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { Bug } from 'lucide-react'
@@ -116,7 +117,7 @@ export default function FindingModal({
   const renderOptions = (pests: PestType[]) =>
     pests.map(p => (
       <option key={p.id} value={p.id}>
-        {p.emoji} {p.nameEs}
+        {p.emoji} {localName(p)}
       </option>
     ))
 
@@ -164,7 +165,7 @@ export default function FindingModal({
               </label>
               {updateOf ? (
                 <div className="w-full px-3 py-2 rounded-lg border border-[#e0e8d8] bg-[#fafcf8] text-sm text-[#2d4a1e]">
-                  {lockedPest?.emoji ?? '🔍'} {lockedPest?.nameEs ?? updateOf.pestId}
+                  {lockedPest?.emoji ?? '🔍'} {localName(lockedPest, updateOf.pestId)}
                 </div>
               ) : (
                 <select

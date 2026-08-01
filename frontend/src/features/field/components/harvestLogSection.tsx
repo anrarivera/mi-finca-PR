@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { useFieldStore } from '@/store/useFieldStore'
 import { getCropById } from '../data/cropLibrary'
 import { collectHarvestEntries, totalHarvestsByCrop } from '../utils/harvestLog'
+import { localName } from '@/i18n'
 
 // ──────────────────────────────────────────────────────────────────────────
 // Cosechas registradas — totals per crop plus the most recent entries.
@@ -52,7 +53,7 @@ export default function HarvestLogSection({ limit = 6 }: Props) {
             >
               <span aria-hidden>{crop?.emoji ?? '🌱'}</span>
               <span className="text-xs font-medium text-[#2d4a1e]">
-                {crop?.nameEs ?? t.cropTypeId}
+                {localName(crop, t.cropTypeId)}
               </span>
               <span className="text-xs text-[#7a8a6a]">
                 {quantities || `${t.harvests} ${t.harvests === 1 ? 'cosecha' : 'cosechas'}`}
@@ -72,7 +73,7 @@ export default function HarvestLogSection({ limit = 6 }: Props) {
               <span className="text-lg" aria-hidden>{crop?.emoji ?? '🌱'}</span>
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-medium text-[#2d4a1e] truncate">
-                  {crop?.nameEs ?? entry.cropTypeId}
+                  {localName(crop, entry.cropTypeId)}
                   {entry.quantity ? ` — ${entry.quantity.toLocaleString()} ${entry.unit || 'lbs'}` : ''}
                 </p>
                 <p className="text-[10px] text-[#9aab8a] truncate">
