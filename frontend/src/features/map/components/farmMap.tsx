@@ -519,17 +519,14 @@ async function handleDeleteFarm() {
                 if (fieldEditing.active) return // don't switch mid-edit
                 toggleSelectField(fieldId)
               }}
-              onOpenEditor={(fieldId) => {
-                // Field structure is admin+ — operators stay out of the
-                // editor entirely (the server rejects their saves anyway).
-                if (!canManageStructure(activeFarm)) return
-                // Double-clicking another field mid-edit switches the
-                // editor to it (the zoom already happened in PlacedField).
-                if (fieldEditing.active) {
-                  if (fieldId === fieldEditing.editingFieldId) return
-                  if (!window.confirm(t('map.confirmSwitchField'))) return
-                }
-                handleOpenFieldEditor(fieldId)
+              onFocusField={(fieldId) => {
+                // Double-click = zoom in + open the drawer on that field's
+                // card (same as the card's own double-click). The editor is
+                // only reached through the card's Editar button. Mid-edit,
+                // the drawer is hidden, so the gesture is a no-op.
+                if (fieldEditing.active) return
+                setFocusRequest(prev => ({ fieldId, nonce: (prev?.nonce ?? 0) + 1 }))
+                zoomToField(fieldId)
               }}
             />
           ))}

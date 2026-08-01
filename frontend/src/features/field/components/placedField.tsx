@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useRef, useState } from 'react'
-import { Polygon, Polyline, CircleMarker, Marker, Tooltip, useMapEvents } from 'react-leaflet'
+import { Polygon, Polyline, CircleMarker, Marker, Tooltip } from 'react-leaflet'
 import * as L from 'leaflet'
 import { useFieldStore } from '@/store/useFieldStore'
 import { useIsCoarsePointer } from '@/hooks/useViewport'
@@ -16,7 +16,8 @@ const EMPTY_MARKS: PlantMarks = { plantIds: new Set(), rowIds: new Set() }
 // ──────────────────────────────────────────────────────────────────────────
 // A field rendered on the farm map. Click behavior:
 //  - single click → onSelect (opens the field-operations side drawer)
-//  - double click → onOpenEditor (opens the full field editor)
+//  - double click → onFocusField (zoom to the field + drawer on its card;
+//    the editor is only reached through the card's Editar button)
 // Leaflet fires click twice before dblclick, so the single-click action is
 // deferred ~250 ms and cancelled when a double-click lands.
 // Detail rendering: crop rows are drawn as lines inside every field shape;
@@ -30,8 +31,10 @@ type Props = {
   field: PlacedFieldType
   /** Single click — show the field's operations drawer. */
   onSelect: (fieldId: string) => void
-  /** Double click — open the full field editor. */
-  onOpenEditor: (fieldId: string) => void
+  /** Double click — zoom to the field and open the drawer on its card.
+      The host performs the zoom so it pairs with the drawer-close
+      zoom-out. */
+  onFocusField: (fieldId: string) => void
   /** Draw individual plants (the field selected in the ops drawer). */
   detailed?: boolean
   /** Plant/row ids covered by operations — colors removed plants red. */
@@ -78,7 +81,7 @@ function createPinIcon(color: string, name: string): L.DivIcon {
 }
 
 export default function PlacedField({
-  field, onSelect, onOpenEditor, detailed = false, plantMarks = EMPTY_MARKS,
+  field, onSelect, onFocusField, detailed = false, plantMarks = EMPTY_MARKS,
   findingMarks = EMPTY_FINDING_MARKS, displayColor,
 }: Props) {
   const fieldColor = displayColor ?? field.color
@@ -98,7 +101,6 @@ export default function PlacedField({
   const isCoarsePointer = useIsCoarsePointer()
   const isDragging = useRef(false)
   const clickTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const map = useMapEvents({})
 
   // Clear any pending single-click when unmounting
   useEffect(() => () => {
@@ -134,15 +136,7 @@ export default function PlacedField({
       clickTimer.current = null
     }
     if (field.isPositioning || mapToggles) return
-    // Zoom the map so the field fills the view — visible as soon as the
-    // editor is closed again.
-    if (field.boundary && field.boundary.length >= 3) {
-      const bounds = L.latLngBounds(field.boundary.map(p => L.latLng(p.lat, p.lng)))
-      map.flyToBounds(bounds, { padding: [60, 60], duration: 0.8 })
-    } else {
-      map.flyTo(L.latLng(field.farmLat, field.farmLng), Math.max(map.getZoom(), 18))
-    }
-    onOpenEditor(field.id)
+    onFocusField(field.id)
   }
 
   const eventHandlers = {
