@@ -13,6 +13,7 @@ import { useFarmStore, canManageStructure, isFarmOwner } from '@/store/useFarmSt
 import { useFieldStore } from '@/store/useFieldStore'
 import { getFieldOperationHealth } from '@/features/field/utils/operationStatus'
 import FieldSummaryCard from '@/features/field/components/fieldSummaryCard'
+import CorralCard from '@/features/livestock/components/corralCard'
 import type { Farm } from '@/store/useFarmStore'
 import type { PlacedField } from '@/features/field/types'
 import { toast } from '@/store/useToastStore'
@@ -486,17 +487,30 @@ function FieldList({
         ) : (
           <div className="flex flex-col divide-y divide-[#f0f5e8]">
             {fields.map(field => (
-              <FieldSummaryCard
-                key={field.id}
-                field={field}
-                focused={field.id === focusFieldId}
-                focusNonce={focusNonce}
-                onSelect={() => onSelectField(field.id)}
-                onOpenEditor={() => onEditField(field.id)}
-                onCardDoubleClick={() => onZoomToField(field.id)}
-                onDelete={() => handleDeleteField(field.id)}
-                onToggleDisplay={() => onToggleDisplay(field)}
-              />
+              // Livestock fields (corrales) get the compact herd card — no
+              // crop rows or operations calendar apply to them.
+              field.kind === 'livestock' ? (
+                <CorralCard
+                  key={field.id}
+                  field={field}
+                  onSelect={() => onSelectField(field.id)}
+                  onZoomToField={() => onZoomToField(field.id)}
+                  onOpenEditor={() => onEditField(field.id)}
+                  onDelete={() => handleDeleteField(field.id)}
+                />
+              ) : (
+                <FieldSummaryCard
+                  key={field.id}
+                  field={field}
+                  focused={field.id === focusFieldId}
+                  focusNonce={focusNonce}
+                  onSelect={() => onSelectField(field.id)}
+                  onOpenEditor={() => onEditField(field.id)}
+                  onCardDoubleClick={() => onZoomToField(field.id)}
+                  onDelete={() => handleDeleteField(field.id)}
+                  onToggleDisplay={() => onToggleDisplay(field)}
+                />
+              )
             ))}
           </div>
         )}

@@ -22,6 +22,7 @@ import { buildPlantMarks } from '@/features/field/utils/plantStatus'
 import { useFindings } from '@/features/scouting/hooks/useFindingsApi'
 import { buildFindingMarks } from '@/features/scouting/utils/findingScope'
 import { fieldHealth } from '@/features/scouting/utils/fieldHealth'
+import { CORRAL_COLOR } from '@/features/livestock/components/corralCard'
 import CreateFarmModal from '@/features/farm/components/createFarmModal'
 import { useFieldStore } from '@/store/useFieldStore'
 import { useFarmStore, canManageStructure, isFarmOwner } from '@/store/useFarmStore'
@@ -320,10 +321,13 @@ export default function FarmMap({ center = PR_CENTER, zoom = DEFAULT_ZOOM }: Pro
   const healthColors = useMemo(
     () => new Map(farmFields.map(f => [
       f.id,
-      fieldHealth(
-        { id: f.id, rows: f.rows ?? [], freePlants: f.freePlants ?? [] },
-        farmFindings ?? []
-      ).color,
+      // Corrales don't participate in the crop traffic light — fixed tint.
+      f.kind === 'livestock'
+        ? CORRAL_COLOR
+        : fieldHealth(
+            { id: f.id, rows: f.rows ?? [], freePlants: f.freePlants ?? [] },
+            farmFindings ?? []
+          ).color,
     ])),
     [farmFields, farmFindings]
   )

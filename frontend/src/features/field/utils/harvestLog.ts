@@ -15,6 +15,9 @@ export type HarvestEntry = {
   quantity?: number
   unit?: string
   notes?: string
+  /** Animal production rows (unified ledger): product instead of a crop. */
+  productId?: string
+  livestockUnitId?: string
 }
 
 export type HarvestCropTotal = {

@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { useFarmStore } from '@/store/useFarmStore'
 import { useLivestockStore } from '@/store/useLivestockStore'
-import type { AnimalType, LivestockUnit } from '../types'
+import type { AnimalType, CountReason, LivestockUnit } from '../types'
 
 // ──────────────────────────────────────────────────────────────────────────
 // Livestock API hooks — connects the livestock UI (previously
@@ -17,6 +17,7 @@ import type { AnimalType, LivestockUnit } from '../types'
 type ApiLivestockUnit = {
   id: string
   farmId: string
+  fieldId: string | null
   name: string
   animalType: string
   currentCount: number
@@ -29,6 +30,7 @@ function toLivestockUnit(u: ApiLivestockUnit): LivestockUnit {
   return {
     id: u.id,
     farmId: u.farmId,
+    fieldId: u.fieldId,
     name: u.name,
     animalType: u.animalType as AnimalType,
     currentCount: u.currentCount,
@@ -104,6 +106,57 @@ export function useUpdateLivestock() {
     onSuccess: (unit) => {
       updateUnit(unit.id, unit)
       queryClient.invalidateQueries({ queryKey: ['livestock'] })
+    },
+  })
+}
+
+// ── Log production (eggs/milk/honey/meat) ─────────────────────────────
+// POST /livestock/:id/production — the livestock parallel of a harvest
+// check-off. Meat products are the herd ledger: headCount + countReason
+// are required and the server decrements currentCount atomically; for
+// renewable products they must be omitted. The response carries the
+// authoritative currentCount, which is written back into the store.
+export type ProductionData = {
+  productId: string
+  quantity: number
+  unit: string
+  date: string
+  notes?: string
+  headCount?: number
+  countReason?: CountReason
+}
+
+type ProductionResponse = {
+  operationId: string
+  productId: string
+  quantity: number
+  unit: string
+  currentCount: number
+}
+
+export function useLogProduction() {
+  const queryClient = useQueryClient()
+  const { updateUnit } = useLivestockStore()
+
+  return useMutation({
+    mutationFn: async ({ unitId, farmId, data }: {
+      unitId: string
+      farmId: string
+      data: ProductionData
+    }) => {
+      return api.post<ProductionResponse>(
+        `/api/v1/farms/${farmId}/livestock/${unitId}/production`,
+        data
+      )
+    },
+    onSuccess: (result, vars) => {
+      // Meat production shrinks the herd — mirror the server's count.
+      updateUnit(vars.unitId, { currentCount: result.currentCount })
+      queryClient.invalidateQueries({ queryKey: ['livestock'] })
+      // The server also wrote an operations-log row and a production-ledger
+      // (harvest_yields) row — refresh everything derived from them.
+      queryClient.invalidateQueries({ queryKey: ['harvests'] })
+      queryClient.invalidateQueries({ queryKey: ['operations', vars.farmId] })
     },
   })
 }

@@ -80,6 +80,8 @@ export type PlacedField = {
   id: string
   farmId: string
   name: string
+  /** 'crops' (rows/plants) or 'livestock' (a corral — herds assigned). */
+  kind?: 'crops' | 'livestock'
   color: string
   shape: FieldShape
   // Boundary stored as lat/lng — the source of truth

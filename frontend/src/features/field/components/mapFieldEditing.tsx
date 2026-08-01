@@ -277,6 +277,7 @@ export function useMapFieldEditing(
     } else {
       const saved = await createField.mutateAsync({
         name: editor.name,
+        kind: editor.kind,
         color: randomFieldColor(),
         shape: editor.shape,
         boundary: boundaryLatLng,
@@ -678,6 +679,8 @@ export function MapFieldEditingPanels({ session }: { session: MapFieldEditingSes
           mode={editor.mode}
           shape={editor.shape}
           name={editor.name}
+          kind={editor.kind}
+          onKindChange={editor.setKind}
           pointCount={editor.points.length}
           selectedPointIndex={editor.selectedPointIndex}
           rows={editor.rows}

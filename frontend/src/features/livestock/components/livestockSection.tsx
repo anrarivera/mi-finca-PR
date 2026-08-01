@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Plus, Pencil, Trash2, PawPrint } from 'lucide-react'
+import { Plus, Pencil, Trash2, PawPrint, ClipboardList } from 'lucide-react'
 import { useLivestockStore } from '@/store/useLivestockStore'
 import { useCreateLivestock, useUpdateLivestock, useDeleteLivestock } from '../hooks/useLivestockApi'
 import { useFarmStore } from '@/store/useFarmStore'
+import { useFieldStore } from '@/store/useFieldStore'
 import { ANIMAL_LIBRARY, getAnimalById } from '../data/animalLibrary'
+import ProductionModal from './productionModal'
 import { useConfirm } from '@/components/shared/confirmDialog'
 import { toast } from '@/store/useToastStore'
 import { todayISO } from '@/features/field/types'
@@ -21,8 +23,11 @@ export default function LivestockSection() {
   const { t } = useTranslation('editor')
   const units = useLivestockStore(s => s.units)
   const farms = useFarmStore(s => s.farms)
+  const fields = useFieldStore(s => s.fields)
   const { confirm, confirmDialog } = useConfirm()
   const [editing, setEditing] = useState<LivestockUnit | 'new' | null>(null)
+  // Registrar producción — per unit
+  const [producing, setProducing] = useState<LivestockUnit | null>(null)
 
   // Persistence now goes through the API (useLivestockApi) instead of only
   // localStorage — the hooks sync the Zustand store on success.
@@ -83,6 +88,7 @@ export default function LivestockSection() {
           {units.map(unit => {
             const animal = getAnimalById(unit.animalType)
             const farm = farms.find(f => f.id === unit.farmId)
+            const corral = unit.fieldId ? fields.find(f => f.id === unit.fieldId) : undefined
             return (
               <div key={unit.id} className="flex items-center gap-3 px-5 py-3">
                 <span className="text-2xl" aria-hidden>{animal?.emoji ?? '🐾'}</span>
@@ -91,9 +97,17 @@ export default function LivestockSection() {
                   <p className="text-[11px] text-[#9aab8a] truncate">
                     {unit.currentCount} {animal ? (unit.currentCount === 1 ? localSingular(animal) : localName(animal).toLowerCase()) : t('livestock.animalsFallback')}
                     {farm ? ` · ${farm.name}` : ''}
+                    {corral ? ` · 🏠 ${corral.name}` : ''}
                     {unit.notes ? ` · ${unit.notes}` : ''}
                   </p>
                 </div>
+                <button
+                  onClick={() => setProducing(unit)}
+                  title={t('production.title', { name: unit.name })}
+                  className="flex items-center gap-1 px-2 py-1.5 pointer-coarse:px-3 pointer-coarse:py-2.5 text-[10px] font-medium text-[#639922] border border-[#c8dca8] rounded-lg hover:bg-[#eaf3de] transition-colors"
+                >
+                  <ClipboardList size={11} /> {t('production.action')}
+                </button>
                 <button
                   onClick={() => setEditing(unit)}
                   aria-label={t('livestock.editAria', { name: unit.name })}
@@ -138,6 +152,10 @@ export default function LivestockSection() {
         />
       )}
 
+      {producing && (
+        <ProductionModal unit={producing} onClose={() => setProducing(null)} />
+      )}
+
       {confirmDialog}
     </section>
   )
@@ -159,6 +177,10 @@ function LivestockFormModal({
   const [count, setCount] = useState(unit?.currentCount ?? 10)
   const [acquisitionDate, setAcquisitionDate] = useState(unit?.acquisitionDate ?? todayISO())
   const [notes, setNotes] = useState(unit?.notes ?? '')
+  // Optional corral assignment — one of this farm's livestock-kind fields
+  const [fieldId, setFieldId] = useState(unit?.fieldId ?? '')
+  const allFields = useFieldStore(s => s.fields)
+  const corrales = allFields.filter(f => f.farmId === farmId && f.kind === 'livestock')
 
   const selectedAnimal = getAnimalById(animalType)
   const valid = name.trim().length > 0 && farmId && count > 0 && !!acquisitionDate
@@ -167,6 +189,7 @@ function LivestockFormModal({
     if (!valid) return
     onSave({
       farmId,
+      fieldId: fieldId || null,
       name: name.trim(),
       animalType,
       currentCount: count,
@@ -235,12 +258,31 @@ function LivestockFormModal({
                     livestock under its owning farm (no cross-farm moves). */}
                 <select
                   value={farmId}
-                  onChange={e => setFarmId(e.target.value)}
+                  onChange={e => { setFarmId(e.target.value); setFieldId('') }}
                   disabled={!!unit}
                   className={`${inputClass} disabled:opacity-60 disabled:cursor-not-allowed`}
                 >
                   {farms.map(f => (
                     <option key={f.id} value={f.id}>{f.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* Corral — optional; the farm's livestock-kind fields */}
+            {corrales.length > 0 && (
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-medium text-[#5a6a4a]">
+                  {t('corral.select')} <span className="font-normal text-[#9aab8a]">{t('common.optional')}</span>
+                </label>
+                <select
+                  value={fieldId}
+                  onChange={e => setFieldId(e.target.value)}
+                  className={inputClass}
+                >
+                  <option value="">{t('corral.noneOption')}</option>
+                  {corrales.map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
                 </select>
               </div>

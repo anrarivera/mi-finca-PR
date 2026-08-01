@@ -194,5 +194,46 @@
     "notesPlaceholder": "E.g. Rhode Island Red layers",
     "saveChanges": "Save changes",
     "addButton": "Add"
+  },
+  "corral": {
+    "badge": "Corral",
+    "kindLabel": "Field type",
+    "crops": "Crops",
+    "livestock": "Animals (corral)",
+    "viewOnMap": "View on the map",
+    "empty": "No animals assigned — assign them from the Notebook",
+    "edit": "Edit",
+    "delete": "Delete",
+    "confirmDelete": "Delete \"{{name}}\"?",
+    "confirmDeleteYes": "Yes, delete",
+    "select": "Corral",
+    "noneOption": "No corral"
+  },
+  "production": {
+    "action": "Production",
+    "title": "Log production — {{name}}",
+    "product": "Product",
+    "products": {
+      "eggs": "Eggs",
+      "meat": "Meat",
+      "milk": "Milk",
+      "honey": "Honey"
+    },
+    "quantity": "Quantity",
+    "unit": "Unit",
+    "date": "Date",
+    "notes": "Notes",
+    "notesPlaceholder": "E.g. Morning collection",
+    "headCount": "Animals slaughtered/sold",
+    "reason": "Reason",
+    "reasons": {
+      "slaughtered": "Slaughtered",
+      "sold": "Sold",
+      "died": "Died",
+      "other": "Other"
+    },
+    "meatHint": "Logging meat reduces the herd: the animals entered will leave the group's count ({{count}} currently).",
+    "submit": "Log",
+    "logged": "Production for \"{{name}}\" logged"
   }
 }

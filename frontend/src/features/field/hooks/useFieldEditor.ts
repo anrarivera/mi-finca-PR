@@ -41,6 +41,9 @@ export function useFieldEditor() {
   const [mode, setMode] = useState<EditorMode>('setup')
   const [shape, setShape] = useState<FieldShape>('rectangle')
   const [name, setName] = useState('')
+  // 'crops' (default) or 'livestock' — a corral, drawn the same way but
+  // holding herds instead of rows/plants.
+  const [kind, setKind] = useState<'crops' | 'livestock'>('crops')
 
   const [canvasPoints, setCanvasPoints] = useState<CanvasPoint[]>([])
   const [mousePos, setMousePos] = useState<CanvasPoint | null>(null)
@@ -60,6 +63,7 @@ export function useFieldEditor() {
   const loadField = useCallback((field: PlacedField, bbox: BBox) => {
     setFieldId(field.id)
     setName(field.name)
+    setKind(field.kind ?? 'crops')
     setShape(field.shape)
 
     const pixelPoints = (field.boundary ?? []).map(p =>
@@ -396,6 +400,7 @@ export function useFieldEditor() {
     setMode('setup')
     setCanvasPoints([])
     setName('')
+    setKind('crops')
     setShape('rectangle')
     setMousePos(null)
     setSelectedPointIndex(null)
@@ -408,7 +413,7 @@ export function useFieldEditor() {
   }, [])
 
   return {
-    mode, shape, name,
+    mode, shape, name, kind,
     points: canvasPoints,
     mousePos, selectedPointIndex,
     rows: planting.rows,
@@ -416,7 +421,7 @@ export function useFieldEditor() {
     plantingEvents: planting.plantingEvents,
     rowDraft, rowStartPoint,
     selectedFreeCropId, fieldId,
-    setShape, setName,
+    setShape, setName, setKind,
     setMousePos, setSelectedPointIndex, setFieldId,
     startDrawing, addPoint, completeDrawing,
     setRectangle, undoLastPoint, clearDrawing,

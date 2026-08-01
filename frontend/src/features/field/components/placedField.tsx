@@ -2,6 +2,8 @@ import { Fragment, useEffect, useRef, useState } from 'react'
 import { Polygon, Polyline, CircleMarker, Marker, Tooltip } from 'react-leaflet'
 import * as L from 'leaflet'
 import { useFieldStore } from '@/store/useFieldStore'
+import { useLivestockStore } from '@/store/useLivestockStore'
+import { getAnimalById } from '@/features/livestock/data/animalLibrary'
 import { useIsCoarsePointer } from '@/hooks/useViewport'
 import { useHarvestHighlightStore } from '@/store/useHarvestHighlightStore'
 import { plantVisualStatus, PLANT_STATUS_STYLE, type PlantMarks } from '../utils/plantStatus'
@@ -86,6 +88,17 @@ export default function PlacedField({
 }: Props) {
   const fieldColor = displayColor ?? field.color
   const { updateField } = useFieldStore()
+  // Corral label: herds assigned to this livestock field — unique animal
+  // emojis + total head count next to the name (e.g. "Corral 1 🐐🐔 27").
+  const livestockUnits = useLivestockStore(s => s.units)
+  const corralHerds = field.kind === 'livestock'
+    ? livestockUnits.filter(u => u.fieldId === field.id)
+    : []
+  const tooltipLabel = corralHerds.length > 0
+    ? `${field.name} ${[...new Set(
+        corralHerds.map(u => getAnimalById(u.animalType)?.emoji ?? '🐾')
+      )].join('')} ${corralHerds.reduce((sum, u) => sum + u.currentCount, 0)}`
+    : field.name
   // Live harvest-modal selection — paints chosen rows/plants amber.
   const harvestHighlight = useHarvestHighlightStore(s => s.highlight)
   // While a scope selector is open, map clicks on rows/plants toggle them
@@ -195,7 +208,7 @@ export default function PlacedField({
       >
         <Tooltip permanent direction="top" offset={[0, -4]}>
           <span style={{ fontSize: 11, fontWeight: 600, color: '#2d4a1e' }}>
-            {field.name}
+            {tooltipLabel}
           </span>
         </Tooltip>
       </Polygon>

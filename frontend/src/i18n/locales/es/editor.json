@@ -194,5 +194,46 @@
     "notesPlaceholder": "Ej. Ponedoras Rhode Island Red",
     "saveChanges": "Guardar cambios",
     "addButton": "Añadir"
+  },
+  "corral": {
+    "badge": "Corral",
+    "kindLabel": "Tipo de campo",
+    "crops": "Cultivos",
+    "livestock": "Animales (corral)",
+    "viewOnMap": "Ver en el mapa",
+    "empty": "Sin animales asignados — asígnalos desde el Cuaderno",
+    "edit": "Editar",
+    "delete": "Eliminar",
+    "confirmDelete": "¿Eliminar \"{{name}}\"?",
+    "confirmDeleteYes": "Sí, eliminar",
+    "select": "Corral",
+    "noneOption": "Sin corral"
+  },
+  "production": {
+    "action": "Producción",
+    "title": "Registrar producción — {{name}}",
+    "product": "Producto",
+    "products": {
+      "eggs": "Huevos",
+      "meat": "Carne",
+      "milk": "Leche",
+      "honey": "Miel"
+    },
+    "quantity": "Cantidad",
+    "unit": "Unidad",
+    "date": "Fecha",
+    "notes": "Notas",
+    "notesPlaceholder": "Ej. Recogida de la mañana",
+    "headCount": "Animales sacrificados/vendidos",
+    "reason": "Motivo",
+    "reasons": {
+      "slaughtered": "Sacrificados",
+      "sold": "Vendidos",
+      "died": "Murieron",
+      "other": "Otro"
+    },
+    "meatHint": "Registrar carne reduce el rebaño: los animales indicados saldrán del conteo del grupo ({{count}} actualmente).",
+    "submit": "Registrar",
+    "logged": "Producción de \"{{name}}\" registrada"
   }
 }

@@ -13,9 +13,14 @@ export type AnimalType =
 export type LivestockUnit = {
   id: string
   farmId: string
+  /** Corral assignment — a livestock-kind field of the same farm (null = unassigned). */
+  fieldId?: string | null
   name: string           // e.g. "Gallinero principal"
   animalType: AnimalType
   currentCount: number
   acquisitionDate: string // ISO date (YYYY-MM-DD)
   notes?: string
 }
+
+/** Why animals left the herd when logging meat production. */
+export type CountReason = 'slaughtered' | 'sold' | 'died' | 'other'

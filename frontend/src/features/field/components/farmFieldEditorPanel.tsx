@@ -16,6 +16,10 @@ type Props = {
   mode: EditorMode
   shape: FieldShape
   name: string
+  /** 'crops' (rows/plants) or 'livestock' (a corral). Only choosable while
+      creating a new field; existing fields keep their kind. */
+  kind: 'crops' | 'livestock'
+  onKindChange: (k: 'crops' | 'livestock') => void
   pointCount: number
   selectedPointIndex: number | null
   rows: FieldRow[]
@@ -58,7 +62,7 @@ type Props = {
 }
 
 export default function FarmFieldEditorPanel({
-  mode, shape, name,
+  mode, shape, name, kind, onKindChange,
   pointCount, selectedPointIndex,
   rows, freePlants,
   allFields, selectedFieldId, isCreatingNew,
@@ -113,6 +117,8 @@ export default function FarmFieldEditorPanel({
   const loosePlantIds = [...selectedPlantIds].filter(id => !coveredByFullRows.has(id))
 
   const isIdle = mode === 'setup' && !isCreatingNew
+  // Corral (livestock) fields have no rows/plants — the crop tools hide.
+  const isLivestock = kind === 'livestock'
 
   // ── SETUP — field summary cards (same cards as the farm-map drawer).
   //    Single click selects on the canvas, double click / "Editar" enters
@@ -200,6 +206,27 @@ export default function FarmFieldEditorPanel({
         {/* ── SETUP mode ── */}
         {(mode === 'setup' || isCreatingNew) && !isIdle && (
           <>
+            {/* Kind toggle — only while creating; existing fields keep it */}
+            {selectedFieldId === null && (
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-medium text-[#5a6a4a]">{t('corral.kindLabel')}</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {(['crops', 'livestock'] as const).map(k => (
+                    <button key={k} onClick={() => onKindChange(k)}
+                      className={`flex flex-col items-center gap-1.5 py-3 rounded-lg border text-xs font-medium transition-colors ${
+                        kind === k
+                          ? 'bg-[#eaf3de] border-[#639922] text-[#2d4a1e]'
+                          : 'border-[#e0e8d8] text-[#7a8a6a] hover:bg-[#f5f8f0]'
+                      }`}
+                    >
+                      <span className="text-lg" aria-hidden>{k === 'crops' ? '🌱' : '🐄'}</span>
+                      {k === 'crops' ? t('corral.crops') : t('corral.livestock')}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-[#5a6a4a]">{t('panel.shape')}</label>
               <div className="grid grid-cols-2 gap-2">
@@ -291,7 +318,7 @@ export default function FarmFieldEditorPanel({
               </div>
             )}
 
-            {(rows.length > 0 || freePlants.length > 0) && (
+            {!isLivestock && (rows.length > 0 || freePlants.length > 0) && (
               <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between">
                   <button onClick={() => setShowRows(p => !p)}
@@ -452,28 +479,33 @@ export default function FarmFieldEditorPanel({
             )}
 
             <div className="flex flex-col gap-2 pt-2 border-t border-[#f0f5e8]">
-              <button onClick={onStartFillRows}
-                className="w-full flex items-center justify-center gap-2 py-2 text-xs text-[#639922] border border-[#c8dca8] rounded-lg hover:bg-[#eaf3de] transition-colors"
-              >
-                <LayoutGrid size={13} /> {t('panel.fillWithRows')}
-              </button>
+              {/* Crop tools — a corral only needs boundary + name */}
+              {!isLivestock && (
+                <>
+                  <button onClick={onStartFillRows}
+                    className="w-full flex items-center justify-center gap-2 py-2 text-xs text-[#639922] border border-[#c8dca8] rounded-lg hover:bg-[#eaf3de] transition-colors"
+                  >
+                    <LayoutGrid size={13} /> {t('panel.fillWithRows')}
+                  </button>
 
-              <div className="flex flex-col gap-1.5">
-                <CropSelector
-                  value={freeCropPick}
-                  onChange={setFreeCropPick}
-                  placeholder={t('panel.chooseFreePlant')}
-                />
-                <button
-                  onClick={() => { if (freeCropPick) { onStartAddFreePlant(freeCropPick) } }}
-                  disabled={!freeCropPick}
-                  className="w-full flex items-center justify-center gap-2 py-2 text-xs text-[#639922] border border-[#c8dca8] rounded-lg hover:bg-[#eaf3de] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  <Leaf size={13} /> {t('panel.placeFreePlant')}
-                </button>
-              </div>
+                  <div className="flex flex-col gap-1.5">
+                    <CropSelector
+                      value={freeCropPick}
+                      onChange={setFreeCropPick}
+                      placeholder={t('panel.chooseFreePlant')}
+                    />
+                    <button
+                      onClick={() => { if (freeCropPick) { onStartAddFreePlant(freeCropPick) } }}
+                      disabled={!freeCropPick}
+                      className="w-full flex items-center justify-center gap-2 py-2 text-xs text-[#639922] border border-[#c8dca8] rounded-lg hover:bg-[#eaf3de] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      <Leaf size={13} /> {t('panel.placeFreePlant')}
+                    </button>
+                  </div>
 
-              <div className="h-px bg-[#f0f5e8]" />
+                  <div className="h-px bg-[#f0f5e8]" />
+                </>
+              )}
 
               <button onClick={onSaveField} disabled={!name.trim()}
                 className="w-full flex items-center justify-center gap-2 py-2.5 bg-[#2d4a1e] text-[#d4e8b0] rounded-lg text-xs font-medium hover:bg-[#3d6128] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
