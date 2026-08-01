@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useVerifyEmail } from '@/features/auth/hooks/useAuth'
 import { Loader2, CheckCircle, XCircle } from 'lucide-react'
 
@@ -10,6 +11,7 @@ import { Loader2, CheckCircle, XCircle } from 'lucide-react'
 // ──────────────────────────────────────────────────────────────────────────
 
 export default function VerifyEmailPage() {
+  const { t } = useTranslation('auth')
   const [searchParams] = useSearchParams()
   const token = searchParams.get('token') || ''
   const verifyEmail = useVerifyEmail()
@@ -28,7 +30,7 @@ export default function VerifyEmailPage() {
 
     if (!token) {
       setState('error')
-      setErrorMsg('El enlace no es válido. Falta el código de verificación.')
+      setErrorMsg(t('verify.errorMissingToken'))
       return
     }
 
@@ -41,7 +43,7 @@ export default function VerifyEmailPage() {
           setErrorMsg(
             err instanceof Error
               ? err.message
-              : 'No se pudo verificar el correo. El enlace pudo haber vencido.'
+              : t('verify.errorGeneric')
           )
         },
       }
@@ -60,7 +62,7 @@ export default function VerifyEmailPage() {
         <div className="bg-white rounded-2xl shadow-sm border border-[#e0e8d8] overflow-hidden">
           <div className="bg-[#2d4a1e] px-8 py-6">
             <h2 className="text-lg font-semibold text-[#d4e8b0]">
-              Verificación de correo
+              {t('verify.title')}
             </h2>
           </div>
 
@@ -68,7 +70,7 @@ export default function VerifyEmailPage() {
             {state === 'verifying' && (
               <>
                 <Loader2 size={40} className="text-[#639922] mx-auto mb-3 animate-spin" />
-                <p className="text-sm text-[#7a8a6a]">Verificando tu correo...</p>
+                <p className="text-sm text-[#7a8a6a]">{t('verify.verifying')}</p>
               </>
             )}
 
@@ -76,10 +78,10 @@ export default function VerifyEmailPage() {
               <>
                 <CheckCircle size={40} className="text-[#639922] mx-auto mb-3" />
                 <p className="text-sm text-[#2d4a1e] font-medium mb-2">
-                  ¡Correo verificado!
+                  {t('verify.successTitle')}
                 </p>
                 <p className="text-sm text-[#7a8a6a]">
-                  Tu cuenta está lista. Ya puedes usar todas las funciones de Mi Finca PR.
+                  {t('verify.successBody')}
                 </p>
               </>
             )}
@@ -88,12 +90,11 @@ export default function VerifyEmailPage() {
               <>
                 <XCircle size={40} className="text-red-400 mx-auto mb-3" />
                 <p className="text-sm text-[#2d4a1e] font-medium mb-2">
-                  No se pudo verificar
+                  {t('verify.errorTitle')}
                 </p>
                 <p className="text-sm text-[#7a8a6a]">{errorMsg}</p>
                 <p className="text-xs text-[#9aab8a] mt-3">
-                  Puedes pedir un nuevo enlace desde Configuración una vez
-                  hayas iniciado sesión.
+                  {t('verify.errorHint')}
                 </p>
               </>
             )}
@@ -104,7 +105,7 @@ export default function VerifyEmailPage() {
               to={state === 'success' ? '/' : '/login'}
               className="text-sm text-[#639922] hover:text-[#2d4a1e] transition-colors"
             >
-              {state === 'success' ? 'Ir a mi finca' : 'Volver a iniciar sesión'}
+              {state === 'success' ? t('verify.goToFarm') : t('verify.backToLogin')}
             </Link>
           </div>
         </div>

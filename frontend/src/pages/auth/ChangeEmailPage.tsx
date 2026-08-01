@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
+import { Trans, useTranslation } from 'react-i18next'
 import { useConfirmChangeEmail } from '@/features/auth/hooks/useAuth'
 import { useAuthStore } from '@/store/useAuthStore'
 import { Loader2, CheckCircle, XCircle } from 'lucide-react'
@@ -12,6 +13,7 @@ import { Loader2, CheckCircle, XCircle } from 'lucide-react'
 // ──────────────────────────────────────────────────────────────────────────
 
 export default function ChangeEmailPage() {
+  const { t } = useTranslation('auth')
   const [searchParams] = useSearchParams()
   const token = searchParams.get('token') || ''
   const confirmChange = useConfirmChangeEmail()
@@ -30,7 +32,7 @@ export default function ChangeEmailPage() {
 
     if (!token) {
       setState('error')
-      setErrorMsg('El enlace no es válido. Falta el código de confirmación.')
+      setErrorMsg(t('change.errorMissingToken'))
       return
     }
 
@@ -48,7 +50,7 @@ export default function ChangeEmailPage() {
           setErrorMsg(
             err instanceof Error
               ? err.message
-              : 'No se pudo confirmar el cambio. El enlace pudo haber vencido.'
+              : t('change.errorGeneric')
           )
         },
       }
@@ -67,7 +69,7 @@ export default function ChangeEmailPage() {
         <div className="bg-white rounded-2xl shadow-sm border border-[#e0e8d8] overflow-hidden">
           <div className="bg-[#2d4a1e] px-8 py-6">
             <h2 className="text-lg font-semibold text-[#d4e8b0]">
-              Cambio de correo
+              {t('change.title')}
             </h2>
           </div>
 
@@ -75,7 +77,7 @@ export default function ChangeEmailPage() {
             {state === 'confirming' && (
               <>
                 <Loader2 size={40} className="text-[#639922] mx-auto mb-3 animate-spin" />
-                <p className="text-sm text-[#7a8a6a]">Confirmando tu nuevo correo...</p>
+                <p className="text-sm text-[#7a8a6a]">{t('change.confirming')}</p>
               </>
             )}
 
@@ -83,11 +85,15 @@ export default function ChangeEmailPage() {
               <>
                 <CheckCircle size={40} className="text-[#639922] mx-auto mb-3" />
                 <p className="text-sm text-[#2d4a1e] font-medium mb-2">
-                  ¡Correo actualizado!
+                  {t('change.successTitle')}
                 </p>
                 <p className="text-sm text-[#7a8a6a]">
-                  Tu cuenta ahora usa <span className="font-medium">{newEmail}</span>.
-                  Por seguridad, inicia sesión de nuevo con tu nuevo correo.
+                  <Trans
+                    t={t}
+                    i18nKey="change.successBody"
+                    values={{ email: newEmail }}
+                    components={{ strong: <span className="font-medium" /> }}
+                  />
                 </p>
               </>
             )}
@@ -96,11 +102,11 @@ export default function ChangeEmailPage() {
               <>
                 <XCircle size={40} className="text-red-400 mx-auto mb-3" />
                 <p className="text-sm text-[#2d4a1e] font-medium mb-2">
-                  No se pudo confirmar
+                  {t('change.errorTitle')}
                 </p>
                 <p className="text-sm text-[#7a8a6a]">{errorMsg}</p>
                 <p className="text-xs text-[#9aab8a] mt-3">
-                  Puedes solicitar el cambio otra vez desde Configuración.
+                  {t('change.errorHint')}
                 </p>
               </>
             )}
@@ -108,7 +114,7 @@ export default function ChangeEmailPage() {
 
           <div className="px-8 pb-6 text-center">
             <Link to="/login" className="text-sm text-[#639922] hover:text-[#2d4a1e] transition-colors">
-              Ir a iniciar sesión
+              {t('change.goToLogin')}
             </Link>
           </div>
         </div>

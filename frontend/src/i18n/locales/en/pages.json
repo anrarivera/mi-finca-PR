@@ -1,1 +1,244 @@
-{}
+{
+  "dashboard": {
+    "title": "Dashboard",
+    "subtitle_one": "What's happening today on your farm",
+    "subtitle_other": "What's happening today on your farms",
+    "empty": {
+      "title": "You don't have any farms yet",
+      "description": "Create your first farm on the map to see statistics here.",
+      "goToMap": "Go to the map"
+    },
+    "tiles": {
+      "farms_one": "Farm",
+      "farms_other": "Farms",
+      "fields_one": "Field",
+      "fields_other": "Fields",
+      "totalArea": "Total area",
+      "plants": "Plants",
+      "animals": "Animals"
+    },
+    "recommendations": {
+      "title": "Recommendations",
+      "empty": "All caught up — no recommendations for now. 🎉"
+    },
+    "severity": {
+      "urgent": "Urgent",
+      "warning": "Attention",
+      "info": "Info",
+      "tip": "Tip"
+    }
+  },
+  "inventory": {
+    "title": "Field notebook",
+    "subtitle": "Your farm's records: plantings, tasks, harvests, and health",
+    "tabs": {
+      "siembras": "Plantings",
+      "labores": "Tasks",
+      "cosechas": "Harvests",
+      "sanidad": "Health",
+      "animales": "Animals"
+    },
+    "status": {
+      "overdue": "Overdue",
+      "dueSoon": "Due soon",
+      "ok": "On track",
+      "done": "Completed"
+    },
+    "source": {
+      "rows": "Rows",
+      "plants": "Plants",
+      "mixed": "Mixed"
+    },
+    "empty": {
+      "title": "The inventory is empty",
+      "description": "Plant crops in your fields from the map and they will appear here with their operations and projections.",
+      "goToMap": "Go to the map"
+    },
+    "tiles": {
+      "plantings": "Plantings",
+      "plants": "Plants",
+      "crops": "Crops",
+      "overdueOps": "Overdue ops",
+      "pendingOps": "Pending ops"
+    },
+    "filters": {
+      "allFarms": "All farms",
+      "allCrops": "All crops",
+      "allStatuses": "All statuses",
+      "withOverdue": "With overdue operations",
+      "withDueSoon": "With upcoming operations",
+      "ok": "On track",
+      "done": "Completed"
+    },
+    "shownCount_one": "{{shown}} of {{count}} planting",
+    "shownCount_other": "{{shown}} of {{count}} plantings",
+    "columns": {
+      "crop": "Crop",
+      "farmField": "Farm / Field",
+      "source": "Source",
+      "plants": "Plants",
+      "planted": "Planted",
+      "status": "Status",
+      "nextOp": "Next operation",
+      "harvestWindow": "Harvest window"
+    },
+    "noMatch": "No plantings match the filters.",
+    "ageDays_one": "{{count}} day",
+    "ageDays_other": "{{count}} days",
+    "overduePrefix": "overdue",
+    "pendingCount_one": "{{count}} pending",
+    "pendingCount_other": "{{count}} pending",
+    "noPending": "No pending ops",
+    "until": "until {{date}}",
+    "operationsTitle": "Operations for this planting",
+    "noOperations": "This planting has no scheduled operations.",
+    "skipped": "skipped",
+    "plantsCount_one": "{{count}} plant",
+    "plantsCount_other": "{{count}} plants",
+    "noPendingOps": "No pending operations",
+    "harvestRange": "Harvest: {{start}} – {{end}}"
+  },
+  "simulator": {
+    "title": "Viability simulator",
+    "subtitle": "Project annual production, revenue, and costs. The numbers are rough estimates — adjust them to your reality.",
+    "startWith": "Start with…",
+    "myFarm": "My current farm",
+    "noCropsPlanted": "You haven't planted any crops yet",
+    "plantedCount_one": "{{count}} plant planted in your fields",
+    "plantedCount_other": "{{count}} plants planted in your fields",
+    "totals": {
+      "production": "Annual production",
+      "revenue": "Revenue",
+      "costs": "Costs",
+      "net": "Annual net"
+    },
+    "perCrop": {
+      "title": "Assumptions per crop",
+      "subtitle": "Edit any number — the projection recalculates instantly."
+    },
+    "columns": {
+      "crop": "Crop",
+      "plants": "Plants",
+      "lbsPerPlant": "lbs/plant",
+      "pricePerLb": "$/lb",
+      "harvestsPerYear": "Harvests/yr",
+      "costPerPlant": "Cost/plant",
+      "annualNet": "Annual net"
+    },
+    "aria": {
+      "plantsOf": "Plants of {{name}}",
+      "lbsPerPlant": "Pounds per plant",
+      "pricePerLb": "Price per pound",
+      "cyclesPerYear": "Harvests per year",
+      "costPerPlantYear": "Cost per plant per year"
+    },
+    "adjusted": "adjusted",
+    "disclaimer": "⚠️ Rough projections based on general averages — actual results vary with terrain, weather, and the market. Consult a licensed agronomist before making investment decisions."
+  },
+  "home": {
+    "farmCreated": "Farm created",
+    "createFarmError": "Error creating the farm. Please try again."
+  },
+  "settings": {
+    "title": "Settings",
+    "subtitle": "App data and preferences",
+    "data": {
+      "sectionTitle": "My data",
+      "export": {
+        "title": "Download backup",
+        "description": "Save all your farms, fields, animals, and calendars to a JSON file.",
+        "button": "Export"
+      },
+      "import": {
+        "title": "Restore backup",
+        "description": "Replace the current data with a previously exported backup file.",
+        "button": "Import"
+      },
+      "clear": {
+        "title": "Delete all data",
+        "description": "Deletes everything stored on this device. This action cannot be undone.",
+        "button": "Delete all"
+      }
+    },
+    "toasts": {
+      "backupDownloaded": "Backup downloaded",
+      "invalidJson": "The file is not valid JSON.",
+      "invalidBackup": "The file does not appear to be a valid Mi Finca PR backup.",
+      "newerVersion": "This backup is from a newer version of the app.",
+      "backupRestored": "Backup restored",
+      "dataCleared": "Data deleted"
+    },
+    "restoreConfirm": {
+      "title": "Restore backup?",
+      "message_one": "The backup contains {{count}} farm. All current app data will be replaced.",
+      "message_other": "The backup contains {{count}} farms. All current app data will be replaced.",
+      "confirm": "Restore"
+    },
+    "clearConfirm": {
+      "title": "Delete all data?",
+      "message": "All farms, fields, animals, and calendars stored on this device will be deleted. Consider downloading a backup first.",
+      "confirm": "Delete all"
+    },
+    "about": {
+      "sectionTitle": "About",
+      "phase": "Phase 1: Farm management tool",
+      "localData": "Your data is stored locally in this browser. Download backups often.",
+      "disclaimer": "Agronomic recommendations are guidance only and do not replace the advice of a licensed agronomist."
+    },
+    "notifications": {
+      "sectionTitle": "Notifications",
+      "inApp": {
+        "title": "In-app notifications",
+        "description": "Show operation alerts in the bell on the top bar."
+      },
+      "emailDigest": {
+        "title": "Daily email digest",
+        "description": "An email every morning with overdue and upcoming tasks and active findings from your farms. Only sent when something is pending."
+      },
+      "overdue": {
+        "title": "Overdue operations",
+        "description": "Alerts when an operation passed its recommended date without being completed."
+      },
+      "dueSoon": {
+        "title": "Upcoming operations",
+        "description": "Alerts about operations due within the lead-time days."
+      },
+      "harvest": {
+        "title": "Harvest windows",
+        "description": "Alerts when a crop's harvest window is approaching or opens."
+      },
+      "leadDays": {
+        "title": "Lead-time days",
+        "description": "How many days before the recommended date the alert starts (1–60)."
+      },
+      "footer": "Email and text message alerts will arrive in a future version."
+    }
+  },
+  "topNav": {
+    "userMenu": "User menu",
+    "settings": "Settings",
+    "logout": "Log out",
+    "login": "Log in",
+    "register": "Create account"
+  },
+  "notificationBell": {
+    "bellAria": "Notifications",
+    "bellAriaUnread": "Notifications ({{count}} unread)",
+    "title": "Notifications",
+    "markRead": "Mark as read",
+    "disabled": "Notifications are turned off.",
+    "empty": "All caught up — no pending operations coming up. 🌱",
+    "configure": "Notification settings",
+    "overduePrefix": "overdue"
+  },
+  "errorBoundary": {
+    "title": "Something went wrong",
+    "description": "An unexpected error occurred in the app. Your saved data has not been lost. Reload the page to continue.",
+    "reload": "Reload page",
+    "details": "Technical details"
+  },
+  "confirmDialog": {
+    "confirm": "Confirm",
+    "cancel": "Cancel"
+  }
+}

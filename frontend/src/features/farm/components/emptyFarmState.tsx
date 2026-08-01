@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import { Plus, Sprout } from 'lucide-react'
 
 type Props = {
@@ -5,6 +6,7 @@ type Props = {
 }
 
 export default function EmptyFarmState({ onAddFarm }: Props) {
+  const { t } = useTranslation('farm')
   return (
     <div className="flex-1 flex flex-col items-center justify-center h-full select-none">
 
@@ -25,10 +27,10 @@ export default function EmptyFarmState({ onAddFarm }: Props) {
 
       {/* Message */}
       <p className="text-[#2d4a1e] font-semibold text-lg mb-1 tracking-tight">
-        No tienes fincas todavía
+        {t('empty.title')}
       </p>
       <p className="text-[#7a8a6a] text-sm mb-8 text-center max-w-xs leading-relaxed">
-        Añade tu primera finca para empezar a gestionar tus cultivos y campos.
+        {t('empty.subtitle')}
       </p>
 
       {/* Add farm button */}
@@ -39,7 +41,7 @@ export default function EmptyFarmState({ onAddFarm }: Props) {
         <div className="w-5 h-5 rounded-full border border-[#8fba4e] flex items-center justify-center group-hover:border-[#d4e8b0] transition-colors">
           <Plus size={12} strokeWidth={2.5} />
         </div>
-        Añadir finca
+        {t('empty.addFarm')}
       </button>
 
     </div>

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import { MapContainer, TileLayer, useMapEvents, useMap, Polygon, Polyline, CircleMarker } from 'react-leaflet'
 import * as L from 'leaflet'
 import {
@@ -231,6 +232,7 @@ type Props = {
 }
 
 export default function FarmMap({ center = PR_CENTER, zoom = DEFAULT_ZOOM }: Props) {
+  const { t } = useTranslation('farm')
   const drawing = useDrawing()
   const [showModal, setShowModal] = useState(false)
   const [flyTarget, setFlyTarget] = useState<{ farm: Farm; nonce: number } | null>(null)
@@ -359,18 +361,18 @@ export default function FarmMap({ center = PR_CENTER, zoom = DEFAULT_ZOOM }: Pro
 
   async function handleSaveFarm() {
   if (!activeFarm) {
-    toast.error('No hay finca activa seleccionada')
+    toast.error(t('map.noActiveFarm'))
     return
   }
   if (drawing.points.length < 3) {
-    toast.error('Dibuja al menos 3 puntos para guardar el límite')
+    toast.error(t('map.needThreePoints'))
     return
   }
 
   const boundary = drawing.points.map(p => ({ lat: p.lat, lng: p.lng }))
   try {
     await updateFarmApi.mutateAsync({ id: activeFarm.id, data: { boundary } })
-    toast.success('Finca guardada')
+    toast.success(t('map.farmSaved'))
     drawing.finishEditing()
   } catch (err) {
     console.error('Failed to save farm:', err)
@@ -390,10 +392,10 @@ function handleInsertPointAfterSelected() {
 
 async function handleDeleteFarm() {
   if (!activeFarm) return
-  if (!window.confirm(`¿Eliminar la finca "${activeFarm.name}" y todos sus campos?`)) return
+  if (!window.confirm(t('confirmDeleteFarm', { name: activeFarm.name }))) return
   try {
     await deleteFarmApi.mutateAsync(activeFarm.id)
-    toast.success('Finca eliminada')
+    toast.success(t('map.farmDeleted'))
   } catch (err) {
     console.error('Failed to delete farm:', err)
     // toast.error already fired by api.ts handleResponse
@@ -406,7 +408,7 @@ async function handleDeleteFarm() {
   // it can back onClick handlers directly.
   function handleOpenFieldEditor(fieldId?: unknown) {
     if (!activeFarm?.boundary || activeFarm.boundary.length < 3) {
-      alert('Primero guarda el límite de tu finca antes de añadir campos.')
+      alert(t('map.saveBoundaryFirst'))
       return
     }
     if (typeof fieldId === 'string') {
@@ -429,7 +431,7 @@ async function handleDeleteFarm() {
       setShowModal(false)
     } catch (err) {
       console.error('Failed to create farm:', err)
-      alert('Error al crear la finca. Por favor intenta de nuevo.')
+      alert(t('map.createFarmError'))
     }
   }
 
@@ -519,7 +521,7 @@ async function handleDeleteFarm() {
                 // editor to it (the zoom already happened in PlacedField).
                 if (fieldEditing.active) {
                   if (fieldId === fieldEditing.editingFieldId) return
-                  if (!window.confirm('¿Cambiar de campo? Los cambios sin guardar del campo actual se perderán.')) return
+                  if (!window.confirm(t('map.confirmSwitchField'))) return
                 }
                 handleOpenFieldEditor(fieldId)
               }}

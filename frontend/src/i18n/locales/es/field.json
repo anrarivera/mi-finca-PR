@@ -1,1 +1,161 @@
-{}
+{
+  "actions": {
+    "complete": "Completa",
+    "completeTitle": "Marcar como realizada",
+    "partial": "Parcial",
+    "partialTitle": "Registrar avance sin completar la labor",
+    "skip": "Omitir",
+    "edit": "Editar",
+    "editTitle": "Corregir fecha, cantidad o producto",
+    "undo": "Deshacer",
+    "undoTitle": "Deshacer — la labor vuelve a quedar pendiente",
+    "reactivate": "Reactivar",
+    "reactivateTitle": "Reactivar esta labor",
+    "delete": "Eliminar",
+    "cancel": "Cancelar",
+    "save": "Guardar"
+  },
+  "status": {
+    "overduePrefix": "Vencida — ",
+    "overdueWarnPrefix": "⚠️ Vencida — ",
+    "completedOn": "Completada el {{date}}"
+  },
+  "toast": {
+    "opLogged": "Operación registrada",
+    "opSkipped": "Operación omitida",
+    "opUndone": "Operación deshecha",
+    "opCorrected": "Operación corregida",
+    "partialLogged": "Avance parcial registrado",
+    "entryDeleted": "Registro eliminado",
+    "entryUpdated": "Registro actualizado"
+  },
+  "count": {
+    "overdue_one": "{{count}} vencida",
+    "overdue_other": "{{count}} vencidas",
+    "pending_one": "{{count}} pendiente",
+    "pending_other": "{{count}} pendientes",
+    "partialLogs_one": "{{count}} registro parcial",
+    "partialLogs_other": "{{count}} registros parciales",
+    "logged_one": "{{count}} registrada",
+    "logged_other": "{{count}} registradas",
+    "dueSoon14": "{{count}} en los próximos 14 días"
+  },
+  "card": {
+    "viewOnMap": "Ver en el mapa",
+    "unresolvedFindings": "Hallazgos sin resolver",
+    "dblClickAllOps": "Doble clic para ver todas las operaciones",
+    "showAsPin": "Mostrar como pin",
+    "showAsShape": "Mostrar como forma",
+    "opsButtonTitle": "Ver el calendario completo de labores",
+    "operations": "Operaciones",
+    "reportFindingTitle": "Registrar hallazgo de plaga o enfermedad",
+    "confirmDelete": "¿Eliminar \"{{name}}\"?",
+    "confirmDeleteYes": "Sí, eliminar"
+  },
+  "view": {
+    "header": "Operaciones — {{name}}",
+    "empty": "No hay operaciones todavía. Añade cultivos al campo para generar un calendario de operaciones."
+  },
+  "event": {
+    "plantedSummary_one": "{{count}} planta · Sembrada el {{date}}",
+    "plantedSummary_other": "{{count}} plantas · Sembradas el {{date}}"
+  },
+  "modal": {
+    "complete": {
+      "title": "Confirmar operación",
+      "confirm": "Confirmar",
+      "dateLabel": "Fecha de realización"
+    },
+    "partial": {
+      "title": "Registrar avance parcial",
+      "confirm": "Registrar avance",
+      "dateLabel": "Fecha del avance"
+    },
+    "edit": {
+      "title": "Editar operación",
+      "confirm": "Guardar cambios",
+      "dateLabel": "Fecha de realización"
+    },
+    "partialHint": "La labor seguirá pendiente — ideal para trabajos de varios días. Márcala completada cuando termines."
+  },
+  "form": {
+    "date": "Fecha",
+    "quantity": "Cantidad",
+    "product": "Producto",
+    "productUsed": "Producto utilizado",
+    "notes": "Notas",
+    "optional": "(opcional)",
+    "productPlaceholder": "Ej. Nitrato de amonio 21-0-0",
+    "notesPlaceholder": "Observaciones, condiciones del campo...",
+    "notesPlaceholderShort": "Observaciones..."
+  },
+  "selector": {
+    "harvestTitle": "¿Qué cosechaste?",
+    "scopeTitle": "¿Qué alcanzó esta labor?",
+    "none": "Ninguna",
+    "wholeField": "Todo el campo",
+    "rowLabel": "Hilera {{num}}",
+    "firstN": "Primeras",
+    "ofPlants_one": "de {{count}} planta",
+    "ofPlants_other": "de {{count}} plantas",
+    "plantLabel": "Planta {{num}}",
+    "freePlants": "Plantas sueltas",
+    "selectedSummary": "{{count}} de {{total}} plantas seleccionadas",
+    "hint": "Sin selección = todo el campo. Marca hileras completas, expande una hilera para plantas individuales, o usa \"Primeras N\"."
+  },
+  "calendar": {
+    "title": "Calendario de labores",
+    "exportTitle": "Descargar .ics para importar en Google Calendar",
+    "export": "Exportar",
+    "prevMonth": "Mes anterior",
+    "nextMonth": "Mes siguiente",
+    "addToGoogle": "Añadir a Google Calendar",
+    "weekdays": {
+      "sun": "dom",
+      "mon": "lun",
+      "tue": "mar",
+      "wed": "mié",
+      "thu": "jue",
+      "fri": "vie",
+      "sat": "sáb"
+    }
+  },
+  "log": {
+    "title": "Registro de operaciones",
+    "exportCsv": "Exportar CSV",
+    "nothingToExport": "No hay operaciones para exportar",
+    "downloadCsv": "Descargar CSV",
+    "loading": "Cargando registro...",
+    "empty": "Aún no has registrado operaciones en esta finca. Marca labores del calendario en el editor de campos y aparecerán aquí.",
+    "editEntry": "Editar registro",
+    "deleteEntry": "Eliminar registro",
+    "editModalTitle": "Editar registro",
+    "confirmDeleteTitle": "¿Eliminar este registro de {{type}}?",
+    "confirmDeleteLinked": "Si este registro completó una labor del calendario, la labor volverá a quedar pendiente. Las cosechas asociadas también se eliminarán.",
+    "confirmDeletePlain": "Este registro se eliminará del historial de operaciones."
+  },
+  "opType": {
+    "planting": "Siembra",
+    "fertilization": "Fertilización",
+    "spray": "Fumigación",
+    "cultivation": "Cultivo",
+    "irrigation": "Riego",
+    "flowering": "Floración",
+    "monitoring": "Monitoreo",
+    "harvest": "Cosecha",
+    "feeding": "Alimentación",
+    "health_treatment": "Tratamiento de salud",
+    "breeding": "Reproducción",
+    "production_record": "Registro de producción",
+    "other": "Otra labor"
+  },
+  "panel": {
+    "title": "Labores",
+    "subtitle": "cultivos y animales",
+    "overdue": "Vencidas",
+    "next14": "Próx. 14 días",
+    "completed": "Completadas",
+    "empty": "No hay labores vencidas ni próximas. 🎉",
+    "moreInNotebook": "y {{count}} más en el cuaderno de campo"
+  }
+}

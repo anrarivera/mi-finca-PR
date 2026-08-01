@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   ChevronLeft, ChevronRight, CalendarDays, CheckCircle2,
   Download, ExternalLink,
 } from 'lucide-react'
+import { dateLocale } from '@/i18n'
 import { getMonthGrid, collectOpsByDate } from '../utils/calendarGrid'
 import { buildOperationsICS, googleCalendarEventUrl } from '../utils/icsExport'
 import { getCropById } from '../data/cropLibrary'
@@ -14,13 +16,10 @@ import type { PlacedField } from '../types'
 // crop emojis; clicking a day lists its operations below the grid.
 // ──────────────────────────────────────────────────────────────────────────
 
-const MONTHS_ES = [
-  'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
-  'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre',
-]
-const WEEKDAYS_ES = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb']
+const WEEKDAY_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const
 
 export default function OperationsCalendar({ fields }: { fields: PlacedField[] }) {
+  const { t } = useTranslation('field')
   const today = todayISO()
   const [year, setYear] = useState(() => Number(today.slice(0, 4)))
   const [monthIndex, setMonthIndex] = useState(() => Number(today.slice(5, 7)) - 1)
@@ -57,29 +56,30 @@ export default function OperationsCalendar({ fields }: { fields: PlacedField[] }
       <div className="flex items-center justify-between px-5 py-4 border-b border-[#e0e8d8]">
         <div className="flex items-center gap-2">
           <CalendarDays size={16} className="text-[#639922]" />
-          <h2 className="text-sm font-semibold text-[#2d4a1e]">Calendario de labores</h2>
+          <h2 className="text-sm font-semibold text-[#2d4a1e]">{t('calendar.title')}</h2>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={handleExportICS}
-            title="Descargar .ics para importar en Google Calendar"
+            title={t('calendar.exportTitle')}
             className="flex items-center gap-1 px-2 py-1.5 text-[10px] text-[#639922] border border-[#c8dca8] rounded-lg hover:bg-[#eaf3de] transition-colors"
           >
-            <Download size={11} /> Exportar
+            <Download size={11} /> {t('calendar.export')}
           </button>
           <button
             onClick={() => shiftMonth(-1)}
-            aria-label="Mes anterior"
+            aria-label={t('calendar.prevMonth')}
             className="w-7 h-7 pointer-coarse:w-10 pointer-coarse:h-10 flex items-center justify-center rounded-lg text-[#9aab8a] hover:bg-[#f0f5e8] hover:text-[#2d4a1e] transition-colors"
           >
             <ChevronLeft size={15} />
           </button>
           <span className="text-xs font-semibold text-[#2d4a1e] w-32 text-center capitalize">
-            {MONTHS_ES[monthIndex]} {year}
+            {new Date(Date.UTC(year, monthIndex, 1))
+              .toLocaleDateString(dateLocale(), { month: 'long', timeZone: 'UTC' })} {year}
           </span>
           <button
             onClick={() => shiftMonth(1)}
-            aria-label="Mes siguiente"
+            aria-label={t('calendar.nextMonth')}
             className="w-7 h-7 pointer-coarse:w-10 pointer-coarse:h-10 flex items-center justify-center rounded-lg text-[#9aab8a] hover:bg-[#f0f5e8] hover:text-[#2d4a1e] transition-colors"
           >
             <ChevronRight size={15} />
@@ -90,9 +90,9 @@ export default function OperationsCalendar({ fields }: { fields: PlacedField[] }
       <div className="p-4">
         {/* Weekday headers */}
         <div className="grid grid-cols-7 mb-1">
-          {WEEKDAYS_ES.map(d => (
+          {WEEKDAY_KEYS.map(d => (
             <div key={d} className="text-center text-[10px] font-semibold text-[#9aab8a] uppercase py-1">
-              {d}
+              {t(`calendar.weekdays.${d}`)}
             </div>
           ))}
         </div>
@@ -165,7 +165,7 @@ export default function OperationsCalendar({ fields }: { fields: PlacedField[] }
                       href={googleCalendarEventUrl({ op, fieldName, cropTypeId })}
                       target="_blank"
                       rel="noopener noreferrer"
-                      title="Añadir a Google Calendar"
+                      title={t('calendar.addToGoogle')}
                       className="ml-auto shrink-0 flex items-center gap-1 text-[10px] text-[#9aab8a] hover:text-[#639922] transition-colors"
                     >
                       <ExternalLink size={11} /> Google

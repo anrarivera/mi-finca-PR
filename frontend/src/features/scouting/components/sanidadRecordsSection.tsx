@@ -1,13 +1,13 @@
 import { useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Bug, Download } from 'lucide-react'
 import { useFarmStore } from '@/store/useFarmStore'
 import { useFieldStore } from '@/store/useFieldStore'
 import { useFindings, useExportFindings } from '../hooks/useFindingsApi'
 import { getPestById } from '../data/pestLibrary'
-import {
-  SEVERITY_COLORS, SEVERITY_LABELS, FINDING_STATUS_LABELS, type Finding,
-} from '../types'
+import { SEVERITY_COLORS, type Finding } from '../types'
 import { findingScopeSummary } from '../utils/findingScope'
+import { dateLocale } from '@/i18n'
 
 // ──────────────────────────────────────────────────────────────────────────
 // Sanidad — cuaderno de campo section: the RECORDS half of the sanitary
@@ -19,6 +19,7 @@ import { findingScopeSummary } from '../utils/findingScope'
 // ──────────────────────────────────────────────────────────────────────────
 
 export default function SanidadRecordsSection() {
+  const { t } = useTranslation('scouting')
   const activeFarm = useFarmStore(s => s.activeFarm)
   const farmId = activeFarm?.id ?? null
   const allFields = useFieldStore(s => s.fields)
@@ -58,7 +59,7 @@ export default function SanidadRecordsSection() {
   const rowsFor = (f: Finding) => fields.find(x => x.id === f.fieldId)?.rows ?? []
 
   const fmtDate = (d: string) =>
-    new Date(d + 'T12:00:00').toLocaleDateString('es-PR', { day: 'numeric', month: 'short', year: 'numeric' })
+    new Date(d + 'T12:00:00').toLocaleDateString(dateLocale(), { day: 'numeric', month: 'short', year: 'numeric' })
 
   return (
     <section className="bg-white rounded-2xl border border-[#e0e8d8] overflow-hidden">
@@ -66,27 +67,26 @@ export default function SanidadRecordsSection() {
       {/* Header */}
       <div className="flex items-center gap-2 px-5 py-4 border-b border-[#e0e8d8]">
         <Bug size={16} className="text-[#b8860b]" />
-        <h2 className="text-sm font-semibold text-[#2d4a1e]">Registro sanitario</h2>
+        <h2 className="text-sm font-semibold text-[#2d4a1e]">{t('records.title')}</h2>
         <span className="text-xs text-[#9aab8a]">
-          {stats.all.length} {stats.all.length === 1 ? 'hallazgo' : 'hallazgos'}
+          {t('records.findingCount', { count: stats.all.length })}
           {activeFarm ? ` · ${activeFarm.name}` : ''}
         </span>
         {stats.all.length > 0 && (
           <button
             onClick={() => exportCsv.mutate()}
             disabled={exportCsv.isPending}
-            title="Descargar el registro sanitario completo (una fila por observación)"
+            title={t('records.exportTitle')}
             className="ml-auto flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] text-[#639922] border border-[#c8dca8] rounded-lg hover:bg-[#eaf3de] transition-colors disabled:opacity-50"
           >
-            <Download size={10} /> Exportar CSV
+            <Download size={10} /> {t('records.exportCsv')}
           </button>
         )}
       </div>
 
       {stats.all.length === 0 ? (
         <p className="px-5 py-6 text-xs text-[#9aab8a] text-center">
-          Sin hallazgos registrados todavía. Usa el botón 🐛 en las tarjetas
-          de campo del mapa para anotar plagas o enfermedades.
+          {t('records.empty')}
         </p>
       ) : (
         <>
@@ -97,14 +97,17 @@ export default function SanidadRecordsSection() {
               return (
                 <div key={r.pestId}
                   className="flex items-center gap-1.5 px-3 py-1.5 bg-[#f5f8f0] rounded-full"
-                  title={`${r.count} ${r.count === 1 ? 'hallazgo' : 'hallazgos'} en ${r.fieldIds.size} ${r.fieldIds.size === 1 ? 'campo' : 'campos'}`}
+                  title={t('records.recurrenceTooltip', {
+                    findings: t('records.findingCount', { count: r.count }),
+                    fields: t('records.fieldCount', { count: r.fieldIds.size }),
+                  })}
                 >
                   <span aria-hidden>{pest?.emoji ?? '🔍'}</span>
                   <span className="text-xs font-medium text-[#2d4a1e]">
                     {pest?.nameEs ?? r.pestId}
                   </span>
                   <span className="text-xs text-[#7a8a6a]">
-                    × {r.count} · últ. {fmtDate(r.lastDate)}
+                    {t('records.timesLast', { times: r.count, date: fmtDate(r.lastDate) })}
                   </span>
                 </div>
               )
@@ -131,7 +134,7 @@ export default function SanidadRecordsSection() {
                         className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full text-white shrink-0"
                         style={{ backgroundColor: SEVERITY_COLORS[f.severity] }}
                       >
-                        {SEVERITY_LABELS[f.severity]}
+                        {t(`severity.${f.severity}`)}
                       </span>
                       <span className={`text-[9px] font-medium px-1.5 py-0.5 rounded-full shrink-0 ${
                         resolved
@@ -140,14 +143,14 @@ export default function SanidadRecordsSection() {
                             ? 'bg-[#eaf3de] text-[#639922]'
                             : 'bg-red-50 text-red-500'
                       }`}>
-                        {FINDING_STATUS_LABELS[f.status]}
+                        {t(`status.${f.status}`)}
                       </span>
                     </div>
                     <p className="text-[10px] text-[#9aab8a] truncate">
                       {fieldName(f.fieldId)}
                       {' · '}{findingScopeSummary(f, rowsFor(f))}
-                      {obsCount > 1 && ` · ${obsCount} observaciones`}
-                      {f.treatmentRecommendedOperationId && ' · 💧 labor creada'}
+                      {obsCount > 1 && ` · ${t('records.obsCount', { count: obsCount })}`}
+                      {f.treatmentRecommendedOperationId && ` · ${t('laborCreated')}`}
                     </p>
                   </div>
                   <span className="text-[10px] font-semibold text-[#7a8a6a] shrink-0">

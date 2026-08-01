@@ -1,1 +1,161 @@
-{}
+{
+  "actions": {
+    "complete": "Complete",
+    "completeTitle": "Mark as done",
+    "partial": "Partial",
+    "partialTitle": "Log progress without completing the task",
+    "skip": "Skip",
+    "edit": "Edit",
+    "editTitle": "Correct date, quantity, or product",
+    "undo": "Undo",
+    "undoTitle": "Undo — the task goes back to pending",
+    "reactivate": "Reactivate",
+    "reactivateTitle": "Reactivate this task",
+    "delete": "Delete",
+    "cancel": "Cancel",
+    "save": "Save"
+  },
+  "status": {
+    "overduePrefix": "Overdue — ",
+    "overdueWarnPrefix": "⚠️ Overdue — ",
+    "completedOn": "Completed on {{date}}"
+  },
+  "toast": {
+    "opLogged": "Operation logged",
+    "opSkipped": "Operation skipped",
+    "opUndone": "Operation undone",
+    "opCorrected": "Operation corrected",
+    "partialLogged": "Partial progress logged",
+    "entryDeleted": "Entry deleted",
+    "entryUpdated": "Entry updated"
+  },
+  "count": {
+    "overdue_one": "{{count}} overdue",
+    "overdue_other": "{{count}} overdue",
+    "pending_one": "{{count}} pending",
+    "pending_other": "{{count}} pending",
+    "partialLogs_one": "{{count}} partial log",
+    "partialLogs_other": "{{count}} partial logs",
+    "logged_one": "{{count}} logged",
+    "logged_other": "{{count}} logged",
+    "dueSoon14": "{{count}} in the next 14 days"
+  },
+  "card": {
+    "viewOnMap": "View on the map",
+    "unresolvedFindings": "Unresolved findings",
+    "dblClickAllOps": "Double-click to see all operations",
+    "showAsPin": "Show as pin",
+    "showAsShape": "Show as shape",
+    "opsButtonTitle": "See the full task calendar",
+    "operations": "Operations",
+    "reportFindingTitle": "Report a pest or disease finding",
+    "confirmDelete": "Delete \"{{name}}\"?",
+    "confirmDeleteYes": "Yes, delete"
+  },
+  "view": {
+    "header": "Operations — {{name}}",
+    "empty": "No operations yet. Add crops to the field to generate an operations calendar."
+  },
+  "event": {
+    "plantedSummary_one": "{{count}} plant · Planted on {{date}}",
+    "plantedSummary_other": "{{count}} plants · Planted on {{date}}"
+  },
+  "modal": {
+    "complete": {
+      "title": "Confirm operation",
+      "confirm": "Confirm",
+      "dateLabel": "Completion date"
+    },
+    "partial": {
+      "title": "Log partial progress",
+      "confirm": "Log progress",
+      "dateLabel": "Progress date"
+    },
+    "edit": {
+      "title": "Edit operation",
+      "confirm": "Save changes",
+      "dateLabel": "Completion date"
+    },
+    "partialHint": "The task will stay pending — ideal for multi-day work. Mark it complete when you finish."
+  },
+  "form": {
+    "date": "Date",
+    "quantity": "Quantity",
+    "product": "Product",
+    "productUsed": "Product used",
+    "notes": "Notes",
+    "optional": "(optional)",
+    "productPlaceholder": "e.g. Ammonium nitrate 21-0-0",
+    "notesPlaceholder": "Observations, field conditions...",
+    "notesPlaceholderShort": "Observations..."
+  },
+  "selector": {
+    "harvestTitle": "What did you harvest?",
+    "scopeTitle": "What did this task cover?",
+    "none": "None",
+    "wholeField": "Whole field",
+    "rowLabel": "Row {{num}}",
+    "firstN": "First",
+    "ofPlants_one": "of {{count}} plant",
+    "ofPlants_other": "of {{count}} plants",
+    "plantLabel": "Plant {{num}}",
+    "freePlants": "Loose plants",
+    "selectedSummary": "{{count}} of {{total}} plants selected",
+    "hint": "No selection = the whole field. Check full rows, expand a row for individual plants, or use \"First N\"."
+  },
+  "calendar": {
+    "title": "Task calendar",
+    "exportTitle": "Download an .ics file to import into Google Calendar",
+    "export": "Export",
+    "prevMonth": "Previous month",
+    "nextMonth": "Next month",
+    "addToGoogle": "Add to Google Calendar",
+    "weekdays": {
+      "sun": "sun",
+      "mon": "mon",
+      "tue": "tue",
+      "wed": "wed",
+      "thu": "thu",
+      "fri": "fri",
+      "sat": "sat"
+    }
+  },
+  "log": {
+    "title": "Operations log",
+    "exportCsv": "Export CSV",
+    "nothingToExport": "No operations to export",
+    "downloadCsv": "Download CSV",
+    "loading": "Loading log...",
+    "empty": "You haven't logged any operations on this farm yet. Check off calendar tasks in the field editor and they will appear here.",
+    "editEntry": "Edit entry",
+    "deleteEntry": "Delete entry",
+    "editModalTitle": "Edit entry",
+    "confirmDeleteTitle": "Delete this {{type}} entry?",
+    "confirmDeleteLinked": "If this entry completed a calendar task, the task will go back to pending. Linked harvests will also be deleted.",
+    "confirmDeletePlain": "This entry will be removed from the operations history."
+  },
+  "opType": {
+    "planting": "Planting",
+    "fertilization": "Fertilization",
+    "spray": "Spraying",
+    "cultivation": "Cultivation",
+    "irrigation": "Irrigation",
+    "flowering": "Flowering",
+    "monitoring": "Monitoring",
+    "harvest": "Harvest",
+    "feeding": "Feeding",
+    "health_treatment": "Health treatment",
+    "breeding": "Breeding",
+    "production_record": "Production record",
+    "other": "Other task"
+  },
+  "panel": {
+    "title": "Tasks",
+    "subtitle": "crops and animals",
+    "overdue": "Overdue",
+    "next14": "Next 14 days",
+    "completed": "Completed",
+    "empty": "No overdue or upcoming tasks. 🎉",
+    "moreInNotebook": "and {{count}} more in the field notebook"
+  }
+}

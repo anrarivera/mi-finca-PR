@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Plus, Pencil, Trash2, PawPrint } from 'lucide-react'
 import { useLivestockStore } from '@/store/useLivestockStore'
 import { useCreateLivestock, useUpdateLivestock, useDeleteLivestock } from '../hooks/useLivestockApi'
@@ -16,6 +17,7 @@ import type { AnimalType, LivestockUnit } from '../types'
 // ──────────────────────────────────────────────────────────────────────────
 
 export default function LivestockSection() {
+  const { t } = useTranslation('editor')
   const units = useLivestockStore(s => s.units)
   const farms = useFarmStore(s => s.farms)
   const { confirm, confirmDialog } = useConfirm()
@@ -30,15 +32,17 @@ export default function LivestockSection() {
   async function handleDelete(unit: LivestockUnit) {
     const animal = getAnimalById(unit.animalType)
     const ok = await confirm({
-      title: `¿Eliminar "${unit.name}"?`,
-      message: `Se eliminará este grupo de ${animal?.nameEs.toLowerCase() ?? 'animales'} de tu inventario.`,
-      confirmLabel: 'Eliminar',
+      title: t('livestock.deleteTitle', { name: unit.name }),
+      message: t('livestock.deleteMessage', {
+        animal: animal?.nameEs.toLowerCase() ?? t('livestock.animalsFallback'),
+      }),
+      confirmLabel: t('livestock.delete'),
       danger: true,
     })
     if (!ok) return
     deleteLivestock.mutate(
       { id: unit.id, farmId: unit.farmId },
-      { onSuccess: () => toast.success(`"${unit.name}" eliminado`) }
+      { onSuccess: () => toast.success(t('livestock.deleted', { name: unit.name })) }
     )
   }
 
@@ -47,10 +51,10 @@ export default function LivestockSection() {
       <div className="flex items-center justify-between px-5 py-4 border-b border-[#e0e8d8]">
         <div className="flex items-center gap-2">
           <PawPrint size={16} className="text-[#639922]" />
-          <h2 className="text-sm font-semibold text-[#2d4a1e]">Animales</h2>
+          <h2 className="text-sm font-semibold text-[#2d4a1e]">{t('livestock.title')}</h2>
           {units.length > 0 && (
             <span className="text-xs text-[#9aab8a]">
-              {units.reduce((s, u) => s + u.currentCount, 0)} en total
+              {t('livestock.total', { count: units.reduce((s, u) => s + u.currentCount, 0) })}
             </span>
           )}
         </div>
@@ -58,9 +62,9 @@ export default function LivestockSection() {
           onClick={() => setEditing('new')}
           disabled={farms.length === 0}
           className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-[#2d4a1e] text-[#d4e8b0] rounded-lg hover:bg-[#3d6128] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-          title={farms.length === 0 ? 'Crea una finca primero' : undefined}
+          title={farms.length === 0 ? t('livestock.createFarmFirst') : undefined}
         >
-          <Plus size={12} /> Añadir animales
+          <Plus size={12} /> {t('livestock.add')}
         </button>
       </div>
 
@@ -69,8 +73,8 @@ export default function LivestockSection() {
           <p className="text-3xl mb-2">🐔🐐🐝</p>
           <p className="text-xs text-[#9aab8a]">
             {farms.length === 0
-              ? 'Crea una finca para empezar a registrar tus animales.'
-              : 'No tienes animales registrados. Añade gallinas, cabras, abejas y más.'}
+              ? t('livestock.emptyNoFarm')
+              : t('livestock.emptyNoUnits')}
           </p>
         </div>
       ) : (
@@ -84,21 +88,21 @@ export default function LivestockSection() {
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-[#2d4a1e] truncate">{unit.name}</p>
                   <p className="text-[11px] text-[#9aab8a] truncate">
-                    {unit.currentCount} {animal ? (unit.currentCount === 1 ? animal.singularEs : animal.nameEs.toLowerCase()) : 'animales'}
+                    {unit.currentCount} {animal ? (unit.currentCount === 1 ? animal.singularEs : animal.nameEs.toLowerCase()) : t('livestock.animalsFallback')}
                     {farm ? ` · ${farm.name}` : ''}
                     {unit.notes ? ` · ${unit.notes}` : ''}
                   </p>
                 </div>
                 <button
                   onClick={() => setEditing(unit)}
-                  aria-label={`Editar ${unit.name}`}
+                  aria-label={t('livestock.editAria', { name: unit.name })}
                   className="w-7 h-7 pointer-coarse:w-10 pointer-coarse:h-10 flex items-center justify-center rounded-lg text-[#9aab8a] hover:text-[#2d4a1e] hover:bg-[#f0f5e8] transition-colors"
                 >
                   <Pencil size={13} />
                 </button>
                 <button
                   onClick={() => handleDelete(unit)}
-                  aria-label={`Eliminar ${unit.name}`}
+                  aria-label={t('livestock.deleteAria', { name: unit.name })}
                   className="w-7 h-7 pointer-coarse:w-10 pointer-coarse:h-10 flex items-center justify-center rounded-lg text-[#9aab8a] hover:text-red-500 hover:bg-red-50 transition-colors"
                 >
                   <Trash2 size={13} />
@@ -118,14 +122,14 @@ export default function LivestockSection() {
             if (editing === 'new') {
               // Server assigns the UUID — no more local `lv_` ids.
               createLivestock.mutate(data, {
-                onSuccess: () => toast.success(`"${data.name}" añadido`),
+                onSuccess: () => toast.success(t('livestock.added', { name: data.name })),
               })
             } else {
               // farmId is fixed on edit (units can't move between farms).
               const { farmId: _ignored, ...updates } = data
               updateLivestock.mutate(
                 { id: editing.id, farmId: editing.farmId, updates },
-                { onSuccess: () => toast.success(`"${data.name}" actualizado`) }
+                { onSuccess: () => toast.success(t('livestock.updated', { name: data.name })) }
               )
             }
             setEditing(null)
@@ -147,6 +151,7 @@ function LivestockFormModal({
   onClose: () => void
   onSave: (data: Omit<LivestockUnit, 'id'>) => void
 }) {
+  const { t } = useTranslation('editor')
   const [animalType, setAnimalType] = useState<AnimalType>(unit?.animalType ?? 'chickens')
   const [name, setName] = useState(unit?.name ?? '')
   const [farmId, setFarmId] = useState(unit?.farmId ?? farms[0]?.id ?? '')
@@ -179,17 +184,17 @@ function LivestockFormModal({
 
           <div className="px-6 py-4 border-b border-[#e0e8d8]">
             <h2 className="text-[#2d4a1e] font-semibold text-base">
-              {unit ? 'Editar animales' : 'Añadir animales'}
+              {unit ? t('livestock.editTitle') : t('livestock.addTitle')}
             </h2>
             <p className="text-[#9aab8a] text-xs mt-0.5">
-              Registra un grupo de animales de tu finca
+              {t('livestock.formSubtitle')}
             </p>
           </div>
 
           <div className="px-6 py-5 flex flex-col gap-4">
             {/* Animal type selector */}
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-[#5a6a4a]">Tipo de animal</label>
+              <label className="text-xs font-medium text-[#5a6a4a]">{t('livestock.animalType')}</label>
               <div className="grid grid-cols-3 gap-2">
                 {ANIMAL_LIBRARY.map(a => (
                   <button
@@ -211,11 +216,11 @@ function LivestockFormModal({
 
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-[#5a6a4a]">
-                Nombre del grupo <span className="text-red-400">*</span>
+                {t('livestock.groupName')} <span className="text-red-400">*</span>
               </label>
               <input
                 type="text"
-                placeholder={selectedAnimal?.unitNamePlaceholder ?? 'Ej. Gallinero principal'}
+                placeholder={selectedAnimal?.unitNamePlaceholder ?? t('livestock.groupNamePlaceholder')}
                 value={name}
                 onChange={e => setName(e.target.value)}
                 className={inputClass}
@@ -224,7 +229,7 @@ function LivestockFormModal({
 
             {farms.length > 1 && (
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-[#5a6a4a]">Finca</label>
+                <label className="text-xs font-medium text-[#5a6a4a]">{t('livestock.farm')}</label>
                 {/* The farm is fixed once a unit exists — the API scopes
                     livestock under its owning farm (no cross-farm moves). */}
                 <select
@@ -243,7 +248,7 @@ function LivestockFormModal({
             <div className="grid grid-cols-2 gap-3">
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-medium text-[#5a6a4a]">
-                  Cantidad <span className="text-red-400">*</span>
+                  {t('livestock.count')} <span className="text-red-400">*</span>
                 </label>
                 <input
                   type="number"
@@ -254,7 +259,7 @@ function LivestockFormModal({
                 />
               </div>
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-[#5a6a4a]">Fecha de adquisición</label>
+                <label className="text-xs font-medium text-[#5a6a4a]">{t('livestock.acquisitionDate')}</label>
                 <input
                   type="date"
                   value={acquisitionDate}
@@ -265,10 +270,10 @@ function LivestockFormModal({
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-[#5a6a4a]">Notas</label>
+              <label className="text-xs font-medium text-[#5a6a4a]">{t('livestock.notes')}</label>
               <input
                 type="text"
-                placeholder="Ej. Ponedoras Rhode Island Red"
+                placeholder={t('livestock.notesPlaceholder')}
                 value={notes}
                 onChange={e => setNotes(e.target.value)}
                 className={inputClass}
@@ -281,14 +286,14 @@ function LivestockFormModal({
               onClick={onClose}
               className="px-4 py-2 text-sm text-[#5a6a4a] hover:bg-[#f0f5e8] rounded-lg transition-colors"
             >
-              Cancelar
+              {t('common.cancel')}
             </button>
             <button
               onClick={handleSubmit}
               disabled={!valid}
               className="px-4 py-2 text-sm bg-[#2d4a1e] text-[#d4e8b0] rounded-lg hover:bg-[#3d6128] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              {unit ? 'Guardar cambios' : 'Añadir'}
+              {unit ? t('livestock.saveChanges') : t('livestock.addButton')}
             </button>
           </div>
 

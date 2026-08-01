@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import {
   Package, Sprout, AlertCircle, Clock, CheckCircle2, ClipboardList,
   ChevronDown, ChevronRight, ArrowUpDown, Wheat, Rows3, TreeDeciduous,
@@ -13,6 +14,7 @@ import {
   type InventoryRow, type InventoryStatus,
 } from '@/features/inventory/inventoryBuilder'
 import { formatRelativeDaysEs } from '@/features/notifications/notificationBuilder'
+import { dateLocale } from '@/i18n'
 import OperationsLogSection from '@/features/field/components/operationsLogSection'
 import OperationsCalendar from '@/features/field/components/operationsCalendar'
 import HarvestLogSection from '@/features/field/components/harvestLogSection'
@@ -29,38 +31,40 @@ import LivestockSection from '@/features/livestock/components/livestockSection'
 
 type CuadernoTab = 'siembras' | 'labores' | 'cosechas' | 'sanidad' | 'animales'
 
-const TABS: Array<{ id: CuadernoTab; label: string; icon: React.ReactNode }> = [
-  { id: 'siembras', label: 'Siembras', icon: <Package size={13} /> },
-  { id: 'labores', label: 'Labores', icon: <CalendarDays size={13} /> },
-  { id: 'cosechas', label: 'Cosechas', icon: <Wheat size={13} /> },
-  { id: 'sanidad', label: 'Sanidad', icon: <Bug size={13} /> },
-  { id: 'animales', label: 'Animales', icon: <PawPrint size={13} /> },
+// labelKey resolves in the 'pages' namespace (inventory.tabs.*).
+const TABS: Array<{ id: CuadernoTab; labelKey: string; icon: React.ReactNode }> = [
+  { id: 'siembras', labelKey: 'inventory.tabs.siembras', icon: <Package size={13} /> },
+  { id: 'labores', labelKey: 'inventory.tabs.labores', icon: <CalendarDays size={13} /> },
+  { id: 'cosechas', labelKey: 'inventory.tabs.cosechas', icon: <Wheat size={13} /> },
+  { id: 'sanidad', labelKey: 'inventory.tabs.sanidad', icon: <Bug size={13} /> },
+  { id: 'animales', labelKey: 'inventory.tabs.animales', icon: <PawPrint size={13} /> },
 ]
 
 type SortKey = 'crop' | 'field' | 'plants' | 'planted' | 'nextOp' | 'harvest'
 type SortDir = 'asc' | 'desc'
 
-const STATUS_META: Record<InventoryStatus, { label: string; classes: string }> = {
-  overdue: { label: 'Vencidas', classes: 'bg-red-50 text-red-600' },
-  dueSoon: { label: 'Próximas', classes: 'bg-amber-50 text-amber-600' },
-  ok: { label: 'Al día', classes: 'bg-[#eaf3de] text-[#639922]' },
-  done: { label: 'Completado', classes: 'bg-gray-100 text-gray-500' },
+const STATUS_META: Record<InventoryStatus, { labelKey: string; classes: string }> = {
+  overdue: { labelKey: 'inventory.status.overdue', classes: 'bg-red-50 text-red-600' },
+  dueSoon: { labelKey: 'inventory.status.dueSoon', classes: 'bg-amber-50 text-amber-600' },
+  ok: { labelKey: 'inventory.status.ok', classes: 'bg-[#eaf3de] text-[#639922]' },
+  done: { labelKey: 'inventory.status.done', classes: 'bg-gray-100 text-gray-500' },
 }
 
 const SOURCE_META = {
-  rows: { label: 'Hileras', icon: <Rows3 size={11} /> },
-  plants: { label: 'Plantas', icon: <TreeDeciduous size={11} /> },
-  mixed: { label: 'Mixto', icon: <Sprout size={11} /> },
+  rows: { labelKey: 'inventory.source.rows', icon: <Rows3 size={11} /> },
+  plants: { labelKey: 'inventory.source.plants', icon: <TreeDeciduous size={11} /> },
+  mixed: { labelKey: 'inventory.source.mixed', icon: <Sprout size={11} /> },
 } as const
 
 function formatDateEs(iso: string): string {
   const [y, m, d] = iso.split('-').map(Number)
-  return new Date(y, m - 1, d).toLocaleDateString('es-PR', {
+  return new Date(y, m - 1, d).toLocaleDateString(dateLocale(), {
     day: 'numeric', month: 'short', year: 'numeric',
   })
 }
 
 export default function InventoryPage() {
+  const { t } = useTranslation('pages')
   const farms = useFarmStore(s => s.farms)
   const fields = useFieldStore(s => s.fields)
 
@@ -114,25 +118,25 @@ export default function InventoryPage() {
   return (
     <div className="max-w-6xl mx-auto flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-bold text-[#2d4a1e]">Cuaderno de campo</h1>
+        <h1 className="text-2xl font-bold text-[#2d4a1e]">{t('inventory.title')}</h1>
         <p className="text-sm text-[#9aab8a] mt-1">
-          El registro de tu finca: siembras, labores, cosechas y sanidad
+          {t('inventory.subtitle')}
         </p>
       </div>
 
       {/* Tab bar */}
       <div className="flex flex-wrap border-b border-[#e0e8d8]">
-        {TABS.map(t => (
+        {TABS.map(tabDef => (
           <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
+            key={tabDef.id}
+            onClick={() => setTab(tabDef.id)}
             className={`flex items-center gap-1.5 px-4 py-2.5 text-xs border-b-2 -mb-px transition-colors ${
-              tab === t.id
+              tab === tabDef.id
                 ? 'text-[#2d4a1e] border-[#639922] font-semibold'
                 : 'text-[#9aab8a] border-transparent hover:text-[#5a6a4a]'
             }`}
           >
-            {t.icon} {t.label}
+            {tabDef.icon} {t(tabDef.labelKey)}
           </button>
         ))}
       </div>
@@ -159,28 +163,27 @@ export default function InventoryPage() {
         <div className="bg-white rounded-2xl border border-[#e0e8d8] px-6 py-12 text-center">
           <p className="text-4xl mb-3">📦</p>
           <h2 className="text-base font-semibold text-[#2d4a1e] mb-1">
-            El inventario está vacío
+            {t('inventory.empty.title')}
           </h2>
           <p className="text-sm text-[#9aab8a] mb-4">
-            Siembra cultivos en tus campos desde el mapa y aparecerán aquí con
-            sus operaciones y proyecciones.
+            {t('inventory.empty.description')}
           </p>
           <Link
             to="/"
             className="inline-block px-4 py-2 text-sm bg-[#2d4a1e] text-[#d4e8b0] rounded-lg hover:bg-[#3d6128] transition-colors"
           >
-            Ir al mapa
+            {t('inventory.empty.goToMap')}
           </Link>
         </div>
       ) : (
         <>
           {/* ── Roll-up tiles ──────────────────────────────────────── */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-            <StatTile icon={<Package size={16} />} label="Siembras" value={String(summary.plantings)} />
-            <StatTile icon={<Sprout size={16} />} label="Plantas" value={summary.plants.toLocaleString()} />
-            <StatTile icon={<Wheat size={16} />} label="Cultivos" value={String(summary.crops)} />
-            <StatTile icon={<AlertCircle size={16} />} label="Ops. vencidas" value={String(summary.overdue)} alert={summary.overdue > 0} />
-            <StatTile icon={<ClipboardList size={16} />} label="Ops. pendientes" value={String(summary.pending)} />
+            <StatTile icon={<Package size={16} />} label={t('inventory.tiles.plantings')} value={String(summary.plantings)} />
+            <StatTile icon={<Sprout size={16} />} label={t('inventory.tiles.plants')} value={summary.plants.toLocaleString()} />
+            <StatTile icon={<Wheat size={16} />} label={t('inventory.tiles.crops')} value={String(summary.crops)} />
+            <StatTile icon={<AlertCircle size={16} />} label={t('inventory.tiles.overdueOps')} value={String(summary.overdue)} alert={summary.overdue > 0} />
+            <StatTile icon={<ClipboardList size={16} />} label={t('inventory.tiles.pendingOps')} value={String(summary.pending)} />
           </div>
 
           {/* ── Filters ────────────────────────────────────────────── */}
@@ -190,7 +193,7 @@ export default function InventoryPage() {
               onChange={e => setFarmFilter(e.target.value)}
               className="px-3 py-2 text-xs text-[#2d4a1e] bg-white border border-[#c8dca8] rounded-lg focus:outline-none focus:border-[#639922]"
             >
-              <option value="all">Todas las fincas</option>
+              <option value="all">{t('inventory.filters.allFarms')}</option>
               {farms.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
             </select>
             <select
@@ -198,7 +201,7 @@ export default function InventoryPage() {
               onChange={e => setCropFilter(e.target.value)}
               className="px-3 py-2 text-xs text-[#2d4a1e] bg-white border border-[#c8dca8] rounded-lg focus:outline-none focus:border-[#639922]"
             >
-              <option value="all">Todos los cultivos</option>
+              <option value="all">{t('inventory.filters.allCrops')}</option>
               {presentCrops.map(({ id, crop }) => (
                 <option key={id} value={id}>
                   {crop ? `${crop.emoji} ${crop.nameEs}` : id}
@@ -210,14 +213,14 @@ export default function InventoryPage() {
               onChange={e => setStatusFilter(e.target.value as 'all' | InventoryStatus)}
               className="px-3 py-2 text-xs text-[#2d4a1e] bg-white border border-[#c8dca8] rounded-lg focus:outline-none focus:border-[#639922]"
             >
-              <option value="all">Todos los estados</option>
-              <option value="overdue">Con operaciones vencidas</option>
-              <option value="dueSoon">Con operaciones próximas</option>
-              <option value="ok">Al día</option>
-              <option value="done">Completadas</option>
+              <option value="all">{t('inventory.filters.allStatuses')}</option>
+              <option value="overdue">{t('inventory.filters.withOverdue')}</option>
+              <option value="dueSoon">{t('inventory.filters.withDueSoon')}</option>
+              <option value="ok">{t('inventory.filters.ok')}</option>
+              <option value="done">{t('inventory.filters.done')}</option>
             </select>
             <span className="ml-auto text-[11px] text-[#9aab8a]">
-              {rows.length} de {allRows.length} siembras
+              {t('inventory.shownCount', { shown: rows.length, count: allRows.length })}
             </span>
           </div>
 
@@ -239,14 +242,14 @@ export default function InventoryPage() {
                 <thead>
                   <tr className="border-b border-[#e0e8d8] bg-[#f5f8f0] text-left">
                     <th className="w-8" />
-                    <SortableTh label="Cultivo" active={sortKey === 'crop'} dir={sortDir} onClick={() => toggleSort('crop')} />
-                    <SortableTh label="Finca / Campo" active={sortKey === 'field'} dir={sortDir} onClick={() => toggleSort('field')} />
-                    <th className="px-3 py-3 font-semibold text-[#5a6a4a]">Origen</th>
-                    <SortableTh label="Plantas" active={sortKey === 'plants'} dir={sortDir} onClick={() => toggleSort('plants')} />
-                    <SortableTh label="Sembrado" active={sortKey === 'planted'} dir={sortDir} onClick={() => toggleSort('planted')} />
-                    <th className="px-3 py-3 font-semibold text-[#5a6a4a]">Estado</th>
-                    <SortableTh label="Próxima operación" active={sortKey === 'nextOp'} dir={sortDir} onClick={() => toggleSort('nextOp')} />
-                    <SortableTh label="Ventana de cosecha" active={sortKey === 'harvest'} dir={sortDir} onClick={() => toggleSort('harvest')} />
+                    <SortableTh label={t('inventory.columns.crop')} active={sortKey === 'crop'} dir={sortDir} onClick={() => toggleSort('crop')} />
+                    <SortableTh label={t('inventory.columns.farmField')} active={sortKey === 'field'} dir={sortDir} onClick={() => toggleSort('field')} />
+                    <th className="px-3 py-3 font-semibold text-[#5a6a4a]">{t('inventory.columns.source')}</th>
+                    <SortableTh label={t('inventory.columns.plants')} active={sortKey === 'plants'} dir={sortDir} onClick={() => toggleSort('plants')} />
+                    <SortableTh label={t('inventory.columns.planted')} active={sortKey === 'planted'} dir={sortDir} onClick={() => toggleSort('planted')} />
+                    <th className="px-3 py-3 font-semibold text-[#5a6a4a]">{t('inventory.columns.status')}</th>
+                    <SortableTh label={t('inventory.columns.nextOp')} active={sortKey === 'nextOp'} dir={sortDir} onClick={() => toggleSort('nextOp')} />
+                    <SortableTh label={t('inventory.columns.harvestWindow')} active={sortKey === 'harvest'} dir={sortDir} onClick={() => toggleSort('harvest')} />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#f0f5e8]">
@@ -263,7 +266,7 @@ export default function InventoryPage() {
             </div>
             {rows.length === 0 && (
               <p className="px-5 py-8 text-center text-xs text-[#9aab8a]">
-                Ninguna siembra coincide con los filtros.
+                {t('inventory.noMatch')}
               </p>
             )}
           </section>
@@ -300,6 +303,7 @@ function InventoryRowView({ row, expanded, onToggle }: {
   expanded: boolean
   onToggle: () => void
 }) {
+  const { t } = useTranslation('pages')
   const crop = getCropById(row.cropTypeId)
   const status = STATUS_META[row.status]
   const source = SOURCE_META[row.source]
@@ -325,18 +329,18 @@ function InventoryRowView({ row, expanded, onToggle }: {
         </td>
         <td className="px-3 py-3">
           <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-[#f5f8f0] rounded text-[10px] text-[#5a6a4a]">
-            {source.icon} {source.label}
+            {source.icon} {t(source.labelKey)}
             {row.rowCount > 0 && ` (${row.rowCount})`}
           </span>
         </td>
         <td className="px-3 py-3 font-medium text-[#2d4a1e]">{row.plantCount.toLocaleString()}</td>
         <td className="px-3 py-3 text-[#5a6a4a]">
           {formatDateEs(row.plantingDate)}
-          <span className="block text-[10px] text-[#9aab8a]">{row.ageDays} días</span>
+          <span className="block text-[10px] text-[#9aab8a]">{t('inventory.ageDays', { count: row.ageDays })}</span>
         </td>
         <td className="px-3 py-3">
           <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold ${status.classes}`}>
-            {status.label}
+            {t(status.labelKey)}
           </span>
         </td>
         <td className="px-3 py-3">
@@ -344,13 +348,13 @@ function InventoryRowView({ row, expanded, onToggle }: {
             <>
               <span className="block text-[#2d4a1e] truncate max-w-44">{row.nextOp.labelEs}</span>
               <span className={`block text-[10px] ${row.nextOp.daysFromToday < 0 ? 'text-red-500 font-semibold' : 'text-[#9aab8a]'}`}>
-                {row.nextOp.daysFromToday < 0 ? 'vencida ' : ''}
+                {row.nextOp.daysFromToday < 0 ? `${t('inventory.overduePrefix')} ` : ''}
                 {formatRelativeDaysEs(row.nextOp.daysFromToday)}
-                {row.pendingOpsCount > 1 && ` · ${row.pendingOpsCount} pendientes`}
+                {row.pendingOpsCount > 1 && ` · ${t('inventory.pendingCount', { count: row.pendingOpsCount })}`}
               </span>
             </>
           ) : (
-            <span className="text-[10px] text-[#9aab8a]">Sin pendientes</span>
+            <span className="text-[10px] text-[#9aab8a]">{t('inventory.noPending')}</span>
           )}
         </td>
         <td className="px-3 py-3 text-[#5a6a4a]">
@@ -358,7 +362,7 @@ function InventoryRowView({ row, expanded, onToggle }: {
             <>
               {formatDateEs(row.harvestWindow.start)}
               <span className="block text-[10px] text-[#9aab8a]">
-                hasta {formatDateEs(row.harvestWindow.end)}
+                {t('inventory.until', { date: formatDateEs(row.harvestWindow.end) })}
               </span>
             </>
           ) : (
@@ -383,17 +387,18 @@ function InventoryRowView({ row, expanded, onToggle }: {
 function SiembraOperationsList({ operations }: {
   operations: InventoryRow['operations']
 }) {
+  const { t } = useTranslation('pages')
   if (operations.length === 0) {
     return (
       <p className="text-[11px] text-[#9aab8a]">
-        Esta siembra no tiene operaciones programadas.
+        {t('inventory.noOperations')}
       </p>
     )
   }
   return (
     <div className="flex flex-col gap-1.5">
       <p className="text-[10px] font-semibold text-[#5a6a4a] uppercase tracking-wide">
-        Operaciones de esta siembra
+        {t('inventory.operationsTitle')}
       </p>
       {operations.map(op => {
         const done = op.status === 'completed' || op.status === 'skipped'
@@ -413,7 +418,7 @@ function SiembraOperationsList({ operations }: {
             <span className="text-[#9aab8a]">
               · {formatDateEs(op.date)}
               {!done && ` (${formatRelativeDaysEs(op.daysFromToday)})`}
-              {op.status === 'skipped' && ' (omitida)'}
+              {op.status === 'skipped' && ` (${t('inventory.skipped')})`}
             </span>
           </div>
         )
@@ -429,6 +434,7 @@ function InventoryCardView({ row, expanded, onToggle }: {
   expanded: boolean
   onToggle: () => void
 }) {
+  const { t } = useTranslation('pages')
   const crop = getCropById(row.cropTypeId)
   const status = STATUS_META[row.status]
   const source = SOURCE_META[row.source]
@@ -444,7 +450,7 @@ function InventoryCardView({ row, expanded, onToggle }: {
           {crop?.nameEs ?? row.cropTypeId}
         </span>
         <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold shrink-0 ${status.classes}`}>
-          {status.label}
+          {t(status.labelKey)}
         </span>
         {expanded
           ? <ChevronDown size={13} className="text-[#9aab8a] shrink-0" />
@@ -456,11 +462,11 @@ function InventoryCardView({ row, expanded, onToggle }: {
       </p>
 
       <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-[11px] text-[#5a6a4a]">
-        <span>{source.icon} {source.label}{row.rowCount > 0 && ` (${row.rowCount})`}</span>
+        <span>{source.icon} {t(source.labelKey)}{row.rowCount > 0 && ` (${row.rowCount})`}</span>
         <span className="font-medium text-[#2d4a1e]">
-          {row.plantCount.toLocaleString()} plantas
+          {t('inventory.plantsCount', { count: row.plantCount })}
         </span>
-        <span>{formatDateEs(row.plantingDate)} · {row.ageDays} días</span>
+        <span>{formatDateEs(row.plantingDate)} · {t('inventory.ageDays', { count: row.ageDays })}</span>
       </div>
 
       <div className="mt-1.5 text-[11px]">
@@ -468,17 +474,20 @@ function InventoryCardView({ row, expanded, onToggle }: {
           <span>
             <span className="text-[#2d4a1e]">{row.nextOp.labelEs}</span>{' '}
             <span className={row.nextOp.daysFromToday < 0 ? 'text-red-500 font-semibold' : 'text-[#9aab8a]'}>
-              · {row.nextOp.daysFromToday < 0 ? 'vencida ' : ''}
+              · {row.nextOp.daysFromToday < 0 ? `${t('inventory.overduePrefix')} ` : ''}
               {formatRelativeDaysEs(row.nextOp.daysFromToday)}
-              {row.pendingOpsCount > 1 && ` · ${row.pendingOpsCount} pendientes`}
+              {row.pendingOpsCount > 1 && ` · ${t('inventory.pendingCount', { count: row.pendingOpsCount })}`}
             </span>
           </span>
         ) : (
-          <span className="text-[#9aab8a]">Sin operaciones pendientes</span>
+          <span className="text-[#9aab8a]">{t('inventory.noPendingOps')}</span>
         )}
         {row.harvestWindow && (
           <span className="block text-[10px] text-[#9aab8a] mt-0.5">
-            Cosecha: {formatDateEs(row.harvestWindow.start)} – {formatDateEs(row.harvestWindow.end)}
+            {t('inventory.harvestRange', {
+              start: formatDateEs(row.harvestWindow.start),
+              end: formatDateEs(row.harvestWindow.end),
+            })}
           </span>
         )}
       </div>

@@ -1,16 +1,16 @@
 import { useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Bug, TrendingDown, TrendingUp, MoveRight } from 'lucide-react'
 import { useFarmStore } from '@/store/useFarmStore'
 import { useFieldStore } from '@/store/useFieldStore'
 import { useFindings } from '../hooks/useFindingsApi'
 import { getPestById } from '../data/pestLibrary'
-import {
-  SEVERITY_COLORS, SEVERITY_LABELS, type Finding,
-} from '../types'
+import { SEVERITY_COLORS, type Finding } from '../types'
 import {
   fieldHealth, findingExtentPct, findingTrend,
   FIELD_HEALTH_COLORS,
 } from '../utils/fieldHealth'
+import { dateLocale } from '@/i18n'
 
 // ──────────────────────────────────────────────────────────────────────────
 // Sanidad — dashboard section (Panel de control): the ALERT half of the
@@ -26,6 +26,7 @@ import {
 const ACTIVE_LIMIT = 8
 
 export default function SanidadSection() {
+  const { t } = useTranslation('scouting')
   const activeFarm = useFarmStore(s => s.activeFarm)
   const farmId = activeFarm?.id ?? null
   const allFields = useFieldStore(s => s.fields)
@@ -74,7 +75,7 @@ export default function SanidadSection() {
   }
 
   const fmtDate = (d: string) =>
-    new Date(d + 'T12:00:00').toLocaleDateString('es-PR', { day: 'numeric', month: 'short' })
+    new Date(d + 'T12:00:00').toLocaleDateString(dateLocale(), { day: 'numeric', month: 'short' })
 
   return (
     <section className="bg-white rounded-2xl border border-[#e0e8d8] overflow-hidden">
@@ -82,33 +83,31 @@ export default function SanidadSection() {
       {/* Header */}
       <div className="flex items-center gap-2 px-5 py-4 border-b border-[#e0e8d8]">
         <Bug size={16} className="text-[#b8860b]" />
-        <h2 className="text-sm font-semibold text-[#2d4a1e]">Sanidad</h2>
+        <h2 className="text-sm font-semibold text-[#2d4a1e]">{t('dashboard.title')}</h2>
         <span className="text-xs text-[#9aab8a]">
           {stats.active.length === 0
-            ? 'Sin hallazgos activos'
-            : `${stats.active.length} ${stats.active.length === 1 ? 'hallazgo activo' : 'hallazgos activos'}`}
+            ? t('dashboard.noActive')
+            : t('dashboard.activeCount', { count: stats.active.length })}
           {activeFarm ? ` · ${activeFarm.name}` : ''}
         </span>
       </div>
 
       {/* Traffic-light strip — fields by health, matching the map colors */}
       <div className="grid grid-cols-5 divide-x divide-[#f0f5e8] border-b border-[#f0f5e8]">
-        <StripCell color={SEVERITY_COLORS[3]} count={stats.strip.sev3} label="Severa" />
-        <StripCell color={SEVERITY_COLORS[2]} count={stats.strip.sev2} label="Moderada" />
-        <StripCell color={SEVERITY_COLORS[1]} count={stats.strip.sev1} label="Leve" />
-        <StripCell color={FIELD_HEALTH_COLORS.healthy} count={stats.strip.healthy} label="Sanos" />
-        <StripCell color={FIELD_HEALTH_COLORS.empty} count={stats.strip.empty} label="Sin sembrar" />
+        <StripCell color={SEVERITY_COLORS[3]} count={stats.strip.sev3} label={t('severity.3')} />
+        <StripCell color={SEVERITY_COLORS[2]} count={stats.strip.sev2} label={t('severity.2')} />
+        <StripCell color={SEVERITY_COLORS[1]} count={stats.strip.sev1} label={t('severity.1')} />
+        <StripCell color={FIELD_HEALTH_COLORS.healthy} count={stats.strip.healthy} label={t('dashboard.stripHealthy')} />
+        <StripCell color={FIELD_HEALTH_COLORS.empty} count={stats.strip.empty} label={t('dashboard.stripEmpty')} />
       </div>
 
       {stats.all.length === 0 ? (
         <p className="px-5 py-6 text-xs text-[#9aab8a] text-center">
-          Sin hallazgos registrados. Usa el botón 🐛 en las tarjetas de campo
-          del mapa para anotar plagas o enfermedades.
+          {t('dashboard.emptyAll')}
         </p>
       ) : stats.active.length === 0 ? (
         <p className="px-5 py-6 text-xs text-[#9aab8a] text-center">
-          Sin hallazgos activos — el historial completo está en el cuaderno
-          de campo. 🎉
+          {t('dashboard.emptyActive')}
         </p>
       ) : (
         <>
@@ -131,29 +130,29 @@ export default function SanidadSection() {
                           className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full text-white shrink-0"
                           style={{ backgroundColor: SEVERITY_COLORS[f.severity] }}
                         >
-                          {SEVERITY_LABELS[f.severity]}
+                          {t(`severity.${f.severity}`)}
                         </span>
                         {trend === 'improving' && (
                           <span className="flex items-center gap-0.5 text-[9px] font-medium text-[#639922] shrink-0">
-                            <TrendingDown size={9} /> mejorando
+                            <TrendingDown size={9} /> {t('trend.improving')}
                           </span>
                         )}
                         {trend === 'worsening' && (
                           <span className="flex items-center gap-0.5 text-[9px] font-medium text-red-500 shrink-0">
-                            <TrendingUp size={9} /> empeorando
+                            <TrendingUp size={9} /> {t('trend.worsening')}
                           </span>
                         )}
                         {trend === 'stable' && (
                           <span className="flex items-center gap-0.5 text-[9px] font-medium text-[#9aab8a] shrink-0">
-                            <MoveRight size={9} /> estable
+                            <MoveRight size={9} /> {t('trend.stable')}
                           </span>
                         )}
                       </div>
                       <p className="text-[10px] text-[#9aab8a] truncate">
                         {fieldName(f.fieldId)}
-                        {pct !== null && pct > 0 && ` · ≈${pct}% del campo`}
-                        {f.status === 'treated' && ' · tratado'}
-                        {f.treatmentRecommendedOperationId && ' · 💧 labor creada'}
+                        {pct !== null && pct > 0 && ` · ${t('dashboard.extentOfField', { pct })}`}
+                        {f.status === 'treated' && ` · ${t('dashboard.treatedTag')}`}
+                        {f.treatmentRecommendedOperationId && ` · ${t('laborCreated')}`}
                       </p>
                     </div>
                     <span className="text-[10px] font-semibold text-[#7a8a6a] shrink-0">
@@ -164,8 +163,7 @@ export default function SanidadSection() {
               })}
               {stats.active.length > ACTIVE_LIMIT && (
                 <p className="px-5 py-2 text-[10px] text-[#9aab8a] text-center">
-                  y {stats.active.length - ACTIVE_LIMIT} más sin resolver —
-                  ve a cada campo en el mapa para el detalle
+                  {t('dashboard.overflow', { count: stats.active.length - ACTIVE_LIMIT })}
                 </p>
               )}
             </div>

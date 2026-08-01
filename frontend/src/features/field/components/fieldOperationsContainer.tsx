@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import OperationsView from './operationsView'
 import FindingsSection from '@/features/scouting/components/findingsSection'
 import { useFieldStore } from '@/store/useFieldStore'
@@ -23,6 +24,7 @@ type Props = {
 }
 
 export default function FieldOperationsContainer({ farmId, fieldId, onClose }: Props) {
+  const { t } = useTranslation('field')
   // Reactive read — check-offs update the store and re-render the view.
   const field = useFieldStore(s => s.fields.find(f => f.id === fieldId))
 
@@ -57,7 +59,7 @@ export default function FieldOperationsContainer({ farmId, fieldId, onClose }: P
       onCompleteOperation={(eventId, opId, data) => {
         completeOp.mutate(
           { fieldId: field.id, eventId, operationId: opId, data },
-          { onSuccess: () => toast.success('Operación registrada') }
+          { onSuccess: () => toast.success(t('toast.opLogged')) }
         )
       }}
       onSkipOperation={(eventId, opId) => {
@@ -68,7 +70,7 @@ export default function FieldOperationsContainer({ farmId, fieldId, onClose }: P
         // (and its yield) but keeps any partial logs.
         undoOp.mutate(
           { fieldId: field.id, eventId, operationId: opId },
-          { onSuccess: () => toast.success('Operación deshecha') }
+          { onSuccess: () => toast.success(t('toast.opUndone')) }
         )
       }}
       onEditOperation={(_eventId, _opId, logId, data) => {
@@ -87,7 +89,7 @@ export default function FieldOperationsContainer({ farmId, fieldId, onClose }: P
               plantIds: data.plantIds ?? [],
             },
           },
-          { onSuccess: () => toast.success('Operación corregida') }
+          { onSuccess: () => toast.success(t('toast.opCorrected')) }
         )
       }}
       onPartialLog={(_eventId, opId, data) => {
@@ -105,7 +107,7 @@ export default function FieldOperationsContainer({ farmId, fieldId, onClose }: P
               plantIds: data.plantIds,
             },
           },
-          { onSuccess: () => toast.success('Avance parcial registrado') }
+          { onSuccess: () => toast.success(t('toast.partialLogged')) }
         )
       }}
     />

@@ -1,5 +1,6 @@
 import { Component } from 'react'
 import type { ErrorInfo, ReactNode } from 'react'
+import i18n from '@/i18n'
 
 // ──────────────────────────────────────────────────────────────────────────
 // Top-level error boundary. Without one, any render error unmounts the whole
@@ -24,25 +25,29 @@ export default class ErrorBoundary extends Component<Props, State> {
   render() {
     if (!this.state.error) return this.props.children
 
+    // Class components can't use hooks — read the i18n instance directly.
+    // The crash screen replaces the whole tree, so missing live re-render
+    // on language change is acceptable here.
+    const t = (key: string) => i18n.t(key, { ns: 'pages' })
+
     return (
       <div className="h-dvh flex flex-col items-center justify-center gap-4 bg-[#f7f9f4] px-6 text-center">
         <span className="text-4xl">🥀</span>
         <h1 className="text-lg font-semibold text-[#2d4a1e]">
-          Algo salió mal
+          {t('errorBoundary.title')}
         </h1>
         <p className="text-sm text-[#5a6a4a] max-w-md">
-          Ocurrió un error inesperado en la aplicación. Tus datos guardados no
-          se han perdido. Recarga la página para continuar.
+          {t('errorBoundary.description')}
         </p>
         <button
           onClick={() => window.location.reload()}
           className="px-4 py-2 text-sm bg-[#2d4a1e] text-[#d4e8b0] rounded-lg hover:bg-[#3d6128] transition-colors"
         >
-          Recargar página
+          {t('errorBoundary.reload')}
         </button>
         <details className="text-left max-w-lg w-full">
           <summary className="text-xs text-[#9aab8a] cursor-pointer">
-            Detalles técnicos
+            {t('errorBoundary.details')}
           </summary>
           <pre className="mt-2 p-3 bg-white border border-[#e0e8d8] rounded-lg text-[10px] text-red-700 overflow-x-auto">
             {this.state.error.message}

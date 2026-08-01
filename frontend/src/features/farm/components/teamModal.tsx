@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
+import { useTranslation } from 'react-i18next'
+import { dateLocale } from '@/i18n'
 import { Users, X, Crown, Shield, Wrench, Trash2, Plus, Ticket, Copy } from 'lucide-react'
 import {
   useMembers, useAddMember, useUpdateMemberRole, useRemoveMember,
@@ -17,16 +19,17 @@ import { toast } from '@/store/useToastStore'
 // would otherwise hijack position:fixed.
 // ──────────────────────────────────────────────────────────────────────────
 
-const ROLE_META: Record<FarmRole, { label: string; icon: React.ReactNode }> = {
-  owner: { label: 'Dueño', icon: <Crown size={11} className="text-amber-500" /> },
-  admin: { label: 'Administrador', icon: <Shield size={11} className="text-[#639922]" /> },
-  operator: { label: 'Operador', icon: <Wrench size={11} className="text-[#7a8a6a]" /> },
+const ROLE_META: Record<FarmRole, { labelKey: string; icon: React.ReactNode }> = {
+  owner: { labelKey: 'roles.owner', icon: <Crown size={11} className="text-amber-500" /> },
+  admin: { labelKey: 'roles.admin', icon: <Shield size={11} className="text-[#639922]" /> },
+  operator: { labelKey: 'roles.operator', icon: <Wrench size={11} className="text-[#7a8a6a]" /> },
 }
 
 export default function TeamModal({ farm, onClose }: {
   farm: Farm
   onClose: () => void
 }) {
+  const { t } = useTranslation('farm')
   const currentUserId = useAuthStore(s => s.user?.id)
   const canManage = canManageStructure(farm)
   const { data: members, isLoading } = useMembers(farm.id)
@@ -54,7 +57,7 @@ export default function TeamModal({ farm, onClose }: {
   function handleCopyCode() {
     if (!freshCode) return
     navigator.clipboard?.writeText(freshCode)
-      .then(() => toast.success('Código copiado'))
+      .then(() => toast.success(t('team.codeCopied')))
       .catch(() => { /* clipboard unavailable — the code is visible anyway */ })
   }
 
@@ -65,7 +68,7 @@ export default function TeamModal({ farm, onClose }: {
       { email: email.trim(), role },
       {
         onSuccess: () => {
-          toast.success('Miembro añadido al equipo')
+          toast.success(t('team.memberAdded'))
           setEmail('')
         },
       }
@@ -82,12 +85,10 @@ export default function TeamModal({ farm, onClose }: {
           <div className="px-5 py-4 border-b border-[#e0e8d8] bg-[#f5f8f0] flex items-center justify-between">
             <div>
               <p className="text-sm font-semibold text-[#2d4a1e] flex items-center gap-1.5">
-                <Users size={14} className="text-[#639922]" /> Equipo — {farm.name}
+                <Users size={14} className="text-[#639922]" /> {t('team.title', { name: farm.name })}
               </p>
               <p className="text-[10px] text-[#9aab8a] mt-0.5">
-                {canManage
-                  ? 'Añade personas por el correo de su cuenta de Mi Finca PR.'
-                  : 'Las personas que trabajan esta finca.'}
+                {canManage ? t('team.subtitleManage') : t('team.subtitleView')}
               </p>
             </div>
             <button onClick={onClose}
@@ -100,7 +101,7 @@ export default function TeamModal({ farm, onClose }: {
           {/* Roster */}
           <div className="px-5 py-3 flex flex-col divide-y divide-[#f0f5e8]">
             {isLoading && (
-              <p className="py-4 text-xs text-[#9aab8a] text-center">Cargando…</p>
+              <p className="py-4 text-xs text-[#9aab8a] text-center">{t('team.loading')}</p>
             )}
             {(members ?? []).map(m => {
               const meta = ROLE_META[m.role]
@@ -109,7 +110,7 @@ export default function TeamModal({ farm, onClose }: {
                 <div key={m.userId} className="flex items-center gap-2 py-2.5">
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-medium text-[#2d4a1e] truncate">
-                      {m.fullName}{isSelf ? ' (tú)' : ''}
+                      {m.fullName}{isSelf ? ` ${t('team.you')}` : ''}
                     </p>
                     <p className="text-[10px] text-[#9aab8a] truncate">{m.email}</p>
                   </div>
@@ -120,16 +121,16 @@ export default function TeamModal({ farm, onClose }: {
                       value={m.role}
                       onChange={e => updateRole.mutate(
                         { userId: m.userId, role: e.target.value as 'admin' | 'operator' },
-                        { onSuccess: () => toast.success('Rol actualizado') }
+                        { onSuccess: () => toast.success(t('team.roleUpdated')) }
                       )}
                       className="text-[10px] text-[#5a6a4a] bg-white border border-[#d0dcc0] rounded-lg px-1.5 py-1 focus:outline-none focus:border-[#639922]"
                     >
-                      <option value="admin">Administrador</option>
-                      <option value="operator">Operador</option>
+                      <option value="admin">{t('roles.admin')}</option>
+                      <option value="operator">{t('roles.operator')}</option>
                     </select>
                   ) : (
                     <span className="flex items-center gap-1 text-[10px] text-[#5a6a4a] shrink-0">
-                      {meta.icon} {meta.label}
+                      {meta.icon} {t(meta.labelKey)}
                     </span>
                   )}
 
@@ -137,9 +138,9 @@ export default function TeamModal({ farm, onClose }: {
                   {m.role !== 'owner' && (canManage || isSelf) && (
                     <button
                       onClick={() => removeMember.mutate(m.userId, {
-                        onSuccess: () => toast.success(isSelf ? 'Saliste de la finca' : 'Miembro eliminado'),
+                        onSuccess: () => toast.success(isSelf ? t('team.youLeft') : t('team.memberRemoved')),
                       })}
-                      title={isSelf ? 'Salir de la finca' : 'Quitar del equipo'}
+                      title={isSelf ? t('team.leaveTitle') : t('team.removeTitle')}
                       className="p-1 pointer-coarse:p-2 rounded text-[#c0d0b0] hover:text-red-500 hover:bg-red-50 transition-colors shrink-0"
                     >
                       <Trash2 size={12} />
@@ -158,7 +159,7 @@ export default function TeamModal({ farm, onClose }: {
                   type="email"
                   value={email}
                   onChange={e => setEmail(e.target.value)}
-                  placeholder="correo@ejemplo.com"
+                  placeholder={t('team.emailPlaceholder')}
                   className="flex-1 min-w-0 px-3 py-2 rounded-lg border border-[#d0dcc0] text-xs text-[#2d4a1e] focus:outline-none focus:border-[#639922] transition-colors"
                 />
                 <select
@@ -166,8 +167,8 @@ export default function TeamModal({ farm, onClose }: {
                   onChange={e => setRole(e.target.value as 'admin' | 'operator')}
                   className="text-xs text-[#5a6a4a] bg-white border border-[#d0dcc0] rounded-lg px-2 focus:outline-none focus:border-[#639922]"
                 >
-                  <option value="operator">Operador</option>
-                  <option value="admin">Administrador</option>
+                  <option value="operator">{t('roles.operator')}</option>
+                  <option value="admin">{t('roles.admin')}</option>
                 </select>
               </div>
               <button
@@ -175,11 +176,10 @@ export default function TeamModal({ farm, onClose }: {
                 disabled={!email.trim() || addMember.isPending}
                 className="w-full flex items-center justify-center gap-2 py-2.5 bg-[#2d4a1e] text-[#d4e8b0] rounded-lg text-xs font-medium hover:bg-[#3d6128] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                <Plus size={13} /> Añadir al equipo
+                <Plus size={13} /> {t('team.addButton')}
               </button>
               <p className="text-[10px] text-[#9aab8a] leading-relaxed">
-                Operador: registra labores, hallazgos y cosechas. Administrador:
-                además gestiona campos, límites y el equipo.
+                {t('team.roleHelp')}
               </p>
             </form>
           )}
@@ -188,12 +188,10 @@ export default function TeamModal({ farm, onClose }: {
           {canManage && (
             <div className="px-5 py-4 border-t border-[#e0e8d8] flex flex-col gap-2">
               <p className="text-xs font-semibold text-[#2d4a1e] flex items-center gap-1.5">
-                <Ticket size={13} className="text-[#639922]" /> Código de invitación
+                <Ticket size={13} className="text-[#639922]" /> {t('team.inviteCode')}
               </p>
               <p className="text-[10px] text-[#9aab8a] leading-relaxed">
-                Comparte un código y la persona se une sola — al registrarse o
-                desde "Unirme a una finca". Sirve para varias personas y vence
-                en 7 días.
+                {t('team.inviteHelp')}
               </p>
 
               {freshCode ? (
@@ -201,7 +199,7 @@ export default function TeamModal({ farm, onClose }: {
                   <span className="flex-1 text-base font-bold tracking-widest text-[#2d4a1e] font-mono">
                     {freshCode}
                   </span>
-                  <button onClick={handleCopyCode} title="Copiar código"
+                  <button onClick={handleCopyCode} title={t('team.copyCode')}
                     className="p-1.5 pointer-coarse:p-2.5 rounded text-[#639922] hover:bg-white transition-colors"
                   >
                     <Copy size={14} />
@@ -222,7 +220,7 @@ export default function TeamModal({ farm, onClose }: {
                     disabled={createInvite.isPending}
                     className="flex-1 flex items-center justify-center gap-2 py-2 text-xs font-medium text-[#639922] border border-[#c8dca8] rounded-lg hover:bg-[#eaf3de] transition-colors disabled:opacity-40"
                   >
-                    <Ticket size={13} /> Generar código
+                    <Ticket size={13} /> {t('team.generateCode')}
                   </button>
                 </div>
               )}
@@ -233,19 +231,21 @@ export default function TeamModal({ farm, onClose }: {
                   {(invites ?? []).map(inv => (
                     <div key={inv.id} className="flex items-center gap-2 py-1.5">
                       <span className="flex-1 text-[10px] text-[#5a6a4a]">
-                        Código de {inv.role === 'admin' ? 'administrador' : 'operador'} · vence{' '}
-                        {new Date(inv.expiresAt).toLocaleDateString('es-PR', { day: 'numeric', month: 'short' })}
+                        {t(
+                          inv.role === 'admin' ? 'team.inviteRowAdmin' : 'team.inviteRowOperator',
+                          { date: new Date(inv.expiresAt).toLocaleDateString(dateLocale(), { day: 'numeric', month: 'short' }) }
+                        )}
                       </span>
                       <button
                         onClick={() => revokeInvite.mutate(inv.id, {
                           onSuccess: () => {
                             setFreshCode(null)
-                            toast.success('Código revocado')
+                            toast.success(t('team.codeRevoked'))
                           },
                         })}
                         className="text-[10px] pointer-coarse:p-2 text-[#c0d0b0] hover:text-red-500 transition-colors"
                       >
-                        Revocar
+                        {t('team.revoke')}
                       </button>
                     </div>
                   ))}

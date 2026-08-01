@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useForgotPassword } from '@/features/auth/hooks/useAuth'
 import { Loader2, CheckCircle, ArrowLeft } from 'lucide-react'
 
 export default function ForgotPasswordPage() {
+  const { t } = useTranslation('auth')
   const forgotPassword = useForgotPassword()
   const [email, setEmail] = useState('')
   const [submitted, setSubmitted] = useState(false)
@@ -16,7 +18,7 @@ export default function ForgotPasswordPage() {
       await forgotPassword.mutateAsync({ email })
       setSubmitted(true)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al enviar el correo')
+      setError(err instanceof Error ? err.message : t('forgot.errorGeneric'))
     }
   }
 
@@ -31,10 +33,10 @@ export default function ForgotPasswordPage() {
         <div className="bg-white rounded-2xl shadow-sm border border-[#e0e8d8] overflow-hidden">
           <div className="bg-[#2d4a1e] px-8 py-6">
             <h2 className="text-lg font-semibold text-[#d4e8b0]">
-              Restablecer contraseña
+              {t('forgot.title')}
             </h2>
             <p className="text-sm text-[#8fba4e] mt-0.5">
-              Te enviaremos un enlace a tu correo
+              {t('forgot.subtitle')}
             </p>
           </div>
 
@@ -43,10 +45,10 @@ export default function ForgotPasswordPage() {
               <div className="text-center py-4">
                 <CheckCircle size={40} className="text-[#639922] mx-auto mb-3" />
                 <p className="text-sm text-[#2d4a1e] font-medium mb-2">
-                  Correo enviado
+                  {t('forgot.sentTitle')}
                 </p>
                 <p className="text-sm text-[#7a8a6a]">
-                  Si existe una cuenta con ese correo, recibirás un enlace para restablecer tu contraseña en los próximos minutos.
+                  {t('forgot.sentBody')}
                 </p>
               </div>
             ) : (
@@ -58,13 +60,13 @@ export default function ForgotPasswordPage() {
                 )}
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-medium text-[#5a6a4a]">
-                    Correo electrónico
+                    {t('forgot.emailLabel')}
                   </label>
                   <input
                     type="email"
                     value={email}
                     onChange={e => setEmail(e.target.value)}
-                    placeholder="tu@correo.com"
+                    placeholder={t('forgot.emailPlaceholder')}
                     required
                     className="w-full px-3 py-2.5 rounded-lg border border-[#d0dcc0] text-sm text-[#2d4a1e] placeholder:text-[#b0bea0] focus:outline-none focus:border-[#639922] focus:ring-1 focus:ring-[#639922] transition-colors"
                   />
@@ -75,9 +77,9 @@ export default function ForgotPasswordPage() {
                   className="w-full flex items-center justify-center gap-2 py-2.5 bg-[#2d4a1e] text-[#d4e8b0] rounded-lg text-sm font-medium hover:bg-[#3d6128] transition-colors disabled:opacity-60 mt-2"
                 >
                   {forgotPassword.isPending ? (
-                    <><Loader2 size={15} className="animate-spin" /> Enviando...</>
+                    <><Loader2 size={15} className="animate-spin" /> {t('forgot.sending')}</>
                   ) : (
-                    'Enviar enlace de restablecimiento'
+                    t('forgot.submit')
                   )}
                 </button>
               </form>
@@ -90,7 +92,7 @@ export default function ForgotPasswordPage() {
               className="flex items-center justify-center gap-1.5 text-sm text-[#639922] hover:text-[#2d4a1e] transition-colors"
             >
               <ArrowLeft size={14} />
-              Volver a iniciar sesión
+              {t('forgot.backToLogin')}
             </Link>
           </div>
         </div>

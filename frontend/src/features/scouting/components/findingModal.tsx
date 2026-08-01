@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { useTranslation } from 'react-i18next'
 import { Bug } from 'lucide-react'
 import type { FieldRow, PlantInstance } from '@/features/field/types'
 import {
@@ -7,7 +8,7 @@ import {
 } from '@/features/field/components/operationsView'
 import { useCreateFinding, useAddObservation } from '../hooks/useFindingsApi'
 import { getPestById, pestsForCrops, type PestType } from '../data/pestLibrary'
-import { SEVERITY_COLORS, SEVERITY_LABELS, type Finding } from '../types'
+import { SEVERITY_COLORS, type Finding } from '../types'
 import { fieldScopeTargets } from '../utils/findingScope'
 import { toast } from '@/store/useToastStore'
 import { useIsPhone } from '@/hooks/useViewport'
@@ -35,6 +36,7 @@ type Props = {
 export default function FindingModal({
   farmId, fieldId, fieldRows, freePlants, updateOf, onClose,
 }: Props) {
+  const { t } = useTranslation('scouting')
   const isPhone = useIsPhone()
   const today = new Date().toISOString().split('T')[0]
   const createFinding = useCreateFinding(farmId)
@@ -89,7 +91,7 @@ export default function FindingModal({
             ...plantSetToSelection(targets, selectedPlants),
           },
         },
-        { onSuccess: () => toast.success('Seguimiento registrado') }
+        { onSuccess: () => toast.success(t('modal.toastObservation')) }
       )
       onClose()
       return
@@ -105,7 +107,7 @@ export default function FindingModal({
         ...plantSetToSelection(targets, selectedPlants),
       },
       {
-        onSuccess: () => toast.success('Hallazgo registrado'),
+        onSuccess: () => toast.success(t('modal.toastCreated')),
       }
     )
     onClose()
@@ -146,12 +148,10 @@ export default function FindingModal({
           <div className="px-5 py-4 border-b border-[#e0e8d8] bg-[#f5f8f0]">
             <p className="text-sm font-semibold text-[#2d4a1e] flex items-center gap-1.5">
               <Bug size={14} className="text-[#639922]" />
-              {updateOf ? 'Actualizar hallazgo' : 'Registrar hallazgo'}
+              {updateOf ? t('modal.titleUpdate') : t('modal.titleNew')}
             </p>
             <p className="text-[10px] text-[#9aab8a] mt-1">
-              {updateOf
-                ? 'Registra cómo se ve hoy — severidad y alcance actuales. El historial se conserva.'
-                : 'Anota la plaga o enfermedad y dónde la viste. Sin selección = observación de todo el campo.'}
+              {updateOf ? t('modal.helpUpdate') : t('modal.helpNew')}
             </p>
           </div>
 
@@ -160,7 +160,7 @@ export default function FindingModal({
             {/* Pest — picker on capture, locked on re-inspection */}
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-[#5a6a4a]">
-                Plaga o enfermedad
+                {t('modal.pestLabel')}
               </label>
               {updateOf ? (
                 <div className="w-full px-3 py-2 rounded-lg border border-[#e0e8d8] bg-[#fafcf8] text-sm text-[#2d4a1e]">
@@ -172,13 +172,13 @@ export default function FindingModal({
                   onChange={e => setPestId(e.target.value)}
                   className="w-full px-3 py-2 rounded-lg border border-[#d0dcc0] text-sm text-[#2d4a1e] focus:outline-none focus:border-[#639922] transition-colors bg-white"
                 >
-                  <option value="" disabled>Selecciona…</option>
+                  <option value="" disabled>{t('modal.pestPlaceholder')}</option>
                   {suggested.length > 0 && (
-                    <optgroup label="Sugeridas para este campo">
+                    <optgroup label={t('modal.suggestedGroup')}>
                       {renderOptions(suggested)}
                     </optgroup>
                   )}
-                  <optgroup label={suggested.length > 0 ? 'Otras' : 'Plagas'}>
+                  <optgroup label={suggested.length > 0 ? t('modal.othersGroup') : t('modal.pestsGroup')}>
                     {renderOptions(others)}
                   </optgroup>
                 </select>
@@ -188,7 +188,7 @@ export default function FindingModal({
             {/* Severity — 1 leve · 2 moderada · 3 severa */}
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-[#5a6a4a]">
-                Severidad
+                {t('modal.severityLabel')}
               </label>
               <div className="flex gap-2">
                 {[1, 2, 3].map(level => (
@@ -205,7 +205,7 @@ export default function FindingModal({
                       ? { backgroundColor: SEVERITY_COLORS[level] }
                       : undefined}
                   >
-                    {SEVERITY_LABELS[level]}
+                    {t(`severity.${level}`)}
                   </button>
                 ))}
               </div>
@@ -214,7 +214,7 @@ export default function FindingModal({
             {/* Date */}
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-[#5a6a4a]">
-                {updateOf ? 'Fecha de la observación' : 'Fecha del hallazgo'}
+                {updateOf ? t('modal.dateLabelUpdate') : t('modal.dateLabelNew')}
               </label>
               <input
                 type="date"
@@ -228,7 +228,7 @@ export default function FindingModal({
             {/* Where — same selector as operations, map taps included */}
             {hasTargets && (
               <HarvestSelector
-                title={updateOf ? '¿Dónde está ahora?' : '¿Dónde lo encontraste?'}
+                title={updateOf ? t('modal.whereUpdate') : t('modal.whereNew')}
                 targets={targets}
                 selected={selectedPlants}
                 onChange={setSelectedPlants}
@@ -240,13 +240,13 @@ export default function FindingModal({
             {/* Notes */}
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-[#5a6a4a]">
-                Notas
-                <span className="text-[#9aab8a] font-normal ml-1">(opcional)</span>
+                {t('modal.notesLabel')}
+                <span className="text-[#9aab8a] font-normal ml-1">{t('modal.optional')}</span>
               </label>
               <textarea
                 value={notes}
                 onChange={e => setNotes(e.target.value)}
-                placeholder="Qué viste, cuántas plantas, condiciones..."
+                placeholder={t('modal.notesPlaceholder')}
                 rows={2}
                 className="w-full px-3 py-2 rounded-lg border border-[#d0dcc0] text-sm text-[#2d4a1e] placeholder:text-[#b0bea0] focus:outline-none focus:border-[#639922] transition-colors resize-none"
               />
@@ -259,7 +259,7 @@ export default function FindingModal({
             <button onClick={onClose}
               className="flex-1 py-2 text-sm text-[#5a6a4a] hover:bg-[#f0f5e8] rounded-lg transition-colors"
             >
-              Cancelar
+              {t('modal.cancel')}
             </button>
             <button
               onClick={handleConfirm}
@@ -267,7 +267,7 @@ export default function FindingModal({
               className="flex-1 flex items-center justify-center gap-2 py-2 bg-[#2d4a1e] text-[#d4e8b0] rounded-lg text-sm font-medium hover:bg-[#3d6128] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <Bug size={14} />
-              {updateOf ? 'Registrar seguimiento' : 'Registrar'}
+              {updateOf ? t('modal.confirmUpdate') : t('modal.confirmNew')}
             </button>
           </div>
 

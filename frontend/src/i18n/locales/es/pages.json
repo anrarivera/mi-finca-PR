@@ -1,1 +1,244 @@
-{}
+{
+  "dashboard": {
+    "title": "Panel de control",
+    "subtitle_one": "Lo que está pasando hoy en tu finca",
+    "subtitle_other": "Lo que está pasando hoy en tus fincas",
+    "empty": {
+      "title": "Todavía no tienes fincas",
+      "description": "Crea tu primera finca en el mapa para ver estadísticas aquí.",
+      "goToMap": "Ir al mapa"
+    },
+    "tiles": {
+      "farms_one": "Finca",
+      "farms_other": "Fincas",
+      "fields_one": "Campo",
+      "fields_other": "Campos",
+      "totalArea": "Área total",
+      "plants": "Plantas",
+      "animals": "Animales"
+    },
+    "recommendations": {
+      "title": "Recomendaciones",
+      "empty": "Todo al día — no hay recomendaciones por ahora. 🎉"
+    },
+    "severity": {
+      "urgent": "Urgente",
+      "warning": "Atención",
+      "info": "Info",
+      "tip": "Consejo"
+    }
+  },
+  "inventory": {
+    "title": "Cuaderno de campo",
+    "subtitle": "El registro de tu finca: siembras, labores, cosechas y sanidad",
+    "tabs": {
+      "siembras": "Siembras",
+      "labores": "Labores",
+      "cosechas": "Cosechas",
+      "sanidad": "Sanidad",
+      "animales": "Animales"
+    },
+    "status": {
+      "overdue": "Vencidas",
+      "dueSoon": "Próximas",
+      "ok": "Al día",
+      "done": "Completado"
+    },
+    "source": {
+      "rows": "Hileras",
+      "plants": "Plantas",
+      "mixed": "Mixto"
+    },
+    "empty": {
+      "title": "El inventario está vacío",
+      "description": "Siembra cultivos en tus campos desde el mapa y aparecerán aquí con sus operaciones y proyecciones.",
+      "goToMap": "Ir al mapa"
+    },
+    "tiles": {
+      "plantings": "Siembras",
+      "plants": "Plantas",
+      "crops": "Cultivos",
+      "overdueOps": "Ops. vencidas",
+      "pendingOps": "Ops. pendientes"
+    },
+    "filters": {
+      "allFarms": "Todas las fincas",
+      "allCrops": "Todos los cultivos",
+      "allStatuses": "Todos los estados",
+      "withOverdue": "Con operaciones vencidas",
+      "withDueSoon": "Con operaciones próximas",
+      "ok": "Al día",
+      "done": "Completadas"
+    },
+    "shownCount_one": "{{shown}} de {{count}} siembra",
+    "shownCount_other": "{{shown}} de {{count}} siembras",
+    "columns": {
+      "crop": "Cultivo",
+      "farmField": "Finca / Campo",
+      "source": "Origen",
+      "plants": "Plantas",
+      "planted": "Sembrado",
+      "status": "Estado",
+      "nextOp": "Próxima operación",
+      "harvestWindow": "Ventana de cosecha"
+    },
+    "noMatch": "Ninguna siembra coincide con los filtros.",
+    "ageDays_one": "{{count}} día",
+    "ageDays_other": "{{count}} días",
+    "overduePrefix": "vencida",
+    "pendingCount_one": "{{count}} pendiente",
+    "pendingCount_other": "{{count}} pendientes",
+    "noPending": "Sin pendientes",
+    "until": "hasta {{date}}",
+    "operationsTitle": "Operaciones de esta siembra",
+    "noOperations": "Esta siembra no tiene operaciones programadas.",
+    "skipped": "omitida",
+    "plantsCount_one": "{{count}} planta",
+    "plantsCount_other": "{{count}} plantas",
+    "noPendingOps": "Sin operaciones pendientes",
+    "harvestRange": "Cosecha: {{start}} – {{end}}"
+  },
+  "simulator": {
+    "title": "Simulador de viabilidad",
+    "subtitle": "Proyecta producción, ingresos y costos anuales. Los números son estimados orientativos — ajústalos a tu realidad.",
+    "startWith": "Empieza con…",
+    "myFarm": "Mi finca actual",
+    "noCropsPlanted": "Aún no tienes cultivos sembrados",
+    "plantedCount_one": "{{count}} planta sembrada en tus campos",
+    "plantedCount_other": "{{count}} plantas sembradas en tus campos",
+    "totals": {
+      "production": "Producción anual",
+      "revenue": "Ingresos",
+      "costs": "Costos",
+      "net": "Neto anual"
+    },
+    "perCrop": {
+      "title": "Supuestos por cultivo",
+      "subtitle": "Edita cualquier número — la proyección se recalcula al instante."
+    },
+    "columns": {
+      "crop": "Cultivo",
+      "plants": "Plantas",
+      "lbsPerPlant": "lbs/planta",
+      "pricePerLb": "$/lb",
+      "harvestsPerYear": "Cosechas/año",
+      "costPerPlant": "Costo/planta",
+      "annualNet": "Neto anual"
+    },
+    "aria": {
+      "plantsOf": "Plantas de {{name}}",
+      "lbsPerPlant": "Libras por planta",
+      "pricePerLb": "Precio por libra",
+      "cyclesPerYear": "Cosechas por año",
+      "costPerPlantYear": "Costo por planta al año"
+    },
+    "adjusted": "ajustado",
+    "disclaimer": "⚠️ Proyecciones orientativas basadas en promedios generales — los resultados reales varían con el terreno, el clima y el mercado. Consulta un agrónomo licenciado antes de tomar decisiones de inversión."
+  },
+  "home": {
+    "farmCreated": "Finca creada",
+    "createFarmError": "Error al crear la finca. Por favor intenta de nuevo."
+  },
+  "settings": {
+    "title": "Configuración",
+    "subtitle": "Datos y preferencias de la aplicación",
+    "data": {
+      "sectionTitle": "Mis datos",
+      "export": {
+        "title": "Descargar respaldo",
+        "description": "Guarda todas tus fincas, campos, animales y calendarios en un archivo JSON.",
+        "button": "Exportar"
+      },
+      "import": {
+        "title": "Restaurar respaldo",
+        "description": "Reemplaza los datos actuales con un archivo de respaldo exportado antes.",
+        "button": "Importar"
+      },
+      "clear": {
+        "title": "Borrar todos los datos",
+        "description": "Elimina todo lo guardado en este dispositivo. Esta acción no se puede deshacer.",
+        "button": "Borrar todo"
+      }
+    },
+    "toasts": {
+      "backupDownloaded": "Respaldo descargado",
+      "invalidJson": "El archivo no es un JSON válido.",
+      "invalidBackup": "El archivo no parece ser un respaldo válido de Mi Finca PR.",
+      "newerVersion": "Este respaldo es de una versión más nueva de la aplicación.",
+      "backupRestored": "Respaldo restaurado",
+      "dataCleared": "Datos eliminados"
+    },
+    "restoreConfirm": {
+      "title": "¿Restaurar respaldo?",
+      "message_one": "El respaldo contiene {{count}} finca. Se reemplazarán todos los datos actuales de la aplicación.",
+      "message_other": "El respaldo contiene {{count}} fincas. Se reemplazarán todos los datos actuales de la aplicación.",
+      "confirm": "Restaurar"
+    },
+    "clearConfirm": {
+      "title": "¿Borrar todos los datos?",
+      "message": "Se eliminarán todas las fincas, campos, animales y calendarios guardados en este dispositivo. Considera descargar un respaldo primero.",
+      "confirm": "Borrar todo"
+    },
+    "about": {
+      "sectionTitle": "Acerca de",
+      "phase": "Fase 1: Herramienta de manejo de fincas",
+      "localData": "Tus datos se guardan localmente en este navegador. Descarga respaldos con frecuencia.",
+      "disclaimer": "Las recomendaciones agronómicas son orientativas y no sustituyen el consejo de un agrónomo licenciado."
+    },
+    "notifications": {
+      "sectionTitle": "Notificaciones",
+      "inApp": {
+        "title": "Notificaciones en la aplicación",
+        "description": "Muestra alertas de operaciones en la campana de la barra superior."
+      },
+      "emailDigest": {
+        "title": "Resumen diario por correo",
+        "description": "Un correo cada mañana con labores vencidas, próximas y hallazgos activos de tus fincas. Solo se envía cuando hay algo pendiente."
+      },
+      "overdue": {
+        "title": "Operaciones vencidas",
+        "description": "Avisa cuando una operación pasó de su fecha recomendada sin completarse."
+      },
+      "dueSoon": {
+        "title": "Operaciones próximas",
+        "description": "Avisa sobre operaciones que vencen dentro de los días de anticipación."
+      },
+      "harvest": {
+        "title": "Ventanas de cosecha",
+        "description": "Avisa cuando se acerca o abre la ventana de cosecha de un cultivo."
+      },
+      "leadDays": {
+        "title": "Días de anticipación",
+        "description": "Cuántos días antes de la fecha recomendada empieza el aviso (1–60)."
+      },
+      "footer": "Los avisos por correo electrónico y mensajes de texto llegarán en una versión futura."
+    }
+  },
+  "topNav": {
+    "userMenu": "Menú de usuario",
+    "settings": "Configuración",
+    "logout": "Cerrar sesión",
+    "login": "Iniciar sesión",
+    "register": "Crear cuenta"
+  },
+  "notificationBell": {
+    "bellAria": "Notificaciones",
+    "bellAriaUnread": "Notificaciones ({{count}} sin leer)",
+    "title": "Notificaciones",
+    "markRead": "Marcar leídas",
+    "disabled": "Las notificaciones están desactivadas.",
+    "empty": "Todo al día — no hay operaciones pendientes próximas. 🌱",
+    "configure": "Configurar notificaciones",
+    "overduePrefix": "vencida"
+  },
+  "errorBoundary": {
+    "title": "Algo salió mal",
+    "description": "Ocurrió un error inesperado en la aplicación. Tus datos guardados no se han perdido. Recarga la página para continuar.",
+    "reload": "Recargar página",
+    "details": "Detalles técnicos"
+  },
+  "confirmDialog": {
+    "confirm": "Confirmar",
+    "cancel": "Cancelar"
+  }
+}

@@ -1,1 +1,107 @@
-{}
+{
+  "confirmDeleteFarm": "Delete the farm \"{{name}}\" and all its fields?",
+  "acresShort": "{{value}} ac",
+  "drawer": {
+    "farmsTab": "Farms",
+    "myFarms": "My farms",
+    "farmCount_one": "{{count}} farm",
+    "farmCount_other": "{{count}} farms",
+    "fieldCount_one": "{{count}} field",
+    "fieldCount_other": "{{count}} fields",
+    "noFarmsYet": "You don't have any farms yet. Add your first farm.",
+    "favorite": "Favorite",
+    "favoriteTitle": "Favorite farm",
+    "markFavoriteTitle": "Mark as favorite",
+    "team": "Team",
+    "teamTitle": "View or manage the farm's team",
+    "delete": "Delete",
+    "addFarm": "Add farm",
+    "joinPrompt": "Have a code? Join a farm",
+    "overdueBadge": "{{count}} overdue",
+    "dueSoonBadge": "{{count}} due soon",
+    "noFieldsYet": "No fields yet. Use the field editor to add one.",
+    "newField": "New field",
+    "fieldDeleted": "Field deleted"
+  },
+  "roles": {
+    "owner": "Owner",
+    "admin": "Administrator",
+    "operator": "Operator"
+  },
+  "team": {
+    "title": "Team — {{name}}",
+    "subtitleManage": "Add people by the email of their Mi Finca PR account.",
+    "subtitleView": "The people who work this farm.",
+    "loading": "Loading…",
+    "you": "(you)",
+    "roleUpdated": "Role updated",
+    "youLeft": "You left the farm",
+    "memberRemoved": "Member removed",
+    "leaveTitle": "Leave the farm",
+    "removeTitle": "Remove from team",
+    "emailPlaceholder": "email@example.com",
+    "addButton": "Add to team",
+    "memberAdded": "Member added to the team",
+    "roleHelp": "Operator: logs tasks, findings, and harvests. Administrator: also manages fields, boundaries, and the team.",
+    "inviteCode": "Invite code",
+    "inviteHelp": "Share a code and the person joins on their own — when registering or from \"Join a farm\". It works for several people and expires in 7 days.",
+    "copyCode": "Copy code",
+    "codeCopied": "Code copied",
+    "generateCode": "Generate code",
+    "inviteRowAdmin": "Administrator code · expires {{date}}",
+    "inviteRowOperator": "Operator code · expires {{date}}",
+    "revoke": "Revoke",
+    "codeRevoked": "Code revoked"
+  },
+  "join": {
+    "title": "Join a farm",
+    "help": "Enter the code the farm's team shared with you.",
+    "submit": "Join",
+    "success": "You are now part of \"{{name}}\""
+  },
+  "create": {
+    "title": "New farm",
+    "subtitle": "Add your farm's basic details",
+    "nameLabel": "Farm name",
+    "namePlaceholder": "e.g. Finca Rivera",
+    "locationLabel": "Municipality",
+    "locationPlaceholder": "e.g. Gurabo, PR",
+    "cancel": "Cancel",
+    "submit": "Create farm"
+  },
+  "empty": {
+    "title": "You don't have any farms yet",
+    "subtitle": "Add your first farm to start managing your crops and fields.",
+    "addFarm": "Add farm"
+  },
+  "drawing": {
+    "drawYourFarm": "Draw your farm",
+    "boundaryTitle": "Farm boundary",
+    "acresPoints": "acres · {{count}} points",
+    "saveFarm": "Save farm",
+    "editBoundary": "Edit boundary",
+    "clearRedraw": "Clear and redraw",
+    "deleteFarm": "Delete farm",
+    "manageFields": "Manage fields",
+    "tapToPlace": "Tap the map to place corners",
+    "pointCount_one": "{{count}} point",
+    "pointCount_other": "{{count}} points",
+    "pointSelected": "Point {{number}} selected",
+    "tapPointToEdit": "tap a point to edit it",
+    "undo": "Undo",
+    "cancel": "Cancel",
+    "complete": "Complete",
+    "addPoint": "Add point",
+    "deletePoint": "Delete point",
+    "finish": "Finish"
+  },
+  "map": {
+    "noActiveFarm": "No active farm selected",
+    "needThreePoints": "Draw at least 3 points to save the boundary",
+    "farmSaved": "Farm saved",
+    "farmDeleted": "Farm deleted",
+    "confirmSwitchField": "Switch fields? Unsaved changes to the current field will be lost.",
+    "saveBoundaryFirst": "First save your farm's boundary before adding fields.",
+    "createFarmError": "Error creating the farm. Please try again."
+  }
+}

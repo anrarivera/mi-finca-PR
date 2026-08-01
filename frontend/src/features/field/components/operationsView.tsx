@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { useTranslation } from 'react-i18next'
 import {
   X, Check, SkipForward, ChevronDown, ChevronUp,
   AlertCircle, Clock, CheckCircle2, ChevronRight,
@@ -11,6 +12,7 @@ import type { FarmOperation } from '../hooks/useOperationsApi'
 import { getCropById } from '../data/cropLibrary'
 import { useHarvestHighlightStore } from '@/store/useHarvestHighlightStore'
 import { useIsPhone } from '@/hooks/useViewport'
+import { dateLocale } from '@/i18n'
 
 // ──────────────────────────────────────────────────────────────────────────
 // Operations view — the calendar check-off drawer (SDD §6.2), docked left
@@ -150,6 +152,7 @@ export default function OperationsView({
   findingsSection, onClose, onCompleteOperation, onSkipOperation,
   onUndoOperation, onEditOperation, onPartialLog,
 }: Props) {
+  const { t } = useTranslation('field')
   const isPhone = useIsPhone()
   const [modal, setModal] = useState<{
     mode: ModalMode
@@ -217,7 +220,7 @@ export default function OperationsView({
             <X size={16} />
           </button>
           <span className="text-[#d4e8b0] font-semibold text-sm">
-            Operaciones — {fieldName}
+            {t('view.header', { name: fieldName })}
           </span>
         </div>
         <div className="flex items-center gap-3">
@@ -225,7 +228,7 @@ export default function OperationsView({
             <div className="flex items-center gap-1.5 px-2.5 py-1 bg-red-500/20 rounded-lg">
               <AlertCircle size={12} className="text-red-300" />
               <span className="text-xs text-red-300 font-medium">
-                {totalDue} vencidas
+                {t('count.overdue', { count: totalDue })}
               </span>
             </div>
           )}
@@ -233,7 +236,7 @@ export default function OperationsView({
             <div className="flex items-center gap-1.5 px-2.5 py-1 bg-white/10 rounded-lg">
               <Clock size={12} className="text-[#8fba4e]" />
               <span className="text-xs text-[#8fba4e] font-medium">
-                {totalPending} pendientes
+                {t('count.pending', { count: totalPending })}
               </span>
             </div>
           )}
@@ -250,7 +253,7 @@ export default function OperationsView({
           <div className="flex flex-col items-center justify-center h-64 gap-3">
             <CheckCircle2 size={40} className="text-[#c0d8a0]" strokeWidth={1.5} />
             <p className="text-sm text-[#9aab8a] text-center">
-              No hay operaciones todavía. Añade cultivos al campo para generar un calendario de operaciones.
+              {t('view.empty')}
             </p>
           </div>
         ) : (
@@ -325,6 +328,7 @@ function PlantingEventCard({
   onEdit: (operationId: string, operation: RecommendedOperation) => void
   onPartial: (operationId: string, operation: RecommendedOperation) => void
 }) {
+  const { t } = useTranslation('field')
   const [expanded, setExpanded] = useState(true)
   const crop = getCropById(event.cropTypeId)
 
@@ -338,7 +342,7 @@ function PlantingEventCard({
   const skipped = event.operations.filter(o => o.status === 'skipped').sort(byDueDate)
 
   const plantingDateFormatted = new Date(event.plantingDate + 'T12:00:00')
-    .toLocaleDateString('es-PR', { day: 'numeric', month: 'long', year: 'numeric' })
+    .toLocaleDateString(dateLocale(), { day: 'numeric', month: 'long', year: 'numeric' })
 
   const renderRow = (op: RecommendedOperation, status: OperationStatus) => (
     <OperationRow
@@ -368,13 +372,13 @@ function PlantingEventCard({
             {crop?.nameEs ?? event.cropTypeId}
           </p>
           <p className="text-[10px] text-[#9aab8a]">
-            {event.plantCount} plantas · Sembradas el {plantingDateFormatted}
+            {t('event.plantedSummary', { count: event.plantCount, date: plantingDateFormatted })}
           </p>
         </div>
         <div className="flex items-center gap-2">
           {due.length > 0 && (
             <span className="text-[10px] font-semibold text-red-500 bg-red-50 px-2 py-0.5 rounded-full">
-              {due.length} vencidas
+              {t('count.overdue', { count: due.length })}
             </span>
           )}
           <span className="text-[10px] text-[#9aab8a]">
@@ -425,8 +429,9 @@ function OperationRow({
   onEdit: () => void
   onPartial: () => void
 }) {
+  const { t } = useTranslation('field')
   const dateFormatted = new Date(operation.recommendedDate + 'T12:00:00')
-    .toLocaleDateString('es-PR', { day: 'numeric', month: 'short', year: 'numeric' })
+    .toLocaleDateString(dateLocale(), { day: 'numeric', month: 'short', year: 'numeric' })
 
   const operationTypeEmoji: Record<string, string> = {
     fertilization: '🌿',
@@ -457,7 +462,7 @@ function OperationRow({
     const qty = Object.entries(totals)
       .map(([u, q]) => `${q.toLocaleString()} ${u}`)
       .join(' + ')
-    return `${partials.length} ${partials.length === 1 ? 'registro parcial' : 'registros parciales'}${qty ? ` · ${qty}` : ''}`
+    return `${t('count.partialLogs', { count: partials.length })}${qty ? ` · ${qty}` : ''}`
   })()
 
   const isOpen = status === 'pending' || status === 'due'
@@ -492,9 +497,12 @@ function OperationRow({
         </div>
         <div className="flex items-center gap-2 mt-0.5">
           <p className={`text-[10px] ${status === 'due' ? 'text-red-500 font-medium' : 'text-[#9aab8a]'}`}>
-            {status === 'due' ? '⚠️ Vencida — ' : ''}
+            {status === 'due' ? t('status.overdueWarnPrefix') : ''}
             {status === 'completed' && operation.completedDate
-              ? `Completada el ${new Date(operation.completedDate + 'T12:00:00').toLocaleDateString('es-PR', { day: 'numeric', month: 'short' })}`
+              ? t('status.completedOn', {
+                  date: new Date(operation.completedDate + 'T12:00:00')
+                    .toLocaleDateString(dateLocale(), { day: 'numeric', month: 'short' }),
+                })
               : dateFormatted
             }
           </p>
@@ -520,22 +528,22 @@ function OperationRow({
         <>
           <button onClick={onCheckOff}
             className={`${smallBtn} text-[#2d4a1e] font-semibold hover:text-[#639922]`}
-            title="Marcar como realizada"
+            title={t('actions.completeTitle')}
           >
-            Completa
+            {t('actions.complete')}
           </button>
           {/* Partial logging works for every type: "fertilized rows 1–3
               today, the rest tomorrow" — the item stays open until done */}
           <button onClick={onPartial}
             className={`${smallBtn} text-[#639922] hover:text-[#2d4a1e] font-medium`}
-            title="Registrar avance sin completar la labor"
+            title={t('actions.partialTitle')}
           >
-            Parcial
+            {t('actions.partial')}
           </button>
           <button onClick={onSkip}
             className={`${smallBtn} text-[#c0d0b0] hover:text-[#9aab8a]`}
           >
-            Omitir
+            {t('actions.skip')}
           </button>
         </>
       )}
@@ -547,16 +555,16 @@ function OperationRow({
           {operation.completedOperationId && (
             <button onClick={onEdit}
               className={`${smallBtn} text-[#7a8a6a] hover:text-[#2d4a1e]`}
-              title="Corregir fecha, cantidad o producto"
+              title={t('actions.editTitle')}
             >
-              Editar
+              {t('actions.edit')}
             </button>
           )}
           <button onClick={onUndo}
             className={`${smallBtn} text-[#c0d0b0] hover:text-red-400`}
-            title="Deshacer — la labor vuelve a quedar pendiente"
+            title={t('actions.undoTitle')}
           >
-            Deshacer
+            {t('actions.undo')}
           </button>
         </>
       )}
@@ -564,9 +572,9 @@ function OperationRow({
       {status === 'skipped' && (
         <button onClick={onUndo}
           className={`${smallBtn} text-[#c0d0b0] hover:text-[#639922]`}
-          title="Reactivar esta labor"
+          title={t('actions.reactivateTitle')}
         >
-          Reactivar
+          {t('actions.reactivate')}
         </button>
       )}
 
@@ -581,12 +589,8 @@ function OperationRow({
 //  - edit:     prefilled with the completed values for correction
 // For harvests with rows, a row selector records WHICH rows were harvested
 // (multi-day harvests: rows 1–3 today, 4–6 tomorrow). Exported so the map
-// view's field drawer can open the same UI.
-const MODAL_COPY: Record<ModalMode, { title: string; confirm: string; dateLabel: string }> = {
-  complete: { title: 'Confirmar operación', confirm: 'Confirmar', dateLabel: 'Fecha de realización' },
-  partial: { title: 'Registrar avance parcial', confirm: 'Registrar avance', dateLabel: 'Fecha del avance' },
-  edit: { title: 'Editar operación', confirm: 'Guardar cambios', dateLabel: 'Fecha de realización' },
-}
+// view's field drawer can open the same UI. Copy per mode lives in the
+// `modal.{complete|partial|edit}` i18n keys.
 
 export function CheckOffModal({
   mode, operation, harvestTargets, initialSelection, mapInteractive = false,
@@ -608,6 +612,7 @@ export function CheckOffModal({
   onConfirm: (data: CheckOffFormData) => void
   onCancel: () => void
 }) {
+  const { t } = useTranslation('field')
   const isPhone = useIsPhone()
   const today = new Date().toISOString().split('T')[0]
   const isEdit = mode === 'edit'
@@ -628,7 +633,11 @@ export function CheckOffModal({
     () => selectionToPlantSet(targets, initialSelection?.rowIds, initialSelection?.plantIds)
   )
 
-  const copy = MODAL_COPY[mode]
+  const copy = {
+    title: t(`modal.${mode}.title`),
+    confirm: t(`modal.${mode}.confirm`),
+    dateLabel: t(`modal.${mode}.dateLabel`),
+  }
   const needsProduct = ['fertilization', 'spray'].includes(operation.type)
   const needsQuantity = mode === 'partial'
     || ['fertilization', 'spray', 'harvest'].includes(operation.type)
@@ -689,8 +698,7 @@ export function CheckOffModal({
             <p className="text-xs text-[#7a8a6a] mt-0.5">{operation.labelEs}</p>
             {mode === 'partial' && (
               <p className="text-[10px] text-[#9aab8a] mt-1">
-                La labor seguirá pendiente — ideal para trabajos de varios
-                días. Márcala completada cuando termines.
+                {t('modal.partialHint')}
               </p>
             )}
           </div>
@@ -715,14 +723,14 @@ export function CheckOffModal({
             {needsProduct && (
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-medium text-[#5a6a4a]">
-                  Producto utilizado
-                  <span className="text-[#9aab8a] font-normal ml-1">(opcional)</span>
+                  {t('form.productUsed')}
+                  <span className="text-[#9aab8a] font-normal ml-1">{t('form.optional')}</span>
                 </label>
                 <input
                   type="text"
                   value={product}
                   onChange={e => setProduct(e.target.value)}
-                  placeholder="Ej. Nitrato de amonio 21-0-0"
+                  placeholder={t('form.productPlaceholder')}
                   className="w-full px-3 py-2 rounded-lg border border-[#d0dcc0] text-sm text-[#2d4a1e] placeholder:text-[#b0bea0] focus:outline-none focus:border-[#639922] transition-colors"
                 />
               </div>
@@ -732,8 +740,8 @@ export function CheckOffModal({
             {needsQuantity && (
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-medium text-[#5a6a4a]">
-                  Cantidad
-                  <span className="text-[#9aab8a] font-normal ml-1">(opcional)</span>
+                  {t('form.quantity')}
+                  <span className="text-[#9aab8a] font-normal ml-1">{t('form.optional')}</span>
                 </label>
                 <div className="flex gap-2">
                   <input
@@ -760,7 +768,7 @@ export function CheckOffModal({
             {/* Scope selector — rows, partial rows, or individual plants */}
             {showScopeSelector && (
               <HarvestSelector
-                title={operation.type === 'harvest' ? '¿Qué cosechaste?' : '¿Qué alcanzó esta labor?'}
+                title={operation.type === 'harvest' ? t('selector.harvestTitle') : t('selector.scopeTitle')}
                 targets={targets}
                 selected={selectedPlants}
                 onChange={setSelectedPlants}
@@ -772,13 +780,13 @@ export function CheckOffModal({
             {/* Notes */}
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-[#5a6a4a]">
-                Notas
-                <span className="text-[#9aab8a] font-normal ml-1">(opcional)</span>
+                {t('form.notes')}
+                <span className="text-[#9aab8a] font-normal ml-1">{t('form.optional')}</span>
               </label>
               <textarea
                 value={notes}
                 onChange={e => setNotes(e.target.value)}
-                placeholder="Observaciones, condiciones del campo..."
+                placeholder={t('form.notesPlaceholder')}
                 rows={2}
                 className="w-full px-3 py-2 rounded-lg border border-[#d0dcc0] text-sm text-[#2d4a1e] placeholder:text-[#b0bea0] focus:outline-none focus:border-[#639922] transition-colors resize-none"
               />
@@ -791,7 +799,7 @@ export function CheckOffModal({
             <button onClick={onCancel}
               className="flex-1 py-2 text-sm text-[#5a6a4a] hover:bg-[#f0f5e8] rounded-lg transition-colors"
             >
-              Cancelar
+              {t('actions.cancel')}
             </button>
             <button
               onClick={() => onConfirm({
@@ -836,6 +844,7 @@ export function HarvestSelector({ title, targets, selected, onChange, mapToggles
   /** Scopes the map toggles to this field's rows/plants. */
   fieldId?: string
 }) {
+  const { t } = useTranslation('field')
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
   const rowRefs = useRef<Record<string, HTMLDivElement | null>>({})
 
@@ -937,14 +946,14 @@ export function HarvestSelector({ title, targets, selected, onChange, mapToggles
       <div className="flex items-center justify-between">
         <label className="text-xs font-medium text-[#5a6a4a]">
           {title}
-          <span className="text-[#9aab8a] font-normal ml-1">(opcional)</span>
+          <span className="text-[#9aab8a] font-normal ml-1">{t('form.optional')}</span>
         </label>
         <button
           type="button"
           onClick={() => onChange(allSelected ? new Set() : new Set(allPlantIds))}
           className="text-[10px] text-[#639922] hover:text-[#2d4a1e] transition-colors"
         >
-          {allSelected ? 'Ninguna' : 'Todo el campo'}
+          {allSelected ? t('selector.none') : t('selector.wholeField')}
         </button>
       </div>
 
@@ -978,7 +987,7 @@ export function HarvestSelector({ title, targets, selected, onChange, mapToggles
                     ? <ChevronDown size={11} className="text-[#9aab8a] shrink-0" />
                     : <ChevronRight size={11} className="text-[#9aab8a] shrink-0" />}
                   <span className="text-xs text-[#2d4a1e] truncate">
-                    Hilera {index + 1} · {crop?.emoji ?? '🌱'} {crop?.nameEs ?? row.primaryCropTypeId}
+                    {t('selector.rowLabel', { num: index + 1 })} · {crop?.emoji ?? '🌱'} {crop?.nameEs ?? row.primaryCropTypeId}
                   </span>
                   <span className={`text-[10px] shrink-0 ml-auto ${
                     some ? 'text-[#639922] font-medium' : 'text-[#9aab8a]'
@@ -992,7 +1001,7 @@ export function HarvestSelector({ title, targets, selected, onChange, mapToggles
               {expanded && (
                 <div className="px-3 pb-2 pl-8 flex flex-col gap-1.5 bg-[#fafcf8]">
                   <div className="flex items-center gap-1.5 pt-1">
-                    <span className="text-[10px] text-[#7a8a6a]">Primeras</span>
+                    <span className="text-[10px] text-[#7a8a6a]">{t('selector.firstN')}</span>
                     <input
                       type="number"
                       min={0}
@@ -1005,7 +1014,7 @@ export function HarvestSelector({ title, targets, selected, onChange, mapToggles
                       className="w-14 px-1.5 py-0.5 rounded border border-[#d0dcc0] text-[10px] text-[#2d4a1e] focus:outline-none focus:border-[#639922]"
                     />
                     <span className="text-[10px] text-[#7a8a6a]">
-                      de {row.plants.length} plantas
+                      {t('selector.ofPlants', { count: row.plants.length })}
                     </span>
                   </div>
                   <div className="grid grid-cols-3 gap-x-2 gap-y-0.5">
@@ -1020,7 +1029,7 @@ export function HarvestSelector({ title, targets, selected, onChange, mapToggles
                           onChange={() => togglePlant(plant.id)}
                           className="accent-[#639922]"
                         />
-                        Planta {i + 1}
+                        {t('selector.plantLabel', { num: i + 1 })}
                       </label>
                     ))}
                   </div>
@@ -1033,7 +1042,7 @@ export function HarvestSelector({ title, targets, selected, onChange, mapToggles
         {/* Free-standing plants */}
         {targets.freePlants.length > 0 && (
           <div className="px-3 py-2">
-            <p className="text-[10px] font-medium text-[#7a8a6a] mb-1">Plantas sueltas</p>
+            <p className="text-[10px] font-medium text-[#7a8a6a] mb-1">{t('selector.freePlants')}</p>
             <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
               {targets.freePlants.map((plant, i) => {
                 const crop = getCropById(plant.cropTypeId)
@@ -1048,7 +1057,7 @@ export function HarvestSelector({ title, targets, selected, onChange, mapToggles
                       onChange={() => togglePlant(plant.id)}
                       className="accent-[#639922]"
                     />
-                    {crop?.emoji ?? '🌱'} Planta {i + 1}
+                    {crop?.emoji ?? '🌱'} {t('selector.plantLabel', { num: i + 1 })}
                   </label>
                 )
               })}
@@ -1059,8 +1068,8 @@ export function HarvestSelector({ title, targets, selected, onChange, mapToggles
 
       <p className="text-[10px] text-[#9aab8a]">
         {selected.size > 0
-          ? `${selected.size} de ${allPlantIds.length} plantas seleccionadas`
-          : 'Sin selección = todo el campo. Marca hileras completas, expande una hilera para plantas individuales, o usa "Primeras N".'}
+          ? t('selector.selectedSummary', { count: selected.size, total: allPlantIds.length })
+          : t('selector.hint')}
       </p>
     </div>
   )

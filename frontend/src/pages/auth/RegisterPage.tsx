@@ -3,32 +3,36 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { useTranslation } from 'react-i18next'
+import type { TFunction } from 'i18next'
 import { useRegister } from '@/features/auth/hooks/useAuth'
 import { useJoinFarm } from '@/features/farm/hooks/useMembersApi'
 import { toast } from '@/store/useToastStore'
 import AuthLayout, { authInputClass, FieldError } from './authLayout'
 
-const registerSchema = z.object({
-  fullName: z.string().trim().min(1, 'Escribe tu nombre').max(100, 'Máximo 100 caracteres'),
-  email: z.string().email('Escribe un email válido'),
-  password: z.string().min(8, 'Mínimo 8 caracteres'),
+// Schema is built with t() so validation messages follow the UI language.
+const makeRegisterSchema = (t: TFunction) => z.object({
+  fullName: z.string().trim().min(1, t('register.nameRequired')).max(100, t('register.nameMax')),
+  email: z.string().email(t('register.emailInvalid')),
+  password: z.string().min(8, t('register.passwordMin')),
   confirmPassword: z.string(),
   inviteCode: z.string().trim().optional(),
 }).refine(data => data.password === data.confirmPassword, {
-  message: 'Las contraseñas no coinciden',
+  message: t('register.passwordsMismatch'),
   path: ['confirmPassword'],
 })
 
-type RegisterForm = z.infer<typeof registerSchema>
+type RegisterForm = z.infer<ReturnType<typeof makeRegisterSchema>>
 
 export default function RegisterPage() {
+  const { t } = useTranslation('auth')
   const navigate = useNavigate()
   const registerAccount = useRegister()
   const joinFarm = useJoinFarm()
   const [serverError, setServerError] = useState<string | null>(null)
 
   const { register, handleSubmit, formState: { errors, isSubmitting } } =
-    useForm<RegisterForm>({ resolver: zodResolver(registerSchema) })
+    useForm<RegisterForm>({ resolver: zodResolver(makeRegisterSchema(t)) })
 
   async function onSubmit(values: RegisterForm) {
     setServerError(null)
@@ -43,41 +47,41 @@ export default function RegisterPage() {
       if (values.inviteCode?.trim()) {
         try {
           const joined = await joinFarm.mutateAsync(values.inviteCode.trim())
-          toast.success(`Ahora eres parte de "${joined.farmName}"`)
+          toast.success(t('register.joinSuccess', { farmName: joined.farmName }))
         } catch {
-          toast.error('El código de invitación no funcionó — puedes unirte luego desde el mapa.')
+          toast.error(t('register.joinError'))
         }
       }
       navigate('/')
     } catch (err) {
       const message = err instanceof Error ? err.message : ''
       if (message.includes('409') || message.toLowerCase().includes('already exists') || message.toLowerCase().includes('ya existe')) {
-        setServerError('Ya existe una cuenta con este email.')
+        setServerError(t('register.errorEmailExists'))
       } else if (message.includes('429')) {
-        setServerError('Demasiados intentos. Espera unos minutos e inténtalo de nuevo.')
+        setServerError(t('register.errorRateLimit'))
       } else if (message.includes('400')) {
         setServerError(message)
       } else {
-        setServerError('Error inesperado. Inténtalo de nuevo.')
+        setServerError(t('register.errorUnexpected'))
       }
     }
   }
 
   return (
     <AuthLayout
-      title="Crear cuenta"
-      subtitle="Guarda tu finca en la nube y accede desde cualquier dispositivo"
+      title={t('register.title')}
+      subtitle={t('register.subtitle')}
     >
       <form onSubmit={handleSubmit(onSubmit)} className="px-8 py-6 flex flex-col gap-4">
         <div className="flex flex-col gap-1.5">
           <label htmlFor="fullName" className="text-xs font-medium text-[#5a6a4a]">
-            Nombre completo
+            {t('register.nameLabel')}
           </label>
           <input
             id="fullName"
             type="text"
             autoComplete="name"
-            placeholder="Ej. Angel R. Rivera"
+            placeholder={t('register.namePlaceholder')}
             className={authInputClass}
             {...register('fullName')}
           />
@@ -86,13 +90,13 @@ export default function RegisterPage() {
 
         <div className="flex flex-col gap-1.5">
           <label htmlFor="email" className="text-xs font-medium text-[#5a6a4a]">
-            Email
+            {t('register.emailLabel')}
           </label>
           <input
             id="email"
             type="email"
             autoComplete="email"
-            placeholder="tucorreo@ejemplo.com"
+            placeholder={t('register.emailPlaceholder')}
             className={authInputClass}
             {...register('email')}
           />
@@ -102,13 +106,13 @@ export default function RegisterPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="flex flex-col gap-1.5">
             <label htmlFor="password" className="text-xs font-medium text-[#5a6a4a]">
-              Contraseña
+              {t('register.passwordLabel')}
             </label>
             <input
               id="password"
               type="password"
               autoComplete="new-password"
-              placeholder="Mínimo 8 caracteres"
+              placeholder={t('register.passwordPlaceholder')}
               className={authInputClass}
               {...register('password')}
             />
@@ -116,13 +120,13 @@ export default function RegisterPage() {
           </div>
           <div className="flex flex-col gap-1.5">
             <label htmlFor="confirmPassword" className="text-xs font-medium text-[#5a6a4a]">
-              Confirmar
+              {t('register.confirmLabel')}
             </label>
             <input
               id="confirmPassword"
               type="password"
               autoComplete="new-password"
-              placeholder="Repite la contraseña"
+              placeholder={t('register.confirmPlaceholder')}
               className={authInputClass}
               {...register('confirmPassword')}
             />
@@ -132,13 +136,13 @@ export default function RegisterPage() {
 
         <div className="flex flex-col gap-1.5">
           <label htmlFor="inviteCode" className="text-xs font-medium text-[#5a6a4a]">
-            Código de invitación <span className="text-[#9aab8a] font-normal">(opcional)</span>
+            {t('register.inviteLabel')} <span className="text-[#9aab8a] font-normal">{t('register.inviteOptional')}</span>
           </label>
           <input
             id="inviteCode"
             type="text"
             autoComplete="off"
-            placeholder="¿Te invitaron a una finca? Ej. 7K3M-9QPX"
+            placeholder={t('register.invitePlaceholder')}
             className={authInputClass}
             {...register('inviteCode')}
           />
@@ -155,13 +159,13 @@ export default function RegisterPage() {
           disabled={isSubmitting || registerAccount.isPending}
           className="w-full py-2.5 text-sm bg-[#2d4a1e] text-[#d4e8b0] rounded-lg hover:bg-[#3d6128] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {(isSubmitting || registerAccount.isPending) ? 'Creando cuenta…' : 'Crear cuenta'}
+          {(isSubmitting || registerAccount.isPending) ? t('register.submitting') : t('register.submit')}
         </button>
 
         <p className="text-xs text-[#7a8a6a] text-center">
-          ¿Ya tienes cuenta?{' '}
+          {t('register.haveAccount')}{' '}
           <Link to="/login" className="text-[#639922] font-medium hover:underline">
-            Iniciar sesión
+            {t('register.login')}
           </Link>
         </p>
       </form>

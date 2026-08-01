@@ -170,6 +170,7 @@ const backupSchema = z.looseObject({
 })
 
 export default function SettingsPage() {
+  const { t } = useTranslation('pages')
   const { confirm, confirmDialog } = useConfirm()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -193,7 +194,7 @@ export default function SettingsPage() {
     a.download = `mi-finca-respaldo-${new Date().toISOString().slice(0, 10)}.json`
     a.click()
     URL.revokeObjectURL(url)
-    toast.success('Respaldo descargado')
+    toast.success(t('settings.toasts.backupDownloaded'))
   }
 
   async function handleImportFile(file: File) {
@@ -201,26 +202,26 @@ export default function SettingsPage() {
     try {
       raw = JSON.parse(await file.text())
     } catch {
-      toast.error('El archivo no es un JSON válido.')
+      toast.error(t('settings.toasts.invalidJson'))
       return
     }
 
     const parsed = backupSchema.safeParse(raw)
     if (!parsed.success) {
-      toast.error('El archivo no parece ser un respaldo válido de Mi Finca PR.')
+      toast.error(t('settings.toasts.invalidBackup'))
       return
     }
     const data = parsed.data
     if (data.version > BACKUP_VERSION) {
-      toast.error('Este respaldo es de una versión más nueva de la aplicación.')
+      toast.error(t('settings.toasts.newerVersion'))
       return
     }
 
     const farmCount = data.farms.length
     const ok = await confirm({
-      title: '¿Restaurar respaldo?',
-      message: `El respaldo contiene ${farmCount} ${farmCount === 1 ? 'finca' : 'fincas'}. Se reemplazarán todos los datos actuales de la aplicación.`,
-      confirmLabel: 'Restaurar',
+      title: t('settings.restoreConfirm.title'),
+      message: t('settings.restoreConfirm.message', { count: farmCount }),
+      confirmLabel: t('settings.restoreConfirm.confirm'),
       danger: true,
     })
     if (!ok) return
@@ -235,14 +236,14 @@ export default function SettingsPage() {
     useFieldStore.setState({ fields: data.fields as unknown as PlacedField[] })
     useLivestockStore.setState({ units: data.livestock as unknown as LivestockUnit[] })
     useCropStore.setState({ customCrops: (data.customCrops ?? []) as unknown as CustomCrop[] })
-    toast.success('Respaldo restaurado')
+    toast.success(t('settings.toasts.backupRestored'))
   }
 
   async function handleClearAll() {
     const ok = await confirm({
-      title: '¿Borrar todos los datos?',
-      message: 'Se eliminarán todas las fincas, campos, animales y calendarios guardados en este dispositivo. Considera descargar un respaldo primero.',
-      confirmLabel: 'Borrar todo',
+      title: t('settings.clearConfirm.title'),
+      message: t('settings.clearConfirm.message'),
+      confirmLabel: t('settings.clearConfirm.confirm'),
       danger: true,
     })
     if (!ok) return
@@ -250,39 +251,39 @@ export default function SettingsPage() {
     useFieldStore.setState({ fields: [] })
     useLivestockStore.setState({ units: [] })
     useCropStore.setState({ customCrops: [] })
-    toast.success('Datos eliminados')
+    toast.success(t('settings.toasts.dataCleared'))
   }
 
   return (
     <div className="max-w-2xl mx-auto flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-bold text-[#2d4a1e]">Configuración</h1>
-        <p className="text-sm text-[#9aab8a] mt-1">Datos y preferencias de la aplicación</p>
+        <h1 className="text-2xl font-bold text-[#2d4a1e]">{t('settings.title')}</h1>
+        <p className="text-sm text-[#9aab8a] mt-1">{t('settings.subtitle')}</p>
       </div>
 
       {/* ── Data section ─────────────────────────────────────────── */}
       <section className="bg-white rounded-2xl border border-[#e0e8d8] overflow-hidden">
         <div className="flex items-center gap-2 px-5 py-4 border-b border-[#e0e8d8]">
           <Database size={16} className="text-[#639922]" />
-          <h2 className="text-sm font-semibold text-[#2d4a1e]">Mis datos</h2>
+          <h2 className="text-sm font-semibold text-[#2d4a1e]">{t('settings.data.sectionTitle')}</h2>
         </div>
 
         <div className="divide-y divide-[#f0f5e8]">
           <SettingsRow
-            title="Descargar respaldo"
-            description="Guarda todas tus fincas, campos, animales y calendarios en un archivo JSON."
+            title={t('settings.data.export.title')}
+            description={t('settings.data.export.description')}
             action={
               <button
                 onClick={handleExport}
                 className="flex items-center gap-1.5 px-3 py-2 text-xs bg-[#2d4a1e] text-[#d4e8b0] rounded-lg hover:bg-[#3d6128] transition-colors shrink-0"
               >
-                <Download size={12} /> Exportar
+                <Download size={12} /> {t('settings.data.export.button')}
               </button>
             }
           />
           <SettingsRow
-            title="Restaurar respaldo"
-            description="Reemplaza los datos actuales con un archivo de respaldo exportado antes."
+            title={t('settings.data.import.title')}
+            description={t('settings.data.import.description')}
             action={
               <>
                 <input
@@ -300,20 +301,20 @@ export default function SettingsPage() {
                   onClick={() => fileInputRef.current?.click()}
                   className="flex items-center gap-1.5 px-3 py-2 text-xs text-[#2d4a1e] border border-[#c8dca8] rounded-lg hover:bg-[#eaf3de] transition-colors shrink-0"
                 >
-                  <Upload size={12} /> Importar
+                  <Upload size={12} /> {t('settings.data.import.button')}
                 </button>
               </>
             }
           />
           <SettingsRow
-            title="Borrar todos los datos"
-            description="Elimina todo lo guardado en este dispositivo. Esta acción no se puede deshacer."
+            title={t('settings.data.clear.title')}
+            description={t('settings.data.clear.description')}
             action={
               <button
                 onClick={handleClearAll}
                 className="flex items-center gap-1.5 px-3 py-2 text-xs text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition-colors shrink-0"
               >
-                <Trash2 size={12} /> Borrar todo
+                <Trash2 size={12} /> {t('settings.data.clear.button')}
               </button>
             }
           />
@@ -329,13 +330,13 @@ export default function SettingsPage() {
       <section className="bg-white rounded-2xl border border-[#e0e8d8] overflow-hidden">
         <div className="flex items-center gap-2 px-5 py-4 border-b border-[#e0e8d8]">
           <Info size={16} className="text-[#639922]" />
-          <h2 className="text-sm font-semibold text-[#2d4a1e]">Acerca de</h2>
+          <h2 className="text-sm font-semibold text-[#2d4a1e]">{t('settings.about.sectionTitle')}</h2>
         </div>
         <div className="px-5 py-4 text-xs text-[#5a6a4a] flex flex-col gap-1.5">
-          <p><span className="font-semibold text-[#2d4a1e]">Mi Finca PR</span> — Fase 1: Herramienta de manejo de fincas</p>
-          <p>Tus datos se guardan localmente en este navegador. Descarga respaldos con frecuencia.</p>
+          <p><span className="font-semibold text-[#2d4a1e]">Mi Finca PR</span> — {t('settings.about.phase')}</p>
+          <p>{t('settings.about.localData')}</p>
           <p className="text-[#9aab8a]">
-            Las recomendaciones agronómicas son orientativas y no sustituyen el consejo de un agrónomo licenciado.
+            {t('settings.about.disclaimer')}
           </p>
         </div>
       </section>
@@ -394,6 +395,7 @@ function SettingsRow({ title, description, action }: {
 // (issue #11) and will plug into these same preferences.
 
 function NotificationSettings() {
+  const { t } = useTranslation('pages')
   const prefs = useSettingsStore(s => s.notificationPrefs)
   const updateLocal = useSettingsStore(s => s.updateNotificationPrefs)
 
@@ -408,13 +410,13 @@ function NotificationSettings() {
     <section className="bg-white rounded-2xl border border-[#e0e8d8] overflow-hidden">
       <div className="flex items-center gap-2 px-5 py-4 border-b border-[#e0e8d8]">
         <Bell size={16} className="text-[#639922]" />
-        <h2 className="text-sm font-semibold text-[#2d4a1e]">Notificaciones</h2>
+        <h2 className="text-sm font-semibold text-[#2d4a1e]">{t('settings.notifications.sectionTitle')}</h2>
       </div>
 
       <div className="divide-y divide-[#f0f5e8]">
         <SettingsRow
-          title="Notificaciones en la aplicación"
-          description="Muestra alertas de operaciones en la campana de la barra superior."
+          title={t('settings.notifications.inApp.title')}
+          description={t('settings.notifications.inApp.description')}
           action={
             <ToggleSwitch
               checked={prefs.enabled}
@@ -423,8 +425,8 @@ function NotificationSettings() {
           }
         />
         <SettingsRow
-          title="Resumen diario por correo"
-          description="Un correo cada mañana con labores vencidas, próximas y hallazgos activos de tus fincas. Solo se envía cuando hay algo pendiente."
+          title={t('settings.notifications.emailDigest.title')}
+          description={t('settings.notifications.emailDigest.description')}
           action={
             <ToggleSwitch
               checked={prefs.emailDigest}
@@ -434,8 +436,8 @@ function NotificationSettings() {
           }
         />
         <SettingsRow
-          title="Operaciones vencidas"
-          description="Avisa cuando una operación pasó de su fecha recomendada sin completarse."
+          title={t('settings.notifications.overdue.title')}
+          description={t('settings.notifications.overdue.description')}
           action={
             <ToggleSwitch
               checked={prefs.notifyOverdue}
@@ -445,8 +447,8 @@ function NotificationSettings() {
           }
         />
         <SettingsRow
-          title="Operaciones próximas"
-          description="Avisa sobre operaciones que vencen dentro de los días de anticipación."
+          title={t('settings.notifications.dueSoon.title')}
+          description={t('settings.notifications.dueSoon.description')}
           action={
             <ToggleSwitch
               checked={prefs.notifyDueSoon}
@@ -456,8 +458,8 @@ function NotificationSettings() {
           }
         />
         <SettingsRow
-          title="Ventanas de cosecha"
-          description="Avisa cuando se acerca o abre la ventana de cosecha de un cultivo."
+          title={t('settings.notifications.harvest.title')}
+          description={t('settings.notifications.harvest.description')}
           action={
             <ToggleSwitch
               checked={prefs.notifyHarvest}
@@ -467,8 +469,8 @@ function NotificationSettings() {
           }
         />
         <SettingsRow
-          title="Días de anticipación"
-          description="Cuántos días antes de la fecha recomendada empieza el aviso (1–60)."
+          title={t('settings.notifications.leadDays.title')}
+          description={t('settings.notifications.leadDays.description')}
           action={
             <input
               type="number"
@@ -489,8 +491,7 @@ function NotificationSettings() {
       </div>
 
       <p className="px-5 py-3 text-[10px] text-[#9aab8a] bg-[#fafcf8] border-t border-[#f0f5e8]">
-        Los avisos por correo electrónico y mensajes de texto llegarán en una
-        versión futura.
+        {t('settings.notifications.footer')}
       </p>
     </section>
   )

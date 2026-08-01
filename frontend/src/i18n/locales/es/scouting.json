@@ -1,1 +1,95 @@
-{}
+{
+  "severity": {
+    "1": "Leve",
+    "2": "Moderada",
+    "3": "Severa"
+  },
+  "status": {
+    "open": "Abierto",
+    "treated": "Tratado",
+    "resolved": "Resuelto"
+  },
+  "trend": {
+    "improving": "mejorando",
+    "worsening": "empeorando",
+    "stable": "estable"
+  },
+  "laborCreated": "💧 labor creada",
+  "modal": {
+    "titleUpdate": "Actualizar hallazgo",
+    "titleNew": "Registrar hallazgo",
+    "helpUpdate": "Registra cómo se ve hoy — severidad y alcance actuales. El historial se conserva.",
+    "helpNew": "Anota la plaga o enfermedad y dónde la viste. Sin selección = observación de todo el campo.",
+    "pestLabel": "Plaga o enfermedad",
+    "pestPlaceholder": "Selecciona…",
+    "suggestedGroup": "Sugeridas para este campo",
+    "othersGroup": "Otras",
+    "pestsGroup": "Plagas",
+    "severityLabel": "Severidad",
+    "dateLabelUpdate": "Fecha de la observación",
+    "dateLabelNew": "Fecha del hallazgo",
+    "whereUpdate": "¿Dónde está ahora?",
+    "whereNew": "¿Dónde lo encontraste?",
+    "notesLabel": "Notas",
+    "optional": "(opcional)",
+    "notesPlaceholder": "Qué viste, cuántas plantas, condiciones...",
+    "cancel": "Cancelar",
+    "confirmUpdate": "Registrar seguimiento",
+    "confirmNew": "Registrar",
+    "toastObservation": "Seguimiento registrado",
+    "toastCreated": "Hallazgo registrado"
+  },
+  "list": {
+    "title": "Hallazgos",
+    "empty": "Sin hallazgos registrados",
+    "summary_one": "{{count}} abierto · {{total}} en total",
+    "summary_other": "{{count}} abiertos · {{total}} en total",
+    "registerButton": "Registrar",
+    "extentOfField": "(≈{{pct}}% del campo)",
+    "extentPct": "(≈{{pct}}%)",
+    "update": "Actualizar",
+    "updateTitle": "Registrar un seguimiento — cómo se ve hoy",
+    "createLabor": "Crear labor",
+    "createLaborTitle": "Crear una labor de tratamiento en el calendario",
+    "treated": "Tratado",
+    "treatedTitle": "Ya se aplicó un tratamiento",
+    "resolved": "Resuelto",
+    "resolvedTitle": "La plaga desapareció",
+    "reopen": "Reabrir",
+    "deleteTitle": "Eliminar este hallazgo",
+    "toastTreated": "Hallazgo marcado como tratado",
+    "toastResolved": "Hallazgo resuelto",
+    "toastReopened": "Hallazgo reabierto",
+    "toastDeleted": "Hallazgo eliminado",
+    "toastNoPlantings": "El campo no tiene siembras — no hay calendario donde crear la labor",
+    "toastLaborCreated": "Labor de tratamiento creada en el calendario"
+  },
+  "dashboard": {
+    "title": "Sanidad",
+    "noActive": "Sin hallazgos activos",
+    "activeCount_one": "{{count}} hallazgo activo",
+    "activeCount_other": "{{count}} hallazgos activos",
+    "stripHealthy": "Sanos",
+    "stripEmpty": "Sin sembrar",
+    "emptyAll": "Sin hallazgos registrados. Usa el botón 🐛 en las tarjetas de campo del mapa para anotar plagas o enfermedades.",
+    "emptyActive": "Sin hallazgos activos — el historial completo está en el cuaderno de campo. 🎉",
+    "extentOfField": "≈{{pct}}% del campo",
+    "treatedTag": "tratado",
+    "overflow_one": "y {{count}} más sin resolver — ve a cada campo en el mapa para el detalle",
+    "overflow_other": "y {{count}} más sin resolver — ve a cada campo en el mapa para el detalle"
+  },
+  "records": {
+    "title": "Registro sanitario",
+    "findingCount_one": "{{count}} hallazgo",
+    "findingCount_other": "{{count}} hallazgos",
+    "fieldCount_one": "{{count}} campo",
+    "fieldCount_other": "{{count}} campos",
+    "exportTitle": "Descargar el registro sanitario completo (una fila por observación)",
+    "exportCsv": "Exportar CSV",
+    "empty": "Sin hallazgos registrados todavía. Usa el botón 🐛 en las tarjetas de campo del mapa para anotar plagas o enfermedades.",
+    "recurrenceTooltip": "{{findings}} en {{fields}}",
+    "timesLast": "× {{times}} · últ. {{date}}",
+    "obsCount_one": "{{count}} observación",
+    "obsCount_other": "{{count}} observaciones"
+  }
+}

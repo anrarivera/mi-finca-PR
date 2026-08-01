@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Search, ChevronDown, X } from 'lucide-react'
 import { CROP_LIBRARY } from '../data/cropLibrary'
 import type { CropType } from '../data/cropLibrary'
@@ -11,8 +12,9 @@ type Props = {
 }
 
 export default function CropSelector({
-  value, onChange, placeholder = 'Seleccionar cultivo', allowClear = false
+  value, onChange, placeholder, allowClear = false
 }: Props) {
+  const { t } = useTranslation('editor')
   const [isOpen, setIsOpen] = useState(false)
   const [search, setSearch] = useState('')
   const containerRef = useRef<HTMLDivElement>(null)
@@ -75,7 +77,7 @@ export default function CropSelector({
             </span>
           </>
         ) : (
-          <span className="flex-1 text-[#b0bea0]">{placeholder}</span>
+          <span className="flex-1 text-[#b0bea0]">{placeholder ?? t('common.selectCrop')}</span>
         )}
         {allowClear && selectedCrop ? (
           <button
@@ -101,7 +103,7 @@ export default function CropSelector({
               type="text"
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder="Buscar cultivo..."
+              placeholder={t('selector.searchPlaceholder')}
               className="flex-1 text-xs text-[#2d4a1e] placeholder:text-[#b0bea0] outline-none bg-transparent"
             />
           </div>
@@ -110,7 +112,7 @@ export default function CropSelector({
           <div className="max-h-52 overflow-y-auto">
             {Object.keys(grouped).length === 0 ? (
               <div className="px-3 py-4 text-xs text-[#9aab8a] text-center">
-                No se encontraron resultados
+                {t('selector.noResults')}
               </div>
             ) : (
               Object.entries(grouped).map(([category, crops]) => (

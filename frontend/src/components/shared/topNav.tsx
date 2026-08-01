@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Link, useNavigate } from 'react-router-dom'
 import { Settings, LogOut, LogIn, UserPlus } from 'lucide-react'
 import { useAuthStore } from '@/store/useAuthStore'
@@ -15,6 +16,7 @@ function initialsFromName(fullName: string): string {
 }
 
 export default function TopNav() {
+  const { t } = useTranslation('pages')
   const [open, setOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
@@ -67,7 +69,7 @@ export default function TopNav() {
           <div className="relative" ref={dropdownRef}>
             <button
               onClick={() => setOpen(prev => !prev)}
-              aria-label="Menú de usuario"
+              aria-label={t('topNav.userMenu')}
               aria-expanded={open}
               className="w-10 h-10 rounded-full bg-[#4a7a2a] border-2 border-[#6aaa3a] text-[#d4e8b0] text-sm font-semibold hover:bg-[#5a8f35] hover:border-[#8fba4e] transition-colors"
             >
@@ -85,7 +87,7 @@ export default function TopNav() {
                   className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-[#3d5a2a] hover:bg-[#f0f5e8] transition-colors"
                 >
                   <Settings size={15} />
-                  Configuración
+                  {t('topNav.settings')}
                 </button>
                 <div className="h-px bg-gray-100 mx-2" />
                 <button
@@ -93,7 +95,7 @@ export default function TopNav() {
                   className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
                 >
                   <LogOut size={15} />
-                  Cerrar sesión
+                  {t('topNav.logout')}
                 </button>
               </div>
             )}
@@ -105,14 +107,14 @@ export default function TopNav() {
               className="flex items-center gap-1.5 px-3 py-2 text-xs text-[#d4e8b0] rounded-lg hover:bg-white/10 transition-colors"
             >
               <LogIn size={13} />
-              Iniciar sesión
+              {t('topNav.login')}
             </Link>
             <Link
               to="/register"
               className="flex items-center gap-1.5 px-3 py-2 text-xs bg-[#639922] text-white rounded-lg hover:bg-[#71ad27] transition-colors"
             >
               <UserPlus size={13} />
-              Crear cuenta
+              {t('topNav.register')}
             </Link>
           </div>
         )}

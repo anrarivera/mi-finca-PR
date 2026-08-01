@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Bug, Plus, X, TrendingDown, TrendingUp, MoveRight } from 'lucide-react'
 import type { FieldRow, PlantInstance, PlantingEvent } from '@/features/field/types'
 import { toast } from '@/store/useToastStore'
@@ -6,15 +7,14 @@ import {
   useFindings, useUpdateFinding, useDeleteFinding, useCreateTreatmentOp,
 } from '../hooks/useFindingsApi'
 import { getPestById } from '../data/pestLibrary'
-import {
-  SEVERITY_COLORS, SEVERITY_LABELS, FINDING_STATUS_LABELS, type Finding,
-} from '../types'
+import { SEVERITY_COLORS, SEVERITY_LABELS, type Finding } from '../types'
 import {
   findingScopeSummary, rowsCoveringFinding, eventForFinding,
   canCreateTreatmentLabor,
 } from '../utils/findingScope'
 import { findingExtentPct, findingTrend } from '../utils/fieldHealth'
 import FindingModal from './findingModal'
+import { dateLocale } from '@/i18n'
 
 // ──────────────────────────────────────────────────────────────────────────
 // Findings list for one field — lives at the top of the operations drawer.
@@ -39,6 +39,7 @@ const STATUS_ORDER: Record<string, number> = { open: 0, treated: 1, resolved: 2 
 export default function FindingsSection({
   farmId, fieldId, fieldRows, freePlants, plantingEvents,
 }: Props) {
+  const { t } = useTranslation('scouting')
   const { data: allFindings } = useFindings(farmId)
   const updateFinding = useUpdateFinding(farmId)
   const deleteFinding = useDeleteFinding(farmId)
@@ -71,7 +72,7 @@ export default function FindingsSection({
       f, { rows: fieldRows, freePlants, plantingEvents }, pest?.crops ?? []
     )
     if (!event) {
-      toast.error('El campo no tiene siembras — no hay calendario donde crear la labor')
+      toast.error(t('list.toastNoPlantings'))
       return
     }
     const covered = rowsCoveringFinding(f, fieldRows)
@@ -93,7 +94,7 @@ export default function FindingsSection({
           notes: `Por hallazgo: ${pest?.nameEs ?? f.pestId} (${SEVERITY_LABELS[f.severity]}). Alcance sugerido: ${scopeText}. Confirma el alcance real al completar la labor.`,
         },
       },
-      { onSuccess: () => toast.success('Labor de tratamiento creada en el calendario') }
+      { onSuccess: () => toast.success(t('list.toastLaborCreated')) }
     )
   }
 
@@ -106,18 +107,18 @@ export default function FindingsSection({
       <div className="flex items-center gap-3 px-4 py-3">
         <Bug size={16} className="text-[#b8860b] shrink-0" />
         <div className="flex-1">
-          <p className="text-sm font-semibold text-[#2d4a1e]">Hallazgos</p>
+          <p className="text-sm font-semibold text-[#2d4a1e]">{t('list.title')}</p>
           <p className="text-[10px] text-[#9aab8a]">
             {findings.length === 0
-              ? 'Sin hallazgos registrados'
-              : `${openCount} ${openCount === 1 ? 'abierto' : 'abiertos'} · ${findings.length} en total`}
+              ? t('list.empty')
+              : t('list.summary', { count: openCount, total: findings.length })}
           </p>
         </div>
         <button
           onClick={() => setCapturing(true)}
           className="flex items-center gap-1 px-2.5 py-1.5 text-[10px] font-medium text-[#2d4a1e] border border-[#c8dca8] bg-[#eaf3de] rounded-lg hover:bg-[#d9ecc4] transition-colors shrink-0"
         >
-          <Plus size={10} /> Registrar
+          <Plus size={10} /> {t('list.registerButton')}
         </button>
       </div>
 
@@ -128,7 +129,7 @@ export default function FindingsSection({
             const pest = getPestById(f.pestId)
             const isClosed = f.status === 'resolved'
             const dateFormatted = new Date(f.foundDate + 'T12:00:00')
-              .toLocaleDateString('es-PR', { day: 'numeric', month: 'short' })
+              .toLocaleDateString(dateLocale(), { day: 'numeric', month: 'short' })
             // Derived extent (incidencia) — how much of the field the
             // scope covers; severity stays the scout's judgment.
             const extentPct = findingExtentPct(f, { rows: fieldRows, freePlants })
@@ -157,30 +158,30 @@ export default function FindingsSection({
                       className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full text-white shrink-0"
                       style={{ backgroundColor: SEVERITY_COLORS[f.severity] }}
                     >
-                      {SEVERITY_LABELS[f.severity]}
+                      {t(`severity.${f.severity}`)}
                     </span>
                     {/* Direction of the last re-inspection */}
                     {trend === 'improving' && (
                       <span className="flex items-center gap-0.5 text-[9px] font-medium text-[#639922] shrink-0">
-                        <TrendingDown size={9} /> mejorando
+                        <TrendingDown size={9} /> {t('trend.improving')}
                       </span>
                     )}
                     {trend === 'worsening' && (
                       <span className="flex items-center gap-0.5 text-[9px] font-medium text-red-500 shrink-0">
-                        <TrendingUp size={9} /> empeorando
+                        <TrendingUp size={9} /> {t('trend.worsening')}
                       </span>
                     )}
                     {trend === 'stable' && (
                       <span className="flex items-center gap-0.5 text-[9px] font-medium text-[#9aab8a] shrink-0">
-                        <MoveRight size={9} /> estable
+                        <MoveRight size={9} /> {t('trend.stable')}
                       </span>
                     )}
                   </div>
                   <p className="text-[10px] text-[#9aab8a] mt-0.5">
                     {dateFormatted} · {findingScopeSummary(f, fieldRows)}
-                    {extentPct !== null && extentPct > 0 && ` (≈${extentPct}% del campo)`}
-                    {f.status !== 'open' && ` · ${FINDING_STATUS_LABELS[f.status]}`}
-                    {f.treatmentRecommendedOperationId && ' · 💧 labor creada'}
+                    {extentPct !== null && extentPct > 0 && ` ${t('list.extentOfField', { pct: extentPct })}`}
+                    {f.status !== 'open' && ` · ${t(`status.${f.status}`)}`}
+                    {f.treatmentRecommendedOperationId && ` · ${t('laborCreated')}`}
                   </p>
                   {f.notes && (
                     <p className="text-[10px] text-[#7a8a6a] mt-0.5 truncate">{f.notes}</p>
@@ -194,12 +195,12 @@ export default function FindingsSection({
                           <span style={{ color: SEVERITY_COLORS[obs.severity] }}>●</span>
                           {' '}
                           {new Date(obs.date + 'T12:00:00')
-                            .toLocaleDateString('es-PR', { day: 'numeric', month: 'short' })}
-                          {' · '}{SEVERITY_LABELS[obs.severity]}
+                            .toLocaleDateString(dateLocale(), { day: 'numeric', month: 'short' })}
+                          {' · '}{t(`severity.${obs.severity}`)}
                           {' · '}{findingScopeSummary(obs, fieldRows)}
                           {(() => {
                             const pct = findingExtentPct(obs, { rows: fieldRows, freePlants })
-                            return pct !== null && pct > 0 ? ` (≈${pct}%)` : ''
+                            return pct !== null && pct > 0 ? ` ${t('list.extentPct', { pct })}` : ''
                           })()}
                         </p>
                       ))}
@@ -211,9 +212,9 @@ export default function FindingsSection({
                 {f.status !== 'resolved' && (
                   <button onClick={() => setUpdating(f)}
                     className={`${smallBtn} text-[#7a8a6a] hover:text-[#2d4a1e]`}
-                    title="Registrar un seguimiento — cómo se ve hoy"
+                    title={t('list.updateTitle')}
                   >
-                    Actualizar
+                    {t('list.update')}
                   </button>
                 )}
                 {f.status === 'open' && (
@@ -221,47 +222,47 @@ export default function FindingsSection({
                     {canCreateTreatmentLabor(f, plantingEvents) && (
                       <button onClick={() => handleCreateTreatment(f)}
                         className={`${smallBtn} text-[#2d4a1e] font-semibold hover:text-[#639922]`}
-                        title="Crear una labor de tratamiento en el calendario"
+                        title={t('list.createLaborTitle')}
                       >
-                        Crear labor
+                        {t('list.createLabor')}
                       </button>
                     )}
-                    <button onClick={() => setStatus(f, 'treated', 'Hallazgo marcado como tratado')}
+                    <button onClick={() => setStatus(f, 'treated', t('list.toastTreated'))}
                       className={`${smallBtn} text-[#639922] hover:text-[#2d4a1e] font-medium`}
-                      title="Ya se aplicó un tratamiento"
+                      title={t('list.treatedTitle')}
                     >
-                      Tratado
+                      {t('list.treated')}
                     </button>
                   </>
                 )}
                 {f.status === 'treated' && (
                   <>
-                    <button onClick={() => setStatus(f, 'resolved', 'Hallazgo resuelto')}
+                    <button onClick={() => setStatus(f, 'resolved', t('list.toastResolved'))}
                       className={`${smallBtn} text-[#639922] hover:text-[#2d4a1e] font-medium`}
-                      title="La plaga desapareció"
+                      title={t('list.resolvedTitle')}
                     >
-                      Resuelto
+                      {t('list.resolved')}
                     </button>
-                    <button onClick={() => setStatus(f, 'open', 'Hallazgo reabierto')}
+                    <button onClick={() => setStatus(f, 'open', t('list.toastReopened'))}
                       className={`${smallBtn} text-[#c0d0b0] hover:text-[#9aab8a]`}
                     >
-                      Reabrir
+                      {t('list.reopen')}
                     </button>
                   </>
                 )}
                 {f.status === 'resolved' && (
-                  <button onClick={() => setStatus(f, 'open', 'Hallazgo reabierto')}
+                  <button onClick={() => setStatus(f, 'open', t('list.toastReopened'))}
                     className={`${smallBtn} text-[#c0d0b0] hover:text-[#639922]`}
                   >
-                    Reabrir
+                    {t('list.reopen')}
                   </button>
                 )}
                 <button
                   onClick={() => deleteFinding.mutate(f.id, {
-                    onSuccess: () => toast.success('Hallazgo eliminado'),
+                    onSuccess: () => toast.success(t('list.toastDeleted')),
                   })}
                   className={`${smallBtn} text-[#c0d0b0] hover:text-red-400`}
-                  title="Eliminar este hallazgo"
+                  title={t('list.deleteTitle')}
                 >
                   <X size={11} />
                 </button>

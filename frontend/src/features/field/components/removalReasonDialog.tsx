@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Check } from 'lucide-react'
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -10,15 +11,15 @@ import { Check } from 'lucide-react'
 
 export type PlantRemovalReason = 'died' | 'replaced' | 'harvested' | 'other'
 
+// Labels live in the i18n dictionaries under editor:removal.reasons.<id>.
 export const REMOVAL_REASONS: Array<{
   id: PlantRemovalReason
-  labelEs: string
   emoji: string
 }> = [
-  { id: 'died', labelEs: 'Murió', emoji: '🥀' },
-  { id: 'replaced', labelEs: 'Reemplazada', emoji: '🔄' },
-  { id: 'harvested', labelEs: 'Cosechada', emoji: '🧺' },
-  { id: 'other', labelEs: 'Otra razón', emoji: '📋' },
+  { id: 'died', emoji: '🥀' },
+  { id: 'replaced', emoji: '🔄' },
+  { id: 'harvested', emoji: '🧺' },
+  { id: 'other', emoji: '📋' },
 ]
 
 type Props = {
@@ -30,6 +31,7 @@ type Props = {
 }
 
 export default function RemovalReasonDialog({ title, subtitle, onConfirm, onCancel }: Props) {
+  const { t } = useTranslation('editor')
   const [reason, setReason] = useState<PlantRemovalReason>('died')
   const [notes, setNotes] = useState('')
 
@@ -47,7 +49,7 @@ export default function RemovalReasonDialog({ title, subtitle, onConfirm, onCanc
           <div className="px-5 py-4 flex flex-col gap-4">
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-[#5a6a4a]">
-                ¿Por qué se eliminan?
+                {t('removal.why')}
               </label>
               <div className="grid grid-cols-2 gap-1.5">
                 {REMOVAL_REASONS.map(r => (
@@ -62,7 +64,7 @@ export default function RemovalReasonDialog({ title, subtitle, onConfirm, onCanc
                     }`}
                   >
                     <span className="text-base">{r.emoji}</span>
-                    {r.labelEs}
+                    {t(`removal.reasons.${r.id}`)}
                   </button>
                 ))}
               </div>
@@ -70,13 +72,13 @@ export default function RemovalReasonDialog({ title, subtitle, onConfirm, onCanc
 
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-[#5a6a4a]">
-                Nota <span className="text-[#9aab8a] font-normal">(opcional)</span>
+                {t('removal.note')} <span className="text-[#9aab8a] font-normal">{t('common.optional')}</span>
               </label>
               <input
                 type="text"
                 value={notes}
                 onChange={e => setNotes(e.target.value)}
-                placeholder="Ej. Daños del huracán"
+                placeholder={t('removal.notePlaceholder')}
                 className="w-full px-2.5 py-1.5 rounded-lg border border-[#d0dcc0] text-xs text-[#2d4a1e] placeholder:text-[#b0bea0] focus:outline-none focus:border-[#639922] transition-colors"
               />
             </div>
@@ -87,13 +89,13 @@ export default function RemovalReasonDialog({ title, subtitle, onConfirm, onCanc
               onClick={() => onConfirm(reason, notes.trim() || undefined)}
               className="w-full flex items-center justify-center gap-2 py-2 text-xs text-white bg-red-500 rounded-lg hover:bg-red-600 transition-colors"
             >
-              <Check size={13} /> Confirmar eliminación
+              <Check size={13} /> {t('removal.confirm')}
             </button>
             <button
               onClick={onCancel}
               className="w-full py-1.5 text-xs text-[#5a6a4a] hover:bg-[#f5f8f0] rounded-lg transition-colors"
             >
-              Cancelar
+              {t('common.cancel')}
             </button>
           </div>
 

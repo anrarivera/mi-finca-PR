@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { AlertTriangle } from 'lucide-react'
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -25,11 +26,12 @@ export type ConfirmOptions = {
 type ActiveConfirm = ConfirmOptions & { resolve: (ok: boolean) => void }
 
 function ConfirmDialog({ active }: { active: ActiveConfirm }) {
+  const { t } = useTranslation('pages')
   const confirmRef = useRef<HTMLButtonElement>(null)
   const {
     title, message,
-    confirmLabel = 'Confirmar',
-    cancelLabel = 'Cancelar',
+    confirmLabel = t('confirmDialog.confirm'),
+    cancelLabel = t('confirmDialog.cancel'),
     danger = false,
     resolve,
   } = active

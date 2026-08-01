@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useFarmStore } from '@/store/useFarmStore'
 import { useCreateFarm } from '@/features/farm/hooks/useFarmsApi'
 import EmptyFarmState from '@/features/farm/components/emptyFarmState'
@@ -7,6 +8,7 @@ import FarmMap from '@/features/map/components/farmMap'
 import { toast } from '@/store/useToastStore'
 
 export default function HomePage() {
+  const { t } = useTranslation('pages')
   const [showModal, setShowModal] = useState(false)
   const { farms } = useFarmStore()
   const createFarm = useCreateFarm()
@@ -18,11 +20,11 @@ export default function HomePage() {
         location: data.location,
         farmType: 'mixed',
       })
-      toast.success('Finca creada')
+      toast.success(t('home.farmCreated'))
       setShowModal(false)
     } catch (err) {
       console.error('Failed to create farm:', err)
-      alert('Error al crear la finca. Por favor intenta de nuevo.')
+      alert(t('home.createFarmError'))
     }
   }
 

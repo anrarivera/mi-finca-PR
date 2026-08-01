@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import {
   MapPin, Layers, Sprout, PawPrint, Ruler, Lightbulb,
 } from 'lucide-react'
@@ -23,6 +24,7 @@ import type { Recommendation } from '@/features/recommendations/types'
 // ──────────────────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
+  const { t } = useTranslation('pages')
   const farms = useFarmStore(s => s.farms)
   const fields = useFieldStore(s => s.fields)
   const livestock = useLivestockStore(s => s.units)
@@ -52,9 +54,9 @@ export default function DashboardPage() {
     <div className="max-w-6xl mx-auto flex flex-col gap-6">
 
       <div>
-        <h1 className="text-2xl font-bold text-[#2d4a1e]">Panel de control</h1>
+        <h1 className="text-2xl font-bold text-[#2d4a1e]">{t('dashboard.title')}</h1>
         <p className="text-sm text-[#9aab8a] mt-1">
-          Lo que está pasando hoy en {farms.length === 1 ? 'tu finca' : 'tus fincas'}
+          {t('dashboard.subtitle', { count: farms.length })}
         </p>
       </div>
 
@@ -62,27 +64,27 @@ export default function DashboardPage() {
         <div className="bg-white rounded-2xl border border-[#e0e8d8] px-6 py-12 text-center">
           <p className="text-4xl mb-3">🌱</p>
           <h2 className="text-base font-semibold text-[#2d4a1e] mb-1">
-            Todavía no tienes fincas
+            {t('dashboard.empty.title')}
           </h2>
           <p className="text-sm text-[#9aab8a] mb-4">
-            Crea tu primera finca en el mapa para ver estadísticas aquí.
+            {t('dashboard.empty.description')}
           </p>
           <Link
             to="/"
             className="inline-block px-4 py-2 text-sm bg-[#2d4a1e] text-[#d4e8b0] rounded-lg hover:bg-[#3d6128] transition-colors"
           >
-            Ir al mapa
+            {t('dashboard.empty.goToMap')}
           </Link>
         </div>
       ) : (
         <>
           {/* ── Stat tiles ─────────────────────────────────────────── */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-            <StatTile icon={<MapPin size={16} />} label={farms.length === 1 ? 'Finca' : 'Fincas'} value={String(farms.length)} />
-            <StatTile icon={<Layers size={16} />} label={fields.length === 1 ? 'Campo' : 'Campos'} value={String(fields.length)} />
-            <StatTile icon={<Ruler size={16} />} label="Área total" value={stats.totalAcres >= 100 ? Math.round(stats.totalAcres).toLocaleString() : stats.totalAcres.toFixed(2)} suffix="ac" />
-            <StatTile icon={<Sprout size={16} />} label="Plantas" value={stats.totalPlants.toLocaleString()} />
-            <StatTile icon={<PawPrint size={16} />} label="Animales" value={stats.totalAnimals.toLocaleString()} />
+            <StatTile icon={<MapPin size={16} />} label={t('dashboard.tiles.farms', { count: farms.length })} value={String(farms.length)} />
+            <StatTile icon={<Layers size={16} />} label={t('dashboard.tiles.fields', { count: fields.length })} value={String(fields.length)} />
+            <StatTile icon={<Ruler size={16} />} label={t('dashboard.tiles.totalArea')} value={stats.totalAcres >= 100 ? Math.round(stats.totalAcres).toLocaleString() : stats.totalAcres.toFixed(2)} suffix="ac" />
+            <StatTile icon={<Sprout size={16} />} label={t('dashboard.tiles.plants')} value={stats.totalPlants.toLocaleString()} />
+            <StatTile icon={<PawPrint size={16} />} label={t('dashboard.tiles.animals')} value={stats.totalAnimals.toLocaleString()} />
           </div>
 
           {/* ── Labores due (checkable) + recommendations ──────────── */}
@@ -95,11 +97,11 @@ export default function DashboardPage() {
             <section className="bg-white rounded-2xl border border-[#e0e8d8] overflow-hidden">
               <div className="flex items-center gap-2 px-5 py-4 border-b border-[#e0e8d8]">
                 <Lightbulb size={16} className="text-[#639922]" />
-                <h2 className="text-sm font-semibold text-[#2d4a1e]">Recomendaciones</h2>
+                <h2 className="text-sm font-semibold text-[#2d4a1e]">{t('dashboard.recommendations.title')}</h2>
               </div>
               {stats.recommendations.length === 0 ? (
                 <p className="px-5 py-6 text-xs text-[#9aab8a] text-center">
-                  Todo al día — no hay recomendaciones por ahora. 🎉
+                  {t('dashboard.recommendations.empty')}
                 </p>
               ) : (
                 <div className="divide-y divide-[#f0f5e8]">
@@ -142,11 +144,12 @@ function StatTile({ icon, label, value, suffix }: {
   )
 }
 
-const SEVERITY_STYLES: Record<Recommendation['severity'], { dot: string; label: string }> = {
-  urgent: { dot: 'bg-red-500', label: 'Urgente' },
-  warning: { dot: 'bg-amber-400', label: 'Atención' },
-  info: { dot: 'bg-[#639922]', label: 'Info' },
-  tip: { dot: 'bg-[#b0c890]', label: 'Consejo' },
+// labelKey resolves in the 'pages' namespace (dashboard.severity.*).
+const SEVERITY_STYLES: Record<Recommendation['severity'], { dot: string; labelKey: string }> = {
+  urgent: { dot: 'bg-red-500', labelKey: 'dashboard.severity.urgent' },
+  warning: { dot: 'bg-amber-400', labelKey: 'dashboard.severity.warning' },
+  info: { dot: 'bg-[#639922]', labelKey: 'dashboard.severity.info' },
+  tip: { dot: 'bg-[#b0c890]', labelKey: 'dashboard.severity.tip' },
 }
 
 function RecommendationRow({ rec }: { rec: Recommendation }) {

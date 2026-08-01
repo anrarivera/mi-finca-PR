@@ -9,6 +9,7 @@
 // the canvas before being committed.
 // ──────────────────────────────────────────────────────────────────────────
 import { useMemo, useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Check, X, RotateCcw, RotateCw, Undo2,
   ArrowUp, ArrowDown, ArrowLeft, ArrowRight,
@@ -43,6 +44,7 @@ const PAD_BTN =
   'active:bg-[#d9ecc4] transition-colors'
 
 export default function RowFillPanel({ boundary, onPreview, onConfirm, onCancel }: Props) {
+  const { t } = useTranslation('editor')
   // The parent passes a memoized boundary (stable reference per geometry
   // change), so it can be used directly as a dependency — no stringify keys.
 
@@ -192,7 +194,7 @@ export default function RowFillPanel({ boundary, onPreview, onConfirm, onCancel 
     <div className="absolute inset-x-0 bottom-0 h-[60dvh] rounded-t-xl sm:inset-x-auto sm:right-4 sm:top-4 sm:bottom-4 sm:h-auto sm:w-64 sm:rounded-xl z-10 bg-white border border-[#e0e8d8] shadow-lg flex flex-col overflow-hidden">
       <div className="flex items-center justify-between px-4 py-3 border-b border-[#e0e8d8] bg-[#f5f8f0] shrink-0">
         <p className="text-xs font-semibold text-[#2d4a1e] uppercase tracking-wide">
-          Rellenar con hileras
+          {t('fill.title')}
         </p>
         <button onClick={onCancel}
           className="w-5 h-5 pointer-coarse:w-10 pointer-coarse:h-10 flex items-center justify-center text-[#9aab8a] hover:text-red-400 transition-colors"
@@ -206,17 +208,17 @@ export default function RowFillPanel({ boundary, onPreview, onConfirm, onCancel 
         {/* Field size hint */}
         <div className="px-3 py-2 bg-[#f5f8f0] rounded-lg">
           <p className="text-[10px] text-[#9aab8a]">
-            Campo: <span className="text-[#5a6a4a] font-medium">{dims.longFt} × {dims.shortFt} ft</span>
+            {t('fill.fieldLabel')} <span className="text-[#5a6a4a] font-medium">{dims.longFt} × {dims.shortFt} ft</span>
           </p>
         </div>
 
         {/* Pattern — straight rows vs contour rings (Added by Claude) */}
         <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-[#5a6a4a]">Patrón</label>
+          <label className="text-xs font-medium text-[#5a6a4a]">{t('fill.pattern')}</label>
           <div className="grid grid-cols-2 gap-2">
             {([
-              { key: 'parallel', label: 'Paralelas', hint: 'rectas' },
-              { key: 'contour', label: 'Contorno', hint: 'sigue el borde' },
+              { key: 'parallel', label: t('fill.parallel'), hint: t('fill.parallelHint') },
+              { key: 'contour', label: t('fill.contour'), hint: t('fill.contourHint') },
             ] as const).map(o => (
               <button key={o.key} onClick={() => setPattern(o.key)}
                 className={`flex flex-col items-center gap-0.5 py-2.5 rounded-lg border text-[11px] font-medium transition-colors ${
@@ -236,11 +238,11 @@ export default function RowFillPanel({ boundary, onPreview, onConfirm, onCancel 
         {pattern === 'parallel' && (<>
         {/* Orientation — relative to the field's own axes */}
         <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-[#5a6a4a]">Orientación de hileras</label>
+          <label className="text-xs font-medium text-[#5a6a4a]">{t('fill.orientation')}</label>
           <div className="grid grid-cols-2 gap-2">
             {([
-              { key: 'long', label: 'A lo largo', hint: `~${dims.longFt} ft` },
-              { key: 'short', label: 'A lo ancho', hint: `~${dims.shortFt} ft` },
+              { key: 'long', label: t('fill.alongLong'), hint: t('fill.approxFt', { ft: dims.longFt }) },
+              { key: 'short', label: t('fill.alongShort'), hint: t('fill.approxFt', { ft: dims.shortFt }) },
             ] as const).map(o => (
               <button key={o.key}
                 onClick={() => {
@@ -265,20 +267,20 @@ export default function RowFillPanel({ boundary, onPreview, onConfirm, onCancel 
         {/* Number of rows — capped to what fits (Added by Claude) */}
         <div className="flex flex-col gap-1.5">
           <label className="text-xs font-medium text-[#5a6a4a]">
-            Número de hileras <span className="text-[#9aab8a] font-normal">(máx {maxRows})</span>
+            {t('fill.rowCount')} <span className="text-[#9aab8a] font-normal">{t('fill.maxRows', { max: maxRows })}</span>
           </label>
           <div className="flex items-center gap-2">
             <input type="number" min={1} max={maxRows} value={count}
               onChange={e => setCount(Math.max(1, Math.min(maxRows, Number(e.target.value) || 1)))}
               className="w-24 px-2 py-1.5 rounded-lg border border-[#d0dcc0] text-sm text-[#2d4a1e] focus:outline-none focus:border-[#639922] transition-colors"
             />
-            <span className="text-xs text-[#9aab8a]">hileras</span>
+            <span className="text-xs text-[#9aab8a]">{t('fill.rowsUnit')}</span>
           </div>
         </div>
 
         {/* Row length */}
         <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-[#5a6a4a]">Largo de hilera</label>
+          <label className="text-xs font-medium text-[#5a6a4a]">{t('fill.rowLength')}</label>
           <button onClick={() => setMaxLength(p => !p)}
             className={`flex items-center justify-between px-3 py-2 rounded-lg border text-xs transition-colors ${
               maxLength
@@ -286,7 +288,7 @@ export default function RowFillPanel({ boundary, onPreview, onConfirm, onCancel 
                 : 'border-[#d0dcc0] text-[#7a8a6a] hover:bg-[#f5f8f0]'
             }`}
           >
-            <span>Máximo (rellenar el campo)</span>
+            <span>{t('fill.maxLengthOption')}</span>
             <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${
               maxLength ? 'border-[#639922] bg-[#639922]' : 'border-[#c0d0b0]'
             }`}>
@@ -299,7 +301,7 @@ export default function RowFillPanel({ boundary, onPreview, onConfirm, onCancel 
                 onChange={e => setRowLengthFt(Math.max(1, Number(e.target.value)))}
                 className="w-24 px-2 py-1.5 rounded-lg border border-[#d0dcc0] text-sm text-[#2d4a1e] focus:outline-none focus:border-[#639922] transition-colors"
               />
-              <span className="text-xs text-[#9aab8a]">ft de largo</span>
+              <span className="text-xs text-[#9aab8a]">{t('fill.ftLong')}</span>
             </div>
           )}
         </div>
@@ -307,27 +309,27 @@ export default function RowFillPanel({ boundary, onPreview, onConfirm, onCancel 
         {/* Move / rotate the whole set of rows. Plants clip live to the
             boundary minus the margin — see transformFillRows. */}
         <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-[#5a6a4a]">Mover y rotar</label>
+          <label className="text-xs font-medium text-[#5a6a4a]">{t('fill.moveRotate')}</label>
           <div className="flex items-start gap-3">
             {/* D-pad — in the rows' frame: ←/→ a lo largo de las hileras,
                 ↑/↓ a lo ancho (entre hileras) */}
             <div className="grid grid-cols-3 gap-1 shrink-0">
               <div />
               <button onClick={() => setOffsetAcrossFt(v => v + moveStepFt)}
-                title="Mover a lo ancho (entre hileras)" className={PAD_BTN}>
+                title={t('fill.moveAcross')} className={PAD_BTN}>
                 <ArrowUp size={13} />
               </button>
               <div />
               <button onClick={() => setOffsetAlongFt(v => v - moveStepFt)}
-                title="Mover a lo largo de las hileras" className={PAD_BTN}>
+                title={t('fill.moveAlong')} className={PAD_BTN}>
                 <ArrowLeft size={13} />
               </button>
               <button onClick={() => setOffsetAcrossFt(v => v - moveStepFt)}
-                title="Mover a lo ancho (entre hileras)" className={PAD_BTN}>
+                title={t('fill.moveAcross')} className={PAD_BTN}>
                 <ArrowDown size={13} />
               </button>
               <button onClick={() => setOffsetAlongFt(v => v + moveStepFt)}
-                title="Mover a lo largo de las hileras" className={PAD_BTN}>
+                title={t('fill.moveAlong')} className={PAD_BTN}>
                 <ArrowRight size={13} />
               </button>
             </div>
@@ -339,12 +341,12 @@ export default function RowFillPanel({ boundary, onPreview, onConfirm, onCancel 
                   onChange={e => setMoveStepFt(Math.max(1, Number(e.target.value) || 1))}
                   className="w-14 px-1.5 py-1 rounded-lg border border-[#d0dcc0] text-xs text-[#2d4a1e] focus:outline-none focus:border-[#639922] transition-colors"
                 />
-                <span className="text-[10px] text-[#9aab8a]">ft por paso</span>
+                <span className="text-[10px] text-[#9aab8a]">{t('fill.ftPerStep')}</span>
               </div>
               {/* Rotation */}
               <div className="flex items-center gap-1.5">
                 <button onClick={() => setRotateDeg(v => v - 5)}
-                  title="Rotar 5° a la izquierda" className={PAD_BTN}>
+                  title={t('fill.rotateLeft')} className={PAD_BTN}>
                   <RotateCcw size={13} />
                 </button>
                 <input type="number" step={5} value={rotateDeg}
@@ -352,10 +354,10 @@ export default function RowFillPanel({ boundary, onPreview, onConfirm, onCancel 
                   className="w-14 px-1.5 py-1 rounded-lg border border-[#d0dcc0] text-xs text-[#2d4a1e] focus:outline-none focus:border-[#639922] transition-colors"
                 />
                 <button onClick={() => setRotateDeg(v => v + 5)}
-                  title="Rotar 5° a la derecha" className={PAD_BTN}>
+                  title={t('fill.rotateRight')} className={PAD_BTN}>
                   <RotateCw size={13} />
                 </button>
-                <span className="text-[10px] text-[#9aab8a]">grados</span>
+                <span className="text-[10px] text-[#9aab8a]">{t('fill.degrees')}</span>
               </div>
             </div>
           </div>
@@ -365,59 +367,55 @@ export default function RowFillPanel({ boundary, onPreview, onConfirm, onCancel 
               onClick={() => { setOffsetAlongFt(0); setOffsetAcrossFt(0); setRotateDeg(0) }}
               className="flex items-center justify-center gap-1.5 py-1.5 text-[10px] text-[#9aab8a] border border-[#e0e8d8] rounded-lg hover:text-[#2d4a1e] hover:bg-[#f5f8f0] transition-colors"
             >
-              <Undo2 size={11} /> Restablecer posición
+              <Undo2 size={11} /> {t('fill.resetPosition')}
             </button>
           )}
 
           <p className="text-[10px] text-[#9aab8a]">
-            Las flechas siguen la orientación de las hileras: ←/→ a lo
-            largo, ↑/↓ a lo ancho. Las plantas que salgan del campo o del
-            margen se quitan de la hilera — así puedes acortar hileras
-            sacándolas por un lado (p. ej. hileras de media anchura para
-            dos cultivos).
+            {t('fill.arrowsHelp')}
           </p>
         </div>
         </>)}
 
         {/* Row spacing */}
         <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-[#5a6a4a]">Espaciado entre hileras</label>
+          <label className="text-xs font-medium text-[#5a6a4a]">{t('fill.rowSpacing')}</label>
           <div className="flex items-center gap-2">
             <input type="number" min={1} value={rowSpacingFt}
               onChange={e => setRowSpacingFt(Math.max(1, Number(e.target.value)))}
               className="w-20 px-2 py-1.5 rounded-lg border border-[#d0dcc0] text-sm text-[#2d4a1e] focus:outline-none focus:border-[#639922] transition-colors"
             />
-            <span className="text-xs text-[#9aab8a]">pies</span>
+            <span className="text-xs text-[#9aab8a]">{t('common.feet')}</span>
           </div>
         </div>
 
         {/* Margin */}
         <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-[#5a6a4a]">Margen / pasillos</label>
+          <label className="text-xs font-medium text-[#5a6a4a]">{t('fill.margin')}</label>
           <div className="flex items-center gap-2">
             <input type="number" min={0} value={marginFt}
               onChange={e => setMarginFt(Math.max(0, Number(e.target.value)))}
               className="w-20 px-2 py-1.5 rounded-lg border border-[#d0dcc0] text-sm text-[#2d4a1e] focus:outline-none focus:border-[#639922] transition-colors"
             />
-            <span className="text-xs text-[#9aab8a]">pies (extremos)</span>
+            <span className="text-xs text-[#9aab8a]">{t('fill.ftEnds')}</span>
           </div>
         </div>
 
         {/* Plant spacing */}
         <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-[#5a6a4a]">Espaciado entre plantas</label>
+          <label className="text-xs font-medium text-[#5a6a4a]">{t('common.plantSpacing')}</label>
           <div className="flex items-center gap-2">
             <input type="number" min={1} max={50} value={spacingFt}
               onChange={e => setSpacingFt(Math.max(1, Number(e.target.value)))}
               className="w-20 px-2 py-1.5 rounded-lg border border-[#d0dcc0] text-sm text-[#2d4a1e] focus:outline-none focus:border-[#639922] transition-colors"
             />
-            <span className="text-xs text-[#9aab8a]">pies</span>
+            <span className="text-xs text-[#9aab8a]">{t('common.feet')}</span>
           </div>
         </div>
 
         {/* Planting date */}
         <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-[#5a6a4a]">Fecha de siembra</label>
+          <label className="text-xs font-medium text-[#5a6a4a]">{t('common.plantingDate')}</label>
           <input type="date" value={plantingDate} max={todayISO()}
             onChange={e => setPlantingDate(e.target.value)}
             className="w-full px-3 py-2 rounded-lg border border-[#d0dcc0] text-sm text-[#2d4a1e] focus:outline-none focus:border-[#639922] transition-colors"
@@ -427,17 +425,17 @@ export default function RowFillPanel({ boundary, onPreview, onConfirm, onCancel 
         {/* Primary crop */}
         <div className="flex flex-col gap-1.5">
           <label className="text-xs font-medium text-[#5a6a4a]">
-            Cultivo principal <span className="text-red-400">*</span>
+            {t('common.primaryCrop')} <span className="text-red-400">*</span>
           </label>
-          <CropSelector value={primaryCropId} onChange={setPrimaryCropId} placeholder="Seleccionar cultivo" />
+          <CropSelector value={primaryCropId} onChange={setPrimaryCropId} placeholder={t('common.selectCrop')} />
         </div>
 
         {/* Companion crop */}
         <div className="flex flex-col gap-1.5">
           <label className="text-xs font-medium text-[#5a6a4a]">
-            Planta compañera <span className="text-[#9aab8a] font-normal">(opcional)</span>
+            {t('common.companionCrop')} <span className="text-[#9aab8a] font-normal">{t('common.optional')}</span>
           </label>
-          <CropSelector value={companionCropId} onChange={setCompanionCropId} placeholder="Sin compañera" allowClear />
+          <CropSelector value={companionCropId} onChange={setCompanionCropId} placeholder={t('common.noCompanion')} allowClear />
         </div>
 
         {/* Live count */}
@@ -445,13 +443,13 @@ export default function RowFillPanel({ boundary, onPreview, onConfirm, onCancel 
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-[#639922] shrink-0" />
             <span className="text-xs text-[#3b6d11] font-medium">
-              {drawnCount} {drawnCount === 1 ? 'hilera' : 'hileras'}
-              {primaryCropId ? ` · ${plantCount} plantas` : ''}
+              {t('fill.rows', { count: drawnCount })}
+              {primaryCropId ? ` · ${t('fill.plants', { count: plantCount })}` : ''}
             </span>
           </div>
           {clipped && (
             <span className="text-[10px] text-[#9aab8a]">
-              {count - drawnCount} no caben en el campo
+              {t('fill.dontFit', { count: count - drawnCount })}
             </span>
           )}
         </div>
@@ -462,12 +460,12 @@ export default function RowFillPanel({ boundary, onPreview, onConfirm, onCancel 
         <button onClick={handleConfirm} disabled={!primaryCropId || drawnCount === 0}
           className="w-full flex items-center justify-center gap-2 py-2.5 bg-[#2d4a1e] text-[#d4e8b0] rounded-lg text-xs font-medium hover:bg-[#3d6128] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
-          <Check size={13} /> Crear {drawnCount} {drawnCount === 1 ? 'hilera' : 'hileras'}
+          <Check size={13} /> {t('fill.create', { count: drawnCount })}
         </button>
         <button onClick={onCancel}
           className="w-full py-2 text-xs text-[#9aab8a] hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
         >
-          Cancelar
+          {t('common.cancel')}
         </button>
       </div>
     </div>

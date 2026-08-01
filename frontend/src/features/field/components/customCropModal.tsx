@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { X, Plus, Trash2, Sprout } from 'lucide-react'
 import { useCropStore } from '@/store/useCropStore'
 import { toast } from '@/store/useToastStore'
@@ -14,13 +15,9 @@ import type {
 // schedules do.
 // ──────────────────────────────────────────────────────────────────────────
 
-const OP_TYPES: Array<{ value: RecommendedOperationType; labelEs: string }> = [
-  { value: 'fertilization', labelEs: 'Fertilización' },
-  { value: 'spray', labelEs: 'Fumigación' },
-  { value: 'cultivation', labelEs: 'Cultivación' },
-  { value: 'irrigation', labelEs: 'Riego' },
-  { value: 'monitoring', labelEs: 'Monitoreo' },
-  { value: 'harvest', labelEs: 'Cosecha' },
+// Display labels live in the i18n dictionaries under editor:customCrop.opTypes.<value>.
+const OP_TYPES: RecommendedOperationType[] = [
+  'fertilization', 'spray', 'cultivation', 'irrigation', 'monitoring', 'harvest',
 ]
 
 const CATEGORIES = [
@@ -36,6 +33,7 @@ type Props = {
 }
 
 export default function CustomCropModal({ onClose, onCreated }: Props) {
+  const { t } = useTranslation('editor')
   const addCustomCrop = useCropStore(s => s.addCustomCrop)
 
   const [nameEs, setNameEs] = useState('')
@@ -44,8 +42,8 @@ export default function CustomCropModal({ onClose, onCreated }: Props) {
   const [withRecipe, setWithRecipe] = useState(false)
   const [windowStart, setWindowStart] = useState('90')
   const [windowEnd, setWindowEnd] = useState('120')
-  const [ops, setOps] = useState<OpDraft[]>([
-    { type: 'fertilization', labelEs: 'Primera fertilización', offsetDays: '14' },
+  const [ops, setOps] = useState<OpDraft[]>(() => [
+    { type: 'fertilization', labelEs: t('customCrop.defaultOpLabel'), offsetDays: '14' },
   ])
 
   function updateOp(index: number, patch: Partial<OpDraft>) {
@@ -55,7 +53,7 @@ export default function CustomCropModal({ onClose, onCreated }: Props) {
   function handleSave() {
     const trimmed = nameEs.trim()
     if (!trimmed) {
-      toast.error('El cultivo necesita un nombre.')
+      toast.error(t('customCrop.needsName'))
       return
     }
 
@@ -73,7 +71,7 @@ export default function CustomCropModal({ onClose, onCreated }: Props) {
       const start = Math.round(Number(windowStart))
       const end = Math.round(Number(windowEnd))
       if (!Number.isFinite(start) || !Number.isFinite(end) || start < 0 || end < start) {
-        toast.error('Revisa la ventana de cosecha: el fin debe ser igual o mayor que el inicio.')
+        toast.error(t('customCrop.badWindow'))
         return
       }
       const templates: RecommendedOperationTemplate[] = []
@@ -81,11 +79,11 @@ export default function CustomCropModal({ onClose, onCreated }: Props) {
         const label = draft.labelEs.trim()
         const offset = Math.round(Number(draft.offsetDays))
         if (!label) {
-          toast.error(`La operación #${i + 1} necesita una descripción.`)
+          toast.error(t('customCrop.opNeedsDescription', { number: i + 1 }))
           return
         }
         if (!Number.isFinite(offset) || offset < 0) {
-          toast.error(`La operación #${i + 1} necesita días desde siembra (0 o más).`)
+          toast.error(t('customCrop.opNeedsDays', { number: i + 1 }))
           return
         }
         templates.push({
@@ -105,7 +103,7 @@ export default function CustomCropModal({ onClose, onCreated }: Props) {
     }
 
     addCustomCrop({ crop, schedule })
-    toast.success(`Cultivo "${trimmed}" creado`)
+    toast.success(t('customCrop.created', { name: trimmed }))
     onCreated(cropId)
   }
 
@@ -120,9 +118,9 @@ export default function CustomCropModal({ onClose, onCreated }: Props) {
         <div className="flex items-center justify-between px-5 py-4 border-b border-[#e0e8d8] sticky top-0 bg-white">
           <div className="flex items-center gap-2">
             <Sprout size={16} className="text-[#639922]" />
-            <h2 className="text-sm font-semibold text-[#2d4a1e]">Nuevo cultivo personalizado</h2>
+            <h2 className="text-sm font-semibold text-[#2d4a1e]">{t('customCrop.title')}</h2>
           </div>
-          <button onClick={onClose} aria-label="Cerrar" className="text-[#9aab8a] hover:text-[#2d4a1e] transition-colors">
+          <button onClick={onClose} aria-label={t('customCrop.close')} className="text-[#9aab8a] hover:text-[#2d4a1e] transition-colors">
             <X size={16} />
           </button>
         </div>
@@ -132,17 +130,17 @@ export default function CustomCropModal({ onClose, onCreated }: Props) {
           {/* Basic info */}
           <div className="grid grid-cols-[1fr_72px] gap-3">
             <label className="flex flex-col gap-1">
-              <span className="text-[11px] font-medium text-[#5a6a4a]">Nombre *</span>
+              <span className="text-[11px] font-medium text-[#5a6a4a]">{t('customCrop.name')}</span>
               <input
                 value={nameEs}
                 onChange={e => setNameEs(e.target.value)}
-                placeholder="p. ej. Acerola"
+                placeholder={t('customCrop.namePlaceholder')}
                 autoFocus
                 className="px-3 py-2 text-sm text-[#2d4a1e] border border-[#c8dca8] rounded-lg focus:outline-none focus:border-[#639922]"
               />
             </label>
             <label className="flex flex-col gap-1">
-              <span className="text-[11px] font-medium text-[#5a6a4a]">Emoji</span>
+              <span className="text-[11px] font-medium text-[#5a6a4a]">{t('customCrop.emoji')}</span>
               <input
                 value={emoji}
                 onChange={e => setEmoji(e.target.value)}
@@ -153,7 +151,7 @@ export default function CustomCropModal({ onClose, onCreated }: Props) {
           </div>
 
           <label className="flex flex-col gap-1">
-            <span className="text-[11px] font-medium text-[#5a6a4a]">Categoría</span>
+            <span className="text-[11px] font-medium text-[#5a6a4a]">{t('customCrop.category')}</span>
             <select
               value={category}
               onChange={e => setCategory(e.target.value)}
@@ -172,9 +170,9 @@ export default function CustomCropModal({ onClose, onCreated }: Props) {
               className="accent-[#639922] w-4 h-4 pointer-coarse:w-5 pointer-coarse:h-5"
             />
             <div>
-              <p className="text-xs font-medium text-[#2d4a1e]">Añadir receta de operaciones</p>
+              <p className="text-xs font-medium text-[#2d4a1e]">{t('customCrop.addRecipe')}</p>
               <p className="text-[10px] text-[#9aab8a]">
-                Genera automáticamente el calendario de labores al sembrar este cultivo.
+                {t('customCrop.recipeHint')}
               </p>
             </div>
           </label>
@@ -185,7 +183,7 @@ export default function CustomCropModal({ onClose, onCreated }: Props) {
               {/* Harvest window */}
               <div className="grid grid-cols-2 gap-3">
                 <label className="flex flex-col gap-1">
-                  <span className="text-[11px] font-medium text-[#5a6a4a]">Cosecha desde (días)</span>
+                  <span className="text-[11px] font-medium text-[#5a6a4a]">{t('customCrop.harvestFrom')}</span>
                   <input
                     type="number" min={0} value={windowStart}
                     onChange={e => setWindowStart(e.target.value)}
@@ -193,7 +191,7 @@ export default function CustomCropModal({ onClose, onCreated }: Props) {
                   />
                 </label>
                 <label className="flex flex-col gap-1">
-                  <span className="text-[11px] font-medium text-[#5a6a4a]">Cosecha hasta (días)</span>
+                  <span className="text-[11px] font-medium text-[#5a6a4a]">{t('customCrop.harvestTo')}</span>
                   <input
                     type="number" min={0} value={windowEnd}
                     onChange={e => setWindowEnd(e.target.value)}
@@ -205,7 +203,7 @@ export default function CustomCropModal({ onClose, onCreated }: Props) {
               {/* Operation templates */}
               <div className="flex flex-col gap-2">
                 <span className="text-[11px] font-medium text-[#5a6a4a]">
-                  Operaciones (días después de la siembra)
+                  {t('customCrop.opsLabel')}
                 </span>
                 {ops.map((o, i) => (
                   <div key={i} className="flex items-center gap-2">
@@ -214,23 +212,23 @@ export default function CustomCropModal({ onClose, onCreated }: Props) {
                       onChange={e => updateOp(i, { type: e.target.value as RecommendedOperationType })}
                       className="px-2 py-1.5 text-xs bg-white border border-[#c8dca8] rounded-lg focus:outline-none focus:border-[#639922] shrink-0"
                     >
-                      {OP_TYPES.map(t => <option key={t.value} value={t.value}>{t.labelEs}</option>)}
+                      {OP_TYPES.map(v => <option key={v} value={v}>{t(`customCrop.opTypes.${v}`)}</option>)}
                     </select>
                     <input
                       value={o.labelEs}
                       onChange={e => updateOp(i, { labelEs: e.target.value })}
-                      placeholder="Descripción"
+                      placeholder={t('customCrop.descriptionPlaceholder')}
                       className="flex-1 min-w-0 px-2 py-1.5 text-xs border border-[#c8dca8] rounded-lg focus:outline-none focus:border-[#639922]"
                     />
                     <input
                       type="number" min={0} value={o.offsetDays}
                       onChange={e => updateOp(i, { offsetDays: e.target.value })}
-                      title="Días después de la siembra"
+                      title={t('customCrop.daysAfterPlanting')}
                       className="w-16 px-2 py-1.5 text-xs text-center border border-[#c8dca8] rounded-lg focus:outline-none focus:border-[#639922] shrink-0"
                     />
                     <button
                       onClick={() => setOps(prev => prev.filter((_, j) => j !== i))}
-                      aria-label="Eliminar operación"
+                      aria-label={t('customCrop.deleteOp')}
                       className="text-[#9aab8a] hover:text-red-500 transition-colors shrink-0"
                     >
                       <Trash2 size={13} />
@@ -241,7 +239,7 @@ export default function CustomCropModal({ onClose, onCreated }: Props) {
                   onClick={() => setOps(prev => [...prev, { type: 'monitoring', labelEs: '', offsetDays: '30' }])}
                   className="flex items-center gap-1.5 self-start px-2.5 py-1.5 text-[11px] text-[#639922] border border-[#c8dca8] rounded-lg hover:bg-[#eaf3de] transition-colors"
                 >
-                  <Plus size={11} /> Añadir operación
+                  <Plus size={11} /> {t('customCrop.addOp')}
                 </button>
               </div>
             </div>
@@ -254,13 +252,13 @@ export default function CustomCropModal({ onClose, onCreated }: Props) {
             onClick={onClose}
             className="px-4 py-2 text-xs text-[#5a6a4a] border border-[#e0e8d8] rounded-lg hover:bg-[#f5f8f0] transition-colors"
           >
-            Cancelar
+            {t('common.cancel')}
           </button>
           <button
             onClick={handleSave}
             className="px-4 py-2 text-xs bg-[#2d4a1e] text-[#d4e8b0] rounded-lg hover:bg-[#3d6128] transition-colors"
           >
-            Crear cultivo
+            {t('customCrop.create')}
           </button>
         </div>
       </div>

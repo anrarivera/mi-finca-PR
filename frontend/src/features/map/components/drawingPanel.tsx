@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Pencil, Trash2, Check, Milestone, Plus, Undo2, X } from 'lucide-react'
 import { useIsPhone } from '@/hooks/useViewport'
 import type { DrawingMode } from '../hooks/useDrawing'
@@ -56,6 +57,7 @@ export default function DrawingPanel({
   onInsertPointAfterSelected,
   canDeleteFarm = true,
 }: Props) {
+  const { t } = useTranslation('farm')
   const isPhone = useIsPhone()
   const [menuOpen, setMenuOpen] = useState(false)
   const active = mode === 'drawing' || mode === 'editing'
@@ -108,17 +110,17 @@ export default function DrawingPanel({
               onClick={onStart}
               className="px-2.5 py-1.5 bg-white border border-[#e0e8d8] rounded-full shadow-md text-[11px] font-medium text-[#2d4a1e]"
             >
-              Dibuja tu finca
+              {t('drawing.drawYourFarm')}
             </button>
           ) : areaAcres !== null && (
             <span className="px-2.5 py-1.5 bg-white border border-[#e0e8d8] rounded-full shadow-md text-[11px] font-medium text-[#5a6a4a]">
-              {areaAcres} ac
+              {t('acresShort', { value: areaAcres })}
             </span>
           )}
           <button
             onClick={() => (mode === 'idle' ? onStart() : setMenuOpen(open => !open))}
-            title="Límite de finca"
-            aria-label="Límite de finca"
+            title={t('drawing.boundaryTitle')}
+            aria-label={t('drawing.boundaryTitle')}
             className="w-11 h-11 flex items-center justify-center rounded-full bg-[#2d4a1e] text-[#d4e8b0] shadow-lg hover:bg-[#3d6128] transition-colors"
           >
             <Milestone size={18} />
@@ -132,13 +134,13 @@ export default function DrawingPanel({
               <div className="flex items-center gap-2">
                 <Milestone size={14} className="text-[#639922]" />
                 <span className="text-xs font-semibold text-[#2d4a1e] uppercase tracking-wide">
-                  Límite de finca
+                  {t('drawing.boundaryTitle')}
                 </span>
               </div>
               {areaAcres !== null && (
                 <div className="flex items-baseline gap-1 mt-1.5">
                   <span className="text-2xl font-bold text-[#2d4a1e]">{areaAcres}</span>
-                  <span className="text-xs text-[#7a8a6a]">acres · {pointCount} puntos</span>
+                  <span className="text-xs text-[#7a8a6a]">{t('drawing.acresPoints', { count: pointCount })}</span>
                 </div>
               )}
             </div>
@@ -149,21 +151,21 @@ export default function DrawingPanel({
                 className="w-full flex items-center justify-center gap-2 py-2.5 text-xs font-medium bg-[#2d4a1e] text-[#d4e8b0] rounded-lg hover:bg-[#3d6128] transition-colors"
               >
                 <Check size={13} />
-                Guardar finca
+                {t('drawing.saveFarm')}
               </button>
               <button
                 onClick={onStartEditing}
                 className="w-full flex items-center justify-center gap-2 py-2 text-xs text-[#639922] hover:bg-[#eaf3de] rounded-lg transition-colors"
               >
                 <Pencil size={13} />
-                Editar límite
+                {t('drawing.editBoundary')}
               </button>
               <button
                 onClick={onClear}
                 className="w-full flex items-center justify-center gap-2 py-2 text-xs text-[#9aab8a] hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
               >
                 <Trash2 size={13} />
-                Limpiar y redibujar
+                {t('drawing.clearRedraw')}
               </button>
               {canDeleteFarm && (
               <button
@@ -171,7 +173,7 @@ export default function DrawingPanel({
                 className="w-full flex items-center justify-center gap-2 py-2 text-xs text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
               >
                 <Trash2 size={13} />
-                Eliminar finca
+                {t('drawing.deleteFarm')}
               </button>
               )}
               <div className="h-px bg-[#f0f5e8]" />
@@ -180,7 +182,7 @@ export default function DrawingPanel({
                 className="w-full flex items-center justify-center gap-2 py-2 text-xs text-[#639922] hover:bg-[#eaf3de] rounded-lg transition-colors"
               >
                 <Plus size={13} />
-                Gestionar campos
+                {t('drawing.manageFields')}
               </button>
             </div>
           </div>
@@ -208,14 +210,15 @@ function Toolbar({
   onInsertPointAfterSelected: () => void
   onFinishEditing: () => void
 }) {
+  const { t } = useTranslation('farm')
   const status =
     mode === 'drawing'
       ? pointCount === 0
-        ? 'Toca el mapa para colocar esquinas'
-        : `${pointCount} ${pointCount === 1 ? 'punto' : 'puntos'}`
+        ? t('drawing.tapToPlace')
+        : t('drawing.pointCount', { count: pointCount })
       : selectedPointIndex !== null
-      ? `Punto ${selectedPointIndex + 1} seleccionado`
-      : `${areaAcres !== null ? `${areaAcres} ac · ` : ''}toca un punto para editarlo`
+      ? t('drawing.pointSelected', { number: selectedPointIndex + 1 })
+      : `${areaAcres !== null ? `${t('acresShort', { value: areaAcres })} · ` : ''}${t('drawing.tapPointToEdit')}`
 
   return (
     <div
@@ -233,15 +236,15 @@ function Toolbar({
       {mode === 'drawing' ? (
         <>
           <ToolbarButton
-            label="Deshacer" icon={<Undo2 size={15} />} isPhone={isPhone}
+            label={t('drawing.undo')} icon={<Undo2 size={15} />} isPhone={isPhone}
             onClick={onUndoPoint} disabled={pointCount === 0}
           />
           <ToolbarButton
-            label="Cancelar" icon={<X size={15} />} isPhone={isPhone}
+            label={t('drawing.cancel')} icon={<X size={15} />} isPhone={isPhone}
             onClick={onClear} tone="danger"
           />
           <ToolbarButton
-            label="Completar" icon={<Check size={15} />} isPhone={isPhone}
+            label={t('drawing.complete')} icon={<Check size={15} />} isPhone={isPhone}
             onClick={onComplete} disabled={pointCount < 3} tone="primary"
           />
         </>
@@ -250,17 +253,17 @@ function Toolbar({
           {selectedPointIndex !== null && (
             <>
               <ToolbarButton
-                label="Añadir punto" icon={<Plus size={15} />} isPhone={isPhone}
+                label={t('drawing.addPoint')} icon={<Plus size={15} />} isPhone={isPhone}
                 onClick={onInsertPointAfterSelected}
               />
               <ToolbarButton
-                label="Eliminar punto" icon={<Trash2 size={15} />} isPhone={isPhone}
+                label={t('drawing.deletePoint')} icon={<Trash2 size={15} />} isPhone={isPhone}
                 onClick={onDeleteSelectedPoint} tone="danger"
               />
             </>
           )}
           <ToolbarButton
-            label="Terminar" icon={<Check size={15} />} isPhone={isPhone}
+            label={t('drawing.finish')} icon={<Check size={15} />} isPhone={isPhone}
             onClick={onFinishEditing} tone="primary"
           />
         </>

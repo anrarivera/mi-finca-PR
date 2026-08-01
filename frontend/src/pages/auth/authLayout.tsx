@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 
 // Shared centered-card shell for the login/register pages.
 export default function AuthLayout({ title, subtitle, children }: {
@@ -7,6 +8,7 @@ export default function AuthLayout({ title, subtitle, children }: {
   subtitle: string
   children: ReactNode
 }) {
+  const { t } = useTranslation('auth')
   return (
     <div className="min-h-dvh flex flex-col items-center justify-center bg-[#f7f9f4] px-4 py-8">
       <Link to="/" className="flex items-center gap-2 mb-6">
@@ -29,7 +31,7 @@ export default function AuthLayout({ title, subtitle, children }: {
         to="/"
         className="mt-5 text-xs text-[#7a8a6a] hover:text-[#2d4a1e] transition-colors"
       >
-        ← Continuar sin cuenta (los datos se guardan en este dispositivo)
+        {t('layout.continueWithoutAccount')}
       </Link>
     </div>
   )

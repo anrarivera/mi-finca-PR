@@ -3,23 +3,27 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { useTranslation } from 'react-i18next'
+import type { TFunction } from 'i18next'
 import { useLogin } from '@/features/auth/hooks/useAuth'
 import AuthLayout, { authInputClass, FieldError } from './authLayout'
 
-const loginSchema = z.object({
-  email: z.string().email('Escribe un email válido'),
-  password: z.string().min(1, 'Escribe tu contraseña'),
+// Schema is built with t() so validation messages follow the UI language.
+const makeLoginSchema = (t: TFunction) => z.object({
+  email: z.string().email(t('login.emailInvalid')),
+  password: z.string().min(1, t('login.passwordRequired')),
 })
 
-type LoginForm = z.infer<typeof loginSchema>
+type LoginForm = z.infer<ReturnType<typeof makeLoginSchema>>
 
 export default function LoginPage() {
+  const { t } = useTranslation('auth')
   const navigate = useNavigate()
   const login = useLogin()
   const [serverError, setServerError] = useState<string | null>(null)
 
   const { register, handleSubmit, formState: { errors, isSubmitting } } =
-    useForm<LoginForm>({ resolver: zodResolver(loginSchema) })
+    useForm<LoginForm>({ resolver: zodResolver(makeLoginSchema(t)) })
 
   async function onSubmit(values: LoginForm) {
     setServerError(null)
@@ -29,30 +33,30 @@ export default function LoginPage() {
     } catch (err) {
       const message = err instanceof Error ? err.message : ''
       if (message.includes('429') || message.toLowerCase().includes('rate')) {
-        setServerError('Demasiados intentos. Espera unos minutos e inténtalo de nuevo.')
+        setServerError(t('login.errorRateLimit'))
       } else if (message.includes('401') || message.includes('400') || message.toLowerCase().includes('invalid')) {
-        setServerError('Email o contraseña incorrectos.')
+        setServerError(t('login.errorInvalidCredentials'))
       } else {
-        setServerError('Error inesperado. Inténtalo de nuevo.')
+        setServerError(t('login.errorUnexpected'))
       }
     }
   }
 
   return (
     <AuthLayout
-      title="Iniciar sesión"
-      subtitle="Accede a tu cuenta de Mi Finca PR"
+      title={t('login.title')}
+      subtitle={t('login.subtitle')}
     >
       <form onSubmit={handleSubmit(onSubmit)} className="px-8 py-6 flex flex-col gap-4">
         <div className="flex flex-col gap-1.5">
           <label htmlFor="email" className="text-xs font-medium text-[#5a6a4a]">
-            Email
+            {t('login.emailLabel')}
           </label>
           <input
             id="email"
             type="email"
             autoComplete="email"
-            placeholder="tucorreo@ejemplo.com"
+            placeholder={t('login.emailPlaceholder')}
             className={authInputClass}
             {...register('email')}
           />
@@ -61,7 +65,7 @@ export default function LoginPage() {
 
         <div className="flex flex-col gap-1.5">
           <label htmlFor="password" className="text-xs font-medium text-[#5a6a4a]">
-            Contraseña
+            {t('login.passwordLabel')}
           </label>
           <input
             id="password"
@@ -85,25 +89,25 @@ export default function LoginPage() {
           disabled={isSubmitting || login.isPending}
           className="w-full py-2.5 text-sm bg-[#2d4a1e] text-[#d4e8b0] rounded-lg hover:bg-[#3d6128] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {(isSubmitting || login.isPending) ? 'Entrando...' : 'Entrar'}
+          {(isSubmitting || login.isPending) ? t('login.submitting') : t('login.submit')}
         </button>
 
         <div className="flex items-center gap-3">
           <div className="flex-1 h-px bg-[#e0e8d8]" />
-          <span className="text-xs text-[#9aab8a]">o</span>
+          <span className="text-xs text-[#9aab8a]">{t('login.or')}</span>
           <div className="flex-1 h-px bg-[#e0e8d8]" />
         </div>
 
         <p className="text-xs text-[#7a8a6a] text-center">
-          ¿No tienes cuenta?{' '}
+          {t('login.noAccount')}{' '}
           <Link to="/register" className="text-[#639922] font-medium hover:underline">
-            Crear cuenta
+            {t('login.createAccount')}
           </Link>
         </p>
 
         <p className="text-xs text-center">
           <Link to="/forgot-password" className="text-[#639922] hover:underline">
-            ¿Olvidaste tu contraseña?
+            {t('login.forgotPassword')}
           </Link>
         </p>
       </form>

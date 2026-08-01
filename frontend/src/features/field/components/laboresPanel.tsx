@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { AlertCircle, Clock, CheckCircle2, CalendarDays } from 'lucide-react'
 import { useFarmStore } from '@/store/useFarmStore'
 import { useFieldStore } from '@/store/useFieldStore'
@@ -12,6 +13,7 @@ import {
   useLogPartialRecommendedOp, type DueSoonOperation,
 } from '../hooks/useOperationsApi'
 import { toast } from '@/store/useToastStore'
+import { dateLocale } from '@/i18n'
 
 // ──────────────────────────────────────────────────────────────────────────
 // Labores — the dashboard's "what's due" panel, server-backed: the
@@ -25,6 +27,7 @@ import { toast } from '@/store/useToastStore'
 const LIST_LIMIT = 8
 
 export default function LaboresPanel() {
+  const { t } = useTranslation('field')
   const activeFarm = useFarmStore(s => s.activeFarm)
   const farmId = activeFarm?.id ?? null
   const fields = useFieldStore(s => s.fields)
@@ -105,9 +108,9 @@ export default function LaboresPanel() {
     <section className="bg-white rounded-2xl border border-[#e0e8d8] overflow-hidden">
       <div className="flex items-center gap-2 px-5 py-4 border-b border-[#e0e8d8]">
         <CalendarDays size={16} className="text-[#639922]" />
-        <h2 className="text-sm font-semibold text-[#2d4a1e]">Labores</h2>
+        <h2 className="text-sm font-semibold text-[#2d4a1e]">{t('panel.title')}</h2>
         <span className="text-xs text-[#9aab8a]">
-          cultivos y animales{activeFarm ? ` · ${activeFarm.name}` : ''}
+          {t('panel.subtitle')}{activeFarm ? ` · ${activeFarm.name}` : ''}
         </span>
       </div>
 
@@ -115,17 +118,17 @@ export default function LaboresPanel() {
       <div className="grid grid-cols-3 divide-x divide-[#f0f5e8] border-b border-[#f0f5e8]">
         <HealthCell
           icon={<AlertCircle size={13} className="text-red-500" />}
-          count={dueSoon?.overdueCount ?? 0} label="Vencidas"
+          count={dueSoon?.overdueCount ?? 0} label={t('panel.overdue')}
           className={(dueSoon?.overdueCount ?? 0) > 0 ? 'text-red-600' : 'text-[#9aab8a]'}
         />
         <HealthCell
           icon={<Clock size={13} className="text-amber-500" />}
-          count={dueSoon?.dueSoonCount ?? 0} label="Próx. 14 días"
+          count={dueSoon?.dueSoonCount ?? 0} label={t('panel.next14')}
           className={(dueSoon?.dueSoonCount ?? 0) > 0 ? 'text-amber-600' : 'text-[#9aab8a]'}
         />
         <HealthCell
           icon={<CheckCircle2 size={13} className="text-[#639922]" />}
-          count={completedCount} label="Completadas"
+          count={completedCount} label={t('panel.completed')}
           className="text-[#2d4a1e]"
         />
       </div>
@@ -133,7 +136,7 @@ export default function LaboresPanel() {
       {/* Open work, soonest first — checkable right here */}
       {operations.length === 0 ? (
         <p className="px-5 py-6 text-xs text-[#9aab8a] text-center">
-          No hay labores vencidas ni próximas. 🎉
+          {t('panel.empty')}
         </p>
       ) : (
         <div className="divide-y divide-[#f0f5e8]">
@@ -145,42 +148,42 @@ export default function LaboresPanel() {
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-medium text-[#2d4a1e] truncate">{op.labelEs}</p>
                   <p className={`text-[10px] truncate ${overdue ? 'text-red-500 font-medium' : 'text-[#9aab8a]'}`}>
-                    {overdue ? 'Vencida — ' : ''}
+                    {overdue ? t('status.overduePrefix') : ''}
                     {new Date(op.recommendedDate + 'T12:00:00')
-                      .toLocaleDateString('es-PR', { day: 'numeric', month: 'short' })}
+                      .toLocaleDateString(dateLocale(), { day: 'numeric', month: 'short' })}
                     {rowContext(op) && ` · ${rowContext(op)}`}
                   </p>
                 </div>
                 {/* Same three actions as the field cards */}
                 <button
                   onClick={() => setChecking({ mode: 'complete', op })}
-                  title="Marcar como realizada"
+                  title={t('actions.completeTitle')}
                   className={`${smallBtn} text-[#2d4a1e] font-semibold hover:text-[#639922]`}
                 >
-                  Completa
+                  {t('actions.complete')}
                 </button>
                 <button
                   onClick={() => setChecking({ mode: 'partial', op })}
-                  title="Registrar avance sin completar la labor"
+                  title={t('actions.partialTitle')}
                   className={`${smallBtn} text-[#639922] hover:text-[#2d4a1e] font-medium`}
                 >
-                  Parcial
+                  {t('actions.partial')}
                 </button>
                 <button
                   onClick={() => skipOp.mutate(
                     mutationIds(op),
-                    { onSuccess: () => toast.success('Operación omitida') }
+                    { onSuccess: () => toast.success(t('toast.opSkipped')) }
                   )}
                   className={`${smallBtn} text-[#c0d0b0] hover:text-[#9aab8a]`}
                 >
-                  Omitir
+                  {t('actions.skip')}
                 </button>
               </div>
             )
           })}
           {operations.length > LIST_LIMIT && (
             <p className="px-5 py-2 text-[10px] text-[#9aab8a] text-center">
-              y {operations.length - LIST_LIMIT} más en el cuaderno de campo
+              {t('panel.moreInNotebook', { count: operations.length - LIST_LIMIT })}
             </p>
           )}
         </div>
@@ -217,12 +220,12 @@ export default function LaboresPanel() {
                     plantIds: data.plantIds,
                   },
                 },
-                { onSuccess: () => toast.success('Avance parcial registrado') }
+                { onSuccess: () => toast.success(t('toast.partialLogged')) }
               )
             } else {
               completeOp.mutate(
                 { ...mutationIds(checking.op), data },
-                { onSuccess: () => toast.success('Operación registrada') }
+                { onSuccess: () => toast.success(t('toast.opLogged')) }
               )
             }
             setChecking(null)

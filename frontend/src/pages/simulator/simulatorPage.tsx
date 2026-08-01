@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Calculator, Sprout, TrendingUp, TrendingDown, DollarSign, Scale } from 'lucide-react'
+import { dateLocale } from '@/i18n'
 import { useFieldStore } from '@/store/useFieldStore'
 import { computeCropSummary } from '@/features/field/utils/rowCalculator'
 import { getCropById } from '@/features/field/data/cropLibrary'
@@ -14,10 +16,11 @@ import type { SimCropInput } from '@/features/simulator/engine'
 // ──────────────────────────────────────────────────────────────────────────
 
 function money(n: number): string {
-  return n.toLocaleString('es-PR', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })
+  return n.toLocaleString(dateLocale(), { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })
 }
 
 export default function SimulatorPage() {
+  const { t } = useTranslation('pages')
   const fields = useFieldStore(s => s.fields)
   const [rows, setRows] = useState<SimCropInput[]>([])
   const [source, setSource] = useState<string | null>(null)
@@ -69,18 +72,17 @@ export default function SimulatorPage() {
       <div>
         <h1 className="text-2xl font-bold text-[#2d4a1e] flex items-center gap-2">
           <Calculator size={22} className="text-[#639922]" />
-          Simulador de viabilidad
+          {t('simulator.title')}
         </h1>
         <p className="text-sm text-[#9aab8a] mt-1">
-          Proyecta producción, ingresos y costos anuales. Los números son estimados
-          orientativos — ajústalos a tu realidad.
+          {t('simulator.subtitle')}
         </p>
       </div>
 
       {/* ── Source selection ─────────────────────────────────────── */}
       <section className="bg-white rounded-2xl border border-[#e0e8d8] p-5">
         <p className="text-xs font-semibold text-[#5a6a4a] uppercase tracking-wide mb-3">
-          Empieza con…
+          {t('simulator.startWith')}
         </p>
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
           <button
@@ -93,12 +95,12 @@ export default function SimulatorPage() {
             }`}
           >
             <span className="flex items-center gap-1.5 text-sm font-semibold text-[#2d4a1e]">
-              <Sprout size={14} className="text-[#639922]" /> Mi finca actual
+              <Sprout size={14} className="text-[#639922]" /> {t('simulator.myFarm')}
             </span>
             <span className="text-[11px] text-[#9aab8a]">
               {plantedSummary.length === 0
-                ? 'Aún no tienes cultivos sembrados'
-                : `${plantedSummary.reduce((s, c) => s + c.count, 0)} plantas sembradas en tus campos`}
+                ? t('simulator.noCropsPlanted')
+                : t('simulator.plantedCount', { count: plantedSummary.reduce((s, c) => s + c.count, 0) })}
             </span>
           </button>
 
@@ -127,22 +129,22 @@ export default function SimulatorPage() {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             <TotalTile
               icon={<Scale size={15} />}
-              label="Producción anual"
+              label={t('simulator.totals.production')}
               value={`${Math.round(result.totals.annualYieldLbs).toLocaleString()} lbs`}
             />
             <TotalTile
               icon={<DollarSign size={15} />}
-              label="Ingresos"
+              label={t('simulator.totals.revenue')}
               value={money(result.totals.annualRevenue)}
             />
             <TotalTile
               icon={<TrendingDown size={15} />}
-              label="Costos"
+              label={t('simulator.totals.costs')}
               value={money(result.totals.annualCost)}
             />
             <TotalTile
               icon={<TrendingUp size={15} />}
-              label="Neto anual"
+              label={t('simulator.totals.net')}
               value={money(result.totals.annualNet)}
               accent={result.totals.annualNet >= 0 ? 'positive' : 'negative'}
             />
@@ -151,22 +153,22 @@ export default function SimulatorPage() {
           {/* ── Per-crop table ──────────────────────────────────── */}
           <section className="bg-white rounded-2xl border border-[#e0e8d8] overflow-hidden">
             <div className="px-5 py-4 border-b border-[#e0e8d8]">
-              <h2 className="text-sm font-semibold text-[#2d4a1e]">Supuestos por cultivo</h2>
+              <h2 className="text-sm font-semibold text-[#2d4a1e]">{t('simulator.perCrop.title')}</h2>
               <p className="text-[11px] text-[#9aab8a] mt-0.5">
-                Edita cualquier número — la proyección se recalcula al instante.
+                {t('simulator.perCrop.subtitle')}
               </p>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
                 <thead>
                   <tr className="text-[10px] text-[#9aab8a] uppercase tracking-wide border-b border-[#f0f5e8]">
-                    <th className="text-left px-5 py-2.5 font-semibold">Cultivo</th>
-                    <th className="text-right px-2 py-2.5 font-semibold">Plantas</th>
-                    <th className="text-right px-2 py-2.5 font-semibold">lbs/planta</th>
-                    <th className="text-right px-2 py-2.5 font-semibold">$/lb</th>
-                    <th className="text-right px-2 py-2.5 font-semibold">Cosechas/año</th>
-                    <th className="text-right px-2 py-2.5 font-semibold">Costo/planta</th>
-                    <th className="text-right px-5 py-2.5 font-semibold">Neto anual</th>
+                    <th className="text-left px-5 py-2.5 font-semibold">{t('simulator.columns.crop')}</th>
+                    <th className="text-right px-2 py-2.5 font-semibold">{t('simulator.columns.plants')}</th>
+                    <th className="text-right px-2 py-2.5 font-semibold">{t('simulator.columns.lbsPerPlant')}</th>
+                    <th className="text-right px-2 py-2.5 font-semibold">{t('simulator.columns.pricePerLb')}</th>
+                    <th className="text-right px-2 py-2.5 font-semibold">{t('simulator.columns.harvestsPerYear')}</th>
+                    <th className="text-right px-2 py-2.5 font-semibold">{t('simulator.columns.costPerPlant')}</th>
+                    <th className="text-right px-5 py-2.5 font-semibold">{t('simulator.columns.annualNet')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#f0f5e8]">
@@ -181,31 +183,31 @@ export default function SimulatorPage() {
                         </td>
                         <td className="px-2 py-2 w-20">
                           <input type="number" min={0} value={c.count} className={inputClass}
-                            aria-label={`Plantas de ${crop?.nameEs ?? c.cropTypeId}`}
+                            aria-label={t('simulator.aria.plantsOf', { name: crop?.nameEs ?? c.cropTypeId })}
                             onChange={e => updateRow(c.cropTypeId, { count: Math.max(0, Number(e.target.value) || 0) })}
                           />
                         </td>
                         <td className="px-2 py-2 w-20">
                           <input type="number" min={0} step={0.5} value={c.yieldPerPlantLbs} className={inputClass}
-                            aria-label="Libras por planta"
+                            aria-label={t('simulator.aria.lbsPerPlant')}
                             onChange={e => updateRow(c.cropTypeId, { yieldPerPlantLbs: Math.max(0, Number(e.target.value) || 0) })}
                           />
                         </td>
                         <td className="px-2 py-2 w-20">
                           <input type="number" min={0} step={0.05} value={c.pricePerLb} className={inputClass}
-                            aria-label="Precio por libra"
+                            aria-label={t('simulator.aria.pricePerLb')}
                             onChange={e => updateRow(c.cropTypeId, { pricePerLb: Math.max(0, Number(e.target.value) || 0) })}
                           />
                         </td>
                         <td className="px-2 py-2 w-20">
                           <input type="number" min={0} step={0.1} value={c.cyclesPerYear} className={inputClass}
-                            aria-label="Cosechas por año"
+                            aria-label={t('simulator.aria.cyclesPerYear')}
                             onChange={e => updateRow(c.cropTypeId, { cyclesPerYear: Math.max(0, Number(e.target.value) || 0) })}
                           />
                         </td>
                         <td className="px-2 py-2 w-20">
                           <input type="number" min={0} step={0.5} value={c.costPerPlantYear} className={inputClass}
-                            aria-label="Costo por planta al año"
+                            aria-label={t('simulator.aria.costPerPlantYear')}
                             onChange={e => updateRow(c.cropTypeId, { costPerPlantYear: Math.max(0, Number(e.target.value) || 0) })}
                           />
                         </td>
@@ -217,7 +219,7 @@ export default function SimulatorPage() {
                             c.pricePerLb !== base.pricePerLb ||
                             c.cyclesPerYear !== base.cyclesPerYear ||
                             c.costPerPlantYear !== base.costPerPlantYear) && (
-                            <span className="block text-[9px] font-normal text-[#9aab8a]">ajustado</span>
+                            <span className="block text-[9px] font-normal text-[#9aab8a]">{t('simulator.adjusted')}</span>
                           )}
                         </td>
                       </tr>
@@ -229,9 +231,7 @@ export default function SimulatorPage() {
           </section>
 
           <p className="text-[11px] text-[#9aab8a] px-1">
-            ⚠️ Proyecciones orientativas basadas en promedios generales — los resultados
-            reales varían con el terreno, el clima y el mercado. Consulta un agrónomo
-            licenciado antes de tomar decisiones de inversión.
+            {t('simulator.disclaimer')}
           </p>
         </>
       )}

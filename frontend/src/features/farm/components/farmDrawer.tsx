@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   ChevronRight, ChevronLeft, Star, Plus,
   MapPin, Layers, Trash2, Users,
@@ -40,6 +41,7 @@ export default function FarmDrawer({
   isOpen, onOpenChange, onAddFarm, onEditField, onDeleteField,
   onFlyToFarm, onOpenFieldEditor, focusRequest, onSelectField, onZoomToField,
 }: Props) {
+  const { t } = useTranslation('farm')
   const [level, setLevel] = useState<'farms' | 'fields'>('farms')
   // "Equipo" roster/management modal — per farm
   const [teamFarm, setTeamFarm] = useState<Farm | null>(null)
@@ -88,7 +90,7 @@ export default function FarmDrawer({
   }
 
   function handleDeleteFarm(farm: Farm) {
-    if (!window.confirm(`¿Eliminar la finca "${farm.name}" y todos sus campos?`)) return
+    if (!window.confirm(t('confirmDeleteFarm', { name: farm.name }))) return
     removeFieldsByFarmId(farm.id)
     deleteFarm(farm.id)
     if (farms.length <= 1) setLevel('farms')
@@ -122,7 +124,7 @@ export default function FarmDrawer({
           className="text-[9px] font-semibold text-[#5a6a4a] uppercase tracking-wide"
           style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
         >
-          {level === 'fields' && activeFarm ? activeFarm.name : 'Fincas'}
+          {level === 'fields' && activeFarm ? activeFarm.name : t('drawer.farmsTab')}
         </span>
         {/* Badge — total overdue operations */}
         {totalOverdue > 0 && (
@@ -210,6 +212,7 @@ function FarmList({
   onAddFarm: () => void
   onClose: () => void
 }) {
+  const { t } = useTranslation('farm')
   const { getFieldsByFarmId } = useFieldStore()
 
   // Sort farms — favorite first
@@ -225,10 +228,10 @@ function FarmList({
       <div className="px-4 py-3 border-b border-[#e0e8d8] bg-[#f5f8f0] flex items-center justify-between shrink-0">
         <div>
           <p className="text-xs font-semibold text-[#2d4a1e] uppercase tracking-wide">
-            Mis fincas
+            {t('drawer.myFarms')}
           </p>
           <p className="text-[10px] text-[#9aab8a] mt-0.5">
-            {farms.length} {farms.length === 1 ? 'finca' : 'fincas'}
+            {t('drawer.farmCount', { count: farms.length })}
           </p>
         </div>
         <button onClick={onClose}
@@ -244,7 +247,7 @@ function FarmList({
           <div className="flex flex-col items-center justify-center h-40 gap-2 px-4 text-center">
             <MapPin size={24} className="text-[#c0d8a0]" strokeWidth={1.5} />
             <p className="text-xs text-[#9aab8a]">
-              No tienes fincas todavía. Añade tu primera finca.
+              {t('drawer.noFarmsYet')}
             </p>
           </div>
         ) : (
@@ -286,11 +289,11 @@ function FarmList({
                         <div className="flex items-center gap-3">
                           <span className="text-[10px] text-[#7a8a6a]">
                             <Layers size={9} className="inline mr-1" />
-                            {farmFields.length} {farmFields.length === 1 ? 'campo' : 'campos'}
+                            {t('drawer.fieldCount', { count: farmFields.length })}
                           </span>
                           {farm.boundary?.length > 0 && (
                             <span className="text-[10px] text-[#7a8a6a]">
-                              {farm.totalAreaAcres > 0 ? `${farm.totalAreaAcres} ac` : ''}
+                              {farm.totalAreaAcres > 0 ? t('acresShort', { value: farm.totalAreaAcres }) : ''}
                             </span>
                           )}
                         </div>
@@ -325,17 +328,17 @@ function FarmList({
                           ? 'text-amber-500 bg-amber-50'
                           : 'text-[#9aab8a] hover:text-amber-500 hover:bg-amber-50'
                       }`}
-                      title={isFavorite ? 'Finca favorita' : 'Marcar como favorita'}
+                      title={isFavorite ? t('drawer.favoriteTitle') : t('drawer.markFavoriteTitle')}
                     >
                       <Star size={10} className={isFavorite ? 'fill-amber-400' : ''} />
-                      {isFavorite ? 'Favorita' : 'Favorita'}
+                      {t('drawer.favorite')}
                     </button>
                     <button
                       onClick={(e) => { e.stopPropagation(); onTeam(farm) }}
                       className="flex items-center gap-1 px-2 py-1 pointer-coarse:px-3 pointer-coarse:py-2 rounded text-[10px] text-[#9aab8a] hover:text-[#2d4a1e] hover:bg-[#f0f5e8] transition-colors"
-                      title="Ver o gestionar el equipo de la finca"
+                      title={t('drawer.teamTitle')}
                     >
-                      <Users size={10} /> Equipo
+                      <Users size={10} /> {t('drawer.team')}
                     </button>
                     {/* Deleting a farm is owner-only — hide what the server rejects */}
                     {isFarmOwner(farm) && (
@@ -343,7 +346,7 @@ function FarmList({
                       onClick={(e) => { e.stopPropagation(); onDelete(farm) }}
                       className="flex items-center gap-1 px-2 py-1 pointer-coarse:px-3 pointer-coarse:py-2 rounded text-[10px] text-[#9aab8a] hover:text-red-500 hover:bg-red-50 transition-colors"
                     >
-                      <Trash2 size={10} /> Eliminar
+                      <Trash2 size={10} /> {t('drawer.delete')}
                     </button>
                     )}
                   </div>
@@ -360,13 +363,13 @@ function FarmList({
           onClick={onAddFarm}
           className="w-full flex items-center justify-center gap-2 py-2.5 bg-[#2d4a1e] text-[#d4e8b0] rounded-lg text-xs font-medium hover:bg-[#3d6128] transition-colors"
         >
-          <Plus size={13} /> Añadir finca
+          <Plus size={13} /> {t('drawer.addFarm')}
         </button>
         <button
           onClick={onJoin}
           className="w-full py-1.5 pointer-coarse:py-2.5 text-[10px] text-[#7a8a6a] hover:text-[#2d4a1e] transition-colors"
         >
-          ¿Tienes un código? Únete a una finca
+          {t('drawer.joinPrompt')}
         </button>
       </div>
     </div>
@@ -399,6 +402,7 @@ function FieldList({
   onOpenFieldEditor: () => void
   }) {
 
+  const { t } = useTranslation('farm')
   const deleteField = useDeleteField(farm.id)
   const { removeFieldIdFromFarm } = useFarmStore()
 
@@ -407,7 +411,7 @@ function FieldList({
       onSuccess: () => {
         removeFieldIdFromFarm(farm.id, fieldId)
         onDeleteField(fieldId) // notify parent if needed
-        toast.success('Campo eliminado')
+        toast.success(t('drawer.fieldDeleted'))
       },
     })
   }
@@ -437,18 +441,18 @@ function FieldList({
               <p className="text-xs font-semibold text-[#2d4a1e] truncate">{farm.name}</p>
               <div className="flex items-center gap-2 mt-0.5">
                 <p className="text-[10px] text-[#9aab8a]">
-                  {fields.length} {fields.length === 1 ? 'campo' : 'campos'}
+                  {t('drawer.fieldCount', { count: fields.length })}
                 </p>
                 {totalOverdue > 0 && (
                   <div className="flex items-center gap-0.5 px-1.5 py-0.5 bg-red-50 rounded-full">
                     <AlertCircle size={8} className="text-red-500" />
-                    <span className="text-[9px] text-red-600 font-bold">{totalOverdue} vencidas</span>
+                    <span className="text-[9px] text-red-600 font-bold">{t('drawer.overdueBadge', { count: totalOverdue })}</span>
                   </div>
                 )}
                 {totalDueSoon > 0 && totalOverdue === 0 && (
                   <div className="flex items-center gap-0.5 px-1.5 py-0.5 bg-amber-50 rounded-full">
                     <Clock size={8} className="text-amber-500" />
-                    <span className="text-[9px] text-amber-600 font-bold">{totalDueSoon} próximas</span>
+                    <span className="text-[9px] text-amber-600 font-bold">{t('drawer.dueSoonBadge', { count: totalDueSoon })}</span>
                   </div>
                 )}
               </div>
@@ -456,7 +460,7 @@ function FieldList({
           </div>
           <div className="flex items-center gap-1 shrink-0">
             <button onClick={onTeam}
-              title="Ver o gestionar el equipo de la finca"
+              title={t('drawer.teamTitle')}
               className="w-6 h-6 pointer-coarse:w-11 pointer-coarse:h-11 flex items-center justify-center rounded-md text-[#9aab8a] hover:bg-[#e8f0e0] transition-colors"
             >
               <Users size={13} />
@@ -476,7 +480,7 @@ function FieldList({
           <div className="flex flex-col items-center justify-center h-40 gap-2 px-4 text-center">
             <Layers size={24} className="text-[#c0d8a0]" strokeWidth={1.5} />
             <p className="text-xs text-[#9aab8a]">
-              No hay campos todavía. Usa el editor de campos para añadir.
+              {t('drawer.noFieldsYet')}
             </p>
           </div>
         ) : (
@@ -506,7 +510,7 @@ function FieldList({
           onClick={onOpenFieldEditor}
           className="w-full flex items-center justify-center gap-2 py-2.5 bg-[#2d4a1e] text-[#d4e8b0] rounded-lg text-xs font-medium hover:bg-[#3d6128] transition-colors"
         >
-          <Plus size={13} /> Nuevo campo
+          <Plus size={13} /> {t('drawer.newField')}
         </button>
       </div>
       )}

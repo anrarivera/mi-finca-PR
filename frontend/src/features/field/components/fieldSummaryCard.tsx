@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   MapPin, Layers, Pencil, Trash2, Locate,
   ToggleLeft, ToggleRight, AlertCircle, Clock, CalendarDays, Bug,
@@ -21,6 +22,7 @@ import {
   useCompleteRecommendedOp, useSkipRecommendedOp, useLogPartialRecommendedOp,
 } from '../hooks/useOperationsApi'
 import { toast } from '@/store/useToastStore'
+import { dateLocale } from '@/i18n'
 import type { PlacedField, PlantingEvent, RecommendedOperation } from '../types'
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -74,6 +76,7 @@ export default function FieldSummaryCard({
   field, focused = false, focusNonce = 0,
   onSelect, onOpenEditor, onCardDoubleClick, onDelete, onToggleDisplay,
 }: Props) {
+  const { t } = useTranslation('field')
   const [confirmDelete, setConfirmDelete] = useState(false)
   // Self-contained flows: quick check-off/partial modal + full ops screen
   const [checking, setChecking] = useState<{
@@ -144,7 +147,7 @@ export default function FieldSummaryCard({
   const nextIsDue = next?.op.status === 'due'
   const nextDate = next
     ? new Date(next.op.recommendedDate + 'T12:00:00')
-        .toLocaleDateString('es-PR', { day: 'numeric', month: 'short' })
+        .toLocaleDateString(dateLocale(), { day: 'numeric', month: 'short' })
     : null
 
   // Scroll into view when focused (nonce re-triggers on repeat focus)
@@ -177,7 +180,7 @@ export default function FieldSummaryCard({
             <button
               onClick={(e) => { e.stopPropagation(); onCardDoubleClick() }}
               onDoubleClick={(e) => e.stopPropagation()}
-              title="Ver en el mapa"
+              title={t('card.viewOnMap')}
               className="shrink-0 p-1 pointer-coarse:p-2 rounded text-[#9aab8a] hover:text-[#639922] hover:bg-[#eaf3de] transition-colors"
             >
               <Locate size={12} />
@@ -189,7 +192,7 @@ export default function FieldSummaryCard({
             <div
               className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full"
               style={{ backgroundColor: `${findingBadgeColor}1f` }}
-              title="Hallazgos sin resolver"
+              title={t('card.unresolvedFindings')}
             >
               <Bug size={8} style={{ color: findingBadgeColor }} />
               <span className="text-[9px] font-bold" style={{ color: findingBadgeColor }}>
@@ -243,7 +246,7 @@ export default function FieldSummaryCard({
       {next && (
         <div
           onDoubleClick={(e) => { e.stopPropagation(); setShowOps(true) }}
-          title="Doble clic para ver todas las operaciones"
+          title={t('card.dblClickAllOps')}
           className={`flex items-center gap-2 mb-2.5 px-2 py-1.5 rounded-lg ${
             nextIsDue ? 'bg-red-50/70' : 'bg-[#f5f8f0]'
           }`}
@@ -253,7 +256,7 @@ export default function FieldSummaryCard({
               {nextCrop?.emoji ?? '🌱'} {next.op.labelEs}
             </p>
             <p className={`text-[9px] ${nextIsDue ? 'text-red-500 font-medium' : 'text-[#9aab8a]'}`}>
-              {nextIsDue ? 'Vencida — ' : ''}{nextDate}
+              {nextIsDue ? t('status.overduePrefix') : ''}{nextDate}
               {nextCrop ? ` · ${nextCrop.nameEs}` : ''}
             </p>
           </div>
@@ -263,32 +266,32 @@ export default function FieldSummaryCard({
               e.stopPropagation()
               setChecking({ mode: 'complete', op: next.op, event: next.event })
             }}
-            title="Marcar como realizada"
+            title={t('actions.completeTitle')}
             className="pointer-coarse:p-2 text-[10px] shrink-0 text-[#2d4a1e] font-semibold hover:text-[#639922] transition-colors"
           >
-            Completa
+            {t('actions.complete')}
           </button>
           <button
             onClick={(e) => {
               e.stopPropagation()
               setChecking({ mode: 'partial', op: next.op, event: next.event })
             }}
-            title="Registrar avance sin completar la labor"
+            title={t('actions.partialTitle')}
             className="pointer-coarse:p-2 text-[10px] shrink-0 text-[#639922] hover:text-[#2d4a1e] font-medium transition-colors"
           >
-            Parcial
+            {t('actions.partial')}
           </button>
           <button
             onClick={(e) => {
               e.stopPropagation()
               skipOp.mutate(
                 { fieldId: field.id, eventId: next.event.id, operationId: next.op.id },
-                { onSuccess: () => toast.success('Operación omitida') }
+                { onSuccess: () => toast.success(t('toast.opSkipped')) }
               )
             }}
             className="pointer-coarse:p-2 text-[10px] shrink-0 text-[#c0d0b0] hover:text-[#9aab8a] transition-colors"
           >
-            Omitir
+            {t('actions.skip')}
           </button>
         </div>
       )}
@@ -302,13 +305,13 @@ export default function FieldSummaryCard({
           {field.displayMode === 'pin' ? (
             <>
               <MapPin size={10} className="text-[#639922]" />
-              <span>Mostrar como pin</span>
+              <span>{t('card.showAsPin')}</span>
               <ToggleLeft size={13} className="text-[#c0d0b0] ml-auto" />
             </>
           ) : (
             <>
               <Layers size={10} className="text-[#639922]" />
-              <span>Mostrar como forma</span>
+              <span>{t('card.showAsShape')}</span>
               <ToggleRight size={13} className="text-[#639922] ml-auto" />
             </>
           )}
@@ -320,17 +323,17 @@ export default function FieldSummaryCard({
         <div className="flex items-center gap-2">
           <button
             onClick={(e) => { e.stopPropagation(); setShowOps(true) }}
-            title="Ver el calendario completo de labores"
+            title={t('card.opsButtonTitle')}
             className="flex-1 flex items-center justify-center gap-1.5 py-1.5 pointer-coarse:py-2.5 text-[10px] text-[#2d4a1e] border border-[#c8dca8] bg-[#eaf3de] rounded-lg hover:bg-[#d9ecc4] transition-colors"
           >
-            <CalendarDays size={10} /> Operaciones
+            <CalendarDays size={10} /> {t('card.operations')}
           </button>
           {canManage && (
           <button
             onClick={(e) => { e.stopPropagation(); onOpenEditor() }}
             className="flex-1 flex items-center justify-center gap-1.5 py-1.5 pointer-coarse:py-2.5 text-[10px] text-[#639922] border border-[#c8dca8] rounded-lg hover:bg-[#eaf3de] transition-colors"
           >
-            <Pencil size={10} /> Editar
+            <Pencil size={10} /> {t('actions.edit')}
           </button>
           )}
           {canManage && (
@@ -338,13 +341,13 @@ export default function FieldSummaryCard({
             onClick={(e) => { e.stopPropagation(); setConfirmDelete(true) }}
             className="flex-1 flex items-center justify-center gap-1.5 py-1.5 pointer-coarse:py-2.5 text-[10px] text-[#9aab8a] border border-[#e0e8d8] rounded-lg hover:text-red-500 hover:border-red-200 hover:bg-red-50 transition-colors"
           >
-            <Trash2 size={10} /> Eliminar
+            <Trash2 size={10} /> {t('actions.delete')}
           </button>
           )}
           {/* Scouting: register a pest/disease finding on this field */}
           <button
             onClick={(e) => { e.stopPropagation(); setReportingFinding(true) }}
-            title="Registrar hallazgo de plaga o enfermedad"
+            title={t('card.reportFindingTitle')}
             className="shrink-0 flex items-center justify-center px-2 py-1.5 pointer-coarse:p-2.5 text-[#b8860b] border border-[#e8dcc0] rounded-lg hover:bg-amber-50 hover:border-amber-200 transition-colors"
           >
             <Bug size={11} />
@@ -353,20 +356,20 @@ export default function FieldSummaryCard({
       ) : (
         <div className="flex flex-col gap-1.5">
           <p className="text-[10px] text-red-500 text-center">
-            ¿Eliminar "{field.name}"?
+            {t('card.confirmDelete', { name: field.name })}
           </p>
           <div className="flex items-center gap-2">
             <button
               onClick={(e) => { e.stopPropagation(); onDelete() }}
               className="flex-1 py-1.5 pointer-coarse:py-2.5 text-[10px] text-white bg-red-500 rounded-lg hover:bg-red-600 transition-colors"
             >
-              Sí, eliminar
+              {t('card.confirmDeleteYes')}
             </button>
             <button
               onClick={(e) => { e.stopPropagation(); setConfirmDelete(false) }}
               className="flex-1 py-1.5 pointer-coarse:py-2.5 text-[10px] text-[#5a6a4a] border border-[#e0e8d8] rounded-lg hover:bg-[#f5f8f0] transition-colors"
             >
-              Cancelar
+              {t('actions.cancel')}
             </button>
           </div>
         </div>
@@ -428,7 +431,7 @@ export default function FieldSummaryCard({
                       plantIds: data.plantIds,
                     },
                   },
-                  { onSuccess: () => toast.success('Avance parcial registrado') }
+                  { onSuccess: () => toast.success(t('toast.partialLogged')) }
                 )
               } else {
                 completeOp.mutate(
@@ -438,7 +441,7 @@ export default function FieldSummaryCard({
                     operationId: checking.op.id,
                     data,
                   },
-                  { onSuccess: () => toast.success('Operación registrada') }
+                  { onSuccess: () => toast.success(t('toast.opLogged')) }
                 )
               }
               setChecking(null)

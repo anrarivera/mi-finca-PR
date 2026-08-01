@@ -9,6 +9,7 @@
 // and date intact.
 // ──────────────────────────────────────────────────────────────────────────
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Check, X } from 'lucide-react'
 import CropSelector from './cropSelector'
 import { calculateRowPlantPositions, pointInPolygon, placePlantsAlongPath } from '../utils/canvasGeo'
@@ -24,6 +25,7 @@ type Props = {
 }
 
 export default function RowEditPanel({ rows, boundary, onApply, onCancel }: Props) {
+  const { t } = useTranslation('editor')
   const bulk = rows.length > 1
   const allSame = <T,>(get: (r: FieldRow) => T) => rows.every(r => get(r) === get(rows[0]))
 
@@ -108,7 +110,7 @@ export default function RowEditPanel({ rows, boundary, onApply, onCancel }: Prop
     <div className="absolute inset-x-0 bottom-0 max-h-[55dvh] overflow-y-auto rounded-t-xl sm:inset-x-auto sm:bottom-auto sm:right-4 sm:top-4 sm:max-h-none sm:w-60 sm:rounded-xl z-10 bg-white border border-[#e0e8d8] shadow-lg">
       <div className="flex items-center justify-between px-4 py-3 border-b border-[#e0e8d8] bg-[#f5f8f0]">
         <p className="text-xs font-semibold text-[#2d4a1e] uppercase tracking-wide">
-          {bulk ? `Editar ${rows.length} hileras` : 'Editar hilera'}
+          {bulk ? t('edit.titleBulk', { count: rows.length }) : t('edit.titleSingle')}
         </p>
         <button onClick={onCancel}
           className="w-5 h-5 pointer-coarse:w-10 pointer-coarse:h-10 flex items-center justify-center text-[#9aab8a] hover:text-red-400 transition-colors"
@@ -120,48 +122,48 @@ export default function RowEditPanel({ rows, boundary, onApply, onCancel }: Prop
       <div className="p-4 flex flex-col gap-4">
         {bulk && (
           <p className="text-[10px] text-[#9aab8a] leading-relaxed">
-            Solo los campos que cambies se aplican a las {rows.length} hileras seleccionadas.
+            {t('edit.bulkHint', { count: rows.length })}
           </p>
         )}
 
         {/* Primary crop */}
         <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-[#5a6a4a]">Cultivo principal</label>
+          <label className="text-xs font-medium text-[#5a6a4a]">{t('common.primaryCrop')}</label>
           <CropSelector
             value={primaryCropId || null}
             onChange={(id) => { setPrimaryCropId(id); setPrimaryDirty(true) }}
-            placeholder={bulk ? 'Varios — sin cambios' : 'Seleccionar cultivo'}
+            placeholder={bulk ? t('edit.mixedPlaceholder') : t('common.selectCrop')}
           />
         </div>
 
         {/* Companion crop */}
         <div className="flex flex-col gap-1.5">
           <label className="text-xs font-medium text-[#5a6a4a]">
-            Planta compañera <span className="text-[#9aab8a] font-normal">(opcional)</span>
+            {t('common.companionCrop')} <span className="text-[#9aab8a] font-normal">{t('common.optional')}</span>
           </label>
           <CropSelector
             value={companionCropId || null}
             onChange={(id) => { setCompanionCropId(id); setCompanionDirty(true) }}
-            placeholder={bulk ? 'Varios — sin cambios' : 'Sin compañera'}
+            placeholder={bulk ? t('edit.mixedPlaceholder') : t('common.noCompanion')}
             allowClear
           />
         </div>
 
         {/* Plant spacing */}
         <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-[#5a6a4a]">Espaciado entre plantas</label>
+          <label className="text-xs font-medium text-[#5a6a4a]">{t('common.plantSpacing')}</label>
           <div className="flex items-center gap-2">
             <input type="number" min={1} max={50} value={spacingFt}
               onChange={e => { setSpacingFt(Math.max(1, Number(e.target.value))); setSpacingDirty(true) }}
               className="w-20 px-2 py-1.5 rounded-lg border border-[#d0dcc0] text-sm text-[#2d4a1e] focus:outline-none focus:border-[#639922] transition-colors"
             />
-            <span className="text-xs text-[#9aab8a]">pies</span>
+            <span className="text-xs text-[#9aab8a]">{t('common.feet')}</span>
           </div>
         </div>
 
         {/* Planting date */}
         <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-[#5a6a4a]">Fecha de siembra</label>
+          <label className="text-xs font-medium text-[#5a6a4a]">{t('common.plantingDate')}</label>
           <input type="date" value={plantingDate} max={todayISO()}
             onChange={e => { setPlantingDate(e.target.value); setDateDirty(true) }}
             className="w-full px-3 py-2 rounded-lg border border-[#d0dcc0] text-sm text-[#2d4a1e] focus:outline-none focus:border-[#639922] transition-colors"
@@ -172,7 +174,7 @@ export default function RowEditPanel({ rows, boundary, onApply, onCancel }: Prop
         <div className="flex items-center gap-2 px-3 py-2 bg-[#eaf3de] rounded-lg">
           <div className="w-2 h-2 rounded-full bg-[#639922] shrink-0" />
           <span className="text-xs text-[#3b6d11] font-medium">
-            {previewPlantCount} plantas en {rows.length} {rows.length === 1 ? 'hilera' : 'hileras'}
+            {t('edit.plantsInRows', { plants: previewPlantCount, count: rows.length })}
           </span>
         </div>
 
@@ -180,12 +182,12 @@ export default function RowEditPanel({ rows, boundary, onApply, onCancel }: Prop
           <button onClick={handleApply}
             className="w-full flex items-center justify-center gap-2 py-2.5 bg-[#2d4a1e] text-[#d4e8b0] rounded-lg text-xs font-medium hover:bg-[#3d6128] transition-colors"
           >
-            <Check size={13} /> Aplicar cambios
+            <Check size={13} /> {t('edit.apply')}
           </button>
           <button onClick={onCancel}
             className="w-full py-2 text-xs text-[#9aab8a] hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
           >
-            Cancelar
+            {t('common.cancel')}
           </button>
         </div>
       </div>

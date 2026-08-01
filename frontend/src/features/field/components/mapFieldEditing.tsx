@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import i18n from '@/i18n'
 import { Polygon, Polyline, CircleMarker, useMapEvents } from 'react-leaflet'
 import * as L from 'leaflet'
 import { useFieldEditor } from '../hooks/useFieldEditor'
@@ -18,7 +20,7 @@ import FarmFieldEditorPanel from './farmFieldEditorPanel'
 import RowConfigPanel from './rowConfigPanel'
 import RowFillPanel from './rowFillPanel'
 import RowEditPanel from './rowEditPanel'
-import RemovalReasonDialog, { REMOVAL_REASONS, type PlantRemovalReason } from './removalReasonDialog'
+import RemovalReasonDialog, { type PlantRemovalReason } from './removalReasonDialog'
 import { todayISO } from '../types'
 import { toast } from '@/store/useToastStore'
 
@@ -234,7 +236,7 @@ export function useMapFieldEditing(
     const today = new Date().toISOString().split('T')[0]
     await Promise.all(removalLogs.map(log => {
       const cropName = getCropById(log.cropTypeId)?.nameEs ?? log.cropTypeId
-      const reasonLabel = (REMOVAL_REASONS.find(r => r.id === log.reason)?.labelEs ?? log.reason).toLowerCase()
+      const reasonLabel = i18n.t(`editor:removal.reasons.${log.reason}`).toLowerCase()
       const isRow = log.kind === 'row'
       return createOperation.mutateAsync({
         type: log.reason === 'harvested' ? 'harvest' : 'other',
@@ -243,11 +245,10 @@ export function useMapFieldEditing(
         cropTypeId: log.cropTypeId,
         rowIds: isRow && log.rowId ? [log.rowId] : undefined,
         plantIds: isRow ? log.plantIds : (log.plantId ? [log.plantId] : undefined),
-        notes: isRow
-          ? `Hilera de ${cropName} eliminada (${log.plantCount} plantas) — ${reasonLabel}`
-            + (log.notes ? `: ${log.notes}` : '')
-          : `Planta de ${cropName} eliminada — ${reasonLabel}`
-            + (log.notes ? `: ${log.notes}` : ''),
+        notes: (isRow
+          ? i18n.t('editor:removal.logRow', { crop: cropName, count: log.plantCount, reason: reasonLabel })
+          : i18n.t('editor:removal.logPlant', { crop: cropName, reason: reasonLabel }))
+          + (log.notes ? `: ${log.notes}` : ''),
       })
     }))
     setRemovalLogs([])
@@ -271,7 +272,7 @@ export function useMapFieldEditing(
         },
       })
       await flushRemovalLogs(editingFieldId)
-      toast.success('Campo actualizado')
+      toast.success(i18n.t('editor:save.fieldUpdated'))
       opts?.onSaved?.(editingFieldId)
     } else {
       const saved = await createField.mutateAsync({
@@ -288,7 +289,7 @@ export function useMapFieldEditing(
         plantingEvents: editor.plantingEvents,
       })
       addFieldIdToFarm(farmId, saved.id)
-      toast.success('Campo guardado')
+      toast.success(i18n.t('editor:save.fieldSaved'))
       opts?.onSaved?.(saved.id)
     }
     reset()
@@ -656,6 +657,7 @@ export function MapFieldEditingLayer({
 
 // ── Panels overlay (outside the MapContainer) ─────────────────────────
 export function MapFieldEditingPanels({ session }: { session: MapFieldEditingSession }) {
+  const { t } = useTranslation('editor')
   const { editor, bbox } = session
   const isPhone = useIsPhone()
   if (!session.active || !bbox) return null
@@ -751,18 +753,14 @@ export function MapFieldEditingPanels({ session }: { session: MapFieldEditingSes
           const plantCount = rows.reduce((s, r) => s + r.plants.length, 0) + plantIds.length
           const title =
             rows.length > 0 && plantIds.length > 0
-              ? 'Eliminar hileras y plantas sembradas'
-              : rows.length > 1
-              ? `Eliminar ${rows.length} hileras sembradas`
-              : rows.length === 1
-              ? 'Eliminar hilera sembrada'
-              : plantIds.length > 1
-              ? `Eliminar ${plantIds.length} plantas sembradas`
-              : 'Eliminar planta sembrada'
+              ? t('removal.titleRowsAndPlants')
+              : rows.length > 0
+              ? t('removal.titleRows', { count: rows.length })
+              : t('removal.titlePlants', { count: plantIds.length })
           return (
             <RemovalReasonDialog
               title={title}
-              subtitle={`${plantCount} ${plantCount === 1 ? 'planta' : 'plantas'} — se registrará en el historial de operaciones`}
+              subtitle={t('removal.subtitle', { count: plantCount })}
               onConfirm={session.confirmDeletePending}
               onCancel={() => session.setPendingDelete(null)}
             />

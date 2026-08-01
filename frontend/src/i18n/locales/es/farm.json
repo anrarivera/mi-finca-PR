@@ -1,1 +1,107 @@
-{}
+{
+  "confirmDeleteFarm": "¿Eliminar la finca \"{{name}}\" y todos sus campos?",
+  "acresShort": "{{value}} ac",
+  "drawer": {
+    "farmsTab": "Fincas",
+    "myFarms": "Mis fincas",
+    "farmCount_one": "{{count}} finca",
+    "farmCount_other": "{{count}} fincas",
+    "fieldCount_one": "{{count}} campo",
+    "fieldCount_other": "{{count}} campos",
+    "noFarmsYet": "No tienes fincas todavía. Añade tu primera finca.",
+    "favorite": "Favorita",
+    "favoriteTitle": "Finca favorita",
+    "markFavoriteTitle": "Marcar como favorita",
+    "team": "Equipo",
+    "teamTitle": "Ver o gestionar el equipo de la finca",
+    "delete": "Eliminar",
+    "addFarm": "Añadir finca",
+    "joinPrompt": "¿Tienes un código? Únete a una finca",
+    "overdueBadge": "{{count}} vencidas",
+    "dueSoonBadge": "{{count}} próximas",
+    "noFieldsYet": "No hay campos todavía. Usa el editor de campos para añadir.",
+    "newField": "Nuevo campo",
+    "fieldDeleted": "Campo eliminado"
+  },
+  "roles": {
+    "owner": "Dueño",
+    "admin": "Administrador",
+    "operator": "Operador"
+  },
+  "team": {
+    "title": "Equipo — {{name}}",
+    "subtitleManage": "Añade personas por el correo de su cuenta de Mi Finca PR.",
+    "subtitleView": "Las personas que trabajan esta finca.",
+    "loading": "Cargando…",
+    "you": "(tú)",
+    "roleUpdated": "Rol actualizado",
+    "youLeft": "Saliste de la finca",
+    "memberRemoved": "Miembro eliminado",
+    "leaveTitle": "Salir de la finca",
+    "removeTitle": "Quitar del equipo",
+    "emailPlaceholder": "correo@ejemplo.com",
+    "addButton": "Añadir al equipo",
+    "memberAdded": "Miembro añadido al equipo",
+    "roleHelp": "Operador: registra labores, hallazgos y cosechas. Administrador: además gestiona campos, límites y el equipo.",
+    "inviteCode": "Código de invitación",
+    "inviteHelp": "Comparte un código y la persona se une sola — al registrarse o desde \"Unirme a una finca\". Sirve para varias personas y vence en 7 días.",
+    "copyCode": "Copiar código",
+    "codeCopied": "Código copiado",
+    "generateCode": "Generar código",
+    "inviteRowAdmin": "Código de administrador · vence {{date}}",
+    "inviteRowOperator": "Código de operador · vence {{date}}",
+    "revoke": "Revocar",
+    "codeRevoked": "Código revocado"
+  },
+  "join": {
+    "title": "Unirme a una finca",
+    "help": "Escribe el código que te compartió el equipo de la finca.",
+    "submit": "Unirme",
+    "success": "Ahora eres parte de \"{{name}}\""
+  },
+  "create": {
+    "title": "Nueva finca",
+    "subtitle": "Añade los datos básicos de tu finca",
+    "nameLabel": "Nombre de la finca",
+    "namePlaceholder": "Ej. Finca Rivera",
+    "locationLabel": "Municipio",
+    "locationPlaceholder": "Ej. Gurabo, PR",
+    "cancel": "Cancelar",
+    "submit": "Crear finca"
+  },
+  "empty": {
+    "title": "No tienes fincas todavía",
+    "subtitle": "Añade tu primera finca para empezar a gestionar tus cultivos y campos.",
+    "addFarm": "Añadir finca"
+  },
+  "drawing": {
+    "drawYourFarm": "Dibuja tu finca",
+    "boundaryTitle": "Límite de finca",
+    "acresPoints": "acres · {{count}} puntos",
+    "saveFarm": "Guardar finca",
+    "editBoundary": "Editar límite",
+    "clearRedraw": "Limpiar y redibujar",
+    "deleteFarm": "Eliminar finca",
+    "manageFields": "Gestionar campos",
+    "tapToPlace": "Toca el mapa para colocar esquinas",
+    "pointCount_one": "{{count}} punto",
+    "pointCount_other": "{{count}} puntos",
+    "pointSelected": "Punto {{number}} seleccionado",
+    "tapPointToEdit": "toca un punto para editarlo",
+    "undo": "Deshacer",
+    "cancel": "Cancelar",
+    "complete": "Completar",
+    "addPoint": "Añadir punto",
+    "deletePoint": "Eliminar punto",
+    "finish": "Terminar"
+  },
+  "map": {
+    "noActiveFarm": "No hay finca activa seleccionada",
+    "needThreePoints": "Dibuja al menos 3 puntos para guardar el límite",
+    "farmSaved": "Finca guardada",
+    "farmDeleted": "Finca eliminada",
+    "confirmSwitchField": "¿Cambiar de campo? Los cambios sin guardar del campo actual se perderán.",
+    "saveBoundaryFirst": "Primero guarda el límite de tu finca antes de añadir campos.",
+    "createFarmError": "Error al crear la finca. Por favor intenta de nuevo."
+  }
+}

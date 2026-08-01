@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { Bell, AlertCircle, Clock, Wheat, CheckCheck, Settings } from 'lucide-react'
 import { useFieldStore } from '@/store/useFieldStore'
@@ -22,6 +23,7 @@ const KIND_ICON = {
 } as const
 
 export default function NotificationBell() {
+  const { t } = useTranslation('pages')
   const [open, setOpen] = useState(false)
   const panelRef = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
@@ -63,7 +65,9 @@ export default function NotificationBell() {
     <div className="relative" ref={panelRef}>
       <button
         onClick={() => setOpen(prev => !prev)}
-        aria-label={`Notificaciones${unreadCount > 0 ? ` (${unreadCount} sin leer)` : ''}`}
+        aria-label={unreadCount > 0
+          ? t('notificationBell.bellAriaUnread', { count: unreadCount })
+          : t('notificationBell.bellAria')}
         aria-expanded={open}
         className="relative w-10 h-10 rounded-full text-[#d4e8b0] hover:bg-white/10 transition-colors flex items-center justify-center"
       >
@@ -78,24 +82,24 @@ export default function NotificationBell() {
       {open && (
         <div className="absolute right-0 top-12 w-80 max-w-[calc(100vw-1.5rem)] bg-white rounded-xl border border-gray-200 shadow-lg overflow-hidden z-[1200]">
           <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-            <p className="text-sm font-semibold text-[#2d4a1e]">Notificaciones</p>
+            <p className="text-sm font-semibold text-[#2d4a1e]">{t('notificationBell.title')}</p>
             {unreadCount > 0 && (
               <button
                 onClick={handleMarkAllSeen}
                 className="flex items-center gap-1 text-[11px] text-[#639922] hover:text-[#2d4a1e] transition-colors"
               >
-                <CheckCheck size={12} /> Marcar leídas
+                <CheckCheck size={12} /> {t('notificationBell.markRead')}
               </button>
             )}
           </div>
 
           {!prefs.enabled ? (
             <p className="px-4 py-6 text-xs text-[#9aab8a] text-center">
-              Las notificaciones están desactivadas.
+              {t('notificationBell.disabled')}
             </p>
           ) : notifications.length === 0 ? (
             <p className="px-4 py-6 text-xs text-[#9aab8a] text-center">
-              Todo al día — no hay operaciones pendientes próximas. 🌱
+              {t('notificationBell.empty')}
             </p>
           ) : (
             <div className="max-h-80 overflow-y-auto divide-y divide-[#f8faf5]">
@@ -109,7 +113,7 @@ export default function NotificationBell() {
             onClick={handleOpenSettings}
             className="w-full flex items-center gap-2 px-4 py-2.5 text-[11px] text-[#5a6a4a] bg-[#fafcf8] hover:bg-[#f0f5e8] transition-colors border-t border-gray-100"
           >
-            <Settings size={12} /> Configurar notificaciones
+            <Settings size={12} /> {t('notificationBell.configure')}
           </button>
         </div>
       )}
@@ -118,6 +122,7 @@ export default function NotificationBell() {
 }
 
 function NotificationRow({ item, unread }: { item: FarmNotification; unread: boolean }) {
+  const { t } = useTranslation('pages')
   const crop = getCropById(item.cropTypeId)
   return (
     <div className={`flex items-start gap-2.5 px-4 py-2.5 ${unread ? 'bg-[#f5f8f0]' : ''}`}>
@@ -129,7 +134,7 @@ function NotificationRow({ item, unread }: { item: FarmNotification; unread: boo
         <p className="text-[10px] text-[#9aab8a] mt-0.5">
           {item.fieldName} ·{' '}
           <span className={item.daysFromToday < 0 ? 'text-red-500 font-semibold' : ''}>
-            {item.daysFromToday < 0 && item.kind !== 'harvest' ? 'vencida ' : ''}
+            {item.daysFromToday < 0 && item.kind !== 'harvest' ? `${t('notificationBell.overduePrefix')} ` : ''}
             {formatRelativeDaysEs(item.daysFromToday)}
           </span>
         </p>

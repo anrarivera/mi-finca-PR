@@ -1,1 +1,95 @@
-{}
+{
+  "severity": {
+    "1": "Mild",
+    "2": "Moderate",
+    "3": "Severe"
+  },
+  "status": {
+    "open": "Open",
+    "treated": "Treated",
+    "resolved": "Resolved"
+  },
+  "trend": {
+    "improving": "improving",
+    "worsening": "worsening",
+    "stable": "stable"
+  },
+  "laborCreated": "💧 task created",
+  "modal": {
+    "titleUpdate": "Update finding",
+    "titleNew": "Record finding",
+    "helpUpdate": "Record how it looks today — current severity and extent. The history is kept.",
+    "helpNew": "Note the pest or disease and where you saw it. No selection = whole-field observation.",
+    "pestLabel": "Pest or disease",
+    "pestPlaceholder": "Select…",
+    "suggestedGroup": "Suggested for this field",
+    "othersGroup": "Others",
+    "pestsGroup": "Pests",
+    "severityLabel": "Severity",
+    "dateLabelUpdate": "Observation date",
+    "dateLabelNew": "Finding date",
+    "whereUpdate": "Where is it now?",
+    "whereNew": "Where did you find it?",
+    "notesLabel": "Notes",
+    "optional": "(optional)",
+    "notesPlaceholder": "What you saw, how many plants, conditions...",
+    "cancel": "Cancel",
+    "confirmUpdate": "Record follow-up",
+    "confirmNew": "Record",
+    "toastObservation": "Follow-up recorded",
+    "toastCreated": "Finding recorded"
+  },
+  "list": {
+    "title": "Findings",
+    "empty": "No findings recorded",
+    "summary_one": "{{count}} open · {{total}} total",
+    "summary_other": "{{count}} open · {{total}} total",
+    "registerButton": "Record",
+    "extentOfField": "(≈{{pct}}% of the field)",
+    "extentPct": "(≈{{pct}}%)",
+    "update": "Update",
+    "updateTitle": "Record a follow-up — how it looks today",
+    "createLabor": "Create task",
+    "createLaborTitle": "Create a treatment task in the calendar",
+    "treated": "Treated",
+    "treatedTitle": "A treatment has already been applied",
+    "resolved": "Resolved",
+    "resolvedTitle": "The pest is gone",
+    "reopen": "Reopen",
+    "deleteTitle": "Delete this finding",
+    "toastTreated": "Finding marked as treated",
+    "toastResolved": "Finding resolved",
+    "toastReopened": "Finding reopened",
+    "toastDeleted": "Finding deleted",
+    "toastNoPlantings": "The field has no plantings — there is no calendar to create the task in",
+    "toastLaborCreated": "Treatment task created in the calendar"
+  },
+  "dashboard": {
+    "title": "Plant health",
+    "noActive": "No active findings",
+    "activeCount_one": "{{count}} active finding",
+    "activeCount_other": "{{count}} active findings",
+    "stripHealthy": "Healthy",
+    "stripEmpty": "Not planted",
+    "emptyAll": "No findings recorded. Use the 🐛 button on the field cards on the map to note pests or diseases.",
+    "emptyActive": "No active findings — the full history is in the field notebook. 🎉",
+    "extentOfField": "≈{{pct}}% of the field",
+    "treatedTag": "treated",
+    "overflow_one": "and {{count}} more unresolved — open each field on the map for details",
+    "overflow_other": "and {{count}} more unresolved — open each field on the map for details"
+  },
+  "records": {
+    "title": "Health log",
+    "findingCount_one": "{{count}} finding",
+    "findingCount_other": "{{count}} findings",
+    "fieldCount_one": "{{count}} field",
+    "fieldCount_other": "{{count}} fields",
+    "exportTitle": "Download the complete health log (one row per observation)",
+    "exportCsv": "Export CSV",
+    "empty": "No findings recorded yet. Use the 🐛 button on the field cards on the map to note pests or diseases.",
+    "recurrenceTooltip": "{{findings}} in {{fields}}",
+    "timesLast": "× {{times}} · last {{date}}",
+    "obsCount_one": "{{count}} observation",
+    "obsCount_other": "{{count}} observations"
+  }
+}
