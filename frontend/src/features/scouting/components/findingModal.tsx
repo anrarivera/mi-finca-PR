@@ -10,6 +10,7 @@ import { getPestById, pestsForCrops, type PestType } from '../data/pestLibrary'
 import { SEVERITY_COLORS, SEVERITY_LABELS, type Finding } from '../types'
 import { fieldScopeTargets } from '../utils/findingScope'
 import { toast } from '@/store/useToastStore'
+import { useIsPhone } from '@/hooks/useViewport'
 
 // ──────────────────────────────────────────────────────────────────────────
 // "Registrar hallazgo" — capture a pest observation: pest + severity +
@@ -34,6 +35,7 @@ type Props = {
 export default function FindingModal({
   farmId, fieldId, fieldRows, freePlants, updateOf, onClose,
 }: Props) {
+  const isPhone = useIsPhone()
   const today = new Date().toISOString().split('T')[0]
   const createFinding = useCreateFinding(farmId)
   const addObservation = useAddObservation(farmId)
@@ -127,12 +129,17 @@ export default function FindingModal({
         onClick={clickThrough ? undefined : onClose}
       />
 
-      <div className={`fixed inset-0 z-[2300] flex items-center p-4 pointer-events-none ${
-        hasTargets ? 'justify-end pr-6' : 'justify-center'
+      {/* Phone: full-width bottom sheet; desktop: right-docked 300px card */}
+      <div className={`fixed inset-0 z-[2300] flex pointer-events-none ${
+        isPhone ? 'items-end justify-center'
+        : hasTargets ? 'items-center p-4 justify-end pr-6'
+        : 'items-center p-4 justify-center'
       }`}>
         <div
-          className="bg-white rounded-2xl shadow-xl overflow-hidden max-h-[92vh] overflow-y-auto pointer-events-auto"
-          style={{ width: 300, maxWidth: '100%' }}
+          className={`bg-white shadow-xl overflow-hidden overflow-y-auto pointer-events-auto ${
+            isPhone ? 'w-full rounded-t-2xl max-h-[85dvh]' : 'rounded-2xl max-h-[92vh]'
+          }`}
+          style={isPhone ? undefined : { width: 300, maxWidth: '100%' }}
         >
 
           {/* Header */}

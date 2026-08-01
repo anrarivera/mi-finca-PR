@@ -117,7 +117,7 @@ export default function FarmFieldEditorPanel({
   //    edit mode, and each card carries its own Operaciones button. ──────
   if (isIdle) {
     return (
-      <div className="w-72 h-full bg-white border-r border-[#e0e8d8] flex flex-col">
+      <div className="w-full sm:w-72 h-full bg-white border-t sm:border-t-0 sm:border-r border-[#e0e8d8] flex flex-col">
         <div className="px-4 py-3 border-b border-[#e0e8d8] bg-[#f5f8f0] shrink-0">
           <p className="text-xs font-semibold text-[#2d4a1e] uppercase tracking-wide">
             Campos de la finca
@@ -165,7 +165,7 @@ export default function FarmFieldEditorPanel({
 
   // ── DRAWING / EDITING A FIELD ─────────────────────────────────────
   return (
-    <div className="w-64 h-full bg-white border-r border-[#e0e8d8] flex flex-col overflow-y-auto">
+    <div className="w-full sm:w-64 h-full bg-white border-t sm:border-t-0 sm:border-r border-[#e0e8d8] flex flex-col overflow-y-auto">
       <div className="px-4 py-3 border-b border-[#e0e8d8] bg-[#f5f8f0] shrink-0">
         <div className="flex items-center justify-between">
           <p className="text-xs font-semibold text-[#2d4a1e] uppercase tracking-wide">

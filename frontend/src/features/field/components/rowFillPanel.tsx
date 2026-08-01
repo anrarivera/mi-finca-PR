@@ -189,7 +189,7 @@ export default function RowFillPanel({ boundary, onPreview, onConfirm, onCancel 
   }
 
   return (
-    <div className="absolute right-4 top-4 bottom-4 z-10 w-64 bg-white rounded-xl border border-[#e0e8d8] shadow-lg flex flex-col overflow-hidden">
+    <div className="absolute inset-x-0 bottom-0 h-[60dvh] rounded-t-xl sm:inset-x-auto sm:right-4 sm:top-4 sm:bottom-4 sm:h-auto sm:w-64 sm:rounded-xl z-10 bg-white border border-[#e0e8d8] shadow-lg flex flex-col overflow-hidden">
       <div className="flex items-center justify-between px-4 py-3 border-b border-[#e0e8d8] bg-[#f5f8f0] shrink-0">
         <p className="text-xs font-semibold text-[#2d4a1e] uppercase tracking-wide">
           Rellenar con hileras

@@ -8,7 +8,7 @@ import { useCreateField, useUpdateField } from '../hooks/useFieldsApi'
 import { useCreateOperation } from '../hooks/useOperationsApi'
 import { latlngToCanvas, canvasToLatlng, farmBoundaryToBBox } from '../utils/canvasGeo'
 import { attachPointerDrag } from '@/features/map/utils/pointerDrag'
-import { useIsCoarsePointer } from '@/hooks/useViewport'
+import { useIsCoarsePointer, useIsPhone } from '@/hooks/useViewport'
 import type { BBox } from '../utils/canvasGeo'
 import { getCropById } from '../data/cropLibrary'
 import { randomFieldColor } from '../types'
@@ -657,12 +657,21 @@ export function MapFieldEditingLayer({
 // ── Panels overlay (outside the MapContainer) ─────────────────────────
 export function MapFieldEditingPanels({ session }: { session: MapFieldEditingSession }) {
   const { editor, bbox } = session
+  const isPhone = useIsPhone()
   if (!session.active || !bbox) return null
 
   return (
     <>
-      {/* Left — the editor tool panel, in place of the farm drawer */}
-      <div className="absolute left-0 top-0 h-full z-[1100] shadow-xl">
+      {/* Left — the editor tool panel, in place of the farm drawer. On a
+          phone it docks as a bottom sheet so the map stays visible above
+          (editing is map-centric: taps place points, rows, and plants). */}
+      <div
+        className={
+          isPhone
+            ? 'absolute inset-x-0 bottom-0 h-[45dvh] z-[1100] shadow-xl'
+            : 'absolute left-0 top-0 h-full z-[1100] shadow-xl'
+        }
+      >
         <FarmFieldEditorPanel
           mode={editor.mode}
           shape={editor.shape}

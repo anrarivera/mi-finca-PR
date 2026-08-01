@@ -114,7 +114,7 @@ export default function CustomCropModal({ onClose, onCreated }: Props) {
       className="fixed inset-0 z-[1300] bg-black/40 flex items-center justify-center p-4"
       onMouseDown={e => { if (e.target === e.currentTarget) onClose() }}
     >
-      <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto bg-white rounded-2xl shadow-xl">
+      <div className="w-full max-w-lg max-h-[85dvh] overflow-y-auto bg-white rounded-2xl shadow-xl">
 
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-[#e0e8d8] sticky top-0 bg-white">

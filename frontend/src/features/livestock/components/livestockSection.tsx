@@ -175,7 +175,7 @@ function LivestockFormModal({
     <>
       <div className="fixed inset-0 bg-black/30 z-40 backdrop-blur-sm" onClick={onClose} />
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden max-h-[90vh] overflow-y-auto">
+        <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden max-h-[85dvh] overflow-y-auto">
 
           <div className="px-6 py-4 border-b border-[#e0e8d8]">
             <h2 className="text-[#2d4a1e] font-semibold text-base">

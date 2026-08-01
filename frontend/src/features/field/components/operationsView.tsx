@@ -10,6 +10,7 @@ import type {
 import type { FarmOperation } from '../hooks/useOperationsApi'
 import { getCropById } from '../data/cropLibrary'
 import { useHarvestHighlightStore } from '@/store/useHarvestHighlightStore'
+import { useIsPhone } from '@/hooks/useViewport'
 
 // ──────────────────────────────────────────────────────────────────────────
 // Operations view — the calendar check-off drawer (SDD §6.2), docked left
@@ -149,6 +150,7 @@ export default function OperationsView({
   findingsSection, onClose, onCompleteOperation, onSkipOperation,
   onUndoOperation, onEditOperation, onPartialLog,
 }: Props) {
+  const isPhone = useIsPhone()
   const [modal, setModal] = useState<{
     mode: ModalMode
     eventId: string
@@ -192,13 +194,18 @@ export default function OperationsView({
   // Portaled to <body>: hosts can render this from inside the farm
   // drawer, whose slide transform would otherwise hijack position:fixed.
   // Rendered as a left-docked drawer — the map stays visible beside it so
-  // the check-off modal's row/plant map toggles remain usable.
+  // the check-off modal's row/plant map toggles remain usable. On a phone
+  // there's no "beside": it takes the full frame below the top nav.
   return createPortal(
     <div
       className="fixed bottom-0 z-[2100] flex flex-col bg-[#f5f8f0] shadow-2xl border-r border-[#e0e8d8]"
       // Docked inside the app frame: right of the 64px side menu and
-      // below the 64px top nav — those are never covered.
-      style={{ left: 64, top: 64, width: 420, maxWidth: 'calc(100vw - 64px)' }}
+      // below the 64px top nav — those are never covered (desktop).
+      style={
+        isPhone
+          ? { left: 0, top: 64, width: '100%' }
+          : { left: 64, top: 64, width: 420, maxWidth: 'calc(100vw - 64px)' }
+      }
     >
 
       {/* Header */}
@@ -601,6 +608,7 @@ export function CheckOffModal({
   onConfirm: (data: CheckOffFormData) => void
   onCancel: () => void
 }) {
+  const isPhone = useIsPhone()
   const today = new Date().toISOString().split('T')[0]
   const isEdit = mode === 'edit'
   const targets = harvestTargets ?? { rows: [], freePlants: [] }
@@ -657,17 +665,20 @@ export function CheckOffModal({
       />
 
       {/* Modal — docked right when selecting scope so the field isn't
-          covered; the wrapper never captures clicks, only the card does */}
-      <div className={`fixed inset-0 z-[2300] flex items-center p-4 pointer-events-none ${
-        showScopeSelector ? 'justify-end pr-6' : 'justify-center'
+          covered; the wrapper never captures clicks, only the card does.
+          On a phone every mode is a full-width bottom sheet instead. */}
+      <div className={`fixed inset-0 z-[2300] flex pointer-events-none ${
+        isPhone ? 'items-end justify-center'
+        : showScopeSelector ? 'items-center p-4 justify-end pr-6'
+        : 'items-center p-4 justify-center'
       }`}>
         {/* Parcial/Editar: fixed 300px card (the farm drawer's width);
             Completa keeps the compact centered card */}
         <div
-          className={`bg-white rounded-2xl shadow-xl overflow-hidden max-h-[92vh] overflow-y-auto pointer-events-auto ${
-            mode === 'complete' ? 'w-full max-w-sm' : ''
-          }`}
-          style={mode !== 'complete' ? { width: 300, maxWidth: '100%' } : undefined}
+          className={`bg-white shadow-xl overflow-hidden overflow-y-auto pointer-events-auto ${
+            isPhone ? 'w-full rounded-t-2xl max-h-[85dvh]' : 'rounded-2xl max-h-[92vh]'
+          } ${mode === 'complete' && !isPhone ? 'w-full max-w-sm' : ''}`}
+          style={!isPhone && mode !== 'complete' ? { width: 300, maxWidth: '100%' } : undefined}
         >
 
           {/* Header */}
