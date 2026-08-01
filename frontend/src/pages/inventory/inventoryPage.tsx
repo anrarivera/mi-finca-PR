@@ -221,9 +221,20 @@ export default function InventoryPage() {
             </span>
           </div>
 
-          {/* ── Data grid ──────────────────────────────────────────── */}
+          {/* ── Data grid (cards below sm — a 9-column table is unusable
+                 at phone width) ─────────────────────────────────────── */}
           <section className="bg-white rounded-2xl border border-[#e0e8d8] overflow-hidden">
-            <div className="overflow-x-auto">
+            <div className="sm:hidden divide-y divide-[#f0f5e8]">
+              {rows.map(row => (
+                <InventoryCardView
+                  key={row.id}
+                  row={row}
+                  expanded={expandedId === row.id}
+                  onToggle={() => setExpandedId(prev => (prev === row.id ? null : row.id))}
+                />
+              ))}
+            </div>
+            <div className="hidden sm:block overflow-x-auto">
               <table className="w-full text-xs">
                 <thead>
                   <tr className="border-b border-[#e0e8d8] bg-[#f5f8f0] text-left">
@@ -359,44 +370,125 @@ function InventoryRowView({ row, expanded, onToggle }: {
       {expanded && (
         <tr>
           <td colSpan={9} className="px-6 py-3 bg-[#fafcf8]">
-            {row.operations.length === 0 ? (
-              <p className="text-[11px] text-[#9aab8a]">
-                Esta siembra no tiene operaciones programadas.
-              </p>
-            ) : (
-              <div className="flex flex-col gap-1.5">
-                <p className="text-[10px] font-semibold text-[#5a6a4a] uppercase tracking-wide">
-                  Operaciones de esta siembra
-                </p>
-                {row.operations.map(op => {
-                  const done = op.status === 'completed' || op.status === 'skipped'
-                  const overdue = !done && op.daysFromToday < 0
-                  return (
-                    <div key={op.id} className="flex items-center gap-2 text-[11px]">
-                      {done ? (
-                        <CheckCircle2 size={12} className="text-[#639922] shrink-0" />
-                      ) : overdue ? (
-                        <AlertCircle size={12} className="text-red-500 shrink-0" />
-                      ) : (
-                        <Clock size={12} className="text-amber-500 shrink-0" />
-                      )}
-                      <span className={done ? 'text-[#9aab8a] line-through' : 'text-[#2d4a1e]'}>
-                        {op.labelEs}
-                      </span>
-                      <span className="text-[#9aab8a]">
-                        · {formatDateEs(op.date)}
-                        {!done && ` (${formatRelativeDaysEs(op.daysFromToday)})`}
-                        {op.status === 'skipped' && ' (omitida)'}
-                      </span>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
+            <SiembraOperationsList operations={row.operations} />
           </td>
         </tr>
       )}
     </>
+  )
+}
+
+// The expanded per-siembra operations detail — shared by the desktop
+// table's expansion row and the phone card's expansion.
+function SiembraOperationsList({ operations }: {
+  operations: InventoryRow['operations']
+}) {
+  if (operations.length === 0) {
+    return (
+      <p className="text-[11px] text-[#9aab8a]">
+        Esta siembra no tiene operaciones programadas.
+      </p>
+    )
+  }
+  return (
+    <div className="flex flex-col gap-1.5">
+      <p className="text-[10px] font-semibold text-[#5a6a4a] uppercase tracking-wide">
+        Operaciones de esta siembra
+      </p>
+      {operations.map(op => {
+        const done = op.status === 'completed' || op.status === 'skipped'
+        const overdue = !done && op.daysFromToday < 0
+        return (
+          <div key={op.id} className="flex items-center gap-2 text-[11px]">
+            {done ? (
+              <CheckCircle2 size={12} className="text-[#639922] shrink-0" />
+            ) : overdue ? (
+              <AlertCircle size={12} className="text-red-500 shrink-0" />
+            ) : (
+              <Clock size={12} className="text-amber-500 shrink-0" />
+            )}
+            <span className={done ? 'text-[#9aab8a] line-through' : 'text-[#2d4a1e]'}>
+              {op.labelEs}
+            </span>
+            <span className="text-[#9aab8a]">
+              · {formatDateEs(op.date)}
+              {!done && ` (${formatRelativeDaysEs(op.daysFromToday)})`}
+              {op.status === 'skipped' && ' (omitida)'}
+            </span>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+// Phone rendering of an inventory row: the same facts as the table row,
+// stacked into a tappable card.
+function InventoryCardView({ row, expanded, onToggle }: {
+  row: InventoryRow
+  expanded: boolean
+  onToggle: () => void
+}) {
+  const crop = getCropById(row.cropTypeId)
+  const status = STATUS_META[row.status]
+  const source = SOURCE_META[row.source]
+
+  return (
+    <div
+      onClick={onToggle}
+      className="px-4 py-3 cursor-pointer hover:bg-[#fafcf8] transition-colors"
+    >
+      <div className="flex items-center gap-2">
+        <span className="text-base">{crop?.emoji ?? '🌱'}</span>
+        <span className="flex-1 min-w-0 text-sm font-medium text-[#2d4a1e] truncate">
+          {crop?.nameEs ?? row.cropTypeId}
+        </span>
+        <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold shrink-0 ${status.classes}`}>
+          {status.label}
+        </span>
+        {expanded
+          ? <ChevronDown size={13} className="text-[#9aab8a] shrink-0" />
+          : <ChevronRight size={13} className="text-[#9aab8a] shrink-0" />}
+      </div>
+
+      <p className="text-[11px] text-[#9aab8a] mt-0.5 truncate">
+        {row.farmName} · {row.fieldName}
+      </p>
+
+      <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-[11px] text-[#5a6a4a]">
+        <span>{source.icon} {source.label}{row.rowCount > 0 && ` (${row.rowCount})`}</span>
+        <span className="font-medium text-[#2d4a1e]">
+          {row.plantCount.toLocaleString()} plantas
+        </span>
+        <span>{formatDateEs(row.plantingDate)} · {row.ageDays} días</span>
+      </div>
+
+      <div className="mt-1.5 text-[11px]">
+        {row.nextOp ? (
+          <span>
+            <span className="text-[#2d4a1e]">{row.nextOp.labelEs}</span>{' '}
+            <span className={row.nextOp.daysFromToday < 0 ? 'text-red-500 font-semibold' : 'text-[#9aab8a]'}>
+              · {row.nextOp.daysFromToday < 0 ? 'vencida ' : ''}
+              {formatRelativeDaysEs(row.nextOp.daysFromToday)}
+              {row.pendingOpsCount > 1 && ` · ${row.pendingOpsCount} pendientes`}
+            </span>
+          </span>
+        ) : (
+          <span className="text-[#9aab8a]">Sin operaciones pendientes</span>
+        )}
+        {row.harvestWindow && (
+          <span className="block text-[10px] text-[#9aab8a] mt-0.5">
+            Cosecha: {formatDateEs(row.harvestWindow.start)} – {formatDateEs(row.harvestWindow.end)}
+          </span>
+        )}
+      </div>
+
+      {expanded && (
+        <div className="mt-2 pt-2 border-t border-[#f0f5e8]">
+          <SiembraOperationsList operations={row.operations} />
+        </div>
+      )}
+    </div>
   )
 }
 
