@@ -87,6 +87,29 @@ export default function FieldSummaryCard({
   const [showOps, setShowOps] = useState(false)
   // "Registrar hallazgo" — scouting capture for this field
   const [reportingFinding, setReportingFinding] = useState(false)
+
+  // The card's overlays are mutually exclusive. The check-off modal's
+  // click-through backdrop (needed so map taps select rows) leaves the
+  // drawer clickable behind it — without this, opening Operaciones would
+  // stack a second check-off dialog on top of the first.
+  function openChecking(next: {
+    mode: 'complete' | 'partial'
+    op: RecommendedOperation
+    event: PlantingEvent
+  }) {
+    setShowOps(false)
+    setReportingFinding(false)
+    setChecking(next)
+  }
+  function openOps() {
+    setChecking(null)
+    setReportingFinding(false)
+    setShowOps(true)
+  }
+  function openFinding() {
+    setChecking(null)
+    setReportingFinding(true)
+  }
   const completeOp = useCompleteRecommendedOp(field.farmId)
   const skipOp = useSkipRecommendedOp(field.farmId)
   const partialOp = useLogPartialRecommendedOp(field.farmId)
@@ -245,7 +268,7 @@ export default function FieldSummaryCard({
       {/* Current operation — check it off without leaving the card */}
       {next && (
         <div
-          onDoubleClick={(e) => { e.stopPropagation(); setShowOps(true) }}
+          onDoubleClick={(e) => { e.stopPropagation(); openOps() }}
           title={t('card.dblClickAllOps')}
           className={`flex items-center gap-2 mb-2.5 px-2 py-1.5 rounded-lg ${
             nextIsDue ? 'bg-red-50/70' : 'bg-[#f5f8f0]'
@@ -264,7 +287,7 @@ export default function FieldSummaryCard({
           <button
             onClick={(e) => {
               e.stopPropagation()
-              setChecking({ mode: 'complete', op: next.op, event: next.event })
+              openChecking({ mode: 'complete', op: next.op, event: next.event })
             }}
             title={t('actions.completeTitle')}
             className="pointer-coarse:p-2 text-[10px] shrink-0 text-[#2d4a1e] font-semibold hover:text-[#639922] transition-colors"
@@ -274,7 +297,7 @@ export default function FieldSummaryCard({
           <button
             onClick={(e) => {
               e.stopPropagation()
-              setChecking({ mode: 'partial', op: next.op, event: next.event })
+              openChecking({ mode: 'partial', op: next.op, event: next.event })
             }}
             title={t('actions.partialTitle')}
             className="pointer-coarse:p-2 text-[10px] shrink-0 text-[#639922] hover:text-[#2d4a1e] font-medium transition-colors"
@@ -322,7 +345,7 @@ export default function FieldSummaryCard({
       {!confirmDelete ? (
         <div className="flex items-center gap-2">
           <button
-            onClick={(e) => { e.stopPropagation(); setShowOps(true) }}
+            onClick={(e) => { e.stopPropagation(); openOps() }}
             title={t('card.opsButtonTitle')}
             className="flex-1 flex items-center justify-center gap-1.5 py-1.5 pointer-coarse:py-2.5 text-[10px] text-[#2d4a1e] border border-[#c8dca8] bg-[#eaf3de] rounded-lg hover:bg-[#d9ecc4] transition-colors"
           >
@@ -346,7 +369,7 @@ export default function FieldSummaryCard({
           )}
           {/* Scouting: register a pest/disease finding on this field */}
           <button
-            onClick={(e) => { e.stopPropagation(); setReportingFinding(true) }}
+            onClick={(e) => { e.stopPropagation(); openFinding() }}
             title={t('card.reportFindingTitle')}
             className="shrink-0 flex items-center justify-center px-2 py-1.5 pointer-coarse:p-2.5 text-[#b8860b] border border-[#e8dcc0] rounded-lg hover:bg-amber-50 hover:border-amber-200 transition-colors"
           >
