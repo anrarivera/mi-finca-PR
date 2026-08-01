@@ -4,6 +4,7 @@ import {
   ToggleLeft, ToggleRight, AlertCircle, Clock, CalendarDays, Bug,
 } from 'lucide-react'
 import { useIsCoarsePointer } from '@/hooks/useViewport'
+import { useFarmStore, canManageStructure } from '@/store/useFarmStore'
 import FindingModal from '@/features/scouting/components/findingModal'
 import { useFindings } from '@/features/scouting/hooks/useFindingsApi'
 import { fieldHealth } from '@/features/scouting/utils/fieldHealth'
@@ -88,6 +89,10 @@ export default function FieldSummaryCard({
   const partialOp = useLogPartialRecommendedOp(field.farmId)
   const cardRef = useRef<HTMLDivElement | null>(null)
   const isCoarsePointer = useIsCoarsePointer()
+  // Operators log work but don't restructure fields — hide what the
+  // server would reject anyway (roles phase 3).
+  const cardFarm = useFarmStore(s => s.farms.find(f => f.id === field.farmId))
+  const canManage = canManageStructure(cardFarm)
 
   // Defer the single-click action so a double click can cancel it —
   // otherwise the two clicks of a dblclick toggle the selection off
@@ -320,18 +325,22 @@ export default function FieldSummaryCard({
           >
             <CalendarDays size={10} /> Operaciones
           </button>
+          {canManage && (
           <button
             onClick={(e) => { e.stopPropagation(); onOpenEditor() }}
             className="flex-1 flex items-center justify-center gap-1.5 py-1.5 pointer-coarse:py-2.5 text-[10px] text-[#639922] border border-[#c8dca8] rounded-lg hover:bg-[#eaf3de] transition-colors"
           >
             <Pencil size={10} /> Editar
           </button>
+          )}
+          {canManage && (
           <button
             onClick={(e) => { e.stopPropagation(); setConfirmDelete(true) }}
             className="flex-1 flex items-center justify-center gap-1.5 py-1.5 pointer-coarse:py-2.5 text-[10px] text-[#9aab8a] border border-[#e0e8d8] rounded-lg hover:text-red-500 hover:border-red-200 hover:bg-red-50 transition-colors"
           >
             <Trash2 size={10} /> Eliminar
           </button>
+          )}
           {/* Scouting: register a pest/disease finding on this field */}
           <button
             onClick={(e) => { e.stopPropagation(); setReportingFinding(true) }}

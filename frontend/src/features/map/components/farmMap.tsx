@@ -23,7 +23,7 @@ import { buildFindingMarks } from '@/features/scouting/utils/findingScope'
 import { fieldHealth } from '@/features/scouting/utils/fieldHealth'
 import CreateFarmModal from '@/features/farm/components/createFarmModal'
 import { useFieldStore } from '@/store/useFieldStore'
-import { useFarmStore } from '@/store/useFarmStore'
+import { useFarmStore, canManageStructure, isFarmOwner } from '@/store/useFarmStore'
 import type { Farm } from '@/store/useFarmStore'
 import type { PlacedField as FieldModel } from '@/features/field/types'
 import { toast } from '@/store/useToastStore'
@@ -436,9 +436,11 @@ async function handleDeleteFarm() {
   return (
     <div className="flex-1 w-full h-full relative">
 
-      {/* Farm-boundary tools yield to the field-editing panel */}
-      {!fieldEditing.active && (
+      {/* Farm-boundary tools yield to the field-editing panel.
+          Boundary work is farm structure — admins and owners only. */}
+      {!fieldEditing.active && canManageStructure(activeFarm) && (
         <DrawingPanel
+          canDeleteFarm={isFarmOwner(activeFarm)}
           mode={drawing.mode}
           pointCount={drawing.points.length}
           areaAcres={drawing.areaAcres}
@@ -510,6 +512,9 @@ async function handleDeleteFarm() {
                 toggleSelectField(fieldId)
               }}
               onOpenEditor={(fieldId) => {
+                // Field structure is admin+ — operators stay out of the
+                // editor entirely (the server rejects their saves anyway).
+                if (!canManageStructure(activeFarm)) return
                 // Double-clicking another field mid-edit switches the
                 // editor to it (the zoom already happened in PlacedField).
                 if (fieldEditing.active) {

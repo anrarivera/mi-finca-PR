@@ -1,5 +1,7 @@
 import { create } from 'zustand'
 
+export type FarmRole = 'owner' | 'admin' | 'operator'
+
 export type Farm = {
   id: string
   name: string
@@ -11,7 +13,16 @@ export type Farm = {
   fieldIds: string[]
   isFavorite: boolean
   description?: string
+  /** The requesting user's role on this farm (roles phase 3). */
+  myRole?: FarmRole
 }
+
+// Role gates for hiding UI the server would reject anyway. Farms loaded
+// before roles existed have no myRole — treat them as owned.
+export const canManageStructure = (farm?: Farm | null) =>
+  (farm?.myRole ?? 'owner') !== 'operator'
+export const isFarmOwner = (farm?: Farm | null) =>
+  (farm?.myRole ?? 'owner') === 'owner'
 
 type FarmStore = {
   farms: Farm[]

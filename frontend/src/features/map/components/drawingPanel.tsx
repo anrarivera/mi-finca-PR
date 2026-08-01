@@ -23,6 +23,8 @@ type Props = {
   /** Touch path for the dblclick vertex insertion — adds a point after
       the selected vertex. */
   onInsertPointAfterSelected: () => void
+  /** Owner-only action — hidden for admins (the server rejects them). */
+  canDeleteFarm?: boolean
 }
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -52,6 +54,7 @@ export default function DrawingPanel({
   onUndoPoint,
   onDeleteSelectedPoint,
   onInsertPointAfterSelected,
+  canDeleteFarm = true,
 }: Props) {
   const isPhone = useIsPhone()
   const [menuOpen, setMenuOpen] = useState(false)
@@ -162,6 +165,7 @@ export default function DrawingPanel({
                 <Trash2 size={13} />
                 Limpiar y redibujar
               </button>
+              {canDeleteFarm && (
               <button
                 onClick={() => { setMenuOpen(false); onDeleteFarm() }}
                 className="w-full flex items-center justify-center gap-2 py-2 text-xs text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
@@ -169,6 +173,7 @@ export default function DrawingPanel({
                 <Trash2 size={13} />
                 Eliminar finca
               </button>
+              )}
               <div className="h-px bg-[#f0f5e8]" />
               <button
                 onClick={() => { setMenuOpen(false); onAddField() }}
