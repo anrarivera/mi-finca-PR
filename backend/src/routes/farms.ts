@@ -5,6 +5,7 @@ import { Errors } from '../lib/errors'
 import { requireFields, requireValidId, requireBoundaryBounds } from '../lib/validate'
 import { calculateAreaAcres, formatFarm } from '../lib/farmUtils'
 import { requireFarmRole } from '../lib/farmAccess'
+import { hashInviteCode } from '../lib/farmInvites'
 
 const router = Router()
 
@@ -101,6 +102,51 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
     res.status(201).json({
       success: true,
       data: formatFarm(farm)
+    })
+  } catch (err) {
+    next(err)
+  }
+})
+
+// ─────────────────────────────────────────────────────────────────────
+// POST /api/v1/farms/join  { code }
+// Redeem a join code — membership is immediate with the role baked into
+// the code. Works right after registration or from an existing account.
+// ─────────────────────────────────────────────────────────────────────
+router.post('/join', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    requireFields(req.body, ['code'])
+    const userId = req.user!.userId
+
+    const invite = await prisma.farmInvite.findUnique({
+      where: { codeHash: hashInviteCode(req.body.code) },
+      include: { farm: true },
+    })
+    if (
+      !invite || invite.revokedAt !== null ||
+      invite.expiresAt < new Date() || invite.farm.deletedAt !== null
+    ) {
+      throw Errors.validation(
+        'Código inválido o vencido — pide uno nuevo al equipo de la finca.'
+      )
+    }
+    if (invite.farm.userId === userId) {
+      throw Errors.conflict('Ya eres el dueño de esta finca')
+    }
+    const existing = await prisma.farmMember.findUnique({
+      where: { farmId_userId: { farmId: invite.farmId, userId } },
+    })
+    if (existing) {
+      throw Errors.conflict('Ya eres parte del equipo de esta finca')
+    }
+
+    const member = await prisma.farmMember.create({
+      data: { farmId: invite.farmId, userId, role: invite.role },
+    })
+
+    res.status(201).json({
+      success: true,
+      data: { farmId: invite.farmId, farmName: invite.farm.name, role: member.role },
     })
   } catch (err) {
     next(err)

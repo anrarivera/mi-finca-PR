@@ -43,3 +43,50 @@ export function useRemoveMember(farmId: string) {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['members', farmId] }),
   })
 }
+
+// ── Join codes ────────────────────────────────────────────────────────
+
+export type FarmInvite = {
+  id: string
+  role: 'admin' | 'operator'
+  expiresAt: string
+  createdAt: string
+}
+
+export function useInvites(farmId: string | null, enabled = true) {
+  return useQuery({
+    queryKey: ['invites', farmId],
+    queryFn: () => api.get<FarmInvite[]>(`/api/v1/farms/${farmId}/members/invites`),
+    enabled: !!farmId && enabled,
+  })
+}
+
+export function useCreateInvite(farmId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { role: 'admin' | 'operator' }) =>
+      api.post<FarmInvite & { code: string }>(`/api/v1/farms/${farmId}/members/invites`, data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['invites', farmId] }),
+  })
+}
+
+export function useRevokeInvite(farmId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (inviteId: string) =>
+      api.delete(`/api/v1/farms/${farmId}/members/invites/${inviteId}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['invites', farmId] }),
+  })
+}
+
+// Redeem a code — refetches farms so the new membership shows up at once.
+export function useJoinFarm() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (code: string) =>
+      api.post<{ farmId: string; farmName: string; role: string }>(
+        '/api/v1/farms/join', { code }
+      ),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['farms'] }),
+  })
+}

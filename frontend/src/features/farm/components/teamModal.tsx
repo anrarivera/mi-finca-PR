@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Users, X, Crown, Shield, Wrench, Trash2, Plus } from 'lucide-react'
+import { Users, X, Crown, Shield, Wrench, Trash2, Plus, Ticket, Copy } from 'lucide-react'
 import {
   useMembers, useAddMember, useUpdateMemberRole, useRemoveMember,
+  useInvites, useCreateInvite, useRevokeInvite,
 } from '../hooks/useMembersApi'
 import { useAuthStore } from '@/store/useAuthStore'
 import { canManageStructure, type Farm, type FarmRole } from '@/store/useFarmStore'
@@ -35,6 +36,27 @@ export default function TeamModal({ farm, onClose }: {
 
   const [email, setEmail] = useState('')
   const [role, setRole] = useState<'admin' | 'operator'>('operator')
+
+  // Join codes — generated here, redeemed at registration or via
+  // "Unirme a una finca". The plain code exists only in this state.
+  const { data: invites } = useInvites(farm.id, canManage)
+  const createInvite = useCreateInvite(farm.id)
+  const revokeInvite = useRevokeInvite(farm.id)
+  const [inviteRole, setInviteRole] = useState<'admin' | 'operator'>('operator')
+  const [freshCode, setFreshCode] = useState<string | null>(null)
+
+  function handleGenerateCode() {
+    createInvite.mutate({ role: inviteRole }, {
+      onSuccess: (data) => setFreshCode(data.code),
+    })
+  }
+
+  function handleCopyCode() {
+    if (!freshCode) return
+    navigator.clipboard?.writeText(freshCode)
+      .then(() => toast.success('Código copiado'))
+      .catch(() => { /* clipboard unavailable — the code is visible anyway */ })
+  }
 
   function handleAdd(e: React.FormEvent) {
     e.preventDefault()
@@ -160,6 +182,76 @@ export default function TeamModal({ farm, onClose }: {
                 además gestiona campos, límites y el equipo.
               </p>
             </form>
+          )}
+
+          {/* Join codes — for people you can't add by email */}
+          {canManage && (
+            <div className="px-5 py-4 border-t border-[#e0e8d8] flex flex-col gap-2">
+              <p className="text-xs font-semibold text-[#2d4a1e] flex items-center gap-1.5">
+                <Ticket size={13} className="text-[#639922]" /> Código de invitación
+              </p>
+              <p className="text-[10px] text-[#9aab8a] leading-relaxed">
+                Comparte un código y la persona se une sola — al registrarse o
+                desde "Unirme a una finca". Sirve para varias personas y vence
+                en 7 días.
+              </p>
+
+              {freshCode ? (
+                <div className="flex items-center gap-2 px-3 py-2.5 bg-[#eaf3de] border border-[#c8dca8] rounded-lg">
+                  <span className="flex-1 text-base font-bold tracking-widest text-[#2d4a1e] font-mono">
+                    {freshCode}
+                  </span>
+                  <button onClick={handleCopyCode} title="Copiar código"
+                    className="p-1.5 pointer-coarse:p-2.5 rounded text-[#639922] hover:bg-white transition-colors"
+                  >
+                    <Copy size={14} />
+                  </button>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <select
+                    value={inviteRole}
+                    onChange={e => setInviteRole(e.target.value as 'admin' | 'operator')}
+                    className="text-xs text-[#5a6a4a] bg-white border border-[#d0dcc0] rounded-lg px-2 py-2 focus:outline-none focus:border-[#639922]"
+                  >
+                    <option value="operator">Operador</option>
+                    <option value="admin">Administrador</option>
+                  </select>
+                  <button
+                    onClick={handleGenerateCode}
+                    disabled={createInvite.isPending}
+                    className="flex-1 flex items-center justify-center gap-2 py-2 text-xs font-medium text-[#639922] border border-[#c8dca8] rounded-lg hover:bg-[#eaf3de] transition-colors disabled:opacity-40"
+                  >
+                    <Ticket size={13} /> Generar código
+                  </button>
+                </div>
+              )}
+
+              {/* Active codes (the codes themselves are unrecoverable) */}
+              {(invites ?? []).length > 0 && (
+                <div className="flex flex-col divide-y divide-[#f0f5e8]">
+                  {(invites ?? []).map(inv => (
+                    <div key={inv.id} className="flex items-center gap-2 py-1.5">
+                      <span className="flex-1 text-[10px] text-[#5a6a4a]">
+                        Código de {inv.role === 'admin' ? 'administrador' : 'operador'} · vence{' '}
+                        {new Date(inv.expiresAt).toLocaleDateString('es-PR', { day: 'numeric', month: 'short' })}
+                      </span>
+                      <button
+                        onClick={() => revokeInvite.mutate(inv.id, {
+                          onSuccess: () => {
+                            setFreshCode(null)
+                            toast.success('Código revocado')
+                          },
+                        })}
+                        className="text-[10px] pointer-coarse:p-2 text-[#c0d0b0] hover:text-red-500 transition-colors"
+                      >
+                        Revocar
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           )}
         </div>
       </div>

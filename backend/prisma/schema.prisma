@@ -65,8 +65,26 @@ model Farm {
   automationRules AutomationRule[]
   operations     Operation[]
   members        FarmMember[]
+  invites        FarmInvite[]
 
   @@map("farms")
+}
+
+// Join codes (roles: self-serve onboarding). Multi-use until expiry or
+// revocation so one code can onboard a whole crew; only a SHA-256 hash is
+// stored — the plain code is shown once at generation.
+model FarmInvite {
+  id        String    @id @default(uuid())
+  farmId    String
+  role      String    // 'admin' | 'operator' — baked into the code
+  codeHash  String    @unique
+  createdBy String
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+  farm      Farm      @relation(fields: [farmId], references: [id], onDelete: Cascade)
+
+  @@map("farm_invites")
 }
 
 // Per-farm membership. The owner is Farm.userId (never a row here);

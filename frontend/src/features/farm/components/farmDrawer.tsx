@@ -7,6 +7,7 @@ import {
 import { useDeleteField } from '@/features/field/hooks/useFieldsApi'
 import { useIsPhone } from '@/hooks/useViewport'
 import TeamModal from './teamModal'
+import JoinFarmModal from './joinFarmModal'
 import { useFarmStore, canManageStructure, isFarmOwner } from '@/store/useFarmStore'
 import { useFieldStore } from '@/store/useFieldStore'
 import { getFieldOperationHealth } from '@/features/field/utils/operationStatus'
@@ -42,6 +43,8 @@ export default function FarmDrawer({
   const [level, setLevel] = useState<'farms' | 'fields'>('farms')
   // "Equipo" roster/management modal — per farm
   const [teamFarm, setTeamFarm] = useState<Farm | null>(null)
+  // "Unirme a una finca" — redeem a join code
+  const [showJoin, setShowJoin] = useState(false)
   // On a phone the drawer takes the full map width, so the side toggle tab
   // would land off-screen while open — hide it and close via the header.
   const isPhone = useIsPhone()
@@ -152,6 +155,7 @@ export default function FarmDrawer({
               onSetFavorite={setFavoriteFarm}
               onDelete={handleDeleteFarm}
               onTeam={setTeamFarm}
+              onJoin={() => setShowJoin(true)}
               onAddFarm={onAddFarm}
               onClose={() => onOpenChange(false)}
             />
@@ -186,6 +190,7 @@ export default function FarmDrawer({
       {teamFarm && (
         <TeamModal farm={teamFarm} onClose={() => setTeamFarm(null)} />
       )}
+      {showJoin && <JoinFarmModal onClose={() => setShowJoin(false)} />}
     </>
   )
 }
@@ -193,7 +198,7 @@ export default function FarmDrawer({
 // ── Level 1: Farm list ────────────────────────────────────────────────
 function FarmList({
   farms, favoriteFarmId, onSelect, onSetFavorite,
-  onDelete, onTeam, onAddFarm, onClose,
+  onDelete, onTeam, onJoin, onAddFarm, onClose,
 }: {
   farms: Farm[]
   favoriteFarmId: string | null
@@ -201,6 +206,7 @@ function FarmList({
   onSetFavorite: (id: string) => void
   onDelete: (farm: Farm) => void
   onTeam: (farm: Farm) => void
+  onJoin: () => void
   onAddFarm: () => void
   onClose: () => void
 }) {
@@ -348,13 +354,19 @@ function FarmList({
         )}
       </div>
 
-      {/* Fixed bottom — Add farm button */}
-      <div className="px-4 py-3 border-t border-[#e0e8d8] bg-white shrink-0">
+      {/* Fixed bottom — Add farm + join-by-code */}
+      <div className="px-4 py-3 border-t border-[#e0e8d8] bg-white shrink-0 flex flex-col gap-1.5">
         <button
           onClick={onAddFarm}
           className="w-full flex items-center justify-center gap-2 py-2.5 bg-[#2d4a1e] text-[#d4e8b0] rounded-lg text-xs font-medium hover:bg-[#3d6128] transition-colors"
         >
           <Plus size={13} /> Añadir finca
+        </button>
+        <button
+          onClick={onJoin}
+          className="w-full py-1.5 pointer-coarse:py-2.5 text-[10px] text-[#7a8a6a] hover:text-[#2d4a1e] transition-colors"
+        >
+          ¿Tienes un código? Únete a una finca
         </button>
       </div>
     </div>

@@ -4,6 +4,8 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useRegister } from '@/features/auth/hooks/useAuth'
+import { useJoinFarm } from '@/features/farm/hooks/useMembersApi'
+import { toast } from '@/store/useToastStore'
 import AuthLayout, { authInputClass, FieldError } from './authLayout'
 
 const registerSchema = z.object({
@@ -11,6 +13,7 @@ const registerSchema = z.object({
   email: z.string().email('Escribe un email válido'),
   password: z.string().min(8, 'Mínimo 8 caracteres'),
   confirmPassword: z.string(),
+  inviteCode: z.string().trim().optional(),
 }).refine(data => data.password === data.confirmPassword, {
   message: 'Las contraseñas no coinciden',
   path: ['confirmPassword'],
@@ -21,6 +24,7 @@ type RegisterForm = z.infer<typeof registerSchema>
 export default function RegisterPage() {
   const navigate = useNavigate()
   const registerAccount = useRegister()
+  const joinFarm = useJoinFarm()
   const [serverError, setServerError] = useState<string | null>(null)
 
   const { register, handleSubmit, formState: { errors, isSubmitting } } =
@@ -34,6 +38,16 @@ export default function RegisterPage() {
         password: values.password,
         fullName: values.fullName,
       })
+      // Invite code: redeem right after the account exists. A bad code
+      // never blocks registration — the account is already created.
+      if (values.inviteCode?.trim()) {
+        try {
+          const joined = await joinFarm.mutateAsync(values.inviteCode.trim())
+          toast.success(`Ahora eres parte de "${joined.farmName}"`)
+        } catch {
+          toast.error('El código de invitación no funcionó — puedes unirte luego desde el mapa.')
+        }
+      }
       navigate('/')
     } catch (err) {
       const message = err instanceof Error ? err.message : ''
@@ -114,6 +128,20 @@ export default function RegisterPage() {
             />
             <FieldError message={errors.confirmPassword?.message} />
           </div>
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="inviteCode" className="text-xs font-medium text-[#5a6a4a]">
+            Código de invitación <span className="text-[#9aab8a] font-normal">(opcional)</span>
+          </label>
+          <input
+            id="inviteCode"
+            type="text"
+            autoComplete="off"
+            placeholder="¿Te invitaron a una finca? Ej. 7K3M-9QPX"
+            className={authInputClass}
+            {...register('inviteCode')}
+          />
         </div>
 
         {serverError && (

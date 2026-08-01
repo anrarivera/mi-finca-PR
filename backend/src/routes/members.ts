@@ -5,6 +5,9 @@ import { Errors } from '../lib/errors'
 import { requireFields } from '../lib/validate'
 import { requireFarmRole } from '../lib/farmAccess'
 import { sendMail } from '../lib/mailer'
+import {
+  generateInviteCode, hashInviteCode, INVITE_TTL_DAYS,
+} from '../lib/farmInvites'
 
 // ──────────────────────────────────────────────────────────────────────────
 // Farm team management (roles phase 2). Members are added by the email of
@@ -118,6 +121,91 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
         role: member.role,
       },
     })
+  } catch (err) {
+    next(err)
+  }
+})
+
+// ─────────────────────────────────────────────────────────────────────
+// POST /api/v1/farms/:farmId/members/invites  { role }
+// Generate a join code (admin+). The plain code is returned ONCE —
+// only its hash is stored. Multi-use until expiry or revocation.
+// ─────────────────────────────────────────────────────────────────────
+router.post('/invites', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const farmId = req.params.farmId as string
+    requireFields(req.body, ['role'])
+    const { role } = req.body
+
+    if (!MEMBER_ROLES.includes(role)) {
+      throw Errors.validation(`role must be one of: ${MEMBER_ROLES.join(', ')}`)
+    }
+
+    await requireFarmRole(req.user!.userId, farmId, 'admin')
+
+    const code = generateInviteCode()
+    const expiresAt = new Date(Date.now() + INVITE_TTL_DAYS * 24 * 60 * 60 * 1000)
+    const invite = await prisma.farmInvite.create({
+      data: {
+        farmId,
+        role: role as MemberRole,
+        codeHash: hashInviteCode(code),
+        createdBy: req.user!.userId,
+        expiresAt,
+      },
+    })
+
+    res.status(201).json({
+      success: true,
+      data: { id: invite.id, code, role: invite.role, expiresAt: invite.expiresAt },
+    })
+  } catch (err) {
+    next(err)
+  }
+})
+
+// ─────────────────────────────────────────────────────────────────────
+// GET /api/v1/farms/:farmId/members/invites
+// Active (unexpired, unrevoked) codes — without the codes themselves,
+// which are unrecoverable by design.
+// ─────────────────────────────────────────────────────────────────────
+router.get('/invites', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const farmId = req.params.farmId as string
+    await requireFarmRole(req.user!.userId, farmId, 'admin')
+
+    const invites = await prisma.farmInvite.findMany({
+      where: { farmId, revokedAt: null, expiresAt: { gt: new Date() } },
+      orderBy: { createdAt: 'desc' },
+      select: { id: true, role: true, expiresAt: true, createdAt: true },
+    })
+
+    res.json({ success: true, data: invites })
+  } catch (err) {
+    next(err)
+  }
+})
+
+// ─────────────────────────────────────────────────────────────────────
+// DELETE /api/v1/farms/:farmId/members/invites/:inviteId — revoke
+// ─────────────────────────────────────────────────────────────────────
+router.delete('/invites/:inviteId', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const farmId = req.params.farmId as string
+    const inviteId = req.params.inviteId as string
+    await requireFarmRole(req.user!.userId, farmId, 'admin')
+
+    const invite = await prisma.farmInvite.findFirst({
+      where: { id: inviteId, farmId, revokedAt: null },
+    })
+    if (!invite) throw Errors.notFound('Invite')
+
+    await prisma.farmInvite.update({
+      where: { id: invite.id },
+      data: { revokedAt: new Date() },
+    })
+
+    res.json({ success: true, data: { success: true } })
   } catch (err) {
     next(err)
   }
