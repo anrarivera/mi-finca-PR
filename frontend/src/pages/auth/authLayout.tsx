@@ -8,7 +8,7 @@ export default function AuthLayout({ title, subtitle, children }: {
   children: ReactNode
 }) {
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-[#f7f9f4] px-4 py-8">
+    <div className="min-h-dvh flex flex-col items-center justify-center bg-[#f7f9f4] px-4 py-8">
       <Link to="/" className="flex items-center gap-2 mb-6">
         <span className="text-3xl">🌱</span>
         <span className="font-serif text-[#2d4a1e] text-xl font-bold tracking-wide">

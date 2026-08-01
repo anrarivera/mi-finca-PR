@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react'
 import {
   ChevronRight, ChevronLeft, Star, Plus,
-  MapPin, Layers, Trash2,
+  MapPin, Layers, Trash2, Users,
   AlertCircle, Clock,
 } from 'lucide-react'
 import { useDeleteField } from '@/features/field/hooks/useFieldsApi'
-import { useFarmStore } from '@/store/useFarmStore'
+import { useIsPhone } from '@/hooks/useViewport'
+import TeamModal from './teamModal'
+import JoinFarmModal from './joinFarmModal'
+import { useFarmStore, canManageStructure, isFarmOwner } from '@/store/useFarmStore'
 import { useFieldStore } from '@/store/useFieldStore'
 import { getFieldOperationHealth } from '@/features/field/utils/operationStatus'
 import FieldSummaryCard from '@/features/field/components/fieldSummaryCard'
@@ -38,6 +41,13 @@ export default function FarmDrawer({
   onFlyToFarm, onOpenFieldEditor, focusRequest, onSelectField, onZoomToField,
 }: Props) {
   const [level, setLevel] = useState<'farms' | 'fields'>('farms')
+  // "Equipo" roster/management modal — per farm
+  const [teamFarm, setTeamFarm] = useState<Farm | null>(null)
+  // "Unirme a una finca" — redeem a join code
+  const [showJoin, setShowJoin] = useState(false)
+  // On a phone the drawer takes the full map width, so the side toggle tab
+  // would land off-screen while open — hide it and close via the header.
+  const isPhone = useIsPhone()
 
   // A field was clicked on the map — open the drawer at the fields level;
   // the matching card highlights and scrolls into view.
@@ -94,7 +104,8 @@ export default function FarmDrawer({
 
   return (
     <>
-      {/* ── Drawer toggle tab ─────────────────────────────────────── */}
+      {/* ── Drawer toggle tab (hidden while a full-width drawer is open) ── */}
+      {!(isPhone && isOpen) && (
       <button
         onClick={() => onOpenChange(!isOpen)}
         className="absolute left-0 top-1/2 -translate-y-1/2 z-[1001] bg-white border border-[#e0e8d8] border-l-0 rounded-r-lg px-1.5 py-4 flex flex-col items-center gap-1.5 shadow-md hover:bg-[#f5f8f0] transition-all"
@@ -125,12 +136,13 @@ export default function FarmDrawer({
           </div>
         )}
       </button>
+      )}
 
       {/* ── Drawer panel ─────────────────────────────────────────── */}
       <div
         className="absolute left-0 top-0 h-full z-[1000] bg-white border-r border-[#e0e8d8] shadow-xl flex flex-col overflow-hidden"
         style={{
-          width: 300,
+          width: isPhone ? '100%' : 300,
           transform: isOpen ? 'translateX(0)' : 'translateX(-100%)',
           transition: 'transform 0.3s ease',
         }}
@@ -142,6 +154,8 @@ export default function FarmDrawer({
               onSelect={handleSelectFarm}
               onSetFavorite={setFavoriteFarm}
               onDelete={handleDeleteFarm}
+              onTeam={setTeamFarm}
+              onJoin={() => setShowJoin(true)}
               onAddFarm={onAddFarm}
               onClose={() => onOpenChange(false)}
             />
@@ -155,6 +169,7 @@ export default function FarmDrawer({
               onZoomToField={onZoomToField}
               showBackButton={farms.length > 1}
               onBack={handleBackToFarms}
+              onTeam={() => setTeamFarm(activeFarm)}
               onClose={() => onOpenChange(false)}
               onEditField={onEditField}
               onDeleteField={(fieldId) => {
@@ -170,6 +185,12 @@ export default function FarmDrawer({
           : null
         }
       </div>
+
+      {/* Equipo — roster + membership management (portaled) */}
+      {teamFarm && (
+        <TeamModal farm={teamFarm} onClose={() => setTeamFarm(null)} />
+      )}
+      {showJoin && <JoinFarmModal onClose={() => setShowJoin(false)} />}
     </>
   )
 }
@@ -177,13 +198,15 @@ export default function FarmDrawer({
 // ── Level 1: Farm list ────────────────────────────────────────────────
 function FarmList({
   farms, favoriteFarmId, onSelect, onSetFavorite,
-  onDelete, onAddFarm, onClose,
+  onDelete, onTeam, onJoin, onAddFarm, onClose,
 }: {
   farms: Farm[]
   favoriteFarmId: string | null
   onSelect: (farm: Farm) => void
   onSetFavorite: (id: string) => void
   onDelete: (farm: Farm) => void
+  onTeam: (farm: Farm) => void
+  onJoin: () => void
   onAddFarm: () => void
   onClose: () => void
 }) {
@@ -209,7 +232,7 @@ function FarmList({
           </p>
         </div>
         <button onClick={onClose}
-          className="w-6 h-6 flex items-center justify-center rounded-md text-[#9aab8a] hover:bg-[#e8f0e0] transition-colors"
+          className="w-6 h-6 pointer-coarse:w-11 pointer-coarse:h-11 flex items-center justify-center rounded-md text-[#9aab8a] hover:bg-[#e8f0e0] transition-colors"
         >
           <ChevronLeft size={14} />
         </button>
@@ -292,11 +315,12 @@ function FarmList({
                     </div>
                   </button>
 
-                  {/* Farm actions — visible on hover */}
-                  <div className="hidden group-hover:flex items-center gap-1 px-4 pb-2">
+                  {/* Farm actions — on hover; always shown on touch, where
+                      hover doesn't exist */}
+                  <div className="hidden group-hover:flex pointer-coarse:flex items-center gap-1 px-4 pb-2">
                     <button
                       onClick={(e) => { e.stopPropagation(); onSetFavorite(farm.id) }}
-                      className={`flex items-center gap-1 px-2 py-1 rounded text-[10px] transition-colors ${
+                      className={`flex items-center gap-1 px-2 py-1 pointer-coarse:px-3 pointer-coarse:py-2 rounded text-[10px] transition-colors ${
                         isFavorite
                           ? 'text-amber-500 bg-amber-50'
                           : 'text-[#9aab8a] hover:text-amber-500 hover:bg-amber-50'
@@ -307,11 +331,21 @@ function FarmList({
                       {isFavorite ? 'Favorita' : 'Favorita'}
                     </button>
                     <button
+                      onClick={(e) => { e.stopPropagation(); onTeam(farm) }}
+                      className="flex items-center gap-1 px-2 py-1 pointer-coarse:px-3 pointer-coarse:py-2 rounded text-[10px] text-[#9aab8a] hover:text-[#2d4a1e] hover:bg-[#f0f5e8] transition-colors"
+                      title="Ver o gestionar el equipo de la finca"
+                    >
+                      <Users size={10} /> Equipo
+                    </button>
+                    {/* Deleting a farm is owner-only — hide what the server rejects */}
+                    {isFarmOwner(farm) && (
+                    <button
                       onClick={(e) => { e.stopPropagation(); onDelete(farm) }}
-                      className="flex items-center gap-1 px-2 py-1 rounded text-[10px] text-[#9aab8a] hover:text-red-500 hover:bg-red-50 transition-colors"
+                      className="flex items-center gap-1 px-2 py-1 pointer-coarse:px-3 pointer-coarse:py-2 rounded text-[10px] text-[#9aab8a] hover:text-red-500 hover:bg-red-50 transition-colors"
                     >
                       <Trash2 size={10} /> Eliminar
                     </button>
+                    )}
                   </div>
                 </div>
               )
@@ -320,13 +354,19 @@ function FarmList({
         )}
       </div>
 
-      {/* Fixed bottom — Add farm button */}
-      <div className="px-4 py-3 border-t border-[#e0e8d8] bg-white shrink-0">
+      {/* Fixed bottom — Add farm + join-by-code */}
+      <div className="px-4 py-3 border-t border-[#e0e8d8] bg-white shrink-0 flex flex-col gap-1.5">
         <button
           onClick={onAddFarm}
           className="w-full flex items-center justify-center gap-2 py-2.5 bg-[#2d4a1e] text-[#d4e8b0] rounded-lg text-xs font-medium hover:bg-[#3d6128] transition-colors"
         >
           <Plus size={13} /> Añadir finca
+        </button>
+        <button
+          onClick={onJoin}
+          className="w-full py-1.5 pointer-coarse:py-2.5 text-[10px] text-[#7a8a6a] hover:text-[#2d4a1e] transition-colors"
+        >
+          ¿Tienes un código? Únete a una finca
         </button>
       </div>
     </div>
@@ -340,7 +380,7 @@ function FarmList({
 // check-off + the full operations UI.
 function FieldList({
   farm, fields, focusFieldId, focusNonce, onSelectField, onZoomToField,
-  showBackButton, onBack, onClose, onEditField, onDeleteField,
+  showBackButton, onBack, onTeam, onClose, onEditField, onDeleteField,
   onToggleDisplay, onOpenFieldEditor,
 }: {
   farm: Farm
@@ -351,6 +391,7 @@ function FieldList({
   onZoomToField: (fieldId: string) => void
   showBackButton: boolean
   onBack: () => void
+  onTeam: () => void
   onClose: () => void
   onEditField: (id: string) => void
   onDeleteField: (id: string) => void
@@ -387,7 +428,7 @@ function FieldList({
           <div className="flex items-center gap-2 min-w-0">
             {showBackButton && (
               <button onClick={onBack}
-                className="text-[#9aab8a] hover:text-[#2d4a1e] transition-colors shrink-0"
+                className="pointer-coarse:p-2.5 text-[#9aab8a] hover:text-[#2d4a1e] transition-colors shrink-0"
               >
                 <ChevronLeft size={16} />
               </button>
@@ -413,11 +454,19 @@ function FieldList({
               </div>
             </div>
           </div>
-          <button onClick={onClose}
-            className="w-6 h-6 flex items-center justify-center rounded-md text-[#9aab8a] hover:bg-[#e8f0e0] transition-colors shrink-0"
-          >
-            <ChevronLeft size={14} />
-          </button>
+          <div className="flex items-center gap-1 shrink-0">
+            <button onClick={onTeam}
+              title="Ver o gestionar el equipo de la finca"
+              className="w-6 h-6 pointer-coarse:w-11 pointer-coarse:h-11 flex items-center justify-center rounded-md text-[#9aab8a] hover:bg-[#e8f0e0] transition-colors"
+            >
+              <Users size={13} />
+            </button>
+            <button onClick={onClose}
+              className="w-6 h-6 pointer-coarse:w-11 pointer-coarse:h-11 flex items-center justify-center rounded-md text-[#9aab8a] hover:bg-[#e8f0e0] transition-colors"
+            >
+              <ChevronLeft size={14} />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -449,7 +498,9 @@ function FieldList({
         )}
       </div>
 
-      {/* Fixed bottom — start drawing a new field on the map */}
+      {/* Fixed bottom — start drawing a new field on the map.
+          Field structure is admin+ work; operators don't get the button. */}
+      {canManageStructure(farm) && (
       <div className="px-4 py-3 border-t border-[#e0e8d8] bg-white shrink-0">
         <button
           onClick={onOpenFieldEditor}
@@ -458,6 +509,7 @@ function FieldList({
           <Plus size={13} /> Nuevo campo
         </button>
       </div>
+      )}
     </div>
   )
 }

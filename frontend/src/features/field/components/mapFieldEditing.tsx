@@ -7,6 +7,8 @@ import { useFarmStore } from '@/store/useFarmStore'
 import { useCreateField, useUpdateField } from '../hooks/useFieldsApi'
 import { useCreateOperation } from '../hooks/useOperationsApi'
 import { latlngToCanvas, canvasToLatlng, farmBoundaryToBBox } from '../utils/canvasGeo'
+import { attachPointerDrag } from '@/features/map/utils/pointerDrag'
+import { useIsCoarsePointer, useIsPhone } from '@/hooks/useViewport'
 import type { BBox } from '../utils/canvasGeo'
 import { getCropById } from '../data/cropLibrary'
 import { randomFieldColor } from '../types'
@@ -347,8 +349,8 @@ function BoundaryVertex({
   session: MapFieldEditingSession
 }) {
   const markerRef = useRef<L.CircleMarker | null>(null)
-  const isDragging = useRef(false)
   const map = useMapEvents({})
+  const coarse = useIsCoarsePointer()
   const { editor, bbox } = session
 
   useEffect(() => {
@@ -358,43 +360,25 @@ function BoundaryVertex({
     if (!el) return
     el.style.cursor = 'grab'
 
-    function onMouseDown(e: MouseEvent) {
-      e.stopPropagation()
-      isDragging.current = false
-      map.dragging.disable()
-
-      function onMouseMove(ev: MouseEvent) {
-        isDragging.current = true
-        const containerPoint = map.mouseEventToContainerPoint(ev as unknown as MouseEvent)
-        const latlng = map.containerPointToLatLng(containerPoint)
-        editor.movePoint(index, latlngToCanvas(latlng.lat, latlng.lng, bbox!))
-      }
-      function onMouseUp() {
-        map.dragging.enable()
-        window.removeEventListener('mousemove', onMouseMove)
-        window.removeEventListener('mouseup', onMouseUp)
-        if (!isDragging.current) {
-          if (editor.mode === 'drawing' && isFirst && editor.points.length >= 3) {
-            editor.completeDrawing()
-          } else {
-            editor.setSelectedPointIndex(isSelected ? null : index)
-          }
+    return attachPointerDrag(el, map, {
+      onMove: (latlng) =>
+        editor.movePoint(index, latlngToCanvas(latlng.lat, latlng.lng, bbox!)),
+      onTap: () => {
+        if (editor.mode === 'drawing' && isFirst && editor.points.length >= 3) {
+          editor.completeDrawing()
+        } else {
+          editor.setSelectedPointIndex(isSelected ? null : index)
         }
-        isDragging.current = false
-      }
-      window.addEventListener('mousemove', onMouseMove)
-      window.addEventListener('mouseup', onMouseUp)
-    }
-
-    el.addEventListener('mousedown', onMouseDown)
-    return () => el.removeEventListener('mousedown', onMouseDown)
+      },
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [index, isFirst, isSelected, map, editor.mode, editor.points.length, bbox])
 
   return (
     <CircleMarker
       ref={markerRef}
       center={position}
-      radius={isFirst || isSelected ? 8 : 6}
+      radius={(isFirst || isSelected ? 8 : 6) + (coarse ? 4 : 0)}
       pathOptions={{
         color: isSelected ? '#ef4444' : '#2d4a1e',
         fillColor: isSelected ? '#ef4444' : isFirst ? '#639922' : 'white',
@@ -447,28 +431,33 @@ export function MapFieldEditingLayer({
     },
   })
 
-  // Rectangle drawing — press-drag with map panning disabled.
+  // Rectangle drawing — press-drag with map panning disabled. Pointer
+  // events + touch-action:none so the gesture works with a finger too
+  // (without it the browser claims the drag for scrolling).
   useEffect(() => {
     if (!bbox || editor.mode !== 'drawing' || editor.shape !== 'rectangle') return
     const container = map.getContainer()
     map.dragging.disable()
     container.style.cursor = 'crosshair'
+    const prevTouchAction = container.style.touchAction
+    container.style.touchAction = 'none'
 
     let start: CanvasPoint | null = null
-    function toCanvas(ev: MouseEvent): CanvasPoint {
-      const latlng = map.containerPointToLatLng(map.mouseEventToContainerPoint(ev as unknown as MouseEvent))
+    function toCanvas(ev: PointerEvent): CanvasPoint {
+      const latlng = map.containerPointToLatLng(map.mouseEventToContainerPoint(ev))
       return latlngToCanvas(latlng.lat, latlng.lng, bbox!)
     }
-    function onDown(ev: MouseEvent) {
+    function onDown(ev: PointerEvent) {
+      if (!ev.isPrimary) return
       start = toCanvas(ev)
       setRectDraft({ start, current: start })
     }
-    function onMove(ev: MouseEvent) {
-      if (!start) return
+    function onMove(ev: PointerEvent) {
+      if (!start || !ev.isPrimary) return
       setRectDraft({ start, current: toCanvas(ev) })
     }
-    function onUp(ev: MouseEvent) {
-      if (!start) return
+    function onUp(ev: PointerEvent) {
+      if (!start || !ev.isPrimary) return
       const end = toCanvas(ev)
       if (Math.abs(end.x - start.x) > 2 && Math.abs(end.y - start.y) > 2) {
         editor.setRectangle(start, end) // → mode 'complete'
@@ -476,14 +465,21 @@ export function MapFieldEditingLayer({
       start = null
       setRectDraft(null)
     }
-    container.addEventListener('mousedown', onDown)
-    window.addEventListener('mousemove', onMove)
-    window.addEventListener('mouseup', onUp)
+    function onCancel() {
+      start = null
+      setRectDraft(null)
+    }
+    container.addEventListener('pointerdown', onDown)
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+    window.addEventListener('pointercancel', onCancel)
     return () => {
-      container.removeEventListener('mousedown', onDown)
-      window.removeEventListener('mousemove', onMove)
-      window.removeEventListener('mouseup', onUp)
+      container.removeEventListener('pointerdown', onDown)
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+      window.removeEventListener('pointercancel', onCancel)
       container.style.cursor = ''
+      container.style.touchAction = prevTouchAction
       map.dragging.enable()
       setRectDraft(null)
     }
@@ -661,12 +657,21 @@ export function MapFieldEditingLayer({
 // ── Panels overlay (outside the MapContainer) ─────────────────────────
 export function MapFieldEditingPanels({ session }: { session: MapFieldEditingSession }) {
   const { editor, bbox } = session
+  const isPhone = useIsPhone()
   if (!session.active || !bbox) return null
 
   return (
     <>
-      {/* Left — the editor tool panel, in place of the farm drawer */}
-      <div className="absolute left-0 top-0 h-full z-[1100] shadow-xl">
+      {/* Left — the editor tool panel, in place of the farm drawer. On a
+          phone it docks as a bottom sheet so the map stays visible above
+          (editing is map-centric: taps place points, rows, and plants). */}
+      <div
+        className={
+          isPhone
+            ? 'absolute inset-x-0 bottom-0 h-[45dvh] z-[1100] shadow-xl'
+            : 'absolute left-0 top-0 h-full z-[1100] shadow-xl'
+        }
+      >
         <FarmFieldEditorPanel
           mode={editor.mode}
           shape={editor.shape}

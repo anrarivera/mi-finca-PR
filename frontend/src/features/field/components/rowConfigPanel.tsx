@@ -80,13 +80,13 @@ export default function RowConfigPanel({ rowDraft, bbox, onConfirm, onCancel }: 
   }
 
   return (
-    <div className="absolute right-4 top-4 z-10 w-60 bg-white rounded-xl border border-[#e0e8d8] shadow-lg overflow-hidden">
+    <div className="absolute inset-x-0 bottom-0 max-h-[55dvh] overflow-y-auto rounded-t-xl sm:inset-x-auto sm:bottom-auto sm:right-4 sm:top-4 sm:max-h-none sm:w-60 sm:rounded-xl z-10 bg-white border border-[#e0e8d8] shadow-lg">
       <div className="flex items-center justify-between px-4 py-3 border-b border-[#e0e8d8] bg-[#f5f8f0]">
         <p className="text-xs font-semibold text-[#2d4a1e] uppercase tracking-wide">
           Configurar hilera
         </p>
         <button onClick={onCancel}
-          className="w-5 h-5 flex items-center justify-center text-[#9aab8a] hover:text-red-400 transition-colors"
+          className="w-5 h-5 pointer-coarse:w-10 pointer-coarse:h-10 flex items-center justify-center text-[#9aab8a] hover:text-red-400 transition-colors"
         >
           <X size={13} />
         </button>

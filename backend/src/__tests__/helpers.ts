@@ -5,32 +5,43 @@ import app from '../index'
 export const request = supertest(app)
 export const prisma = new PrismaClient()
 
-// ── Auth helper — register + login, return token + userId ─────────
+// Monotonic suffix so parallel calls in one test can't collide on email.
+let userSeq = 0
+
+// ── Auth helper — register (or login if taken), return token + userId ──
 export async function createTestUser(overrides?: {
   email?: string
   password?: string
-  name?: string
+  fullName?: string
 }) {
-  const email = overrides?.email ?? `test_${Date.now()}@mifincapr.com`
+  const email = overrides?.email ?? `test_${Date.now()}_${userSeq++}@mifincapr.com`
   const password = overrides?.password ?? 'TestPassword123!'
-  const name = overrides?.name ?? 'Test User'
+  const fullName = overrides?.fullName ?? 'Test User'
 
   const res = await request
     .post('/api/v1/auth/register')
-    .send({ email, password, name })
+    .send({ email, password, fullName })
 
-  // If already exists, just login
+  if (res.status === 201) {
+    return {
+      email, password, fullName,
+      token: res.body.data.accessToken as string,
+      userId: res.body.data.user.id as string,
+    }
+  }
+
+  // Already registered (e.g. fixed email reused within a test) — log in.
   const loginRes = await request
     .post('/api/v1/auth/login')
     .send({ email, password })
-
-  const token = loginRes.body.data?.accessToken
-  const userId = loginRes.body.data?.user?.id
-
-  return { email, password, name, token, userId }
+  return {
+    email, password, fullName,
+    token: loginRes.body.data?.accessToken as string,
+    userId: loginRes.body.data?.user?.id as string,
+  }
 }
 
-// ── Farm helper — create a farm, return it ────────────────────────
+// ── Farm helper — POST /farms returns the farm directly under data ────
 export async function createTestFarm(token: string, overrides?: {
   name?: string
   location?: string
@@ -43,7 +54,7 @@ export async function createTestFarm(token: string, overrides?: {
       location: overrides?.location ?? 'Aguadilla, PR',
     })
 
-  return res.body.data?.farm
+  return res.body.data
 }
 
 // ── Field helper — create a field, return it ──────────────────────
@@ -55,14 +66,48 @@ export async function createTestField(token: string, farmId: string, overrides?:
       name: 'Campo de Prueba',
       color: '#22c55e',
       shape: 'rectangle',
-      widthFt: 50,
-      heightFt: 80,
       farmLat: 18.4655,
       farmLng: -66.1057,
       ...overrides,
     })
 
   return res.body.data?.field
+}
+
+// ── Membership seeding — phase 1 has no invite API yet, so tests add
+// members directly. ────────────────────────────────────────────────────
+export async function addFarmMember(farmId: string, userId: string, role: 'admin' | 'operator') {
+  return prisma.farmMember.create({ data: { farmId, userId, role } })
+}
+
+// ── Recommendation seeding — the calendar rows the check-off flows act
+// on. Created directly via prisma: through the API they only arise from
+// full field payloads with planting events, which isn't what these tests
+// are exercising. ──────────────────────────────────────────────────────
+export async function seedRecommendedOp(fieldId: string, overrides?: {
+  recommendedDate?: string
+  status?: string
+  type?: string
+}) {
+  const event = await prisma.plantingEvent.create({
+    data: {
+      fieldId,
+      cropTypeId: 'platano',
+      plantingDate: new Date('2026-06-01'),
+      plantCount: 10,
+    },
+  })
+  const recOp = await prisma.recommendedOperation.create({
+    data: {
+      plantingEventId: event.id,
+      templateId: 'test-template',
+      type: overrides?.type ?? 'fertilization',
+      labelEs: 'Fertilización de prueba',
+      recommendedDate: new Date(overrides?.recommendedDate ?? '2026-08-05'),
+      status: overrides?.status ?? 'pending',
+    },
+  })
+  return { event, recOp }
 }
 
 // ── Cleanup — wipe test data between tests ────────────────────────

@@ -12,8 +12,8 @@ describe('POST /api/v1/farms', () => {
       .send({ name: 'Mi Finca', location: 'Aguadilla, PR' })
 
     expect(res.status).toBe(201)
-    expect(res.body.data.farm.name).toBe('Mi Finca')
-    expect(res.body.data.farm.id).toBeDefined()
+    expect(res.body.data.name).toBe('Mi Finca')
+    expect(res.body.data.id).toBeDefined()
   })
 
   it('rejects unauthenticated request', async () => {
@@ -38,8 +38,8 @@ describe('GET /api/v1/farms', () => {
       .set('Authorization', `Bearer ${user1.token}`)
 
     expect(res.status).toBe(200)
-    expect(res.body.data.farms).toHaveLength(1)
-    expect(res.body.data.farms[0].name).toBe('Finca User 1')
+    expect(res.body.data).toHaveLength(1)
+    expect(res.body.data[0].name).toBe('Finca User 1')
   })
 })
 
@@ -54,7 +54,7 @@ describe('PATCH /api/v1/farms/:id', () => {
       .send({ name: 'Nombre Actualizado' })
 
     expect(res.status).toBe(200)
-    expect(res.body.data.farm.name).toBe('Nombre Actualizado')
+    expect(res.body.data.name).toBe('Nombre Actualizado')
   })
 
   it('prevents updating another user farm', async () => {
@@ -87,6 +87,6 @@ describe('DELETE /api/v1/farms/:id', () => {
       .get('/api/v1/farms')
       .set('Authorization', `Bearer ${token}`)
 
-    expect(listRes.body.data.farms).toHaveLength(0)
+    expect(listRes.body.data).toHaveLength(0)
   })
 })

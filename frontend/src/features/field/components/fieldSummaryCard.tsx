@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import {
-  MapPin, Layers, Pencil, Trash2,
+  MapPin, Layers, Pencil, Trash2, Locate,
   ToggleLeft, ToggleRight, AlertCircle, Clock, CalendarDays, Bug,
 } from 'lucide-react'
+import { useIsCoarsePointer } from '@/hooks/useViewport'
+import { useFarmStore, canManageStructure } from '@/store/useFarmStore'
 import FindingModal from '@/features/scouting/components/findingModal'
 import { useFindings } from '@/features/scouting/hooks/useFindingsApi'
 import { fieldHealth } from '@/features/scouting/utils/fieldHealth'
@@ -86,6 +88,11 @@ export default function FieldSummaryCard({
   const skipOp = useSkipRecommendedOp(field.farmId)
   const partialOp = useLogPartialRecommendedOp(field.farmId)
   const cardRef = useRef<HTMLDivElement | null>(null)
+  const isCoarsePointer = useIsCoarsePointer()
+  // Operators log work but don't restructure fields — hide what the
+  // server would reject anyway (roles phase 3).
+  const cardFarm = useFarmStore(s => s.farms.find(f => f.id === field.farmId))
+  const canManage = canManageStructure(cardFarm)
 
   // Defer the single-click action so a double click can cancel it —
   // otherwise the two clicks of a dblclick toggle the selection off
@@ -97,6 +104,12 @@ export default function FieldSummaryCard({
 
   function handleCardClick() {
     if (!onSelect) return
+    // Touch has explicit buttons for the double-click actions, so taps
+    // select immediately instead of waiting out the dblclick window.
+    if (isCoarsePointer) {
+      onSelect()
+      return
+    }
     if (clickTimer.current) clearTimeout(clickTimer.current)
     clickTimer.current = setTimeout(() => {
       clickTimer.current = null
@@ -159,6 +172,17 @@ export default function FieldSummaryCard({
             style={{ backgroundColor: scoutHealth.color }}
           />
           <span className="text-sm font-medium text-[#2d4a1e] truncate">{field.name}</span>
+          {/* Visible path to the double-click zoom — the only one on touch */}
+          {onCardDoubleClick && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onCardDoubleClick() }}
+              onDoubleClick={(e) => e.stopPropagation()}
+              title="Ver en el mapa"
+              className="shrink-0 p-1 pointer-coarse:p-2 rounded text-[#9aab8a] hover:text-[#639922] hover:bg-[#eaf3de] transition-colors"
+            >
+              <Locate size={12} />
+            </button>
+          )}
         </div>
         <div className="flex items-center gap-1 shrink-0">
           {scoutHealth.unresolvedCount > 0 && (
@@ -240,7 +264,7 @@ export default function FieldSummaryCard({
               setChecking({ mode: 'complete', op: next.op, event: next.event })
             }}
             title="Marcar como realizada"
-            className="text-[10px] shrink-0 text-[#2d4a1e] font-semibold hover:text-[#639922] transition-colors"
+            className="pointer-coarse:p-2 text-[10px] shrink-0 text-[#2d4a1e] font-semibold hover:text-[#639922] transition-colors"
           >
             Completa
           </button>
@@ -250,7 +274,7 @@ export default function FieldSummaryCard({
               setChecking({ mode: 'partial', op: next.op, event: next.event })
             }}
             title="Registrar avance sin completar la labor"
-            className="text-[10px] shrink-0 text-[#639922] hover:text-[#2d4a1e] font-medium transition-colors"
+            className="pointer-coarse:p-2 text-[10px] shrink-0 text-[#639922] hover:text-[#2d4a1e] font-medium transition-colors"
           >
             Parcial
           </button>
@@ -262,7 +286,7 @@ export default function FieldSummaryCard({
                 { onSuccess: () => toast.success('Operación omitida') }
               )
             }}
-            className="text-[10px] shrink-0 text-[#c0d0b0] hover:text-[#9aab8a] transition-colors"
+            className="pointer-coarse:p-2 text-[10px] shrink-0 text-[#c0d0b0] hover:text-[#9aab8a] transition-colors"
           >
             Omitir
           </button>
@@ -297,27 +321,31 @@ export default function FieldSummaryCard({
           <button
             onClick={(e) => { e.stopPropagation(); setShowOps(true) }}
             title="Ver el calendario completo de labores"
-            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-[10px] text-[#2d4a1e] border border-[#c8dca8] bg-[#eaf3de] rounded-lg hover:bg-[#d9ecc4] transition-colors"
+            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 pointer-coarse:py-2.5 text-[10px] text-[#2d4a1e] border border-[#c8dca8] bg-[#eaf3de] rounded-lg hover:bg-[#d9ecc4] transition-colors"
           >
             <CalendarDays size={10} /> Operaciones
           </button>
+          {canManage && (
           <button
             onClick={(e) => { e.stopPropagation(); onOpenEditor() }}
-            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-[10px] text-[#639922] border border-[#c8dca8] rounded-lg hover:bg-[#eaf3de] transition-colors"
+            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 pointer-coarse:py-2.5 text-[10px] text-[#639922] border border-[#c8dca8] rounded-lg hover:bg-[#eaf3de] transition-colors"
           >
             <Pencil size={10} /> Editar
           </button>
+          )}
+          {canManage && (
           <button
             onClick={(e) => { e.stopPropagation(); setConfirmDelete(true) }}
-            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-[10px] text-[#9aab8a] border border-[#e0e8d8] rounded-lg hover:text-red-500 hover:border-red-200 hover:bg-red-50 transition-colors"
+            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 pointer-coarse:py-2.5 text-[10px] text-[#9aab8a] border border-[#e0e8d8] rounded-lg hover:text-red-500 hover:border-red-200 hover:bg-red-50 transition-colors"
           >
             <Trash2 size={10} /> Eliminar
           </button>
+          )}
           {/* Scouting: register a pest/disease finding on this field */}
           <button
             onClick={(e) => { e.stopPropagation(); setReportingFinding(true) }}
             title="Registrar hallazgo de plaga o enfermedad"
-            className="shrink-0 flex items-center justify-center px-2 py-1.5 text-[#b8860b] border border-[#e8dcc0] rounded-lg hover:bg-amber-50 hover:border-amber-200 transition-colors"
+            className="shrink-0 flex items-center justify-center px-2 py-1.5 pointer-coarse:p-2.5 text-[#b8860b] border border-[#e8dcc0] rounded-lg hover:bg-amber-50 hover:border-amber-200 transition-colors"
           >
             <Bug size={11} />
           </button>
@@ -330,13 +358,13 @@ export default function FieldSummaryCard({
           <div className="flex items-center gap-2">
             <button
               onClick={(e) => { e.stopPropagation(); onDelete() }}
-              className="flex-1 py-1.5 text-[10px] text-white bg-red-500 rounded-lg hover:bg-red-600 transition-colors"
+              className="flex-1 py-1.5 pointer-coarse:py-2.5 text-[10px] text-white bg-red-500 rounded-lg hover:bg-red-600 transition-colors"
             >
               Sí, eliminar
             </button>
             <button
               onClick={(e) => { e.stopPropagation(); setConfirmDelete(false) }}
-              className="flex-1 py-1.5 text-[10px] text-[#5a6a4a] border border-[#e0e8d8] rounded-lg hover:bg-[#f5f8f0] transition-colors"
+              className="flex-1 py-1.5 pointer-coarse:py-2.5 text-[10px] text-[#5a6a4a] border border-[#e0e8d8] rounded-lg hover:bg-[#f5f8f0] transition-colors"
             >
               Cancelar
             </button>

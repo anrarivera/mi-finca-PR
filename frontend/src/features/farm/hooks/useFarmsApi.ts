@@ -15,6 +15,7 @@ type ApiFarm = {
   fieldIds: string[]
   createdAt: string
   updatedAt: string
+  myRole?: 'owner' | 'admin' | 'operator'
 }
 
 // ── Fetch all farms ───────────────────────────────────────────────────
@@ -42,6 +43,7 @@ export function useFarms() {
             description: apiFarm.description ?? undefined,
             fieldIds: apiFarm.fieldIds,
             createdAt: apiFarm.createdAt,
+            myRole: apiFarm.myRole ?? 'owner',
           })
       })
 
@@ -84,6 +86,7 @@ export function useCreateFarm() {
         description: apiFarm.description ?? undefined,
         fieldIds: apiFarm.fieldIds,
         createdAt: apiFarm.createdAt,
+        myRole: 'owner', // the creator owns the farm
       }
       addFarm(farm)
       setActiveFarm(farm)

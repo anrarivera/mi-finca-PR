@@ -92,14 +92,14 @@ export default function LivestockSection() {
                 <button
                   onClick={() => setEditing(unit)}
                   aria-label={`Editar ${unit.name}`}
-                  className="w-7 h-7 flex items-center justify-center rounded-lg text-[#9aab8a] hover:text-[#2d4a1e] hover:bg-[#f0f5e8] transition-colors"
+                  className="w-7 h-7 pointer-coarse:w-10 pointer-coarse:h-10 flex items-center justify-center rounded-lg text-[#9aab8a] hover:text-[#2d4a1e] hover:bg-[#f0f5e8] transition-colors"
                 >
                   <Pencil size={13} />
                 </button>
                 <button
                   onClick={() => handleDelete(unit)}
                   aria-label={`Eliminar ${unit.name}`}
-                  className="w-7 h-7 flex items-center justify-center rounded-lg text-[#9aab8a] hover:text-red-500 hover:bg-red-50 transition-colors"
+                  className="w-7 h-7 pointer-coarse:w-10 pointer-coarse:h-10 flex items-center justify-center rounded-lg text-[#9aab8a] hover:text-red-500 hover:bg-red-50 transition-colors"
                 >
                   <Trash2 size={13} />
                 </button>
@@ -175,7 +175,7 @@ function LivestockFormModal({
     <>
       <div className="fixed inset-0 bg-black/30 z-40 backdrop-blur-sm" onClick={onClose} />
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden max-h-[90vh] overflow-y-auto">
+        <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden max-h-[85dvh] overflow-y-auto">
 
           <div className="px-6 py-4 border-b border-[#e0e8d8]">
             <h2 className="text-[#2d4a1e] font-semibold text-base">

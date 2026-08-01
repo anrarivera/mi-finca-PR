@@ -2,6 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express'
 import { prisma } from '../lib/prisma'
 import { requireAuth } from '../middleware/auth'
 import { Errors } from '../lib/errors'
+import { requireFarmRole } from '../lib/farmAccess'
 
 // ──────────────────────────────────────────────────────────────────────────
 // Recommended operations — SDD §4.6. These are the calendar entries the
@@ -17,13 +18,10 @@ const router = Router({ mergeParams: true })
 router.use(requireAuth)
 
 // Helper: verify farm belongs to requesting user.
-async function requireFarmOwnership(userId: string, farmId: string) {
-  const farm = await prisma.farm.findFirst({
-    where: { id: farmId, userId, deletedAt: { equals: null } },
-  })
-  if (!farm) throw Errors.notFound('Farm')
-  return farm
-}
+// Activity router — operators and up (SDD roles: checking off labores is
+// operator work).
+const requireFarmOwnership = (userId: string, farmId: string) =>
+  requireFarmRole(userId, farmId, 'operator')
 
 // A recommended operation belongs to a farm through EITHER its planting
 // event's field OR its livestock unit — this OR-clause scopes every query.
@@ -209,6 +207,7 @@ router.post('/:id/complete', async (req: Request, res: Response, next: NextFunct
           unit: unit ?? null,
           rowIds: rowIds ?? [],     // fully covered rows
           plantIds: plantIds ?? [], // extra individual plants (partial rows, loose plants)
+          performedByUserId: userId, // "por Luis" — who checked it off
         },
       })
 
@@ -319,6 +318,7 @@ router.post('/:id/log-partial', async (req: Request, res: Response, next: NextFu
           unit: unit ?? null,
           rowIds: rowIds ?? [],     // e.g. "today I harvested rows 1–3"
           plantIds: plantIds ?? [], // "...plus the first 5 plants of row 4"
+          performedByUserId: userId, // "por Luis" — who logged the partial
         },
       })
 

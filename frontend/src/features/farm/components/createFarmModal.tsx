@@ -38,7 +38,7 @@ export default function CreateFarmModal({ onClose, onSubmit }: Props) {
             </div>
             <button
               onClick={onClose}
-              className="w-7 h-7 flex items-center justify-center rounded-lg text-[#9aab8a] hover:bg-[#f0f5e8] hover:text-[#2d4a1e] transition-colors"
+              className="w-7 h-7 pointer-coarse:w-10 pointer-coarse:h-10 flex items-center justify-center rounded-lg text-[#9aab8a] hover:bg-[#f0f5e8] hover:text-[#2d4a1e] transition-colors"
             >
               <X size={15} />
             </button>

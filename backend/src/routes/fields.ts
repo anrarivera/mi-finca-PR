@@ -5,16 +5,17 @@ import { Errors } from '../lib/errors'
 import {
   requireFields, requireValidId, requireLat, requireLng, requireBoundaryBounds,
 } from '../lib/validate'
+import { requireFarmRole } from '../lib/farmAccess'
 
 const router = Router({ mergeParams: true })
 
-async function requireFarmOwnership(userId: string, farmId: string) {
-  const farm = await prisma.farm.findFirst({
-    where: { id: farmId, userId, deletedAt: { equals: null } },
-  })
-  if (!farm) throw Errors.notFound('Farm')
-  return farm
-}
+// Reading fields is operator work (the map needs them); creating,
+// redrawing, or deleting fields is farm structure and needs admin
+// (SDD roles — operators are fenced out of whole-field saves).
+const requireFarmOwnership = (userId: string, farmId: string) =>
+  requireFarmRole(userId, farmId, 'operator')
+const requireFarmStructure = (userId: string, farmId: string) =>
+  requireFarmRole(userId, farmId, 'admin')
 
 function toDateStr(val: any): string {
   if (!val) return ''
@@ -201,7 +202,7 @@ router.post('/', requireAuth, async (req: Request, res: Response, next: NextFunc
 
     requireFields(req.body, ['name', 'color', 'shape', 'farmLat', 'farmLng'])
     requireGeometryBounds({ boundary, farmLat, farmLng, rows, freePlants })
-    const farm = await requireFarmOwnership(userId, farmId)
+    const { farm } = await requireFarmStructure(userId, farmId)
 
     // Validate field boundary is inside farm boundary
     validateFieldInsideFarm(
@@ -315,7 +316,7 @@ router.patch('/:id', requireAuth, async (req: Request, res: Response, next: Next
     const userId = req.user!.userId
 
     requireValidId(id)
-    const farm = await requireFarmOwnership(userId, farmId)
+    const { farm } = await requireFarmStructure(userId, farmId)
 
     const existing = await prisma.field.findFirst({
       where: { id, farmId, deletedAt: { equals: null } },
@@ -472,7 +473,7 @@ router.delete('/:id', requireAuth, async (req: Request, res: Response, next: Nex
     const userId = req.user!.userId
 
     requireValidId(id)
-    await requireFarmOwnership(userId, farmId)
+    await requireFarmStructure(userId, farmId)
 
     const existing = await prisma.field.findFirst({
       where: { id, farmId, deletedAt: { equals: null } },

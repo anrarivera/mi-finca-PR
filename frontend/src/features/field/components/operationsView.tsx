@@ -10,6 +10,7 @@ import type {
 import type { FarmOperation } from '../hooks/useOperationsApi'
 import { getCropById } from '../data/cropLibrary'
 import { useHarvestHighlightStore } from '@/store/useHarvestHighlightStore'
+import { useIsPhone } from '@/hooks/useViewport'
 
 // ──────────────────────────────────────────────────────────────────────────
 // Operations view — the calendar check-off drawer (SDD §6.2), docked left
@@ -149,6 +150,7 @@ export default function OperationsView({
   findingsSection, onClose, onCompleteOperation, onSkipOperation,
   onUndoOperation, onEditOperation, onPartialLog,
 }: Props) {
+  const isPhone = useIsPhone()
   const [modal, setModal] = useState<{
     mode: ModalMode
     eventId: string
@@ -192,20 +194,25 @@ export default function OperationsView({
   // Portaled to <body>: hosts can render this from inside the farm
   // drawer, whose slide transform would otherwise hijack position:fixed.
   // Rendered as a left-docked drawer — the map stays visible beside it so
-  // the check-off modal's row/plant map toggles remain usable.
+  // the check-off modal's row/plant map toggles remain usable. On a phone
+  // there's no "beside": it takes the full frame below the top nav.
   return createPortal(
     <div
       className="fixed bottom-0 z-[2100] flex flex-col bg-[#f5f8f0] shadow-2xl border-r border-[#e0e8d8]"
       // Docked inside the app frame: right of the 64px side menu and
-      // below the 64px top nav — those are never covered.
-      style={{ left: 64, top: 64, width: 420, maxWidth: 'calc(100vw - 64px)' }}
+      // below the 64px top nav — those are never covered (desktop).
+      style={
+        isPhone
+          ? { left: 0, top: 64, width: '100%' }
+          : { left: 64, top: 64, width: 420, maxWidth: 'calc(100vw - 64px)' }
+      }
     >
 
       {/* Header */}
       <div className="h-12 bg-[#2d4a1e] flex items-center justify-between px-4 shrink-0">
         <div className="flex items-center gap-3">
           <button onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center rounded-lg text-[#8fba4e] hover:bg-white/10 transition-colors"
+            className="w-8 h-8 pointer-coarse:w-11 pointer-coarse:h-11 flex items-center justify-center rounded-lg text-[#8fba4e] hover:bg-white/10 transition-colors"
           >
             <X size={16} />
           </button>
@@ -454,7 +461,7 @@ function OperationRow({
   })()
 
   const isOpen = status === 'pending' || status === 'due'
-  const smallBtn = 'text-[10px] shrink-0 transition-colors'
+  const smallBtn = 'text-[10px] shrink-0 transition-colors pointer-coarse:text-[11px] pointer-coarse:p-2'
 
   return (
     <div className={`flex items-center gap-3 px-4 py-3 ${statusStyles[status]}`}>
@@ -601,6 +608,7 @@ export function CheckOffModal({
   onConfirm: (data: CheckOffFormData) => void
   onCancel: () => void
 }) {
+  const isPhone = useIsPhone()
   const today = new Date().toISOString().split('T')[0]
   const isEdit = mode === 'edit'
   const targets = harvestTargets ?? { rows: [], freePlants: [] }
@@ -657,17 +665,20 @@ export function CheckOffModal({
       />
 
       {/* Modal — docked right when selecting scope so the field isn't
-          covered; the wrapper never captures clicks, only the card does */}
-      <div className={`fixed inset-0 z-[2300] flex items-center p-4 pointer-events-none ${
-        showScopeSelector ? 'justify-end pr-6' : 'justify-center'
+          covered; the wrapper never captures clicks, only the card does.
+          On a phone every mode is a full-width bottom sheet instead. */}
+      <div className={`fixed inset-0 z-[2300] flex pointer-events-none ${
+        isPhone ? 'items-end justify-center'
+        : showScopeSelector ? 'items-center p-4 justify-end pr-6'
+        : 'items-center p-4 justify-center'
       }`}>
         {/* Parcial/Editar: fixed 300px card (the farm drawer's width);
             Completa keeps the compact centered card */}
         <div
-          className={`bg-white rounded-2xl shadow-xl overflow-hidden max-h-[92vh] overflow-y-auto pointer-events-auto ${
-            mode === 'complete' ? 'w-full max-w-sm' : ''
-          }`}
-          style={mode !== 'complete' ? { width: 300, maxWidth: '100%' } : undefined}
+          className={`bg-white shadow-xl overflow-hidden overflow-y-auto pointer-events-auto ${
+            isPhone ? 'w-full rounded-t-2xl max-h-[85dvh]' : 'rounded-2xl max-h-[92vh]'
+          } ${mode === 'complete' && !isPhone ? 'w-full max-w-sm' : ''}`}
+          style={!isPhone && mode !== 'complete' ? { width: 300, maxWidth: '100%' } : undefined}
         >
 
           {/* Header */}
@@ -956,7 +967,7 @@ export function HarvestSelector({ title, targets, selected, onChange, mapToggles
                   checked={all}
                   ref={el => { if (el) el.indeterminate = some }}
                   onChange={() => toggleRow(row)}
-                  className="accent-[#639922] shrink-0"
+                  className="accent-[#639922] shrink-0 w-4 h-4 pointer-coarse:w-5 pointer-coarse:h-5"
                 />
                 <button
                   type="button"

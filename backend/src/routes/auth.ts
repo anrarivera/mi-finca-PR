@@ -23,6 +23,8 @@ const authLimiter = rateLimit({
   limit: 20, // 20 attempts per IP per window on sensitive endpoints
   standardHeaders: true,
   legacyHeaders: false,
+  // The test suite registers/logs in dozens of times from one IP.
+  skip: () => process.env.NODE_ENV === 'test',
   handler: (_req, res) => {
     res.status(429).json({
       success: false,

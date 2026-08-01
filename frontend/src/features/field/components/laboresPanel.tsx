@@ -99,7 +99,7 @@ export default function LaboresPanel() {
     return ''
   }
 
-  const smallBtn = 'text-[10px] shrink-0 transition-colors'
+  const smallBtn = 'text-[10px] shrink-0 transition-colors pointer-coarse:text-[11px] pointer-coarse:p-2'
 
   return (
     <section className="bg-white rounded-2xl border border-[#e0e8d8] overflow-hidden">

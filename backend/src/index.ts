@@ -15,6 +15,7 @@ import recommendedOperationRoutes from './routes/recommendedOperations'
 import cropRoutes from './routes/crops'
 import userRoutes from './routes/users'
 import findingRoutes from './routes/findings'
+import memberRoutes from './routes/members'
 
 // After the farms routes line:
 const app = express()
@@ -22,8 +23,18 @@ const PORT = process.env.PORT || 3001
 
 // ── Middleware ─────────────────────────────────────────────────────────
 app.use(helmet())
+// Dev convenience: a phone on the local network loads the Vite dev server
+// at http://<LAN-IP>:5173, so private-network origins are accepted alongside
+// localhost — but only outside production, where CORS stays pinned to
+// FRONTEND_URL.
+const ALLOWED_ORIGIN = process.env.FRONTEND_URL || 'http://localhost:5173'
+const PRIVATE_LAN_ORIGIN =
+  /^http:\/\/(?:localhost|127\.0\.0\.1|10(?:\.\d{1,3}){3}|192\.168(?:\.\d{1,3}){2}|172\.(?:1[6-9]|2\d|3[01])(?:\.\d{1,3}){2}):5173$/
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  origin: process.env.NODE_ENV === 'production'
+    ? ALLOWED_ORIGIN
+    : (origin, cb) => cb(null, !origin || origin === ALLOWED_ORIGIN || PRIVATE_LAN_ORIGIN.test(origin)),
   credentials: true,
 }))
 app.use(express.json())
@@ -60,6 +71,8 @@ app.use('/api/v1/farms/:farmId/operations', operationRoutes)
 app.use('/api/v1/farms/:farmId/recommended-operations', recommendedOperationRoutes)
 // Scouting findings — pest observations + "crear labor" bridge
 app.use('/api/v1/farms/:farmId/findings', findingRoutes)
+// Farm team roster + membership management (roles phase 2)
+app.use('/api/v1/farms/:farmId/members', memberRoutes)
 app.use('/api/v1/crops', cropRoutes)
 app.use('/api/v1/users', userRoutes)
 

@@ -38,7 +38,7 @@ const DEFAULT_ROW_SPACING = 12
 
 // Shared style for the small move/rotate pad buttons.
 const PAD_BTN =
-  'w-7 h-7 flex items-center justify-center rounded-lg border border-[#d0dcc0] ' +
+  'w-7 h-7 pointer-coarse:w-11 pointer-coarse:h-11 flex items-center justify-center rounded-lg border border-[#d0dcc0] ' +
   'text-[#5a6a4a] hover:bg-[#eaf3de] hover:border-[#639922] hover:text-[#2d4a1e] ' +
   'active:bg-[#d9ecc4] transition-colors'
 
@@ -189,13 +189,13 @@ export default function RowFillPanel({ boundary, onPreview, onConfirm, onCancel 
   }
 
   return (
-    <div className="absolute right-4 top-4 bottom-4 z-10 w-64 bg-white rounded-xl border border-[#e0e8d8] shadow-lg flex flex-col overflow-hidden">
+    <div className="absolute inset-x-0 bottom-0 h-[60dvh] rounded-t-xl sm:inset-x-auto sm:right-4 sm:top-4 sm:bottom-4 sm:h-auto sm:w-64 sm:rounded-xl z-10 bg-white border border-[#e0e8d8] shadow-lg flex flex-col overflow-hidden">
       <div className="flex items-center justify-between px-4 py-3 border-b border-[#e0e8d8] bg-[#f5f8f0] shrink-0">
         <p className="text-xs font-semibold text-[#2d4a1e] uppercase tracking-wide">
           Rellenar con hileras
         </p>
         <button onClick={onCancel}
-          className="w-5 h-5 flex items-center justify-center text-[#9aab8a] hover:text-red-400 transition-colors"
+          className="w-5 h-5 pointer-coarse:w-10 pointer-coarse:h-10 flex items-center justify-center text-[#9aab8a] hover:text-red-400 transition-colors"
         >
           <X size={13} />
         </button>

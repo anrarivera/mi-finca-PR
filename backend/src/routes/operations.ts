@@ -3,6 +3,7 @@ import { prisma } from '../lib/prisma'
 import { requireAuth } from '../middleware/auth'
 import { Errors } from '../lib/errors'
 import { requireFields, requireValidId } from '../lib/validate'
+import { requireFarmRole } from '../lib/farmAccess'
 
 // ──────────────────────────────────────────────────────────────────────────
 // Operations log — SDD §4.5 / §6.2. An Operation is something that actually
@@ -25,15 +26,10 @@ const VALID_OPERATION_TYPES = [
   'health_treatment', 'breeding', 'production_record', 'other',
 ]
 
-// Helper: verify farm belongs to requesting user (same pattern as the other
-// per-farm routers — fields.ts, livestock.ts).
-async function requireFarmOwnership(userId: string, farmId: string) {
-  const farm = await prisma.farm.findFirst({
-    where: { id: farmId, userId, deletedAt: { equals: null } },
-  })
-  if (!farm) throw Errors.notFound('Farm')
-  return farm
-}
+// Activity router — operators and up can log and read work
+// (SDD roles: the operations log is exactly what an operator is for).
+const requireFarmOwnership = (userId: string, farmId: string) =>
+  requireFarmRole(userId, farmId, 'operator')
 
 // Dates come back from Prisma as Date objects — API contract is YYYY-MM-DD.
 function toDateStr(val: any): string {
@@ -123,6 +119,8 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
             }
           : {}),
       },
+      // "por Luis" — the cuaderno shows who logged each entry
+      include: { performedBy: { select: { id: true, fullName: true } } },
       orderBy: { actualDate: 'desc' },
     })
 
@@ -142,7 +140,7 @@ router.get('/export', async (req: Request, res: Response, next: NextFunction) =>
     const farmId = req.params.farmId as string
     const userId = req.user!.userId
 
-    const farm = await requireFarmOwnership(userId, farmId)
+    const { farm } = await requireFarmOwnership(userId, farmId)
 
     const format = String(req.query.format ?? 'csv').toLowerCase()
     if (format !== 'csv') {
@@ -276,6 +274,8 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
           qualityRating: qualityRating ?? null,
           rowIds: rowIds ?? [],
           plantIds: plantIds ?? [],
+          // Stamped at creation — the cuaderno records who did the work.
+          performedByUserId: userId,
         },
       })
 

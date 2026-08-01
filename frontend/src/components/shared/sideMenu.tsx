@@ -20,7 +20,7 @@ export default function SideMenu() {
   const itemClass = 'w-10 h-10 flex items-center justify-center rounded-lg text-[#3d5a2a] hover:bg-[#f0f5e8] transition-colors'
 
   return (
-    <nav className="w-16 h-full bg-[#d9ded7] flex flex-col items-center py-6">
+    <nav className="hidden sm:flex w-16 h-full bg-[#d9ded7] flex-col items-center py-6">
       <div className="flex flex-col items-center gap-4">
         <button onClick={() => navigate('/')} aria-label="Mapa" title="Mapa" className={itemClass}>
           <Map size={20} />

@@ -25,7 +25,7 @@ export default class ErrorBoundary extends Component<Props, State> {
     if (!this.state.error) return this.props.children
 
     return (
-      <div className="h-screen flex flex-col items-center justify-center gap-4 bg-[#f7f9f4] px-6 text-center">
+      <div className="h-dvh flex flex-col items-center justify-center gap-4 bg-[#f7f9f4] px-6 text-center">
         <span className="text-4xl">🥀</span>
         <h1 className="text-lg font-semibold text-[#2d4a1e]">
           Algo salió mal

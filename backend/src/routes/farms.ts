@@ -4,6 +4,8 @@ import { requireAuth } from '../middleware/auth'
 import { Errors } from '../lib/errors'
 import { requireFields, requireValidId, requireBoundaryBounds } from '../lib/validate'
 import { calculateAreaAcres, formatFarm } from '../lib/farmUtils'
+import { requireFarmRole } from '../lib/farmAccess'
+import { hashInviteCode } from '../lib/farmInvites'
 
 const router = Router()
 
@@ -16,17 +18,22 @@ router.use(requireAuth)
 // ─────────────────────────────────────────────────────────────────────
 router.get('/', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const userId = req.user!.userId
     const farms = await prisma.farm.findMany({
-      // GET / — list farms
+      // GET / — farms the user owns PLUS farms they're a member of
       where: {
-        userId: req.user!.userId,
-        deletedAt: { equals: null },  // ← fix
+        deletedAt: { equals: null },
+        OR: [
+          { userId },
+          { members: { some: { userId } } },
+        ],
       },
       include: {
         fields: {
           where: { deletedAt: { equals: null } },
           select: { id: true },
-        }
+        },
+        members: { where: { userId }, select: { role: true } },
       },
       orderBy: [
         { isFavorite: 'desc' },  // favorite first
@@ -36,7 +43,11 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
 
     res.json({
       success: true,
-      data: farms.map(formatFarm)
+      // myRole lets the client hide UI the server would reject anyway
+      data: farms.map(f => ({
+        ...formatFarm(f),
+        myRole: f.userId === userId ? 'owner' : (f.members[0]?.role ?? 'operator'),
+      }))
     })
   } catch (err) {
     next(err)
@@ -98,6 +109,51 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
 })
 
 // ─────────────────────────────────────────────────────────────────────
+// POST /api/v1/farms/join  { code }
+// Redeem a join code — membership is immediate with the role baked into
+// the code. Works right after registration or from an existing account.
+// ─────────────────────────────────────────────────────────────────────
+router.post('/join', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    requireFields(req.body, ['code'])
+    const userId = req.user!.userId
+
+    const invite = await prisma.farmInvite.findUnique({
+      where: { codeHash: hashInviteCode(req.body.code) },
+      include: { farm: true },
+    })
+    if (
+      !invite || invite.revokedAt !== null ||
+      invite.expiresAt < new Date() || invite.farm.deletedAt !== null
+    ) {
+      throw Errors.validation(
+        'Código inválido o vencido — pide uno nuevo al equipo de la finca.'
+      )
+    }
+    if (invite.farm.userId === userId) {
+      throw Errors.conflict('Ya eres el dueño de esta finca')
+    }
+    const existing = await prisma.farmMember.findUnique({
+      where: { farmId_userId: { farmId: invite.farmId, userId } },
+    })
+    if (existing) {
+      throw Errors.conflict('Ya eres parte del equipo de esta finca')
+    }
+
+    const member = await prisma.farmMember.create({
+      data: { farmId: invite.farmId, userId, role: invite.role },
+    })
+
+    res.status(201).json({
+      success: true,
+      data: { farmId: invite.farmId, farmName: invite.farm.name, role: member.role },
+    })
+  } catch (err) {
+    next(err)
+  }
+})
+
+// ─────────────────────────────────────────────────────────────────────
 // GET /api/v1/farms/:id
 // Get a specific farm
 // ─────────────────────────────────────────────────────────────────────
@@ -106,12 +162,11 @@ router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
     const id = req.params.id as string
     requireValidId(id, 'Farm')
 
+    // Any member (operator+) can view the farm
+    const { role } = await requireFarmRole(req.user!.userId, id, 'operator')
+
     const farm = await prisma.farm.findFirst({
-      where: {
-        id,
-        userId: req.user!.userId,  // scoped to requesting user
-        deletedAt: { equals: null },
-      },
+      where: { id, deletedAt: { equals: null } },
       include: {
         fields: {
           where: { deletedAt: { equals: null } },
@@ -122,7 +177,7 @@ router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
 
     if (!farm) throw Errors.notFound('Farm')
 
-    res.json({ success: true, data: formatFarm(farm) })
+    res.json({ success: true, data: { ...formatFarm(farm), myRole: role } })
   } catch (err) {
     next(err)
   }
@@ -137,11 +192,8 @@ router.patch('/:id', async (req: Request, res: Response, next: NextFunction) => 
     const id = req.params.id as string
     requireValidId(id, 'Farm')
 
-    // Verify farm belongs to this user
-    const existing = await prisma.farm.findFirst({
-      where: { id, userId: req.user!.userId, deletedAt: { equals: null }, }
-    })
-    if (!existing) throw Errors.notFound('Farm')
+    // Farm structure changes need admin (owner or admin member)
+    await requireFarmRole(req.user!.userId, id, 'admin')
 
     const { name, location, farmType, description, boundary, isFavorite } = req.body
 
@@ -204,11 +256,8 @@ router.delete('/:id', async (req: Request, res: Response, next: NextFunction) =>
     const id = req.params.id as string
     requireValidId(id, 'Farm')
 
-    // Verify farm belongs to this user
-    const existing = await prisma.farm.findFirst({
-      where: { id, userId: req.user!.userId, deletedAt: { equals: null }, }
-    })
-    if (!existing) throw Errors.notFound('Farm')
+    // Deleting a farm is owner-only — admins manage it, they don't end it
+    const { farm: existing } = await requireFarmRole(req.user!.userId, id, 'owner')
 
     const now = new Date()
 

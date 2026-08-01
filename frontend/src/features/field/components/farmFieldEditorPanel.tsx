@@ -117,7 +117,7 @@ export default function FarmFieldEditorPanel({
   //    edit mode, and each card carries its own Operaciones button. ──────
   if (isIdle) {
     return (
-      <div className="w-72 h-full bg-white border-r border-[#e0e8d8] flex flex-col">
+      <div className="w-full sm:w-72 h-full bg-white border-t sm:border-t-0 sm:border-r border-[#e0e8d8] flex flex-col">
         <div className="px-4 py-3 border-b border-[#e0e8d8] bg-[#f5f8f0] shrink-0">
           <p className="text-xs font-semibold text-[#2d4a1e] uppercase tracking-wide">
             Campos de la finca
@@ -165,7 +165,7 @@ export default function FarmFieldEditorPanel({
 
   // ── DRAWING / EDITING A FIELD ─────────────────────────────────────
   return (
-    <div className="w-64 h-full bg-white border-r border-[#e0e8d8] flex flex-col overflow-y-auto">
+    <div className="w-full sm:w-64 h-full bg-white border-t sm:border-t-0 sm:border-r border-[#e0e8d8] flex flex-col overflow-y-auto">
       <div className="px-4 py-3 border-b border-[#e0e8d8] bg-[#f5f8f0] shrink-0">
         <div className="flex items-center justify-between">
           <p className="text-xs font-semibold text-[#2d4a1e] uppercase tracking-wide">
@@ -347,7 +347,7 @@ export default function FarmFieldEditorPanel({
                           <div className="flex items-center gap-2 px-2.5 py-2">
                             <button onClick={() => onToggleRowSelected(row.id)}
                               title={checked ? 'Quitar hilera de la selección' : 'Seleccionar toda la hilera'}
-                              className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors ${
+                              className={`w-4 h-4 pointer-coarse:w-6 pointer-coarse:h-6 rounded border flex items-center justify-center shrink-0 transition-colors ${
                                 checked || some
                                   ? 'bg-[#639922] border-[#639922]'
                                   : 'border-[#c0d0b0] hover:border-[#639922]'
@@ -381,13 +381,13 @@ export default function FarmFieldEditorPanel({
                             </button>
 
                             <button onClick={() => onEditRows([row.id])}
-                              className="text-[#c0d0b0] hover:text-[#639922] transition-colors shrink-0"
+                              className="p-0.5 pointer-coarse:p-2 text-[#c0d0b0] hover:text-[#639922] transition-colors shrink-0"
                               title="Editar hilera"
                             >
                               <Pencil size={11} />
                             </button>
                             <button onClick={() => onDeleteRows([row.id])}
-                              className="text-[#c0d0b0] hover:text-red-400 transition-colors shrink-0"
+                              className="p-0.5 pointer-coarse:p-2 text-[#c0d0b0] hover:text-red-400 transition-colors shrink-0"
                               title="Eliminar hilera"
                             >
                               <X size={11} />

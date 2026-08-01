@@ -70,7 +70,7 @@ export default function OperationsCalendar({ fields }: { fields: PlacedField[] }
           <button
             onClick={() => shiftMonth(-1)}
             aria-label="Mes anterior"
-            className="w-7 h-7 flex items-center justify-center rounded-lg text-[#9aab8a] hover:bg-[#f0f5e8] hover:text-[#2d4a1e] transition-colors"
+            className="w-7 h-7 pointer-coarse:w-10 pointer-coarse:h-10 flex items-center justify-center rounded-lg text-[#9aab8a] hover:bg-[#f0f5e8] hover:text-[#2d4a1e] transition-colors"
           >
             <ChevronLeft size={15} />
           </button>
@@ -80,7 +80,7 @@ export default function OperationsCalendar({ fields }: { fields: PlacedField[] }
           <button
             onClick={() => shiftMonth(1)}
             aria-label="Mes siguiente"
-            className="w-7 h-7 flex items-center justify-center rounded-lg text-[#9aab8a] hover:bg-[#f0f5e8] hover:text-[#2d4a1e] transition-colors"
+            className="w-7 h-7 pointer-coarse:w-10 pointer-coarse:h-10 flex items-center justify-center rounded-lg text-[#9aab8a] hover:bg-[#f0f5e8] hover:text-[#2d4a1e] transition-colors"
           >
             <ChevronRight size={15} />
           </button>
@@ -125,13 +125,16 @@ export default function OperationsCalendar({ fields }: { fields: PlacedField[] }
                 }`}>
                   {cell.day}
                 </span>
-                {ops.length > 0 && (
-                  <span className="text-[11px] leading-none">
-                    {[...new Set(ops.map(o => getCropById(o.cropTypeId)?.emoji ?? '🌱'))]
-                      .slice(0, 3)
-                      .join('')}
-                  </span>
-                )}
+                {ops.length > 0 && (() => {
+                  const emojis = [...new Set(ops.map(o => getCropById(o.cropTypeId)?.emoji ?? '🌱'))]
+                  return (
+                    <span className="text-[11px] leading-none">
+                      {/* ~44px cells on a phone fit one emoji, not three */}
+                      <span className="sm:hidden">{emojis[0]}</span>
+                      <span className="hidden sm:inline">{emojis.slice(0, 3).join('')}</span>
+                    </span>
+                  )
+                })()}
                 {pending.length > 0 && (
                   <span className={`text-[9px] leading-none font-bold ${overdue ? 'text-red-500' : 'text-[#639922]'}`}>
                     {pending.length}
