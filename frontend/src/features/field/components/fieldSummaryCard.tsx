@@ -22,7 +22,7 @@ import {
   useCompleteRecommendedOp, useSkipRecommendedOp, useLogPartialRecommendedOp,
 } from '../hooks/useOperationsApi'
 import { toast } from '@/store/useToastStore'
-import { dateLocale, localName } from '@/i18n'
+import { dateLocale, localName, localOpLabel } from '@/i18n'
 import type { PlacedField, PlantingEvent, RecommendedOperation } from '../types'
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -253,7 +253,7 @@ export default function FieldSummaryCard({
         >
           <div className="flex-1 min-w-0">
             <p className="text-[10px] font-medium text-[#2d4a1e] truncate">
-              {nextCrop?.emoji ?? '🌱'} {next.op.labelEs}
+              {nextCrop?.emoji ?? '🌱'} {localOpLabel(next.op.labelEs)}
             </p>
             <p className={`text-[9px] ${nextIsDue ? 'text-red-500 font-medium' : 'text-[#9aab8a]'}`}>
               {nextIsDue ? t('status.overduePrefix') : ''}{nextDate}

@@ -13,7 +13,7 @@ import {
   useLogPartialRecommendedOp, type DueSoonOperation,
 } from '../hooks/useOperationsApi'
 import { toast } from '@/store/useToastStore'
-import { dateLocale, localName } from '@/i18n'
+import { dateLocale, localName, localOpLabel } from '@/i18n'
 
 // ──────────────────────────────────────────────────────────────────────────
 // Labores — the dashboard's "what's due" panel, server-backed: the
@@ -146,7 +146,7 @@ export default function LaboresPanel() {
               <div key={op.id} className="flex items-center gap-3 px-5 py-2.5">
                 <span className="text-lg" aria-hidden>{rowEmoji(op)}</span>
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium text-[#2d4a1e] truncate">{op.labelEs}</p>
+                  <p className="text-xs font-medium text-[#2d4a1e] truncate">{localOpLabel(op.labelEs)}</p>
                   <p className={`text-[10px] truncate ${overdue ? 'text-red-500 font-medium' : 'text-[#9aab8a]'}`}>
                     {overdue ? t('status.overduePrefix') : ''}
                     {new Date(op.recommendedDate + 'T12:00:00')

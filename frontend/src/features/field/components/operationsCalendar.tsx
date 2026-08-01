@@ -4,7 +4,7 @@ import {
   ChevronLeft, ChevronRight, CalendarDays, CheckCircle2,
   Download, ExternalLink,
 } from 'lucide-react'
-import { dateLocale } from '@/i18n'
+import { dateLocale, localOpLabel } from '@/i18n'
 import { getMonthGrid, collectOpsByDate } from '../utils/calendarGrid'
 import { buildOperationsICS, googleCalendarEventUrl } from '../utils/icsExport'
 import { getCropById } from '../data/cropLibrary'
@@ -155,7 +155,7 @@ export default function OperationsCalendar({ fields }: { fields: PlacedField[] }
                 <div key={op.id} className="flex items-center gap-2 text-xs">
                   <span aria-hidden>{crop?.emoji ?? '🌱'}</span>
                   <span className={done ? 'text-[#9aab8a] line-through' : 'text-[#2d4a1e] font-medium'}>
-                    {op.labelEs}
+                    {localOpLabel(op.labelEs)}
                   </span>
                   <span className="text-[#9aab8a]">· {fieldName}</span>
                   {op.status === 'completed' ? (

@@ -1,6 +1,7 @@
 import i18n from 'i18next'
 import { initReactI18next } from 'react-i18next'
 import LanguageDetector from 'i18next-browser-languagedetector'
+import { CROP_SCHEDULES } from '@/features/field/data/cropSchedules'
 
 import esCommon from './locales/es/common.json'
 import esAuth from './locales/es/auth.json'
@@ -98,6 +99,32 @@ const CATEGORY_EN: Record<string, string> = {
 
 export function localCategory(category: string): string {
   return isEnglish() ? (CATEGORY_EN[category] ?? category) : category
+}
+
+// Recommendation labels are STORED in Spanish (the templates' labelEs is
+// written onto each recommendation row at planting). The template set also
+// carries English labels, so known labels translate by reverse lookup —
+// custom-crop labels (typed by the user) pass through untouched.
+let opLabelEn: Map<string, string> | null = null
+export function localOpLabel(labelEs: string): string {
+  if (!isEnglish()) return labelEs
+  if (!opLabelEn) {
+    opLabelEn = new Map()
+    for (const schedule of CROP_SCHEDULES) {
+      for (const tpl of schedule.operations) opLabelEn.set(tpl.labelEs, tpl.label)
+    }
+  }
+  return opLabelEn.get(labelEs) ?? labelEs
+}
+
+/** "hace 3 días" / "hoy" / "in 3 days" — language-aware relative days. */
+export function formatRelativeDays(daysFromToday: number): string {
+  if (daysFromToday === 0) return i18n.t('relative.today')
+  if (daysFromToday === 1) return i18n.t('relative.tomorrow')
+  if (daysFromToday === -1) return i18n.t('relative.yesterday')
+  return daysFromToday < 0
+    ? i18n.t('relative.past', { count: -daysFromToday })
+    : i18n.t('relative.future', { count: daysFromToday })
 }
 
 export default i18n

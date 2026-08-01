@@ -12,7 +12,7 @@ import type { FarmOperation } from '../hooks/useOperationsApi'
 import { getCropById } from '../data/cropLibrary'
 import { useHarvestHighlightStore } from '@/store/useHarvestHighlightStore'
 import { useIsPhone } from '@/hooks/useViewport'
-import { dateLocale, localName } from '@/i18n'
+import { dateLocale, localName, localOpLabel } from '@/i18n'
 
 // ──────────────────────────────────────────────────────────────────────────
 // Operations view — the calendar check-off drawer (SDD §6.2), docked left
@@ -492,7 +492,7 @@ function OperationRow({
               ? 'text-[#9aab8a] line-through'
               : 'text-[#2d4a1e]'
           }`}>
-            {operation.labelEs}
+            {localOpLabel(operation.labelEs)}
           </p>
         </div>
         <div className="flex items-center gap-2 mt-0.5">
@@ -695,7 +695,7 @@ export function CheckOffModal({
             <p className="text-sm font-semibold text-[#2d4a1e]">
               {copy.title}
             </p>
-            <p className="text-xs text-[#7a8a6a] mt-0.5">{operation.labelEs}</p>
+            <p className="text-xs text-[#7a8a6a] mt-0.5">{localOpLabel(operation.labelEs)}</p>
             {mode === 'partial' && (
               <p className="text-[10px] text-[#9aab8a] mt-1">
                 {t('modal.partialHint')}

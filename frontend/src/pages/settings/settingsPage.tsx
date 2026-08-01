@@ -362,7 +362,11 @@ function LanguageSettings() {
         action={
           <select
             value={i18n.language?.startsWith('en') ? 'en' : 'es'}
-            onChange={e => i18n.changeLanguage(e.target.value)}
+            onChange={e => {
+              i18n.changeLanguage(e.target.value)
+              // The daily digest email follows User.language — best-effort sync
+              api.patch('/api/v1/users/me', { language: e.target.value }).catch(() => {})
+            }}
             className="text-xs text-[#5a6a4a] bg-white border border-[#d0dcc0] rounded-lg px-2 py-2 focus:outline-none focus:border-[#639922]"
           >
             <option value="es">{t('language.es')}</option>

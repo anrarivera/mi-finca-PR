@@ -22,6 +22,15 @@
     "confirm": "Confirmar",
     "loading": "Cargando…"
   },
+  "relative": {
+    "today": "hoy",
+    "tomorrow": "mañana",
+    "yesterday": "ayer",
+    "past_one": "hace {{count}} día",
+    "past_other": "hace {{count}} días",
+    "future_one": "en {{count}} día",
+    "future_other": "en {{count}} días"
+  },
   "language": {
     "sectionTitle": "Idioma",
     "rowTitle": "Idioma de la aplicación",

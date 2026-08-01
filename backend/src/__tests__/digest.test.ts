@@ -71,6 +71,22 @@ describe('runDailyDigest', () => {
     expect(outbox[0].text).toContain('1 hallazgo')
   })
 
+  it('speaks English to users with language en', async () => {
+    const owner = await createTestUser()
+    await verifyUser(owner.userId)
+    await prisma.user.update({ where: { id: owner.userId }, data: { language: 'en' } })
+    const farm = await createTestFarm(owner.token, { name: 'English Farm' })
+    const field = await createTestField(owner.token, farm.id)
+    await seedWork(owner.token, farm.id, field.id)
+
+    const result = await runDailyDigest()
+
+    expect(result.sent).toBe(1)
+    expect(outbox[0].subject).toContain('overdue task')
+    expect(outbox[0].text).toContain('Here is your daily summary')
+    expect(outbox[0].text).toContain('English Farm')
+  })
+
   it('sends nothing when there is nothing actionable', async () => {
     const owner = await createTestUser()
     await verifyUser(owner.userId)

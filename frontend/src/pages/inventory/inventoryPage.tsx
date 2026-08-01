@@ -13,8 +13,7 @@ import {
   buildInventoryRows, summarizeInventory,
   type InventoryRow, type InventoryStatus,
 } from '@/features/inventory/inventoryBuilder'
-import { formatRelativeDaysEs } from '@/features/notifications/notificationBuilder'
-import { dateLocale, localName } from '@/i18n'
+import { dateLocale, localName, localOpLabel, formatRelativeDays } from '@/i18n'
 import OperationsLogSection from '@/features/field/components/operationsLogSection'
 import OperationsCalendar from '@/features/field/components/operationsCalendar'
 import HarvestLogSection from '@/features/field/components/harvestLogSection'
@@ -346,10 +345,10 @@ function InventoryRowView({ row, expanded, onToggle }: {
         <td className="px-3 py-3">
           {row.nextOp ? (
             <>
-              <span className="block text-[#2d4a1e] truncate max-w-44">{row.nextOp.labelEs}</span>
+              <span className="block text-[#2d4a1e] truncate max-w-44">{localOpLabel(row.nextOp.labelEs)}</span>
               <span className={`block text-[10px] ${row.nextOp.daysFromToday < 0 ? 'text-red-500 font-semibold' : 'text-[#9aab8a]'}`}>
                 {row.nextOp.daysFromToday < 0 ? `${t('inventory.overduePrefix')} ` : ''}
-                {formatRelativeDaysEs(row.nextOp.daysFromToday)}
+                {formatRelativeDays(row.nextOp.daysFromToday)}
                 {row.pendingOpsCount > 1 && ` · ${t('inventory.pendingCount', { count: row.pendingOpsCount })}`}
               </span>
             </>
@@ -413,11 +412,11 @@ function SiembraOperationsList({ operations }: {
               <Clock size={12} className="text-amber-500 shrink-0" />
             )}
             <span className={done ? 'text-[#9aab8a] line-through' : 'text-[#2d4a1e]'}>
-              {op.labelEs}
+              {localOpLabel(op.labelEs)}
             </span>
             <span className="text-[#9aab8a]">
               · {formatDateEs(op.date)}
-              {!done && ` (${formatRelativeDaysEs(op.daysFromToday)})`}
+              {!done && ` (${formatRelativeDays(op.daysFromToday)})`}
               {op.status === 'skipped' && ` (${t('inventory.skipped')})`}
             </span>
           </div>
@@ -472,10 +471,10 @@ function InventoryCardView({ row, expanded, onToggle }: {
       <div className="mt-1.5 text-[11px]">
         {row.nextOp ? (
           <span>
-            <span className="text-[#2d4a1e]">{row.nextOp.labelEs}</span>{' '}
+            <span className="text-[#2d4a1e]">{localOpLabel(row.nextOp.labelEs)}</span>{' '}
             <span className={row.nextOp.daysFromToday < 0 ? 'text-red-500 font-semibold' : 'text-[#9aab8a]'}>
               · {row.nextOp.daysFromToday < 0 ? `${t('inventory.overduePrefix')} ` : ''}
-              {formatRelativeDaysEs(row.nextOp.daysFromToday)}
+              {formatRelativeDays(row.nextOp.daysFromToday)}
               {row.pendingOpsCount > 1 && ` · ${t('inventory.pendingCount', { count: row.pendingOpsCount })}`}
             </span>
           </span>

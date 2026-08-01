@@ -22,6 +22,15 @@
     "confirm": "Confirm",
     "loading": "Loading…"
   },
+  "relative": {
+    "today": "today",
+    "tomorrow": "tomorrow",
+    "yesterday": "yesterday",
+    "past_one": "{{count}} day ago",
+    "past_other": "{{count}} days ago",
+    "future_one": "in {{count}} day",
+    "future_other": "in {{count}} days"
+  },
   "language": {
     "sectionTitle": "Language",
     "rowTitle": "App language",

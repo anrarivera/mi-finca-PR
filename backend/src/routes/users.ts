@@ -32,6 +32,20 @@ const notificationPrefsSchema = z.object({
   emailDigest: z.boolean().optional(),
 })
 
+// ── PATCH /api/v1/users/me — profile settings (language drives the
+//    digest email; the UI language itself lives client-side) ───────────
+const profileSchema = z.object({ language: z.enum(['es', 'en']) })
+router.patch('/me', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { language } = parseBody(profileSchema, req.body)
+    await prisma.user.update({
+      where: { id: req.user!.userId },
+      data: { language },
+    })
+    res.json({ success: true, data: { language } })
+  } catch (err) { next(err) }
+})
+
 // ── GET /api/v1/users/me/notification-prefs ────────────────────────────
 router.get('/me/notification-prefs', async (req: Request, res: Response, next: NextFunction) => {
   try {

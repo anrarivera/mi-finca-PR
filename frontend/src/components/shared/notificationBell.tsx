@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { localOpLabel, formatRelativeDays } from '@/i18n'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { Bell, AlertCircle, Clock, Wheat, CheckCheck, Settings } from 'lucide-react'
 import { useFieldStore } from '@/store/useFieldStore'
 import { useSettingsStore } from '@/store/useSettingsStore'
 import {
-  buildNotifications, formatRelativeDaysEs,
+  buildNotifications,
   type FarmNotification,
 } from '@/features/notifications/notificationBuilder'
 import { getCropById } from '@/features/field/data/cropLibrary'
@@ -129,13 +130,13 @@ function NotificationRow({ item, unread }: { item: FarmNotification; unread: boo
       <span className="mt-0.5">{KIND_ICON[item.kind]}</span>
       <div className="min-w-0">
         <p className="text-xs text-[#2d4a1e] font-medium truncate">
-          {crop?.emoji ? `${crop.emoji} ` : ''}{item.labelEs}
+          {crop?.emoji ? `${crop.emoji} ` : ''}{localOpLabel(item.labelEs)}
         </p>
         <p className="text-[10px] text-[#9aab8a] mt-0.5">
           {item.fieldName} ·{' '}
           <span className={item.daysFromToday < 0 ? 'text-red-500 font-semibold' : ''}>
             {item.daysFromToday < 0 && item.kind !== 'harvest' ? `${t('notificationBell.overduePrefix')} ` : ''}
-            {formatRelativeDaysEs(item.daysFromToday)}
+            {formatRelativeDays(item.daysFromToday)}
           </span>
         </p>
       </div>

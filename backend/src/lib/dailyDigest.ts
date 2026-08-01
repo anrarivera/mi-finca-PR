@@ -66,40 +66,80 @@ function pluralize(n: number, singular: string, plural: string): string {
   return `${n} ${n === 1 ? singular : plural}`
 }
 
-export function composeDigest(fullName: string, farms: FarmSummary[]): {
+// The digest speaks the user's language (User.language, synced from the
+// app's Idioma setting). Recommendation labels themselves are stored data
+// and stay as written.
+export type DigestLang = 'es' | 'en'
+
+const DIGEST_COPY = {
+  es: {
+    overdue: (n: number) => pluralize(n, 'labor vencida', 'labores vencidas'),
+    dueSoon: (n: number) => pluralize(n, 'labor próxima', 'labores próximas'),
+    findings: (n: number) => pluralize(n, 'hallazgo sin resolver', 'hallazgos sin resolver'),
+    farmOverdue: (n: number) => `${n} vencida${n === 1 ? '' : 's'}`,
+    farmDueSoon: (n: number) => `${n} próxima${n === 1 ? '' : 's'}`,
+    farmFindings: (n: number) => `${n} hallazgo${n === 1 ? '' : 's'}`,
+    next: 'Siguiente',
+    greeting: (name: string) => `Hola ${name},`,
+    intro: 'Este es tu resumen del día:',
+    outro:
+      'Entra a la aplicación para marcar labores o revisar hallazgos.\n' +
+      'Puedes desactivar este resumen en Ajustes → Notificaciones.',
+  },
+  en: {
+    overdue: (n: number) => pluralize(n, 'overdue task', 'overdue tasks'),
+    dueSoon: (n: number) => pluralize(n, 'upcoming task', 'upcoming tasks'),
+    findings: (n: number) => pluralize(n, 'open finding', 'open findings'),
+    farmOverdue: (n: number) => `${n} overdue`,
+    farmDueSoon: (n: number) => `${n} upcoming`,
+    farmFindings: (n: number) => `${n} finding${n === 1 ? '' : 's'}`,
+    next: 'Next',
+    greeting: (name: string) => `Hi ${name},`,
+    intro: 'Here is your daily summary:',
+    outro:
+      'Open the app to check off tasks or review findings.\n' +
+      'You can turn this summary off in Settings → Notifications.',
+  },
+} as const
+
+export function composeDigest(
+  fullName: string,
+  farms: FarmSummary[],
+  lang: DigestLang = 'es'
+): {
   subject: string
   text: string
 } | null {
   const active = farms.filter(f => f.overdue + f.dueSoon + f.openFindings > 0)
   if (active.length === 0) return null
+  const copy = DIGEST_COPY[lang]
 
   const totalOverdue = active.reduce((s, f) => s + f.overdue, 0)
   const totalDueSoon = active.reduce((s, f) => s + f.dueSoon, 0)
   const totalFindings = active.reduce((s, f) => s + f.openFindings, 0)
 
   const headline = [
-    totalOverdue > 0 ? pluralize(totalOverdue, 'labor vencida', 'labores vencidas') : null,
-    totalDueSoon > 0 ? pluralize(totalDueSoon, 'labor próxima', 'labores próximas') : null,
-    totalFindings > 0 ? pluralize(totalFindings, 'hallazgo sin resolver', 'hallazgos sin resolver') : null,
+    totalOverdue > 0 ? copy.overdue(totalOverdue) : null,
+    totalDueSoon > 0 ? copy.dueSoon(totalDueSoon) : null,
+    totalFindings > 0 ? copy.findings(totalFindings) : null,
   ].filter(Boolean).join(', ')
 
   const farmLines = active.map(f => {
     const parts = [
-      f.overdue > 0 ? `${f.overdue} vencida${f.overdue === 1 ? '' : 's'}` : null,
-      f.dueSoon > 0 ? `${f.dueSoon} próxima${f.dueSoon === 1 ? '' : 's'}` : null,
-      f.openFindings > 0 ? `${f.openFindings} hallazgo${f.openFindings === 1 ? '' : 's'}` : null,
+      f.overdue > 0 ? copy.farmOverdue(f.overdue) : null,
+      f.dueSoon > 0 ? copy.farmDueSoon(f.dueSoon) : null,
+      f.openFindings > 0 ? copy.farmFindings(f.openFindings) : null,
     ].filter(Boolean).join(', ')
-    const labels = f.soonestLabels.length > 0 ? `\n   Siguiente: ${f.soonestLabels.join(' · ')}` : ''
+    const labels = f.soonestLabels.length > 0 ? `\n   ${copy.next}: ${f.soonestLabels.join(' · ')}` : ''
     return `• ${f.farmName}: ${parts}${labels}`
   }).join('\n')
 
   return {
     subject: `Mi Finca PR — ${headline}`,
     text:
-      `Hola ${fullName},\n\n` +
-      `Este es tu resumen del día:\n\n${farmLines}\n\n` +
-      `Entra a la aplicación para marcar labores o revisar hallazgos.\n` +
-      `Puedes desactivar este resumen en Ajustes → Notificaciones.`,
+      `${copy.greeting(fullName)}\n\n` +
+      `${copy.intro}\n\n${farmLines}\n\n` +
+      copy.outro,
   }
 }
 
@@ -108,6 +148,7 @@ export async function sendUserDigest(user: {
   id: string
   email: string
   fullName: string
+  language?: string
   notificationPrefs: unknown
 }): Promise<boolean> {
   const prefs = (user.notificationPrefs ?? {}) as Record<string, unknown>
@@ -127,7 +168,8 @@ export async function sendUserDigest(user: {
   const summaries = await Promise.all(
     farms.map(f => summarizeFarm(f.id, f.name, leadDays))
   )
-  const digest = composeDigest(user.fullName, summaries)
+  const lang: DigestLang = user.language === 'en' ? 'en' : 'es'
+  const digest = composeDigest(user.fullName, summaries, lang)
   if (!digest) return false
 
   await sendMail({ to: user.email, ...digest })
@@ -138,7 +180,7 @@ export async function sendUserDigest(user: {
 export async function runDailyDigest(): Promise<{ sent: number; skipped: number }> {
   const users = await prisma.user.findMany({
     where: { emailVerified: true },
-    select: { id: true, email: true, fullName: true, notificationPrefs: true },
+    select: { id: true, email: true, fullName: true, language: true, notificationPrefs: true },
   })
 
   let sent = 0
