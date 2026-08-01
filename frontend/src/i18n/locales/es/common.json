@@ -1,0 +1,32 @@
+{
+  "nav": {
+    "map": "Mapa",
+    "dashboard": "Panel",
+    "dashboardLong": "Panel de control",
+    "notebook": "Cuaderno",
+    "notebookLong": "Cuaderno de campo",
+    "simulator": "Simulador",
+    "settings": "Ajustes",
+    "settingsLong": "Configuración",
+    "logout": "Cerrar sesión",
+    "login": "Iniciar sesión",
+    "register": "Crear cuenta"
+  },
+  "actions": {
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "close": "Cerrar",
+    "add": "Añadir",
+    "confirm": "Confirmar",
+    "loading": "Cargando…"
+  },
+  "language": {
+    "sectionTitle": "Idioma",
+    "rowTitle": "Idioma de la aplicación",
+    "rowDescription": "Cambia el idioma de la interfaz. Los nombres que tú escribes (fincas, campos) no se traducen.",
+    "es": "Español",
+    "en": "English"
+  }
+}

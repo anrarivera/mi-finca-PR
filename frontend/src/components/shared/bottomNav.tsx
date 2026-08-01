@@ -1,24 +1,27 @@
 import { useNavigate, useLocation } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { Settings, LayoutDashboard, Map, Calculator, NotebookPen } from 'lucide-react'
 
 const TABS = [
-  { path: '/', label: 'Mapa', icon: Map },
-  { path: '/dashboard', label: 'Panel', icon: LayoutDashboard },
-  { path: '/inventory', label: 'Cuaderno', icon: NotebookPen },
-  { path: '/simulator', label: 'Simulador', icon: Calculator },
-  { path: '/settings', label: 'Ajustes', icon: Settings },
+  { path: '/', labelKey: 'nav.map', icon: Map },
+  { path: '/dashboard', labelKey: 'nav.dashboard', icon: LayoutDashboard },
+  { path: '/inventory', labelKey: 'nav.notebook', icon: NotebookPen },
+  { path: '/simulator', labelKey: 'nav.simulator', icon: Calculator },
+  { path: '/settings', labelKey: 'nav.settings', icon: Settings },
 ]
 
 // Phone counterpart of the desktop side rail: a labeled bottom tab bar.
 // Logout lives in the top nav's user menu on both form factors.
 export default function BottomNav() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const { pathname } = useLocation()
 
   return (
     <nav className="sm:hidden shrink-0 flex bg-[#d9ded7] border-t border-[#c5cdc2] pb-[env(safe-area-inset-bottom)]">
-      {TABS.map(({ path, label, icon: Icon }) => {
+      {TABS.map(({ path, labelKey, icon: Icon }) => {
         const active = pathname === path
+        const label = t(labelKey)
         return (
           <button
             key={path}

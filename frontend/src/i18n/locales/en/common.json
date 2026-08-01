@@ -1,0 +1,32 @@
+{
+  "nav": {
+    "map": "Map",
+    "dashboard": "Dashboard",
+    "dashboardLong": "Dashboard",
+    "notebook": "Log",
+    "notebookLong": "Field log",
+    "simulator": "Simulator",
+    "settings": "Settings",
+    "settingsLong": "Settings",
+    "logout": "Log out",
+    "login": "Log in",
+    "register": "Create account"
+  },
+  "actions": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "close": "Close",
+    "add": "Add",
+    "confirm": "Confirm",
+    "loading": "Loading…"
+  },
+  "language": {
+    "sectionTitle": "Language",
+    "rowTitle": "App language",
+    "rowDescription": "Changes the interface language. Names you type yourself (farms, fields) are not translated.",
+    "es": "Español",
+    "en": "English"
+  }
+}

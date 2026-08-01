@@ -1,7 +1,8 @@
 import { api } from '@/lib/api'
 import { useRef } from 'react'
 import { z } from 'zod'
-import { Download, Upload, Trash2, Database, Info, Bell } from 'lucide-react'
+import { Download, Upload, Trash2, Database, Info, Bell, Globe } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { useFarmStore } from '@/store/useFarmStore'
 import { useFieldStore } from '@/store/useFieldStore'
 import { useLivestockStore } from '@/store/useLivestockStore'
@@ -320,6 +321,8 @@ export default function SettingsPage() {
       </section>
 
       {/* ── Notifications section (issue #14) ────────────────────── */}
+      <LanguageSettings />
+
       <NotificationSettings />
 
       {/* ── About section ────────────────────────────────────────── */}
@@ -339,6 +342,34 @@ export default function SettingsPage() {
 
       {confirmDialog}
     </div>
+  )
+}
+
+// ── Language (i18n) ───────────────────────────────────────────────────
+function LanguageSettings() {
+  const { t, i18n } = useTranslation()
+
+  return (
+    <section className="bg-white rounded-2xl border border-[#e0e8d8] overflow-hidden">
+      <div className="flex items-center gap-2 px-5 py-4 border-b border-[#e0e8d8]">
+        <Globe size={16} className="text-[#639922]" />
+        <h2 className="text-sm font-semibold text-[#2d4a1e]">{t('language.sectionTitle')}</h2>
+      </div>
+      <SettingsRow
+        title={t('language.rowTitle')}
+        description={t('language.rowDescription')}
+        action={
+          <select
+            value={i18n.language?.startsWith('en') ? 'en' : 'es'}
+            onChange={e => i18n.changeLanguage(e.target.value)}
+            className="text-xs text-[#5a6a4a] bg-white border border-[#d0dcc0] rounded-lg px-2 py-2 focus:outline-none focus:border-[#639922]"
+          >
+            <option value="es">{t('language.es')}</option>
+            <option value="en">{t('language.en')}</option>
+          </select>
+        }
+      />
+    </section>
   )
 }
 
