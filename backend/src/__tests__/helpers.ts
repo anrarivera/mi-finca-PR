@@ -74,6 +74,12 @@ export async function createTestField(token: string, farmId: string, overrides?:
   return res.body.data?.field
 }
 
+// ── Membership seeding — phase 1 has no invite API yet, so tests add
+// members directly. ────────────────────────────────────────────────────
+export async function addFarmMember(farmId: string, userId: string, role: 'admin' | 'operator') {
+  return prisma.farmMember.create({ data: { farmId, userId, role } })
+}
+
 // ── Recommendation seeding — the calendar rows the check-off flows act
 // on. Created directly via prisma: through the API they only arise from
 // full field payloads with planting events, which isn't what these tests

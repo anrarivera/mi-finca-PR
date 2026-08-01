@@ -3,6 +3,7 @@ import { prisma } from '../lib/prisma'
 import { requireAuth } from '../middleware/auth'
 import { Errors } from '../lib/errors'
 import { requireFields, requireValidId } from '../lib/validate'
+import { requireFarmRole } from '../lib/farmAccess'
 
 // ──────────────────────────────────────────────────────────────────────────
 // Scouting findings — pest/disease observations tied to a field, with the
@@ -21,13 +22,10 @@ router.use(requireAuth)
 const FINDING_STATUSES = ['open', 'treated', 'resolved']
 const TREATMENT_TYPES = ['spray', 'cultivation', 'fertilization', 'monitoring']
 
-async function requireFarmOwnership(userId: string, farmId: string) {
-  const farm = await prisma.farm.findFirst({
-    where: { id: farmId, userId, deletedAt: { equals: null } },
-  })
-  if (!farm) throw Errors.notFound('Farm')
-  return farm
-}
+// Activity router — operators and up (SDD roles: registering hallazgos y
+// seguimientos is operator work).
+const requireFarmOwnership = (userId: string, farmId: string) =>
+  requireFarmRole(userId, farmId, 'operator')
 
 // A finding belongs to a farm through its field.
 function ownedByFarm(farmId: string) {
@@ -124,7 +122,7 @@ router.get('/export', async (req: Request, res: Response, next: NextFunction) =>
     const farmId = req.params.farmId as string
     const userId = req.user!.userId
 
-    const farm = await requireFarmOwnership(userId, farmId)
+    const { farm } = await requireFarmOwnership(userId, farmId)
 
     const format = String(req.query.format ?? 'csv').toLowerCase()
     if (format !== 'csv') {
@@ -209,6 +207,8 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
         notes: notes ?? null,
         rowIds: rowIds ?? [],
         plantIds: plantIds ?? [],
+        // "por Luis" — who scouted it
+        performedByUserId: userId,
         observations: {
           create: {
             date,
@@ -216,6 +216,7 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
             rowIds: rowIds ?? [],
             plantIds: plantIds ?? [],
             notes: notes ?? null,
+            performedByUserId: userId,
           },
         },
       },
@@ -320,6 +321,7 @@ router.post('/:id/observations', async (req: Request, res: Response, next: NextF
             rowIds: rowIds ?? [],
             plantIds: plantIds ?? [],
             notes: notes ?? null,
+            performedByUserId: userId,
           },
         },
       },

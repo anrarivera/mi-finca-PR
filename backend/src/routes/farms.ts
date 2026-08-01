@@ -4,6 +4,7 @@ import { requireAuth } from '../middleware/auth'
 import { Errors } from '../lib/errors'
 import { requireFields, requireValidId, requireBoundaryBounds } from '../lib/validate'
 import { calculateAreaAcres, formatFarm } from '../lib/farmUtils'
+import { requireFarmRole } from '../lib/farmAccess'
 
 const router = Router()
 
@@ -16,17 +17,22 @@ router.use(requireAuth)
 // ─────────────────────────────────────────────────────────────────────
 router.get('/', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const userId = req.user!.userId
     const farms = await prisma.farm.findMany({
-      // GET / — list farms
+      // GET / — farms the user owns PLUS farms they're a member of
       where: {
-        userId: req.user!.userId,
-        deletedAt: { equals: null },  // ← fix
+        deletedAt: { equals: null },
+        OR: [
+          { userId },
+          { members: { some: { userId } } },
+        ],
       },
       include: {
         fields: {
           where: { deletedAt: { equals: null } },
           select: { id: true },
-        }
+        },
+        members: { where: { userId }, select: { role: true } },
       },
       orderBy: [
         { isFavorite: 'desc' },  // favorite first
@@ -36,7 +42,11 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
 
     res.json({
       success: true,
-      data: farms.map(formatFarm)
+      // myRole lets the client hide UI the server would reject anyway
+      data: farms.map(f => ({
+        ...formatFarm(f),
+        myRole: f.userId === userId ? 'owner' : (f.members[0]?.role ?? 'operator'),
+      }))
     })
   } catch (err) {
     next(err)
@@ -106,12 +116,11 @@ router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
     const id = req.params.id as string
     requireValidId(id, 'Farm')
 
+    // Any member (operator+) can view the farm
+    const { role } = await requireFarmRole(req.user!.userId, id, 'operator')
+
     const farm = await prisma.farm.findFirst({
-      where: {
-        id,
-        userId: req.user!.userId,  // scoped to requesting user
-        deletedAt: { equals: null },
-      },
+      where: { id, deletedAt: { equals: null } },
       include: {
         fields: {
           where: { deletedAt: { equals: null } },
@@ -122,7 +131,7 @@ router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
 
     if (!farm) throw Errors.notFound('Farm')
 
-    res.json({ success: true, data: formatFarm(farm) })
+    res.json({ success: true, data: { ...formatFarm(farm), myRole: role } })
   } catch (err) {
     next(err)
   }
@@ -137,11 +146,8 @@ router.patch('/:id', async (req: Request, res: Response, next: NextFunction) => 
     const id = req.params.id as string
     requireValidId(id, 'Farm')
 
-    // Verify farm belongs to this user
-    const existing = await prisma.farm.findFirst({
-      where: { id, userId: req.user!.userId, deletedAt: { equals: null }, }
-    })
-    if (!existing) throw Errors.notFound('Farm')
+    // Farm structure changes need admin (owner or admin member)
+    await requireFarmRole(req.user!.userId, id, 'admin')
 
     const { name, location, farmType, description, boundary, isFavorite } = req.body
 
@@ -204,11 +210,8 @@ router.delete('/:id', async (req: Request, res: Response, next: NextFunction) =>
     const id = req.params.id as string
     requireValidId(id, 'Farm')
 
-    // Verify farm belongs to this user
-    const existing = await prisma.farm.findFirst({
-      where: { id, userId: req.user!.userId, deletedAt: { equals: null }, }
-    })
-    if (!existing) throw Errors.notFound('Farm')
+    // Deleting a farm is owner-only — admins manage it, they don't end it
+    const { farm: existing } = await requireFarmRole(req.user!.userId, id, 'owner')
 
     const now = new Date()
 

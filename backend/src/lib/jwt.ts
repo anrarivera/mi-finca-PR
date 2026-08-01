@@ -1,4 +1,5 @@
 import jwt from 'jsonwebtoken'
+import { randomUUID } from 'crypto'
 
 export type JwtPayload = {
   userId: string
@@ -22,7 +23,10 @@ export function signAccessToken(payload: JwtPayload): string {
 }
 
 export function signRefreshToken(payload: JwtPayload): string {
-  return jwt.sign(payload, getRefreshSecret(), { expiresIn: '30d' })
+  // jti makes every refresh token unique — without it, two logins in the
+  // same second sign byte-identical JWTs (same payload + same iat second)
+  // and the second INSERT violates refresh_tokens.token's UNIQUE constraint.
+  return jwt.sign(payload, getRefreshSecret(), { expiresIn: '30d', jwtid: randomUUID() })
 }
 
 export function verifyAccessToken(token: string): JwtPayload {

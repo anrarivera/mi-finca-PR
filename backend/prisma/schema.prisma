@@ -23,6 +23,10 @@ model User {
   oauthAccounts     OAuthAccount[]
   cropTypes         CropType[]
   actionTokens      ActionToken[]
+  farmMemberships   FarmMember[]
+  performedOperations   Operation[]          @relation("PerformedOperations")
+  performedFindings     Finding[]            @relation("PerformedFindings")
+  performedObservations FindingObservation[] @relation("PerformedObservations")
 
   @@map("users")
 }
@@ -60,8 +64,25 @@ model Farm {
   sensors        Sensor[]
   automationRules AutomationRule[]
   operations     Operation[]
+  members        FarmMember[]
 
   @@map("farms")
+}
+
+// Per-farm membership. The owner is Farm.userId (never a row here);
+// members carry 'admin' (everything but farm deletion) or 'operator'
+// (log work — labores, hallazgos, cosechas — but no farm/field structure).
+model FarmMember {
+  id        String   @id @default(uuid())
+  farmId    String
+  userId    String
+  role      String   // 'admin' | 'operator'
+  createdAt DateTime @default(now())
+  farm      Farm     @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([farmId, userId])
+  @@map("farm_members")
 }
 
 model Field {
@@ -185,8 +206,10 @@ model Finding {
   // The treatment labor "Crear labor" generated from this finding — cleared
   // if that recommendation is ever deleted, so a new one can be created.
   treatmentRecommendedOperationId String?
+  performedByUserId String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  performedBy User?  @relation("PerformedFindings", fields: [performedByUserId], references: [id], onDelete: SetNull)
   field     Field    @relation(fields: [fieldId], references: [id], onDelete: Cascade)
   treatmentRecommendedOperation RecommendedOperation? @relation(fields: [treatmentRecommendedOperationId], references: [id], onDelete: SetNull)
   observations FindingObservation[]
@@ -207,7 +230,9 @@ model FindingObservation {
   rowIds    Json     @default("[]")
   plantIds  Json     @default("[]")
   notes     String?
+  performedByUserId String?
   createdAt DateTime @default(now())
+  performedBy User?  @relation("PerformedObservations", fields: [performedByUserId], references: [id], onDelete: SetNull)
   finding   Finding  @relation(fields: [findingId], references: [id], onDelete: Cascade)
 
   @@map("finding_observations")
@@ -237,8 +262,11 @@ model Operation {
   // row 2", or scattered single plants. rowIds = fully covered rows,
   // plantIds = extra individual plants outside those rows.
   plantIds              Json      @default("[]")
+  // Who logged the work — stamped at creation, kept if the member leaves.
+  performedByUserId     String?
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
+  performedBy           User?     @relation("PerformedOperations", fields: [performedByUserId], references: [id], onDelete: SetNull)
   farm                  Farm      @relation(fields: [farmId], references: [id], onDelete: Cascade)
   field                 Field?    @relation(fields: [fieldId], references: [id])
   plantingEvent         PlantingEvent? @relation(fields: [plantingEventId], references: [id])

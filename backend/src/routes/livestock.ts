@@ -3,19 +3,19 @@ import { prisma } from '../lib/prisma'
 import { requireAuth } from '../middleware/auth'
 import { Errors } from '../lib/errors'
 import { requireFields, requireValidId, requireLat, requireLng } from '../lib/validate'
+import { requireFarmRole } from '../lib/farmAccess'
 
 const router = Router({ mergeParams: true }) // mounted at /api/v1/farms/:farmId/livestock
 
 router.use(requireAuth)
 
 // Helper: verify farm belongs to requesting user
-async function requireFarmOwnership(userId: string, farmId: string) {
-  const farm = await prisma.farm.findFirst({
-    where: { id: farmId, userId, deletedAt: { equals: null } },
-  })
-  if (!farm) throw Errors.notFound('Farm')
-  return farm
-}
+// Reads are operator work; creating/renaming/deleting units is farm
+// structure and needs admin (SDD roles — same split as fields).
+const requireFarmOwnership = (userId: string, farmId: string) =>
+  requireFarmRole(userId, farmId, 'operator')
+const requireFarmStructure = (userId: string, farmId: string) =>
+  requireFarmRole(userId, farmId, 'admin')
 
 // Prisma returns Decimal for farmLat/farmLng — convert to numbers
 function serializeLivestock(unit: any) {
@@ -56,7 +56,7 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
     const userId = req.user!.userId
 
     requireFields(req.body, ['name', 'animalType', 'currentCount', 'acquisitionDate'])
-    await requireFarmOwnership(userId, farmId)
+    await requireFarmStructure(userId, farmId)
 
     const { name, animalType, currentCount, acquisitionDate, farmLat, farmLng, notes } = req.body
 
@@ -159,7 +159,7 @@ router.delete('/:id', async (req: Request, res: Response, next: NextFunction) =>
     const userId = req.user!.userId
 
     requireValidId(id, 'Livestock unit')
-    await requireFarmOwnership(userId, farmId)
+    await requireFarmStructure(userId, farmId)
 
     const existing = await prisma.livestockUnit.findFirst({
       where: { id, farmId, deletedAt: { equals: null } },

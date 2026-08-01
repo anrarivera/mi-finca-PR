@@ -3,18 +3,16 @@ import { prisma } from '../lib/prisma'
 import { requireAuth } from '../middleware/auth'
 import { Errors } from '../lib/errors'
 import { requireFields, requireValidId } from '../lib/validate'
+import { requireFarmRole } from '../lib/farmAccess'
 
 const router = Router({ mergeParams: true }) // mounted at /api/v1/farms/:farmId/harvests
 
 router.use(requireAuth)
 
-async function requireFarmOwnership(userId: string, farmId: string) {
-  const farm = await prisma.farm.findFirst({
-    where: { id: farmId, userId, deletedAt: { equals: null } },
-  })
-  if (!farm) throw Errors.notFound('Farm')
-  return farm
-}
+// Activity router — operators and up (SDD roles: logging harvests is
+// operator work).
+const requireFarmOwnership = (userId: string, farmId: string) =>
+  requireFarmRole(userId, farmId, 'operator')
 
 // Prisma returns Decimal for quantity — convert to number
 function serializeHarvest(harvest: any) {
