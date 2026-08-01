@@ -274,10 +274,16 @@ export default function FarmMap({ center = PR_CENTER, zoom = DEFAULT_ZOOM }: Pro
     if (field) setZoomTarget(prev => ({ field, nonce: (prev?.nonce ?? 0) + 1 }))
   }
 
-  // Clear the field selection and zoom back out to the whole farm.
+  // Clear the field selection. Fly back out ONLY if a field zoom actually
+  // happened — flying to the farm bounds unconditionally made the map
+  // wobble in place ("shake") every time the drawer closed, because
+  // Leaflet animates a flyTo even when the target view is the current one.
   function unselectField() {
     setFocusRequest(null)
-    if (activeFarm) flyToFarm(activeFarm)
+    if (zoomTarget && activeFarm) {
+      setZoomTarget(null)
+      flyToFarm(activeFarm)
+    }
   }
 
   // Field/card single click toggles: clicking the selected field again
