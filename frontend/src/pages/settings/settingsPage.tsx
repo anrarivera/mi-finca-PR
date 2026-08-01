@@ -1,3 +1,4 @@
+import { api } from '@/lib/api'
 import { useRef } from 'react'
 import { z } from 'zod'
 import { Download, Upload, Trash2, Database, Info, Bell } from 'lucide-react'
@@ -363,7 +364,14 @@ function SettingsRow({ title, description, action }: {
 
 function NotificationSettings() {
   const prefs = useSettingsStore(s => s.notificationPrefs)
-  const update = useSettingsStore(s => s.updateNotificationPrefs)
+  const updateLocal = useSettingsStore(s => s.updateNotificationPrefs)
+
+  // The email digest runs on the server, so preference changes must reach
+  // it — every update syncs (best-effort) in addition to localStorage.
+  function update(patch: Parameters<typeof updateLocal>[0]) {
+    updateLocal(patch)
+    api.put('/api/v1/users/me/notification-prefs', patch).catch(() => {})
+  }
 
   return (
     <section className="bg-white rounded-2xl border border-[#e0e8d8] overflow-hidden">
@@ -380,6 +388,17 @@ function NotificationSettings() {
             <ToggleSwitch
               checked={prefs.enabled}
               onChange={v => update({ enabled: v })}
+            />
+          }
+        />
+        <SettingsRow
+          title="Resumen diario por correo"
+          description="Un correo cada mañana con labores vencidas, próximas y hallazgos activos de tus fincas. Solo se envía cuando hay algo pendiente."
+          action={
+            <ToggleSwitch
+              checked={prefs.emailDigest}
+              disabled={!prefs.enabled}
+              onChange={v => update({ emailDigest: v })}
             />
           }
         />

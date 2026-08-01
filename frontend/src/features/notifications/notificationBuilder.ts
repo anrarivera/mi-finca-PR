@@ -32,6 +32,8 @@ export type NotificationPrefs = {
   notifyHarvest: boolean
   /** How many days ahead an operation counts as "próxima". */
   dueSoonLeadDays: number
+  /** Daily email summary (server-side job) — opt-out. */
+  emailDigest: boolean
 }
 
 export const DEFAULT_NOTIFICATION_PREFS: NotificationPrefs = {
@@ -40,6 +42,7 @@ export const DEFAULT_NOTIFICATION_PREFS: NotificationPrefs = {
   notifyDueSoon: true,
   notifyHarvest: true,
   dueSoonLeadDays: 14,
+  emailDigest: true,
 }
 
 /** Whole-day difference between two YYYY-MM-DD strings (to - from). */

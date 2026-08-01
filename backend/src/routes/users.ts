@@ -19,6 +19,8 @@ const DEFAULT_NOTIFICATION_PREFS = {
   notifyDueSoon: true,
   notifyHarvest: true,
   dueSoonLeadDays: 14,
+  // Daily email summary (lib/dailyDigest.ts) — opt-out
+  emailDigest: true,
 }
 
 const notificationPrefsSchema = z.object({
@@ -27,6 +29,7 @@ const notificationPrefsSchema = z.object({
   notifyDueSoon: z.boolean().optional(),
   notifyHarvest: z.boolean().optional(),
   dueSoonLeadDays: z.number().int().min(1).max(60).optional(),
+  emailDigest: z.boolean().optional(),
 })
 
 // ── GET /api/v1/users/me/notification-prefs ────────────────────────────

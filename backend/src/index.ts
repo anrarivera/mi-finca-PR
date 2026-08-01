@@ -16,6 +16,10 @@ import cropRoutes from './routes/crops'
 import userRoutes from './routes/users'
 import findingRoutes from './routes/findings'
 import memberRoutes from './routes/members'
+import cron from 'node-cron'
+import { setMailer } from './lib/mailer'
+import { createResendMailer } from './lib/resendMailer'
+import { runDailyDigest } from './lib/dailyDigest'
 
 // After the farms routes line:
 const app = express()
@@ -89,6 +93,17 @@ app.use(errorHandler)
 
 // ── Start ──────────────────────────────────────────────────────────────
 if (process.env.NODE_ENV !== 'test') {
+  // Real email delivery when a Resend key is configured; console otherwise.
+  if (process.env.RESEND_API_KEY) {
+    setMailer(createResendMailer(process.env.RESEND_API_KEY))
+  }
+
+  // Daily digest — 6:00 AM island time, after the day's statuses settle.
+  cron.schedule('0 6 * * *', async () => {
+    const result = await runDailyDigest()
+    console.log(`[digest] daily run: ${result.sent} sent, ${result.skipped} skipped`)
+  }, { timezone: 'America/Puerto_Rico' })
+
   app.listen(PORT, () => {
     console.log(`\n🌱 Mi Finca PR API running on http://localhost:${PORT}`)
     console.log(`   Health:   http://localhost:${PORT}/health`)
