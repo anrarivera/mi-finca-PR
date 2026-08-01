@@ -212,7 +212,7 @@ export default function OperationsView({
       <div className="h-12 bg-[#2d4a1e] flex items-center justify-between px-4 shrink-0">
         <div className="flex items-center gap-3">
           <button onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center rounded-lg text-[#8fba4e] hover:bg-white/10 transition-colors"
+            className="w-8 h-8 pointer-coarse:w-11 pointer-coarse:h-11 flex items-center justify-center rounded-lg text-[#8fba4e] hover:bg-white/10 transition-colors"
           >
             <X size={16} />
           </button>
@@ -461,7 +461,7 @@ function OperationRow({
   })()
 
   const isOpen = status === 'pending' || status === 'due'
-  const smallBtn = 'text-[10px] shrink-0 transition-colors'
+  const smallBtn = 'text-[10px] shrink-0 transition-colors pointer-coarse:text-[11px] pointer-coarse:p-2'
 
   return (
     <div className={`flex items-center gap-3 px-4 py-3 ${statusStyles[status]}`}>
@@ -967,7 +967,7 @@ export function HarvestSelector({ title, targets, selected, onChange, mapToggles
                   checked={all}
                   ref={el => { if (el) el.indeterminate = some }}
                   onChange={() => toggleRow(row)}
-                  className="accent-[#639922] shrink-0"
+                  className="accent-[#639922] shrink-0 w-4 h-4 pointer-coarse:w-5 pointer-coarse:h-5"
                 />
                 <button
                   type="button"

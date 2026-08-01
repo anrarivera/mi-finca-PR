@@ -169,7 +169,7 @@ export default function CustomCropModal({ onClose, onCreated }: Props) {
               type="checkbox"
               checked={withRecipe}
               onChange={e => setWithRecipe(e.target.checked)}
-              className="accent-[#639922] w-4 h-4"
+              className="accent-[#639922] w-4 h-4 pointer-coarse:w-5 pointer-coarse:h-5"
             />
             <div>
               <p className="text-xs font-medium text-[#2d4a1e]">Añadir receta de operaciones</p>

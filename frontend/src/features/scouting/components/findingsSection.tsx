@@ -97,7 +97,7 @@ export default function FindingsSection({
     )
   }
 
-  const smallBtn = 'text-[10px] shrink-0 transition-colors'
+  const smallBtn = 'text-[10px] shrink-0 transition-colors pointer-coarse:text-[11px] pointer-coarse:p-2'
 
   return (
     <div className="bg-white rounded-xl border border-[#e0e8d8] overflow-hidden shrink-0">

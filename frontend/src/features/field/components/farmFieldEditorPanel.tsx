@@ -347,7 +347,7 @@ export default function FarmFieldEditorPanel({
                           <div className="flex items-center gap-2 px-2.5 py-2">
                             <button onClick={() => onToggleRowSelected(row.id)}
                               title={checked ? 'Quitar hilera de la selección' : 'Seleccionar toda la hilera'}
-                              className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors ${
+                              className={`w-4 h-4 pointer-coarse:w-6 pointer-coarse:h-6 rounded border flex items-center justify-center shrink-0 transition-colors ${
                                 checked || some
                                   ? 'bg-[#639922] border-[#639922]'
                                   : 'border-[#c0d0b0] hover:border-[#639922]'
@@ -381,13 +381,13 @@ export default function FarmFieldEditorPanel({
                             </button>
 
                             <button onClick={() => onEditRows([row.id])}
-                              className="text-[#c0d0b0] hover:text-[#639922] transition-colors shrink-0"
+                              className="p-0.5 pointer-coarse:p-2 text-[#c0d0b0] hover:text-[#639922] transition-colors shrink-0"
                               title="Editar hilera"
                             >
                               <Pencil size={11} />
                             </button>
                             <button onClick={() => onDeleteRows([row.id])}
-                              className="text-[#c0d0b0] hover:text-red-400 transition-colors shrink-0"
+                              className="p-0.5 pointer-coarse:p-2 text-[#c0d0b0] hover:text-red-400 transition-colors shrink-0"
                               title="Eliminar hilera"
                             >
                               <X size={11} />

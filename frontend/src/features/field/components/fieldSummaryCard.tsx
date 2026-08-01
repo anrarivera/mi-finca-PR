@@ -259,7 +259,7 @@ export default function FieldSummaryCard({
               setChecking({ mode: 'complete', op: next.op, event: next.event })
             }}
             title="Marcar como realizada"
-            className="text-[10px] shrink-0 text-[#2d4a1e] font-semibold hover:text-[#639922] transition-colors"
+            className="pointer-coarse:p-2 text-[10px] shrink-0 text-[#2d4a1e] font-semibold hover:text-[#639922] transition-colors"
           >
             Completa
           </button>
@@ -269,7 +269,7 @@ export default function FieldSummaryCard({
               setChecking({ mode: 'partial', op: next.op, event: next.event })
             }}
             title="Registrar avance sin completar la labor"
-            className="text-[10px] shrink-0 text-[#639922] hover:text-[#2d4a1e] font-medium transition-colors"
+            className="pointer-coarse:p-2 text-[10px] shrink-0 text-[#639922] hover:text-[#2d4a1e] font-medium transition-colors"
           >
             Parcial
           </button>
@@ -281,7 +281,7 @@ export default function FieldSummaryCard({
                 { onSuccess: () => toast.success('Operación omitida') }
               )
             }}
-            className="text-[10px] shrink-0 text-[#c0d0b0] hover:text-[#9aab8a] transition-colors"
+            className="pointer-coarse:p-2 text-[10px] shrink-0 text-[#c0d0b0] hover:text-[#9aab8a] transition-colors"
           >
             Omitir
           </button>
@@ -316,19 +316,19 @@ export default function FieldSummaryCard({
           <button
             onClick={(e) => { e.stopPropagation(); setShowOps(true) }}
             title="Ver el calendario completo de labores"
-            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-[10px] text-[#2d4a1e] border border-[#c8dca8] bg-[#eaf3de] rounded-lg hover:bg-[#d9ecc4] transition-colors"
+            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 pointer-coarse:py-2.5 text-[10px] text-[#2d4a1e] border border-[#c8dca8] bg-[#eaf3de] rounded-lg hover:bg-[#d9ecc4] transition-colors"
           >
             <CalendarDays size={10} /> Operaciones
           </button>
           <button
             onClick={(e) => { e.stopPropagation(); onOpenEditor() }}
-            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-[10px] text-[#639922] border border-[#c8dca8] rounded-lg hover:bg-[#eaf3de] transition-colors"
+            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 pointer-coarse:py-2.5 text-[10px] text-[#639922] border border-[#c8dca8] rounded-lg hover:bg-[#eaf3de] transition-colors"
           >
             <Pencil size={10} /> Editar
           </button>
           <button
             onClick={(e) => { e.stopPropagation(); setConfirmDelete(true) }}
-            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-[10px] text-[#9aab8a] border border-[#e0e8d8] rounded-lg hover:text-red-500 hover:border-red-200 hover:bg-red-50 transition-colors"
+            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 pointer-coarse:py-2.5 text-[10px] text-[#9aab8a] border border-[#e0e8d8] rounded-lg hover:text-red-500 hover:border-red-200 hover:bg-red-50 transition-colors"
           >
             <Trash2 size={10} /> Eliminar
           </button>
@@ -336,7 +336,7 @@ export default function FieldSummaryCard({
           <button
             onClick={(e) => { e.stopPropagation(); setReportingFinding(true) }}
             title="Registrar hallazgo de plaga o enfermedad"
-            className="shrink-0 flex items-center justify-center px-2 py-1.5 text-[#b8860b] border border-[#e8dcc0] rounded-lg hover:bg-amber-50 hover:border-amber-200 transition-colors"
+            className="shrink-0 flex items-center justify-center px-2 py-1.5 pointer-coarse:p-2.5 text-[#b8860b] border border-[#e8dcc0] rounded-lg hover:bg-amber-50 hover:border-amber-200 transition-colors"
           >
             <Bug size={11} />
           </button>
@@ -349,13 +349,13 @@ export default function FieldSummaryCard({
           <div className="flex items-center gap-2">
             <button
               onClick={(e) => { e.stopPropagation(); onDelete() }}
-              className="flex-1 py-1.5 text-[10px] text-white bg-red-500 rounded-lg hover:bg-red-600 transition-colors"
+              className="flex-1 py-1.5 pointer-coarse:py-2.5 text-[10px] text-white bg-red-500 rounded-lg hover:bg-red-600 transition-colors"
             >
               Sí, eliminar
             </button>
             <button
               onClick={(e) => { e.stopPropagation(); setConfirmDelete(false) }}
-              className="flex-1 py-1.5 text-[10px] text-[#5a6a4a] border border-[#e0e8d8] rounded-lg hover:bg-[#f5f8f0] transition-colors"
+              className="flex-1 py-1.5 pointer-coarse:py-2.5 text-[10px] text-[#5a6a4a] border border-[#e0e8d8] rounded-lg hover:bg-[#f5f8f0] transition-colors"
             >
               Cancelar
             </button>

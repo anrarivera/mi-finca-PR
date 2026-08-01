@@ -223,14 +223,14 @@ function OperationLogRow({ op, fieldName, livestockName, onEdit, onDelete }: {
       <button
         onClick={onEdit}
         aria-label="Editar registro"
-        className="w-6 h-6 flex items-center justify-center rounded-lg text-[#c0d0b0] hover:text-[#2d4a1e] hover:bg-[#f0f5e8] transition-colors shrink-0"
+        className="w-6 h-6 pointer-coarse:w-10 pointer-coarse:h-10 flex items-center justify-center rounded-lg text-[#c0d0b0] hover:text-[#2d4a1e] hover:bg-[#f0f5e8] transition-colors shrink-0"
       >
         <Pencil size={12} />
       </button>
       <button
         onClick={onDelete}
         aria-label="Eliminar registro"
-        className="w-6 h-6 flex items-center justify-center rounded-lg text-[#c0d0b0] hover:text-red-500 hover:bg-red-50 transition-colors shrink-0"
+        className="w-6 h-6 pointer-coarse:w-10 pointer-coarse:h-10 flex items-center justify-center rounded-lg text-[#c0d0b0] hover:text-red-500 hover:bg-red-50 transition-colors shrink-0"
       >
         <Trash2 size={12} />
       </button>

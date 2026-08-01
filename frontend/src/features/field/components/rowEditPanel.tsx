@@ -111,7 +111,7 @@ export default function RowEditPanel({ rows, boundary, onApply, onCancel }: Prop
           {bulk ? `Editar ${rows.length} hileras` : 'Editar hilera'}
         </p>
         <button onClick={onCancel}
-          className="w-5 h-5 flex items-center justify-center text-[#9aab8a] hover:text-red-400 transition-colors"
+          className="w-5 h-5 pointer-coarse:w-10 pointer-coarse:h-10 flex items-center justify-center text-[#9aab8a] hover:text-red-400 transition-colors"
         >
           <X size={13} />
         </button>

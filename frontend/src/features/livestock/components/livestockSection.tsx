@@ -92,14 +92,14 @@ export default function LivestockSection() {
                 <button
                   onClick={() => setEditing(unit)}
                   aria-label={`Editar ${unit.name}`}
-                  className="w-7 h-7 flex items-center justify-center rounded-lg text-[#9aab8a] hover:text-[#2d4a1e] hover:bg-[#f0f5e8] transition-colors"
+                  className="w-7 h-7 pointer-coarse:w-10 pointer-coarse:h-10 flex items-center justify-center rounded-lg text-[#9aab8a] hover:text-[#2d4a1e] hover:bg-[#f0f5e8] transition-colors"
                 >
                   <Pencil size={13} />
                 </button>
                 <button
                   onClick={() => handleDelete(unit)}
                   aria-label={`Eliminar ${unit.name}`}
-                  className="w-7 h-7 flex items-center justify-center rounded-lg text-[#9aab8a] hover:text-red-500 hover:bg-red-50 transition-colors"
+                  className="w-7 h-7 pointer-coarse:w-10 pointer-coarse:h-10 flex items-center justify-center rounded-lg text-[#9aab8a] hover:text-red-500 hover:bg-red-50 transition-colors"
                 >
                   <Trash2 size={13} />
                 </button>
