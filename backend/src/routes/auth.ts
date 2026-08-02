@@ -3,7 +3,6 @@ import bcrypt from 'bcryptjs'
 import rateLimit from 'express-rate-limit'
 import { z } from 'zod'
 import { prisma } from '../lib/prisma'
-import env from '../lib/env'
 import {
   signAccessToken,
   signRefreshToken,
@@ -17,6 +16,12 @@ import { createActionToken, consumeActionToken } from '../lib/actionTokens'
 import { hashInviteCode } from '../lib/farmInvites'
 
 const router = Router()
+
+// Public origin used in email links (verify / reset / change-email). In
+// production this is the deployed app's URL — same origin as the API.
+function appUrl(): string {
+  return process.env.FRONTEND_URL || 'http://localhost:5173'
+}
 
 // ── Rate limiting — slow down credential stuffing / brute force ───────
 const authLimiter = rateLimit({
@@ -397,7 +402,7 @@ router.post('/verify-email/request', authLimiter, requireAuth, async (req: Reque
       text:
         `Hola ${user.fullName},\n\n` +
         `Verifica tu correo abriendo este enlace:\n` +
-        `${env.FRONTEND_URL}/verify-email?token=${token}\n\n` +
+        `${appUrl()}/verify-email?token=${token}\n\n` +
         `El enlace vence en 48 horas. Si no creaste esta cuenta, ignora este mensaje.`,
     })
     res.json({ success: true, data: { message: 'Verification email sent' } })
@@ -438,7 +443,7 @@ router.post('/forgot-password', authLimiter, async (req: Request, res: Response,
         text:
           `Hola ${user.fullName},\n\n` +
           `Restablece tu contraseña abriendo este enlace:\n` +
-          `${env.FRONTEND_URL}/reset-password?token=${token}\n\n` +
+          `${appUrl()}/reset-password?token=${token}\n\n` +
           `El enlace vence en 2 horas. Si no pediste este cambio, ignora este mensaje.`,
       })
     }
@@ -498,7 +503,7 @@ router.post('/change-email/request', authLimiter, requireAuth, async (req: Reque
       text:
         `Hola ${user.fullName},\n\n` +
         `Confirma tu nuevo correo abriendo este enlace:\n` +
-        `${env.FRONTEND_URL}/change-email?token=${token}\n\n` +
+        `${appUrl()}/change-email?token=${token}\n\n` +
         `El enlace vence en 48 horas. Si no pediste este cambio, ignora este mensaje.`,
     })
     res.json({ success: true, data: { message: 'Confirmation email sent to the new address' } })
