@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { AlertTriangle } from 'lucide-react'
 
@@ -45,13 +46,17 @@ function ConfirmDialog({ active }: { active: ActiveConfirm }) {
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [resolve])
 
-  return (
+  // Portaled to <body>: hosts include the farm drawer, whose slide
+  // transform would otherwise hijack position:fixed and clamp the dialog
+  // to the drawer panel. z sits at the modal tier so it stacks above
+  // other portaled modals that may have opened it.
+  return createPortal(
     <>
       <div
-        className="fixed inset-0 bg-black/30 z-[1090] backdrop-blur-sm"
+        className="fixed inset-0 bg-black/30 z-[2400] backdrop-blur-sm"
         onClick={() => resolve(false)}
       />
-      <div className="fixed inset-0 z-[1100] flex items-center justify-center p-4 pointer-events-none">
+      <div className="fixed inset-0 z-[2410] flex items-center justify-center p-4 pointer-events-none">
         <div
           role="alertdialog"
           aria-modal="true"
@@ -92,7 +97,8 @@ function ConfirmDialog({ active }: { active: ActiveConfirm }) {
           </div>
         </div>
       </div>
-    </>
+    </>,
+    document.body
   )
 }
 

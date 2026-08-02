@@ -1,15 +1,13 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Pencil, Trash2, Locate, ClipboardList, Plus } from 'lucide-react'
+import { Pencil, Trash2, Locate, Plus } from 'lucide-react'
 import { useFarmStore, canManageStructure } from '@/store/useFarmStore'
 import { useLivestockStore } from '@/store/useLivestockStore'
 import { useCreateLivestock } from '../hooks/useLivestockApi'
-import { getAnimalById } from '../data/animalLibrary'
-import ProductionModal from './productionModal'
 import LivestockFormModal from './livestockFormModal'
+import LivestockUnitRow from './livestockUnitRow'
 import { toast } from '@/store/useToastStore'
 import type { PlacedField } from '@/features/field/types'
-import type { LivestockUnit } from '../types'
 
 // ──────────────────────────────────────────────────────────────────────────
 // Corral card — the livestock counterpart of FieldSummaryCard in the farm
@@ -39,8 +37,6 @@ export default function CorralCard({
 }: Props) {
   const { t } = useTranslation('editor')
   const [confirmDelete, setConfirmDelete] = useState(false)
-  // Producción modal — per herd (portaled, so the drawer transform is safe)
-  const [producing, setProducing] = useState<LivestockUnit | null>(null)
   // Añadir animales — the same herd form the Cuaderno uses, locked to
   // this farm + corral
   const [addingAnimals, setAddingAnimals] = useState(false)
@@ -81,27 +77,9 @@ export default function CorralCard({
         <p className="text-[10px] text-[#9aab8a] mb-2.5">{t('corral.empty')}</p>
       ) : (
         <div className="flex flex-col gap-1 mb-2.5">
-          {herds.map(unit => {
-            const animal = getAnimalById(unit.animalType)
-            return (
-              <div key={unit.id}
-                className="flex items-center gap-2 px-2 py-1.5 bg-[#f5f8f0] rounded-lg min-w-0"
-              >
-                <span className="text-sm shrink-0" aria-hidden>{animal?.emoji ?? '🐾'}</span>
-                <span className="text-[11px] font-medium text-[#2d4a1e] truncate flex-1 min-w-0">
-                  {unit.name}
-                </span>
-                <span className="text-[10px] text-[#7a8a6a] shrink-0">{unit.currentCount}</span>
-                <button
-                  onClick={(e) => { e.stopPropagation(); setProducing(unit) }}
-                  title={t('production.title', { name: unit.name })}
-                  className="shrink-0 flex items-center gap-1 px-1.5 py-1 pointer-coarse:px-2.5 pointer-coarse:py-2 text-[9px] font-medium text-[#639922] border border-[#c8dca8] rounded-md hover:bg-[#eaf3de] transition-colors"
-                >
-                  <ClipboardList size={9} /> {t('production.action')}
-                </button>
-              </div>
-            )
-          })}
+          {herds.map(unit => (
+            <LivestockUnitRow key={unit.id} unit={unit} dense showFarm={false} showCorral={false} />
+          ))}
         </div>
       )}
 
@@ -156,9 +134,6 @@ export default function CorralCard({
       {/* Portaled, but React portals bubble events through the REACT tree —
           fence them off so modal clicks don't select the card. */}
       <div onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
-        {producing && (
-          <ProductionModal unit={producing} onClose={() => setProducing(null)} />
-        )}
         {addingAnimals && (
           <LivestockFormModal
             unit={null}
