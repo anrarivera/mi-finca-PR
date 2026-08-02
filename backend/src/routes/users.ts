@@ -21,8 +21,11 @@ const DEFAULT_NOTIFICATION_PREFS = {
   notifyDueSoon: true,
   notifyHarvest: true,
   dueSoonLeadDays: 14,
-  // Daily email summary (lib/dailyDigest.ts) — opt-out
+  // Email reminders (lib/dailyDigest.ts) — opt-out
   emailDigest: true,
+  // 'novedades' = only when a labor crosses a line (enters the window /
+  // due today / newly overdue); 'semanal' = Mondays with anything pending.
+  emailFrequency: 'novedades',
 }
 
 const notificationPrefsSchema = z.object({
@@ -32,6 +35,7 @@ const notificationPrefsSchema = z.object({
   notifyHarvest: z.boolean().optional(),
   dueSoonLeadDays: z.number().int().min(1).max(60).optional(),
   emailDigest: z.boolean().optional(),
+  emailFrequency: z.enum(['novedades', 'semanal']).optional(),
 })
 
 // ── PATCH /api/v1/users/me — profile settings (language drives the

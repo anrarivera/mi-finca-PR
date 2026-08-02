@@ -2,33 +2,59 @@ import { prisma } from './prisma'
 import { sendMail } from './mailer'
 
 // ──────────────────────────────────────────────────────────────────────────
-// Daily email digest (notifications, issue #11). One email per user per
-// day summarizing every farm they own or work: labores vencidas, próximas
-// (within their dueSoonLeadDays), and hallazgos sin resolver. Sent only
-// when there is something actionable — an empty digest is spam.
+// Email reminders (notifications, issue #11). The cron still runs every
+// morning, but WHETHER a user gets mail depends on their frequency mode:
+//
+//  - 'novedades' (default): only when something crossed a line today —
+//    a labor entered their anticipation window (daysUntil == leadDays),
+//    is due today (== 0), or just became overdue (== -1). Stateless: all
+//    three are computable fresh each morning. A labor generates at most
+//    three emails across its life instead of a daily nag.
+//  - 'semanal': Mondays (Puerto Rico time) only, whenever anything is
+//    pending — the right mode for farms busy enough that every day has
+//    "news".
+//
+// Either way the email carries the FULL picture (window + overdue +
+// findings), with identical labels grouped ("Fertilización × 12") so a
+// 100-field farm gets five lines, not a hundred. No pending work, no
+// email — ever.
 // ──────────────────────────────────────────────────────────────────────────
+
+type PendingOp = {
+  labelEs: string
+  daysUntil: number
+}
 
 type FarmSummary = {
   farmName: string
   overdue: number
   dueSoon: number
   openFindings: number
-  soonestLabels: string[]
+  /** Soonest-first, identical labels collapsed ("Fertilización × 12"). */
+  groupedLabels: string[]
+  /** Any labor crossed a notify line today (enters window / due / newly overdue). */
+  triggered: boolean
 }
 
 const DEFAULT_LEAD_DAYS = 14
 
-function todayUtc(): Date {
-  const now = new Date()
+function todayUtc(now: Date): Date {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))
+}
+
+function isMondayInPuertoRico(now: Date): boolean {
+  return new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Puerto_Rico', weekday: 'short',
+  }).format(now) === 'Mon'
 }
 
 async function summarizeFarm(
   farmId: string,
   farmName: string,
-  leadDays: number
+  leadDays: number,
+  now: Date
 ): Promise<FarmSummary> {
-  const today = todayUtc()
+  const today = todayUtc(now)
   const horizon = new Date(today)
   horizon.setUTCDate(horizon.getUTCDate() + leadDays)
 
@@ -52,13 +78,34 @@ async function summarizeFarm(
     },
   })
 
-  const overdue = ops.filter(o => o.recommendedDate < today).length
+  const pending: PendingOp[] = ops.map(o => ({
+    labelEs: o.labelEs,
+    daysUntil: Math.round((o.recommendedDate.getTime() - today.getTime()) / 86_400_000),
+  }))
+
+  const overdue = pending.filter(o => o.daysUntil < 0).length
+  // Findings never trigger (you logged them yourself); labores do — which
+  // covers treatment labores created from findings automatically.
+  const triggered = pending.some(o =>
+    o.daysUntil === leadDays || o.daysUntil === 0 || o.daysUntil === -1
+  )
+
+  // Group identical labels, preserving soonest-first order of appearance.
+  const groups = new Map<string, number>()
+  for (const op of pending) groups.set(op.labelEs, (groups.get(op.labelEs) ?? 0) + 1)
+  const MAX_GROUPS = 4
+  const groupedLabels = [...groups.entries()]
+    .slice(0, MAX_GROUPS)
+    .map(([label, count]) => (count > 1 ? `${label} × ${count}` : label))
+  if (groups.size > MAX_GROUPS) groupedLabels.push('…')
+
   return {
     farmName,
     overdue,
-    dueSoon: ops.length - overdue,
+    dueSoon: pending.length - overdue,
     openFindings,
-    soonestLabels: ops.slice(0, 3).map(o => o.labelEs),
+    groupedLabels,
+    triggered,
   }
 }
 
@@ -66,7 +113,7 @@ function pluralize(n: number, singular: string, plural: string): string {
   return `${n} ${n === 1 ? singular : plural}`
 }
 
-// The digest speaks the user's language (User.language, synced from the
+// The email speaks the user's language (User.language, synced from the
 // app's Idioma setting). Recommendation labels themselves are stored data
 // and stay as written.
 export type DigestLang = 'es' | 'en'
@@ -79,12 +126,11 @@ const DIGEST_COPY = {
     farmOverdue: (n: number) => `${n} vencida${n === 1 ? '' : 's'}`,
     farmDueSoon: (n: number) => `${n} próxima${n === 1 ? '' : 's'}`,
     farmFindings: (n: number) => `${n} hallazgo${n === 1 ? '' : 's'}`,
-    next: 'Siguiente',
     greeting: (name: string) => `Hola ${name},`,
-    intro: 'Este es tu resumen del día:',
+    intro: 'Este es el estado de tus labores:',
     outro:
       'Entra a la aplicación para marcar labores o revisar hallazgos.\n' +
-      'Puedes desactivar este resumen en Ajustes → Notificaciones.',
+      'Puedes ajustar estos recordatorios en Ajustes → Notificaciones.',
   },
   en: {
     overdue: (n: number) => pluralize(n, 'overdue task', 'overdue tasks'),
@@ -93,12 +139,11 @@ const DIGEST_COPY = {
     farmOverdue: (n: number) => `${n} overdue`,
     farmDueSoon: (n: number) => `${n} upcoming`,
     farmFindings: (n: number) => `${n} finding${n === 1 ? '' : 's'}`,
-    next: 'Next',
     greeting: (name: string) => `Hi ${name},`,
-    intro: 'Here is your daily summary:',
+    intro: 'Here is the state of your tasks:',
     outro:
       'Open the app to check off tasks or review findings.\n' +
-      'You can turn this summary off in Settings → Notifications.',
+      'You can adjust these reminders in Settings → Notifications.',
   },
 } as const
 
@@ -130,7 +175,7 @@ export function composeDigest(
       f.dueSoon > 0 ? copy.farmDueSoon(f.dueSoon) : null,
       f.openFindings > 0 ? copy.farmFindings(f.openFindings) : null,
     ].filter(Boolean).join(', ')
-    const labels = f.soonestLabels.length > 0 ? `\n   ${copy.next}: ${f.soonestLabels.join(' · ')}` : ''
+    const labels = f.groupedLabels.length > 0 ? `\n   ${f.groupedLabels.join(' · ')}` : ''
     return `• ${f.farmName}: ${parts}${labels}`
   }).join('\n')
 
@@ -143,18 +188,25 @@ export function composeDigest(
   }
 }
 
-/** Build and send the digest for one user. Returns true if a mail went out. */
-export async function sendUserDigest(user: {
-  id: string
-  email: string
-  fullName: string
-  language?: string
-  notificationPrefs: unknown
-}): Promise<boolean> {
+/** Build and send for one user. Returns true if a mail went out. */
+export async function sendUserDigest(
+  user: {
+    id: string
+    email: string
+    fullName: string
+    language?: string
+    notificationPrefs: unknown
+  },
+  now: Date = new Date()
+): Promise<boolean> {
   const prefs = (user.notificationPrefs ?? {}) as Record<string, unknown>
   if (prefs.enabled === false || prefs.emailDigest === false) return false
   const leadDays =
     typeof prefs.dueSoonLeadDays === 'number' ? prefs.dueSoonLeadDays : DEFAULT_LEAD_DAYS
+  const frequency = prefs.emailFrequency === 'semanal' ? 'semanal' : 'novedades'
+
+  // Weekly mode sends only on Mondays (island time) — no other gate.
+  if (frequency === 'semanal' && !isMondayInPuertoRico(now)) return false
 
   const farms = await prisma.farm.findMany({
     where: {
@@ -166,8 +218,12 @@ export async function sendUserDigest(user: {
   if (farms.length === 0) return false
 
   const summaries = await Promise.all(
-    farms.map(f => summarizeFarm(f.id, f.name, leadDays))
+    farms.map(f => summarizeFarm(f.id, f.name, leadDays, now))
   )
+
+  // Novedades mode: silence unless something crossed a line today.
+  if (frequency === 'novedades' && !summaries.some(s => s.triggered)) return false
+
   const lang: DigestLang = user.language === 'en' ? 'en' : 'es'
   const digest = composeDigest(user.fullName, summaries, lang)
   if (!digest) return false
@@ -177,7 +233,9 @@ export async function sendUserDigest(user: {
 }
 
 /** The daily job: every verified user who hasn't opted out. */
-export async function runDailyDigest(): Promise<{ sent: number; skipped: number }> {
+export async function runDailyDigest(
+  now: Date = new Date()
+): Promise<{ sent: number; skipped: number }> {
   const users = await prisma.user.findMany({
     where: { emailVerified: true },
     select: { id: true, email: true, fullName: true, language: true, notificationPrefs: true },
@@ -186,7 +244,7 @@ export async function runDailyDigest(): Promise<{ sent: number; skipped: number 
   let sent = 0
   for (const user of users) {
     try {
-      if (await sendUserDigest(user)) sent++
+      if (await sendUserDigest(user, now)) sent++
     } catch (err) {
       // One bad mailbox never stops the rest of the run.
       console.error(`[digest] failed for ${user.email}:`, err)
