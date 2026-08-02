@@ -148,4 +148,30 @@ describe('RuleBasedRecommendationService', () => {
       expect(order[recs[i].severity]).toBeGreaterThanOrEqual(order[recs[i - 1].severity])
     }
   })
+
+  describe('corrales (livestock fields)', () => {
+    const corral = () => makeField({ id: 'corral1', name: 'Corral 1', kind: 'livestock' })
+    const herd: LivestockUnit = {
+      id: 'u1', farmId: 'farm1', fieldId: 'corral1', name: 'Gallinas',
+      animalType: 'chickens', currentCount: 10, acquisitionDate: '2026-05-01',
+    }
+
+    it('does not flag a corral with herds as an empty field', () => {
+      const recs = service.getRecommendations({
+        farms: [makeFarm()], fields: [corral()], livestock: [herd], today: JULY,
+      })
+      expect(recs.find(r => r.id === 'emptyfield_corral1')).toBeUndefined()
+      expect(recs.find(r => r.id === 'emptycorral_corral1')).toBeUndefined()
+    })
+
+    it('tips an empty corral instead of the crop-field message', () => {
+      const recs = service.getRecommendations({
+        farms: [makeFarm()], fields: [corral()], livestock: [], today: JULY,
+      })
+      expect(recs.find(r => r.id === 'emptyfield_corral1')).toBeUndefined()
+      const tip = recs.find(r => r.id === 'emptycorral_corral1')
+      expect(tip?.titleEs).toContain('Corral 1')
+      expect(tip?.category).toBe('animales')
+    })
+  })
 })
