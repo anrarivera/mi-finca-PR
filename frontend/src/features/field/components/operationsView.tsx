@@ -10,6 +10,7 @@ import type {
 } from '../types'
 import type { FarmOperation } from '../hooks/useOperationsApi'
 import { getCropById } from '../data/cropLibrary'
+import PriceInput from './priceInput'
 import { useHarvestHighlightStore } from '@/store/useHarvestHighlightStore'
 import { useIsPhone } from '@/hooks/useViewport'
 import { dateLocale, localName, localOpLabel } from '@/i18n'
@@ -30,6 +31,8 @@ export type CheckOffFormData = {
   product?: string
   quantity?: number
   unit?: string
+  /** Total sale revenue in dollars (harvest check-offs, optional). */
+  revenue?: number
   /** Fully covered rows (harvest selection). */
   rowIds?: string[]
   /** Individual plants outside those rows (partial rows, loose plants). */
@@ -627,6 +630,9 @@ export function CheckOffModal({
     isEdit && operation.quantity != null ? String(operation.quantity) : ''
   )
   const [unit, setUnit] = useState(isEdit ? (operation.unit ?? 'kg') : 'kg')
+  // Sale revenue (harvests only) — always stored as the TOTAL; the
+  // PriceInput handles the total vs price-per-unit entry modes.
+  const [revenue, setRevenue] = useState<number | null>(null)
   // Canonical harvest selection: a set of plant ids. Rows are derived views
   // over it — a fully selected row compresses back to a rowId on confirm.
   const [selectedPlants, setSelectedPlants] = useState<Set<string>>(
@@ -639,6 +645,9 @@ export function CheckOffModal({
     dateLabel: t(`modal.${mode}.dateLabel`),
   }
   const needsProduct = ['fertilization', 'spray'].includes(operation.type)
+  // Revenue applies to harvests when logging (complete/partial). Editing a
+  // logged sale price happens in the Producción ledger instead.
+  const showPrice = operation.type === 'harvest' && !isEdit
   const needsQuantity = mode === 'partial'
     || ['fertilization', 'spray', 'harvest'].includes(operation.type)
   // The scope selector (rows / plants / whole field) applies to EVERY
@@ -765,6 +774,16 @@ export function CheckOffModal({
               </div>
             )}
 
+            {/* Sale price — harvests only, right below what was picked */}
+            {showPrice && (
+              <PriceInput
+                quantity={quantity && Number.isFinite(Number(quantity)) ? Number(quantity) : null}
+                value={revenue}
+                onChange={setRevenue}
+                unitLabel={quantity ? unit : undefined}
+              />
+            )}
+
             {/* Scope selector — rows, partial rows, or individual plants */}
             {showScopeSelector && (
               <HarvestSelector
@@ -808,6 +827,7 @@ export function CheckOffModal({
                 product: product || undefined,
                 quantity: quantity ? Number(quantity) : undefined,
                 unit: quantity ? unit : undefined,
+                revenue: showPrice && revenue != null ? revenue : undefined,
                 // Compress the plant set: full rows → rowIds, rest → plantIds
                 ...(showScopeSelector
                   ? plantSetToSelection(targets, selectedPlants)

@@ -121,6 +121,8 @@ export type ProductionData = {
   quantity: number
   unit: string
   date: string
+  /** Total sale revenue in dollars (optional). */
+  revenue?: number
   notes?: string
   headCount?: number
   countReason?: CountReason

@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { ClipboardList, X } from 'lucide-react'
 import { getAnimalById } from '../data/animalLibrary'
 import { useLogProduction } from '../hooks/useLivestockApi'
+import PriceInput from '@/features/field/components/priceInput'
 import { toast } from '@/store/useToastStore'
 import { todayISO } from '@/features/field/types'
 import type { CountReason, LivestockUnit } from '../types'
@@ -32,6 +33,8 @@ export default function ProductionModal({
   const [quantity, setQuantity] = useState('')
   const [qtyUnit, setQtyUnit] = useState(products[0]?.unit ?? '')
   const [date, setDate] = useState(todayISO())
+  // Total sale revenue in dollars — the PriceInput handles total vs $/unit.
+  const [revenue, setRevenue] = useState<number | null>(null)
   const [notes, setNotes] = useState('')
   const [headCount, setHeadCount] = useState(1)
   const [reason, setReason] = useState<CountReason>('slaughtered')
@@ -68,6 +71,7 @@ export default function ProductionModal({
           quantity: qty,
           unit: qtyUnit.trim(),
           date,
+          revenue: revenue ?? undefined,
           notes: notes.trim() || undefined,
           ...(isMeat ? { headCount, countReason: reason } : {}),
         },
@@ -146,6 +150,14 @@ export default function ProductionModal({
                 />
               </div>
             </div>
+
+            {/* Sale price — optional; total stays in sync with quantity */}
+            <PriceInput
+              quantity={Number.isFinite(qty) && qty > 0 ? qty : null}
+              value={revenue}
+              onChange={setRevenue}
+              unitLabel={qtyUnit.trim() || undefined}
+            />
 
             {/* Date */}
             <div className="flex flex-col gap-1.5">

@@ -39,6 +39,8 @@ export type CheckOffData = {
   product?: string
   quantity?: number
   unit?: string
+  /** Total sale revenue in dollars (harvest check-offs, optional). */
+  revenue?: number
   /** Fully covered rows (harvest selection). */
   rowIds?: string[]
   /** Individual plants outside those rows (harvest selection). */
@@ -269,6 +271,8 @@ export function useLogPartialRecommendedOp(farmId: string) {
         product?: string
         quantity?: number
         unit?: string
+        /** Total sale revenue in dollars (harvest partials, optional). */
+        revenue?: number
         notes?: string
         rowIds?: string[]
         plantIds?: string[]

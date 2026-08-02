@@ -102,6 +102,7 @@ export default function FieldOperationsContainer({ farmId, fieldId, onClose }: P
               product: data.product,
               quantity: data.quantity,
               unit: data.unit,
+              revenue: data.revenue,
               notes: data.notes,
               rowIds: data.rowIds,
               plantIds: data.plantIds,

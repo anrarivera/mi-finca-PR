@@ -89,6 +89,23 @@
     "notesPlaceholder": "Observations, field conditions...",
     "notesPlaceholderShort": "Observations..."
   },
+  "price": {
+    "label": "Sale price",
+    "optional": "(optional)",
+    "modeTotal": "Total",
+    "modePerUnit": "$/unit",
+    "needsQuantity": "Enter the quantity to use $/unit",
+    "computedTotal": "= ${{amount}} total",
+    "computedPerUnit": "= ${{amount}}/{{unit}}",
+    "unitFallback": "unit"
+  },
+  "harvestLog": {
+    "title": "Recorded production",
+    "count": "{{count}} total",
+    "income": "Income",
+    "editRevenue": "Record or correct the sale price",
+    "empty": "No production recorded yet. Complete a harvest task or log animal production and it will appear here."
+  },
   "selector": {
     "harvestTitle": "What did you harvest?",
     "scopeTitle": "What did this task cover?",

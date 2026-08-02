@@ -89,6 +89,23 @@
     "notesPlaceholder": "Observaciones, condiciones del campo...",
     "notesPlaceholderShort": "Observaciones..."
   },
+  "price": {
+    "label": "Precio de venta",
+    "optional": "(opcional)",
+    "modeTotal": "Total",
+    "modePerUnit": "$/unidad",
+    "needsQuantity": "Escribe la cantidad para usar $/unidad",
+    "computedTotal": "= ${{amount}} total",
+    "computedPerUnit": "= ${{amount}}/{{unit}}",
+    "unitFallback": "unidad"
+  },
+  "harvestLog": {
+    "title": "Producción registrada",
+    "count": "{{count}} en total",
+    "income": "Ingresos",
+    "editRevenue": "Registrar o corregir el precio de venta",
+    "empty": "Sin producción registrada todavía. Completa una labor de cosecha o registra producción animal y aparecerá aquí."
+  },
   "selector": {
     "harvestTitle": "¿Qué cosechaste?",
     "scopeTitle": "¿Qué alcanzó esta labor?",
