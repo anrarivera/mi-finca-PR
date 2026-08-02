@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pencil, Trash2, Locate, Plus } from 'lucide-react'
+import { useIsCoarsePointer } from '@/hooks/useViewport'
 import { useFarmStore, canManageStructure } from '@/store/useFarmStore'
 import { useLivestockStore } from '@/store/useLivestockStore'
 import { useCreateLivestock } from '../hooks/useLivestockApi'
@@ -22,9 +23,13 @@ export const CORRAL_COLOR = '#8B7355'
 
 type Props = {
   field: PlacedField
+  /** Highlight + scroll into view (map selection — same as field cards). */
+  focused?: boolean
+  /** Re-triggers the scroll when the same corral is focused again. */
+  focusNonce?: number
   /** Single click on the card — select the field on the map. */
   onSelect: () => void
-  /** Locate button — zoom the map to the corral. */
+  /** Locate button AND card double-click — zoom the map to the corral. */
   onZoomToField: () => void
   /** Editar — open the field editor for this corral. */
   onOpenEditor: () => void
@@ -33,10 +38,50 @@ type Props = {
 }
 
 export default function CorralCard({
-  field, onSelect, onZoomToField, onOpenEditor, onDelete,
+  field, focused = false, focusNonce = 0,
+  onSelect, onZoomToField, onOpenEditor, onDelete,
 }: Props) {
   const { t } = useTranslation('editor')
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const cardRef = useRef<HTMLDivElement | null>(null)
+  const isCoarsePointer = useIsCoarsePointer()
+
+  // Mirror FieldSummaryCard's click semantics: single click selects,
+  // double click zooms. The select is deferred so the two clicks of a
+  // dblclick don't toggle it first; touch taps skip the wait (the Locate
+  // button is the zoom path there).
+  const clickTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => () => {
+    if (clickTimer.current) clearTimeout(clickTimer.current)
+  }, [])
+
+  function handleCardClick() {
+    if (isCoarsePointer) {
+      onSelect()
+      return
+    }
+    if (clickTimer.current) clearTimeout(clickTimer.current)
+    clickTimer.current = setTimeout(() => {
+      clickTimer.current = null
+      onSelect()
+    }, 250)
+  }
+
+  function handleCardDoubleClick() {
+    if (clickTimer.current) {
+      clearTimeout(clickTimer.current)
+      clickTimer.current = null
+    }
+    onZoomToField()
+  }
+
+  // Scroll into view when focused from the map (nonce re-triggers)
+  useEffect(() => {
+    if (focused) {
+      cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focused, focusNonce])
   // Añadir animales — the same herd form the Cuaderno uses, locked to
   // this farm + corral
   const [addingAnimals, setAddingAnimals] = useState(false)
@@ -50,8 +95,12 @@ export default function CorralCard({
 
   return (
     <div
-      onClick={onSelect}
-      className="px-4 py-3 hover:bg-[#fafcf8] transition-colors cursor-pointer"
+      ref={cardRef}
+      onClick={handleCardClick}
+      onDoubleClick={handleCardDoubleClick}
+      className={`px-4 py-3 hover:bg-[#fafcf8] transition-colors cursor-pointer ${
+        focused ? 'bg-[#f5f8f0] border-l-2 border-l-[#639922]' : ''
+      }`}
     >
       {/* Header — dot + name + Corral badge + locate */}
       <div className="flex items-center gap-2 mb-2 min-w-0">

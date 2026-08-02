@@ -493,6 +493,8 @@ function FieldList({
                 <CorralCard
                   key={field.id}
                   field={field}
+                  focused={field.id === focusFieldId}
+                  focusNonce={focusNonce}
                   onSelect={() => onSelectField(field.id)}
                   onZoomToField={() => onZoomToField(field.id)}
                   onOpenEditor={() => onEditField(field.id)}
