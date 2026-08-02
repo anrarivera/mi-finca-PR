@@ -1,8 +1,10 @@
 import { Router, Request, Response, NextFunction } from 'express'
 import { z } from 'zod'
+import bcrypt from 'bcryptjs'
 import { prisma } from '../lib/prisma'
 import { parseBody } from '../lib/validate'
 import { requireAuth } from '../middleware/auth'
+import { Errors } from '../lib/errors'
 
 // ──────────────────────────────────────────────────────────────────────────
 // Per-user preferences (issues #9/#14). Notification preferences mirror the
@@ -44,6 +46,39 @@ router.patch('/me', async (req: Request, res: Response, next: NextFunction) => {
     })
     res.json({ success: true, data: { language } })
   } catch (err) { next(err) }
+})
+
+// ── DELETE /api/v1/users/me — the erasure right (privacy policy) ───────
+// Password-confirmed. Deleting the user cascades: owned farms and ALL
+// their data (fields, plantings, operations, yields, findings, herds,
+// memberships, invites), plus the user's own memberships on other farms.
+// Records the user created on OTHER people's farms remain, but their
+// performedByUserId is nulled (relation is SetNull) — the farm keeps its
+// history, the person's identity leaves.
+router.delete('/me', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { password } = req.body ?? {}
+    if (!password || typeof password !== 'string') {
+      throw Errors.validation('password is required to delete the account')
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: req.user!.userId } })
+    if (!user?.passwordHash) throw Errors.unauthorized()
+
+    const ok = await bcrypt.compare(password, user.passwordHash)
+    if (!ok) throw Errors.validation('Invalid password')
+
+    await prisma.$transaction([
+      // refresh_tokens has no FK relation — clean it up explicitly
+      prisma.refreshToken.deleteMany({ where: { userId: user.id } }),
+      prisma.user.delete({ where: { id: user.id } }),
+    ])
+
+    res.clearCookie('refreshToken', { path: '/api/v1/auth' })
+    res.json({ success: true, data: { deleted: true } })
+  } catch (err) {
+    next(err)
+  }
 })
 
 // ── GET /api/v1/users/me/notification-prefs ────────────────────────────

@@ -1,9 +1,12 @@
 import { api } from '@/lib/api'
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import { z } from 'zod'
 import { Download, Upload, Trash2, Database, Info, Bell, Globe } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { useNavigate } from 'react-router-dom'
+import { createPortal } from 'react-dom'
 import { useFarmStore } from '@/store/useFarmStore'
+import { useAuthStore } from '@/store/useAuthStore'
 import { useFieldStore } from '@/store/useFieldStore'
 import { useLivestockStore } from '@/store/useLivestockStore'
 import { useSettingsStore } from '@/store/useSettingsStore'
@@ -326,6 +329,8 @@ export default function SettingsPage() {
 
       <NotificationSettings />
 
+      <AccountSettings />
+
       {/* ── About section ────────────────────────────────────────── */}
       <section className="bg-white rounded-2xl border border-[#e0e8d8] overflow-hidden">
         <div className="flex items-center gap-2 px-5 py-4 border-b border-[#e0e8d8]">
@@ -374,6 +379,95 @@ function LanguageSettings() {
           </select>
         }
       />
+    </section>
+  )
+}
+
+// ── Cuenta — the erasure right (privacy policy). Password-confirmed. ──
+function AccountSettings() {
+  const { t } = useTranslation('pages')
+  const navigate = useNavigate()
+  const clearAuth = useAuthStore(s => s.clearAuth)
+  const [confirming, setConfirming] = useState(false)
+  const [password, setPassword] = useState('')
+  const [deleting, setDeleting] = useState(false)
+
+  async function handleDelete() {
+    if (!password || deleting) return
+    setDeleting(true)
+    try {
+      await api.delete('/api/v1/users/me', { password })
+      clearAuth()
+      toast.success(t('account.deleted'))
+      navigate('/login')
+    } catch {
+      // handleResponse already toasted the server error (e.g. bad password)
+      setDeleting(false)
+    }
+  }
+
+  return (
+    <section className="bg-white rounded-2xl border border-red-100 overflow-hidden">
+      <div className="flex items-center gap-2 px-5 py-4 border-b border-[#e0e8d8]">
+        <Trash2 size={16} className="text-red-400" />
+        <h2 className="text-sm font-semibold text-[#2d4a1e]">{t('account.sectionTitle')}</h2>
+      </div>
+      <SettingsRow
+        title={t('account.deleteTitle')}
+        description={t('account.deleteDescription')}
+        action={
+          <button
+            onClick={() => { setPassword(''); setConfirming(true) }}
+            className="px-3 py-2 text-xs text-red-500 border border-red-200 rounded-lg hover:bg-red-50 transition-colors"
+          >
+            {t('account.deleteButton')}
+          </button>
+        }
+      />
+
+      {confirming && createPortal(
+        <>
+          <div className="fixed inset-0 bg-black/40 z-[2400] backdrop-blur-sm"
+            onClick={() => !deleting && setConfirming(false)} />
+          <div className="fixed inset-0 z-[2410] flex items-end sm:items-center justify-center sm:p-4 pointer-events-none">
+            <div className="bg-white shadow-xl w-full overflow-hidden pointer-events-auto rounded-t-2xl sm:max-w-sm sm:rounded-2xl">
+              <div className="px-6 py-4 border-b border-[#e0e8d8]">
+                <h2 className="text-base font-semibold text-red-600">{t('account.confirmTitle')}</h2>
+              </div>
+              <div className="px-6 py-4 flex flex-col gap-3">
+                <p className="text-xs text-[#5a6a4a] leading-relaxed">{t('account.confirmWarning')}</p>
+                <label className="flex flex-col gap-1.5">
+                  <span className="text-xs font-medium text-[#5a6a4a]">{t('account.passwordLabel')}</span>
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    autoFocus
+                    className="w-full px-3 py-2.5 rounded-lg border border-[#d0dcc0] text-sm text-[#2d4a1e] focus:outline-none focus:border-red-400 transition-colors"
+                  />
+                </label>
+              </div>
+              <div className="px-6 py-4 border-t border-[#e0e8d8] flex justify-end gap-2">
+                <button
+                  onClick={() => setConfirming(false)}
+                  disabled={deleting}
+                  className="px-4 py-2 text-sm text-[#5a6a4a] hover:bg-[#f0f5e8] rounded-lg transition-colors"
+                >
+                  {t('confirmDialog.cancel')}
+                </button>
+                <button
+                  onClick={handleDelete}
+                  disabled={!password || deleting}
+                  className="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  {deleting ? t('account.deleting') : t('account.confirmButton')}
+                </button>
+              </div>
+            </div>
+          </div>
+        </>,
+        document.body
+      )}
     </section>
   )
 }

@@ -240,5 +240,17 @@
   "confirmDialog": {
     "confirm": "Confirmar",
     "cancel": "Cancelar"
+  },
+  "account": {
+    "sectionTitle": "Cuenta",
+    "deleteTitle": "Eliminar cuenta",
+    "deleteDescription": "Elimina permanentemente tu cuenta, tus fincas y todos sus datos. Los miembros de tus fincas perderán acceso; los registros que hiciste en fincas ajenas quedan sin tu nombre.",
+    "deleteButton": "Eliminar…",
+    "confirmTitle": "¿Eliminar tu cuenta permanentemente?",
+    "confirmWarning": "Esta acción no se puede deshacer. Se eliminarán tus fincas, campos, corrales, animales, labores, hallazgos y producción. Considera exportar tus datos (CSV) antes.",
+    "passwordLabel": "Confirma tu contraseña",
+    "confirmButton": "Eliminar permanentemente",
+    "deleting": "Eliminando…",
+    "deleted": "Cuenta eliminada. Hasta pronto."
   }
 }

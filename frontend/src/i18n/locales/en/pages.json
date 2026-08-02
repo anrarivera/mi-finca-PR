@@ -240,5 +240,17 @@
   "confirmDialog": {
     "confirm": "Confirm",
     "cancel": "Cancel"
+  },
+  "account": {
+    "sectionTitle": "Account",
+    "deleteTitle": "Delete account",
+    "deleteDescription": "Permanently deletes your account, your farms, and all their data. Members of your farms lose access; records you made on other farms remain without your name.",
+    "deleteButton": "Delete…",
+    "confirmTitle": "Permanently delete your account?",
+    "confirmWarning": "This cannot be undone. Your farms, fields, corrals, animals, tasks, findings, and production will be deleted. Consider exporting your data (CSV) first.",
+    "passwordLabel": "Confirm your password",
+    "confirmButton": "Delete permanently",
+    "deleting": "Deleting…",
+    "deleted": "Account deleted. Take care."
   }
 }
