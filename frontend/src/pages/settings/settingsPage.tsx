@@ -534,6 +534,21 @@ function NotificationSettings() {
           }
         />
         <SettingsRow
+          title={t('settings.notifications.emailFrequency.title')}
+          description={t('settings.notifications.emailFrequency.description')}
+          action={
+            <select
+              value={prefs.emailFrequency}
+              disabled={!prefs.enabled || !prefs.emailDigest}
+              onChange={e => update({ emailFrequency: e.target.value as 'novedades' | 'semanal' })}
+              className="text-xs text-[#5a6a4a] bg-white border border-[#d0dcc0] rounded-lg px-2 py-2 focus:outline-none focus:border-[#639922] disabled:opacity-50"
+            >
+              <option value="novedades">{t('settings.notifications.emailFrequency.novedades')}</option>
+              <option value="semanal">{t('settings.notifications.emailFrequency.semanal')}</option>
+            </select>
+          }
+        />
+        <SettingsRow
           title={t('settings.notifications.overdue.title')}
           description={t('settings.notifications.overdue.description')}
           action={

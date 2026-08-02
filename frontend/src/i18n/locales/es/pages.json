@@ -192,8 +192,8 @@
         "description": "Muestra alertas de operaciones en la campana de la barra superior."
       },
       "emailDigest": {
-        "title": "Resumen diario por correo",
-        "description": "Un correo cada mañana con labores vencidas, próximas y hallazgos activos de tus fincas. Solo se envía cuando hay algo pendiente."
+        "title": "Recordatorios por correo",
+        "description": "Te avisamos cuando una labor entra en tus días de anticipación, vence hoy, o pasa a vencida. Sin novedades, sin correo."
       },
       "overdue": {
         "title": "Operaciones vencidas",
@@ -209,9 +209,15 @@
       },
       "leadDays": {
         "title": "Días de anticipación",
-        "description": "Cuántos días antes de la fecha recomendada empieza el aviso (1–60)."
+        "description": "Cuántos días antes de la fecha recomendada empieza el aviso (1–60). También define cuándo llega el recordatorio por correo."
       },
-      "footer": "Los avisos por correo electrónico y mensajes de texto llegarán en una versión futura."
+      "footer": "Los avisos por correo electrónico y mensajes de texto llegarán en una versión futura.",
+      "emailFrequency": {
+        "title": "Frecuencia de los correos",
+        "description": "Novedades: solo cuando algo cruza una línea (máximo uno al día). Semanal: un resumen los lunes con todo lo pendiente.",
+        "novedades": "Novedades",
+        "semanal": "Semanal (lunes)"
+      }
     }
   },
   "topNav": {

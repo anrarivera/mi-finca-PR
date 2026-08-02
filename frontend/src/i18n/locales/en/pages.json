@@ -192,8 +192,8 @@
         "description": "Show operation alerts in the bell on the top bar."
       },
       "emailDigest": {
-        "title": "Daily email digest",
-        "description": "An email every morning with overdue and upcoming tasks and active findings from your farms. Only sent when something is pending."
+        "title": "Email reminders",
+        "description": "We email you when a task enters your anticipation window, is due today, or becomes overdue. No news, no email."
       },
       "overdue": {
         "title": "Overdue operations",
@@ -209,9 +209,15 @@
       },
       "leadDays": {
         "title": "Lead-time days",
-        "description": "How many days before the recommended date the alert starts (1–60)."
+        "description": "How many days before the recommended date the alert starts (1–60). Also sets when the email reminder arrives."
       },
-      "footer": "Email and text message alerts will arrive in a future version."
+      "footer": "Email and text message alerts will arrive in a future version.",
+      "emailFrequency": {
+        "title": "Email frequency",
+        "description": "Novedades: only when something crosses a line (at most one per day). Weekly: a Monday summary of everything pending.",
+        "novedades": "On changes",
+        "semanal": "Weekly (Mondays)"
+      }
     }
   },
   "topNav": {
