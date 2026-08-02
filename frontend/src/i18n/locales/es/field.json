@@ -104,7 +104,8 @@
     "count": "{{count}} en total",
     "income": "Ingresos",
     "editRevenue": "Registrar o corregir el precio de venta",
-    "empty": "Sin producción registrada todavía. Completa una labor de cosecha o registra producción animal y aparecerá aquí."
+    "empty": "Sin producción registrada todavía. Completa una labor de cosecha o registra producción animal y aparecerá aquí.",
+    "exportError": "No se pudo exportar la producción"
   },
   "selector": {
     "harvestTitle": "¿Qué cosechaste?",

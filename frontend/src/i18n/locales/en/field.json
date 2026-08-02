@@ -104,7 +104,8 @@
     "count": "{{count}} total",
     "income": "Income",
     "editRevenue": "Record or correct the sale price",
-    "empty": "No production recorded yet. Complete a harvest task or log animal production and it will appear here."
+    "empty": "No production recorded yet. Complete a harvest task or log animal production and it will appear here.",
+    "exportError": "Could not export production"
   },
   "selector": {
     "harvestTitle": "What did you harvest?",

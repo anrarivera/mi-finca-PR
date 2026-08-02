@@ -221,4 +221,23 @@ describe('production revenue', () => {
       .set('Authorization', `Bearer ${token}`)
     expect(ledger.body.data[0].revenue).toBeNull()
   })
+
+  it('exports the ledger as CSV with the revenue column', async () => {
+    const { token } = await createTestUser()
+    const farm = await createTestFarm(token)
+    const herd = await createHerd(token, farm.id)
+    await request
+      .post(`/api/v1/farms/${farm.id}/livestock/${herd.body.data.id}/production`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ productId: 'eggs', quantity: 30, unit: 'unidades', date: '2026-08-02', revenue: 12.5 })
+
+    const res = await request
+      .get(`/api/v1/farms/${farm.id}/harvests/export?format=csv`)
+      .set('Authorization', `Bearer ${token}`)
+    expect(res.status).toBe(200)
+    expect(res.headers['content-type']).toContain('text/csv')
+    expect(res.text.split('\n')[0]).toContain('revenue')
+    expect(res.text).toContain('eggs')
+    expect(res.text).toContain('12.5')
+  })
 })

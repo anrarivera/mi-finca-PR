@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { Check, Pencil } from 'lucide-react'
+import { Check, Pencil, Download, Loader2 } from 'lucide-react'
 import { api } from '@/lib/api'
+import { toast } from '@/store/useToastStore'
 import { useFieldStore } from '@/store/useFieldStore'
 import { useFarmStore } from '@/store/useFarmStore'
 import { useLivestockStore } from '@/store/useLivestockStore'
@@ -74,6 +75,23 @@ export default function HarvestLogSection({ limit = 6 }: Props) {
   const livestockUnits = useLivestockStore(s => s.units)
   const entries = useHarvestLedger()
 
+  // CSV export — the active farm's ledger, same pattern as the other
+  // exports (api.download carries auth + the silent token refresh).
+  const activeFarm = useFarmStore(s => s.activeFarm)
+  const exportCsv = useMutation({
+    mutationFn: async () => {
+      if (!activeFarm) return
+      const { blob, filename } =
+        await api.download(`/api/v1/farms/${activeFarm.id}/harvests/export?format=csv`)
+      const a = document.createElement('a')
+      a.href = URL.createObjectURL(blob)
+      a.download = filename ?? 'produccion.csv'
+      a.click()
+      URL.revokeObjectURL(a.href)
+    },
+    onError: () => toast.error(t('harvestLog.exportError')),
+  })
+
   // Inline revenue editing: one row at a time, draft = total dollars.
   const [editing, setEditing] = useState<{ id: string; draft: number | null } | null>(null)
   const queryClient = useQueryClient()
@@ -132,6 +150,18 @@ export default function HarvestLogSection({ limit = 6 }: Props) {
         <span className="text-xs text-[#9aab8a]">
           {t('harvestLog.count', { count: entries.length })}
         </span>
+        <div className="flex-1" />
+        <button
+          onClick={() => exportCsv.mutate()}
+          disabled={entries.length === 0 || !activeFarm || exportCsv.isPending}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-[#2d4a1e] border border-[#d0dcc0] rounded-lg hover:bg-[#f0f5e8] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          title={entries.length === 0 ? t('log.nothingToExport') : t('log.downloadCsv')}
+        >
+          {exportCsv.isPending
+            ? <Loader2 size={12} className="animate-spin" />
+            : <Download size={12} />}
+          {t('log.exportCsv')}
+        </button>
       </div>
 
       {/* Ingresos — sum of every recorded sale, broken down by product */}

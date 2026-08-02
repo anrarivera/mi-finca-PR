@@ -45,6 +45,65 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
 })
 
 // ─────────────────────────────────────────────────────────────────────
+// GET /api/v1/farms/:farmId/harvests/export?format=csv
+// The unified production ledger (crops + animal products + revenue) as
+// CSV — what goes to the accountant. Registered before /:id so "export"
+// is not captured as an id param.
+// ─────────────────────────────────────────────────────────────────────
+router.get('/export', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const farmId = req.params.farmId as string
+    const userId = req.user!.userId
+
+    const { farm } = await requireFarmOwnership(userId, farmId)
+
+    const format = String(req.query.format ?? 'csv').toLowerCase()
+    if (format !== 'csv') {
+      throw Errors.validation('Only CSV export is supported (format=csv)')
+    }
+
+    const entries = await prisma.harvestYield.findMany({
+      where: { farmId, deletedAt: { equals: null } },
+      include: {
+        field: { select: { name: true } },
+        livestockUnit: { select: { name: true } },
+      },
+      orderBy: { harvestDate: 'desc' },
+    })
+
+    // Minimal CSV escaping: wrap in quotes, double any embedded quotes.
+    const esc = (v: unknown) => {
+      if (v === null || v === undefined) return ''
+      const s = String(v)
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
+    }
+    const toDateStr = (d: Date) => d.toISOString().split('T')[0]
+
+    const header = 'date,kind,crop_or_product,field,livestock_unit,quantity,unit,revenue,notes'
+    const rows = entries.map(e =>
+      [
+        toDateStr(e.harvestDate),
+        e.productId ? 'animal' : 'crop',
+        e.productId ?? e.cropTypeId ?? '',
+        e.field?.name ?? '',
+        e.livestockUnit?.name ?? '',
+        Number(e.quantity),
+        e.unit,
+        e.revenue !== null ? Number(e.revenue) : '',
+        e.notes ?? '',
+      ].map(esc).join(',')
+    )
+
+    const filename = `produccion-${farm.name.replace(/[^\w\-]+/g, '_')}.csv`
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8')
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`)
+    res.send([header, ...rows].join('\n'))
+  } catch (err) {
+    next(err)
+  }
+})
+
+// ─────────────────────────────────────────────────────────────────────
 // POST /api/v1/farms/:farmId/harvests
 // ─────────────────────────────────────────────────────────────────────
 router.post('/', async (req: Request, res: Response, next: NextFunction) => {
