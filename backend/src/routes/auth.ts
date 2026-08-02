@@ -14,6 +14,7 @@ import { parseBody } from '../lib/validate'
 import { requireAuth } from '../middleware/auth'
 import { sendMail } from '../lib/mailer'
 import { createActionToken, consumeActionToken } from '../lib/actionTokens'
+import { hashInviteCode } from '../lib/farmInvites'
 
 const router = Router()
 
@@ -77,12 +78,73 @@ async function saveRefreshToken(userId: string, token: string) {
   })
 }
 
+// ── The signup gate ───────────────────────────────────────────────────
+// While SIGNUP_MODE=invite, registration requires an access code: either
+// a beta signup code (scripts/createSignupCode) or a valid farm invite
+// code — an invited worker's join code doubles as app access. Flip the
+// env var to open the doors; no code changes needed.
+function signupGated(): boolean {
+  return process.env.SIGNUP_MODE === 'invite'
+}
+
+type AccessKind = 'signup' | 'farmInvite'
+
+// Validates without consuming; returns the kind (and the signup-code id
+// so its use can be counted after the account actually exists).
+async function checkAccessCode(raw: string): Promise<
+  { kind: AccessKind; signupCodeId?: string } | null
+> {
+  const codeHash = hashInviteCode(raw)
+  const now = new Date()
+
+  const signup = await prisma.signupCode.findUnique({ where: { codeHash } })
+  if (signup && signup.revokedAt === null && signup.expiresAt > now &&
+      (signup.maxUses === null || signup.usedCount < signup.maxUses)) {
+    return { kind: 'signup', signupCodeId: signup.id }
+  }
+
+  const farmInvite = await prisma.farmInvite.findUnique({
+    where: { codeHash },
+    include: { farm: { select: { deletedAt: true } } },
+  })
+  if (farmInvite && farmInvite.revokedAt === null && farmInvite.expiresAt > now &&
+      farmInvite.farm.deletedAt === null) {
+    return { kind: 'farmInvite' }
+  }
+
+  return null
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// GET /api/v1/auth/config — public; tells the register page whether the
+// signup gate is up so it can require the access-code field.
+// ─────────────────────────────────────────────────────────────────────
+router.get('/config', (_req: Request, res: Response) => {
+  res.json({
+    success: true,
+    data: { signupMode: signupGated() ? 'invite' : 'open' },
+  })
+})
+
 // ─────────────────────────────────────────────────────────────────────
 // POST /api/v1/auth/register
 // ─────────────────────────────────────────────────────────────────────
 router.post('/register', authLimiter, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { email, password, fullName } = parseBody(registerSchema, req.body)
+
+    // The signup gate — a valid access code admits, nothing else does.
+    let access: { kind: AccessKind; signupCodeId?: string } | null = null
+    if (signupGated()) {
+      const accessCode = typeof req.body?.accessCode === 'string' ? req.body.accessCode.trim() : ''
+      if (!accessCode) {
+        throw Errors.validation('Se necesita un código de acceso para crear una cuenta')
+      }
+      access = await checkAccessCode(accessCode)
+      if (!access) {
+        throw Errors.validation('Código de acceso inválido o vencido')
+      }
+    }
 
     // Check if email already exists
     const existing = await prisma.user.findUnique({
@@ -115,6 +177,15 @@ router.post('/register', authLimiter, async (req: Request, res: Response, next: 
     // Save refresh token to DB
     await saveRefreshToken(user.id, refreshToken)
 
+    // Count the signup-code use now that the account actually exists.
+    // Farm invite codes are multi-use and consumed by /farms/join instead.
+    if (access?.signupCodeId) {
+      await prisma.signupCode.update({
+        where: { id: access.signupCodeId },
+        data: { usedCount: { increment: 1 } },
+      })
+    }
+
     // Set refresh token as HttpOnly cookie
     setRefreshCookie(res, refreshToken)
 
@@ -122,6 +193,9 @@ router.post('/register', authLimiter, async (req: Request, res: Response, next: 
       success: true,
       data: {
         accessToken,
+        // Lets the register page reuse a farm-invite access code for the
+        // actual farm join right after signup.
+        accessKind: access?.kind ?? null,
         user: {
           id: user.id,
           email: user.email,

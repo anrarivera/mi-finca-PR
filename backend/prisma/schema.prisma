@@ -70,6 +70,23 @@ model Farm {
   @@map("farms")
 }
 
+// Beta/signup access codes (the signup gate). While SIGNUP_MODE=invite,
+// registration requires one of these (or a valid farm invite code, which
+// doubles as app access for invited workers). Hash-only storage, optional
+// use cap, expiring, revocable. Generated via scripts/createSignupCode.
+model SignupCode {
+  id        String    @id @default(uuid())
+  codeHash  String    @unique
+  note      String?
+  maxUses   Int?
+  usedCount Int       @default(0)
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@map("signup_codes")
+}
+
 // Join codes (roles: self-serve onboarding). Multi-use until expiry or
 // revocation so one code can onboard a whole crew; only a SHA-256 hash is
 // stored — the plain code is shown once at generation.

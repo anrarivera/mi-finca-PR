@@ -67,8 +67,12 @@ export function useRegister() {
       email: string
       password: string
       fullName: string
+      /** Required while the signup gate (SIGNUP_MODE=invite) is up. */
+      accessCode?: string
     }) => {
-      return api.post<AuthResponse>('/api/v1/auth/register', data)
+      return api.post<AuthResponse & { accessKind: 'signup' | 'farmInvite' | null }>(
+        '/api/v1/auth/register', data
+      )
     },
     onSuccess: (data) => {
       setAuth(data.accessToken, data.user)

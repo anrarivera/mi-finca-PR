@@ -5,6 +5,8 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
+import { useQuery } from '@tanstack/react-query'
+import { api } from '@/lib/api'
 import { useRegister } from '@/features/auth/hooks/useAuth'
 import { useJoinFarm } from '@/features/farm/hooks/useMembersApi'
 import { toast } from '@/store/useToastStore'
@@ -32,22 +34,40 @@ export default function RegisterPage() {
   const joinFarm = useJoinFarm()
   const [serverError, setServerError] = useState<string | null>(null)
 
+  // The signup gate: while SIGNUP_MODE=invite on the server, the code
+  // field is required and doubles as the access code.
+  const { data: authConfig } = useQuery({
+    queryKey: ['auth', 'config'],
+    queryFn: () => api.get<{ signupMode: 'open' | 'invite' }>('/api/v1/auth/config'),
+    staleTime: 5 * 60 * 1000,
+  })
+  const gated = authConfig?.signupMode === 'invite'
+
   const { register, handleSubmit, formState: { errors, isSubmitting } } =
     useForm<RegisterForm>({ resolver: zodResolver(makeRegisterSchema(t)) })
 
   async function onSubmit(values: RegisterForm) {
     setServerError(null)
+    const code = values.inviteCode?.trim()
+    if (gated && !code) {
+      setServerError(t('register.accessRequired'))
+      return
+    }
     try {
-      await registerAccount.mutateAsync({
+      const result = await registerAccount.mutateAsync({
         email: values.email,
         password: values.password,
         fullName: values.fullName,
+        ...(gated && code ? { accessCode: code } : {}),
       })
-      // Invite code: redeem right after the account exists. A bad code
-      // never blocks registration — the account is already created.
-      if (values.inviteCode?.trim()) {
+      // Farm join: while gated, only when the access code actually WAS a
+      // farm invite (a pure beta code isn't joinable). Ungated, the field
+      // keeps its original optional farm-invite meaning. A bad join never
+      // blocks registration — the account already exists.
+      const shouldJoin = gated ? result.accessKind === 'farmInvite' : !!code
+      if (code && shouldJoin) {
         try {
-          const joined = await joinFarm.mutateAsync(values.inviteCode.trim())
+          const joined = await joinFarm.mutateAsync(code)
           toast.success(t('register.joinSuccess', { farmName: joined.farmName }))
         } catch {
           toast.error(t('register.joinError'))
@@ -137,7 +157,9 @@ export default function RegisterPage() {
 
         <div className="flex flex-col gap-1.5">
           <label htmlFor="inviteCode" className="text-xs font-medium text-[#5a6a4a]">
-            {t('register.inviteLabel')} <span className="text-[#9aab8a] font-normal">{t('register.inviteOptional')}</span>
+            {gated
+              ? <>{t('register.accessLabel')} <span className="text-red-400">*</span></>
+              : <>{t('register.inviteLabel')} <span className="text-[#9aab8a] font-normal">{t('register.inviteOptional')}</span></>}
           </label>
           <input
             id="inviteCode"
@@ -147,6 +169,11 @@ export default function RegisterPage() {
             className={authInputClass}
             {...register('inviteCode')}
           />
+          {gated && (
+            <p className="text-[10px] text-[#9aab8a] leading-relaxed">
+              {t('register.accessHint')}
+            </p>
+          )}
         </div>
 
         {/* ToS + privacy consent — required to create the account */}

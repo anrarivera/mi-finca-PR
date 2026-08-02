@@ -10,7 +10,8 @@
     "test": "cross-env NODE_ENV=test jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
-    "seed": "ts-node --project tsconfig.json prisma/seed.ts"
+    "seed": "ts-node --project tsconfig.json prisma/seed.ts",
+    "signup:code": "ts-node --project tsconfig.json scripts/createSignupCode.ts"
   },
   "keywords": [],
   "author": "",

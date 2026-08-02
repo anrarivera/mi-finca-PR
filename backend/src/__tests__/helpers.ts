@@ -128,5 +128,6 @@ export async function cleanDatabase() {
   // Single-use email links (verification / reset / change-email) all live
   // in action_tokens now — the old per-type token tables are gone.
   await prisma.actionToken.deleteMany()
+  await prisma.signupCode.deleteMany()
   await prisma.user.deleteMany()
 }
