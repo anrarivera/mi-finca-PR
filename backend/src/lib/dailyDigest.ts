@@ -23,6 +23,8 @@ import { sendMail } from './mailer'
 type PendingOp = {
   labelEs: string
   daysUntil: number
+  /** Field or herd name — where the work happens. */
+  placeName: string | null
 }
 
 type FarmSummary = {
@@ -68,7 +70,12 @@ async function summarizeFarm(
       ],
     },
     orderBy: { recommendedDate: 'asc' },
-    select: { labelEs: true, recommendedDate: true },
+    select: {
+      labelEs: true,
+      recommendedDate: true,
+      plantingEvent: { select: { field: { select: { name: true } } } },
+      livestockUnit: { select: { name: true } },
+    },
   })
 
   const openFindings = await prisma.finding.count({
@@ -81,6 +88,7 @@ async function summarizeFarm(
   const pending: PendingOp[] = ops.map(o => ({
     labelEs: o.labelEs,
     daysUntil: Math.round((o.recommendedDate.getTime() - today.getTime()) / 86_400_000),
+    placeName: o.plantingEvent?.field?.name ?? o.livestockUnit?.name ?? null,
   }))
 
   const overdue = pending.filter(o => o.daysUntil < 0).length
@@ -91,12 +99,26 @@ async function summarizeFarm(
   )
 
   // Group identical labels, preserving soonest-first order of appearance.
-  const groups = new Map<string, number>()
-  for (const op of pending) groups.set(op.labelEs, (groups.get(op.labelEs) ?? 0) + 1)
+  // Field/herd names ride along when few enough to stay readable:
+  //   "Riego — Campo Norte" · "Fertilización × 3 — Cafetal" ·
+  //   "Primera fertilización × 12" (too many places, count only).
   const MAX_GROUPS = 4
+  const MAX_NAMED_PLACES = 3
+  const groups = new Map<string, { count: number; places: Set<string> }>()
+  for (const op of pending) {
+    const g = groups.get(op.labelEs) ?? { count: 0, places: new Set<string>() }
+    g.count += 1
+    if (op.placeName) g.places.add(op.placeName)
+    groups.set(op.labelEs, g)
+  }
   const groupedLabels = [...groups.entries()]
     .slice(0, MAX_GROUPS)
-    .map(([label, count]) => (count > 1 ? `${label} × ${count}` : label))
+    .map(([label, g]) => {
+      const head = g.count > 1 ? `${label} × ${g.count}` : label
+      return g.places.size > 0 && g.places.size <= MAX_NAMED_PLACES
+        ? `${head} — ${[...g.places].join(', ')}`
+        : head
+    })
   if (groups.size > MAX_GROUPS) groupedLabels.push('…')
 
   return {

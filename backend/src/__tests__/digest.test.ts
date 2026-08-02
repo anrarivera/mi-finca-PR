@@ -111,12 +111,26 @@ describe('novedades mode (default)', () => {
     expect((await runDailyDigest(TUESDAY)).sent).toBe(0)
   })
 
-  it('groups identical labels in the body', async () => {
+  it('groups identical labels and names the field when places are few', async () => {
     const { field } = await setupFarm()
     await seedOps(field.id, TUESDAY, [14, 14, 14], 'Primera fertilización')
 
     await runDailyDigest(TUESDAY)
-    expect(outbox[0].text).toContain('Primera fertilización × 3')
+    // One field → the name rides along with the count
+    expect(outbox[0].text).toContain('Primera fertilización × 3 — Campo de Prueba')
+  })
+
+  it('drops to a bare count when the work spans many fields', async () => {
+    const { owner, farm } = await setupFarm()
+    // Four distinct fields, same labor entering the window
+    for (let i = 1; i <= 4; i++) {
+      const f = await createTestField(owner.token, farm.id, { name: `Campo ${i}` })
+      await seedOps(f.id, TUESDAY, [14], 'Fertilización')
+    }
+
+    await runDailyDigest(TUESDAY)
+    expect(outbox[0].text).toContain('Fertilización × 4')
+    expect(outbox[0].text).not.toContain('Campo 1,')
   })
 })
 
