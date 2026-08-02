@@ -1,6 +1,6 @@
 import {
   request, createTestUser, createTestFarm, createTestField,
-  addFarmMember, cleanDatabase,
+  addFarmMember, seedRecommendedOp, cleanDatabase,
 } from './helpers'
 
 beforeEach(async () => { await cleanDatabase() })
@@ -153,5 +153,72 @@ describe('POST /livestock/:id/production', () => {
       .set('Authorization', `Bearer ${token}`)
       .send({ productId: 'milk', quantity: 5, unit: 'L', date: '2026-08-01' })
     expect(wrongProduct.status).toBe(400)
+  })
+})
+
+describe('production revenue', () => {
+  it('stores revenue on animal production and returns it in the ledger', async () => {
+    const { token } = await createTestUser()
+    const farm = await createTestFarm(token)
+    const herd = await createHerd(token, farm.id)
+
+    const res = await request
+      .post(`/api/v1/farms/${farm.id}/livestock/${herd.body.data.id}/production`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ productId: 'eggs', quantity: 30, unit: 'unidades', date: '2026-08-02', revenue: 12.5 })
+    expect(res.status).toBe(201)
+
+    const ledger = await request
+      .get(`/api/v1/farms/${farm.id}/harvests`)
+      .set('Authorization', `Bearer ${token}`)
+    expect(ledger.body.data[0].revenue).toBe(12.5)
+  })
+
+  it('stores revenue on a harvest check-off and allows editing it later', async () => {
+    const { token } = await createTestUser()
+    const farm = await createTestFarm(token)
+    const field = await createTestField(token, farm.id)
+    const { recOp } = await seedRecommendedOp(field.id, { type: 'harvest' })
+
+    const done = await request
+      .post(`/api/v1/farms/${farm.id}/recommended-operations/${recOp.id}/complete`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ completedDate: '2026-08-02', quantity: 40, unit: 'lb', revenue: 30 })
+    expect(done.status).toBe(201)
+
+    const ledger = await request
+      .get(`/api/v1/farms/${farm.id}/harvests`)
+      .set('Authorization', `Bearer ${token}`)
+    expect(ledger.body.data).toHaveLength(1)
+    expect(ledger.body.data[0].revenue).toBe(30)
+
+    const patched = await request
+      .patch(`/api/v1/farms/${farm.id}/harvests/${ledger.body.data[0].id}`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ revenue: 35.5 })
+    expect(patched.status).toBe(200)
+    expect(patched.body.data.revenue).toBe(35.5)
+  })
+
+  it('rejects negative revenue and leaves it null when omitted', async () => {
+    const { token } = await createTestUser()
+    const farm = await createTestFarm(token)
+    const herd = await createHerd(token, farm.id)
+    const base = `/api/v1/farms/${farm.id}/livestock/${herd.body.data.id}/production`
+
+    const bad = await request.post(base)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ productId: 'eggs', quantity: 5, unit: 'unidades', date: '2026-08-02', revenue: -3 })
+    expect(bad.status).toBe(400)
+
+    const ok = await request.post(base)
+      .set('Authorization', `Bearer ${token}`)
+      .send({ productId: 'eggs', quantity: 5, unit: 'unidades', date: '2026-08-02' })
+    expect(ok.status).toBe(201)
+
+    const ledger = await request
+      .get(`/api/v1/farms/${farm.id}/harvests`)
+      .set('Authorization', `Bearer ${token}`)
+    expect(ledger.body.data[0].revenue).toBeNull()
   })
 })

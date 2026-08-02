@@ -66,3 +66,11 @@ export function parseBody<T>(schema: ZodType<T>, body: unknown): T {
   }
   return result.data
 }
+// Sale revenue on production entries — optional, but when present it must
+// be a non-negative number.
+export function requireRevenue(value: unknown, name = 'revenue'): void {
+  if (value === undefined || value === null) return
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
+    throw Errors.validation(`${name} must be a non-negative number`)
+  }
+}

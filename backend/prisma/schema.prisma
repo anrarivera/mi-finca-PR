@@ -319,6 +319,9 @@ model HarvestYield {
   productId   String?
   quantity    Decimal   @db.Decimal(10, 2)
   unit        String
+  // Total sale revenue for this entry (optional — much production is
+  // eaten, given away, or unsold). Unit price is derived, never stored.
+  revenue     Decimal?  @db.Decimal(10, 2)
   harvestDate DateTime  @db.Date
   notes       String?
   createdAt   DateTime  @default(now())

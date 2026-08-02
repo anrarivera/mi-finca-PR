@@ -3,6 +3,7 @@ import { prisma } from '../lib/prisma'
 import { requireAuth } from '../middleware/auth'
 import { Errors } from '../lib/errors'
 import { requireFarmRole } from '../lib/farmAccess'
+import { requireRevenue } from '../lib/validate'
 
 // ──────────────────────────────────────────────────────────────────────────
 // Recommended operations — SDD §4.6. These are the calendar entries the
@@ -177,8 +178,9 @@ router.post('/:id/complete', async (req: Request, res: Response, next: NextFunct
     }
 
     const {
-      completedDate, product, quantity, unit, notes, rowIds, plantIds,
+      completedDate, product, quantity, unit, notes, rowIds, plantIds, revenue,
     } = req.body ?? {}
+    requireRevenue(revenue)
     const actualDate = new Date(completedDate ?? todayUtc())
 
     if (rowIds !== undefined &&
@@ -237,6 +239,7 @@ router.post('/:id/complete', async (req: Request, res: Response, next: NextFunct
             cropTypeId: recOp.plantingEvent.cropTypeId,
             quantity,
             unit: unit ?? 'lb',
+            revenue: revenue ?? null,
             harvestDate: actualDate,
             notes: notes ?? null,
           },
@@ -290,7 +293,8 @@ router.post('/:id/log-partial', async (req: Request, res: Response, next: NextFu
       throw Errors.conflict('Only open operations can receive partial logs')
     }
 
-    const { date, product, quantity, unit, notes, rowIds, plantIds } = req.body ?? {}
+    const { date, product, quantity, unit, notes, rowIds, plantIds, revenue } = req.body ?? {}
+    requireRevenue(revenue)
     const actualDate = new Date(date ?? todayUtc())
 
     if (rowIds !== undefined &&
@@ -332,6 +336,7 @@ router.post('/:id/log-partial', async (req: Request, res: Response, next: NextFu
             cropTypeId: recOp.plantingEvent.cropTypeId,
             quantity,
             unit: unit ?? 'lb',
+            revenue: revenue ?? null,
             harvestDate: actualDate,
             notes: notes ?? null,
           },

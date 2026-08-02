@@ -2,7 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express'
 import { prisma } from '../lib/prisma'
 import { requireAuth } from '../middleware/auth'
 import { Errors } from '../lib/errors'
-import { requireFields, requireValidId } from '../lib/validate'
+import { requireFields, requireValidId, requireRevenue } from '../lib/validate'
 import { requireFarmRole } from '../lib/farmAccess'
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -71,7 +71,8 @@ async function maybeCreateHarvestYield(
   tx: any,
   farmId: string,
   op: { id: string; fieldId: string | null; type: string; actualDate: Date; quantity: any; unit: string | null; notes: string | null },
-  cropTypeId: string | null
+  cropTypeId: string | null,
+  revenue?: number | null
 ) {
   if (op.type !== 'harvest') return
   if (op.quantity === null || op.quantity === undefined) return
@@ -84,6 +85,7 @@ async function maybeCreateHarvestYield(
       cropTypeId,
       quantity: op.quantity,
       unit: op.unit ?? 'lb',
+      revenue: revenue ?? null,
       harvestDate: op.actualDate,
       notes: op.notes,
     },
@@ -206,6 +208,7 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
     const {
       fieldId, plantingEventId, livestockUnitId, recommendedOperationId,
       type, actualDate, notes, product, quantity, unit, qualityRating,
+      revenue,    // optional — total sale value, mirrored onto the yield row
       cropTypeId, // optional — lets a standalone harvest log attribute its yield
       rowIds,     // optional — fully covered field rows
       plantIds,   // optional — individually covered plants outside those rows
@@ -220,6 +223,7 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
       throw Errors.validation('plantIds must be an array of plant ids')
     }
 
+    requireRevenue(revenue)
     if (!VALID_OPERATION_TYPES.includes(type)) {
       throw Errors.validation(`type must be one of: ${VALID_OPERATION_TYPES.join(', ')}`)
     }
@@ -299,7 +303,8 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
       // Harvest check-offs double as yield records.
       await maybeCreateHarvestYield(
         tx, farmId, created,
-        recOp?.plantingEvent?.cropTypeId ?? cropTypeId ?? null
+        recOp?.plantingEvent?.cropTypeId ?? cropTypeId ?? null,
+        revenue
       )
 
       return created

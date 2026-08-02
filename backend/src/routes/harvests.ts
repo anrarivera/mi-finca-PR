@@ -2,7 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express'
 import { prisma } from '../lib/prisma'
 import { requireAuth } from '../middleware/auth'
 import { Errors } from '../lib/errors'
-import { requireFields, requireValidId } from '../lib/validate'
+import { requireFields, requireValidId, requireRevenue } from '../lib/validate'
 import { requireFarmRole } from '../lib/farmAccess'
 
 const router = Router({ mergeParams: true }) // mounted at /api/v1/farms/:farmId/harvests
@@ -19,6 +19,7 @@ function serializeHarvest(harvest: any) {
   return {
     ...harvest,
     quantity: Number(harvest.quantity),
+    revenue: harvest.revenue != null ? Number(harvest.revenue) : null,
   }
 }
 
@@ -54,7 +55,8 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
     requireFields(req.body, ['cropTypeId', 'quantity', 'unit', 'harvestDate'])
     await requireFarmOwnership(userId, farmId)
 
-    const { fieldId, cropTypeId, quantity, unit, harvestDate, notes } = req.body
+    const { fieldId, cropTypeId, quantity, unit, harvestDate, notes, revenue } = req.body
+    requireRevenue(revenue)
 
     // If fieldId provided, verify it belongs to this farm
     if (fieldId) {
@@ -71,6 +73,7 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
         cropTypeId,
         quantity,
         unit,
+        revenue: revenue ?? null,
         harvestDate: new Date(harvestDate),
         notes: notes ?? null,
       },
@@ -122,7 +125,8 @@ router.patch('/:id', async (req: Request, res: Response, next: NextFunction) => 
     })
     if (!existing) throw Errors.notFound('Harvest')
 
-    const { fieldId, cropTypeId, quantity, unit, harvestDate, notes } = req.body
+    const { fieldId, cropTypeId, quantity, unit, harvestDate, notes, revenue } = req.body
+    requireRevenue(revenue)
 
     if (fieldId !== undefined && fieldId !== null) {
       const field = await prisma.field.findFirst({
@@ -138,6 +142,7 @@ router.patch('/:id', async (req: Request, res: Response, next: NextFunction) => 
     if (unit !== undefined) updateData.unit = unit
     if (harvestDate !== undefined) updateData.harvestDate = new Date(harvestDate)
     if (notes !== undefined) updateData.notes = notes
+    if (revenue !== undefined) updateData.revenue = revenue
 
     const updated = await prisma.harvestYield.update({
       where: { id },
