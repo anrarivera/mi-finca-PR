@@ -91,5 +91,11 @@
     "timesLast": "× {{times}} · últ. {{date}}",
     "obsCount_one": "{{count}} observación",
     "obsCount_other": "{{count}} observaciones"
+  },
+  "laborDialog": {
+    "title": "Labor de tratamiento — {{pest}}",
+    "hint": "¿Para cuándo programar el tratamiento? Aparecerá en el calendario de labores del campo.",
+    "dateLabel": "Fecha recomendada",
+    "confirm": "Crear labor"
   }
 }

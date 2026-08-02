@@ -91,5 +91,11 @@
     "timesLast": "× {{times}} · last {{date}}",
     "obsCount_one": "{{count}} observation",
     "obsCount_other": "{{count}} observations"
+  },
+  "laborDialog": {
+    "title": "Treatment task — {{pest}}",
+    "hint": "When should the treatment be scheduled? It will appear in the field task calendar.",
+    "dateLabel": "Recommended date",
+    "confirm": "Create task"
   }
 }

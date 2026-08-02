@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { Bug, Plus, X, TrendingDown, TrendingUp, MoveRight } from 'lucide-react'
 import type { FieldRow, PlantInstance, PlantingEvent } from '@/features/field/types'
@@ -47,6 +48,10 @@ export default function FindingsSection({
   const [capturing, setCapturing] = useState(false)
   // Re-inspection ("Actualizar") — appends an observation to this finding.
   const [updating, setUpdating] = useState<Finding | null>(null)
+  // "Crear labor" asks WHEN the treatment should be due — spraying rarely
+  // happens the same day the pest was found.
+  const [laborFor, setLaborFor] = useState<Finding | null>(null)
+  const [laborDate, setLaborDate] = useState('')
 
   const findings = useMemo(
     () => (allFindings ?? [])
@@ -66,7 +71,23 @@ export default function FindingsSection({
     )
   }
 
-  function handleCreateTreatment(f: Finding) {
+  // Step 1 — the button opens the date dialog (validating first that a
+  // planting event exists to hang the labor on).
+  function startCreateTreatment(f: Finding) {
+    const pest = getPestById(f.pestId)
+    const event = eventForFinding(
+      f, { rows: fieldRows, freePlants, plantingEvents }, pest?.crops ?? []
+    )
+    if (!event) {
+      toast.error(t('list.toastNoPlantings'))
+      return
+    }
+    setLaborDate(new Date().toISOString().split('T')[0])
+    setLaborFor(f)
+  }
+
+  // Step 2 — dialog confirmed: create the labor for the chosen date.
+  function handleCreateTreatment(f: Finding, recommendedDate: string) {
     const pest = getPestById(f.pestId)
     const event = eventForFinding(
       f, { rows: fieldRows, freePlants, plantingEvents }, pest?.crops ?? []
@@ -91,10 +112,16 @@ export default function FindingsSection({
           plantingEventId: event.id,
           labelEs: `Tratamiento — ${pest?.nameEs ?? f.pestId}`,
           type: 'spray',
+          recommendedDate,
           notes: `Por hallazgo: ${pest?.nameEs ?? f.pestId} (${SEVERITY_LABELS[f.severity]}). Alcance sugerido: ${scopeText}. Confirma el alcance real al completar la labor.`,
         },
       },
-      { onSuccess: () => toast.success(t('list.toastLaborCreated')) }
+      {
+        onSuccess: () => {
+          toast.success(t('list.toastLaborCreated'))
+          setLaborFor(null)
+        },
+      }
     )
   }
 
@@ -220,7 +247,7 @@ export default function FindingsSection({
                 {f.status === 'open' && (
                   <>
                     {canCreateTreatmentLabor(f, plantingEvents) && (
-                      <button onClick={() => handleCreateTreatment(f)}
+                      <button onClick={() => startCreateTreatment(f)}
                         className={`${smallBtn} text-[#2d4a1e] font-semibold hover:text-[#639922]`}
                         title={t('list.createLaborTitle')}
                       >
@@ -270,6 +297,53 @@ export default function FindingsSection({
             )
           })}
         </div>
+      )}
+
+      {/* "Crear labor" date dialog — spraying rarely happens today */}
+      {laborFor && createPortal(
+        <>
+          <div className="fixed inset-0 bg-black/40 z-[2400] backdrop-blur-sm"
+            onClick={() => setLaborFor(null)} />
+          <div className="fixed inset-0 z-[2410] flex items-end sm:items-center justify-center sm:p-4 pointer-events-none">
+            <div className="bg-white shadow-xl w-full overflow-hidden pointer-events-auto rounded-t-2xl sm:max-w-sm sm:rounded-2xl">
+              <div className="px-6 py-4 border-b border-[#e0e8d8]">
+                <h2 className="text-sm font-semibold text-[#2d4a1e]">
+                  {t('laborDialog.title', {
+                    pest: localName(getPestById(laborFor.pestId), laborFor.pestId),
+                  })}
+                </h2>
+                <p className="text-[10px] text-[#9aab8a] mt-1">{t('laborDialog.hint')}</p>
+              </div>
+              <div className="px-6 py-4">
+                <label className="flex flex-col gap-1.5">
+                  <span className="text-xs font-medium text-[#5a6a4a]">{t('laborDialog.dateLabel')}</span>
+                  <input
+                    type="date"
+                    value={laborDate}
+                    onChange={e => setLaborDate(e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-lg border border-[#d0dcc0] text-sm text-[#2d4a1e] focus:outline-none focus:border-[#639922] transition-colors"
+                  />
+                </label>
+              </div>
+              <div className="px-6 py-4 border-t border-[#e0e8d8] flex justify-end gap-2">
+                <button
+                  onClick={() => setLaborFor(null)}
+                  className="px-4 py-2 text-sm text-[#5a6a4a] hover:bg-[#f0f5e8] rounded-lg transition-colors"
+                >
+                  {t('actions.cancel', { ns: 'common' })}
+                </button>
+                <button
+                  onClick={() => handleCreateTreatment(laborFor, laborDate)}
+                  disabled={!laborDate || createTreatment.isPending}
+                  className="px-4 py-2 text-sm bg-[#2d4a1e] text-[#d4e8b0] rounded-lg hover:bg-[#3d6128] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  {t('laborDialog.confirm')}
+                </button>
+              </div>
+            </div>
+          </div>
+        </>,
+        document.body
       )}
 
       {/* Capture / re-inspection modal — portaled, map taps work */}

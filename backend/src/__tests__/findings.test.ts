@@ -96,3 +96,31 @@ describe('finding lifecycle', () => {
     expect(list.body.data).toHaveLength(0)
   })
 })
+
+describe('POST /findings/:id/create-operation', () => {
+  it('schedules the treatment for the chosen date, not today', async () => {
+    const { token } = await createTestUser()
+    const farm = await createTestFarm(token)
+    const field = await createTestField(token, farm.id)
+    const finding = await createFinding(token, farm.id, field.id)
+
+    const { prisma } = await import('./helpers')
+    const event = await prisma.plantingEvent.create({
+      data: { fieldId: field.id, cropTypeId: 'platano', plantingDate: new Date('2026-06-01'), plantCount: 5 },
+    })
+
+    const res = await request
+      .post(`/api/v1/farms/${farm.id}/findings/${finding.body.data.id}/create-operation`)
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        plantingEventId: event.id,
+        labelEs: 'Tratamiento — pulgones',
+        type: 'spray',
+        recommendedDate: '2026-09-15',
+      })
+
+    expect(res.status).toBe(201)
+    expect(res.body.data.recommendedOperation.recommendedDate).toBe('2026-09-15')
+    expect(res.body.data.recommendedOperation.status).toBe('pending')
+  })
+})
