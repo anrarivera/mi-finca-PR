@@ -17,6 +17,7 @@ const makeRegisterSchema = (t: TFunction) => z.object({
   password: z.string().min(8, t('register.passwordMin')),
   confirmPassword: z.string(),
   inviteCode: z.string().trim().optional(),
+  acceptTerms: z.boolean().refine(v => v === true, t('register.consentAcceptRequired')),
 }).refine(data => data.password === data.confirmPassword, {
   message: t('register.passwordsMismatch'),
   path: ['confirmPassword'],
@@ -146,6 +147,28 @@ export default function RegisterPage() {
             className={authInputClass}
             {...register('inviteCode')}
           />
+        </div>
+
+        {/* ToS + privacy consent — required to create the account */}
+        <div className="flex flex-col gap-1">
+          <label className="flex items-start gap-2.5 cursor-pointer">
+            <input
+              type="checkbox"
+              className="accent-[#639922] w-4 h-4 pointer-coarse:w-5 pointer-coarse:h-5 mt-0.5 shrink-0"
+              {...register('acceptTerms')}
+            />
+            <span className="text-xs text-[#5a6a4a] leading-relaxed">
+              {t('register.consentAcceptPrefix')}{' '}
+              <Link to="/terms" target="_blank" className="text-[#639922] font-medium hover:underline">
+                {t('legal.termsLink', { ns: 'common' })}
+              </Link>{' '}
+              {t('register.consentAcceptAnd')}{' '}
+              <Link to="/privacy" target="_blank" className="text-[#639922] font-medium hover:underline">
+                {t('legal.privacyLink', { ns: 'common' })}
+              </Link>
+            </span>
+          </label>
+          <FieldError message={errors.acceptTerms?.message} />
         </div>
 
         {serverError && (

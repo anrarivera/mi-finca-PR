@@ -37,5 +37,9 @@
     "rowDescription": "Changes the interface language. Names you type yourself (farms, fields) are not translated.",
     "es": "Español",
     "en": "English"
+  },
+  "legal": {
+    "termsLink": "Terms of Service",
+    "privacyLink": "Privacy Policy"
   }
 }

@@ -37,5 +37,9 @@
     "rowDescription": "Cambia el idioma de la interfaz. Los nombres que tú escribes (fincas, campos) no se traducen.",
     "es": "Español",
     "en": "English"
+  },
+  "legal": {
+    "termsLink": "Términos de Servicio",
+    "privacyLink": "Política de Privacidad"
   }
 }

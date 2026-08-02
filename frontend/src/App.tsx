@@ -8,6 +8,7 @@ import ForgotPasswordPage from '@/pages/auth/ForgotPasswordPage'
 import ResetPasswordPage from '@/pages/auth/ResetPasswordPage'
 import VerifyEmailPage from '@/pages/auth/VerifyEmailPage'
 import ChangeEmailPage from '@/pages/auth/ChangeEmailPage'
+import LegalPage from './pages/legal/legalPage'
 import DashboardPage from '@/pages/dashboard/dashboardPage'
 import InventoryPage from '@/pages/inventory/inventoryPage'
 import SimulatorPage from '@/pages/simulator/simulatorPage'
@@ -25,6 +26,9 @@ export default function App() {
           (routes/auth.ts: verify-email/request, change-email/request) */}
       <Route path="/verify-email" element={<VerifyEmailPage />} />
       <Route path="/change-email" element={<ChangeEmailPage />} />
+      {/* Public legal pages — linked from registration and Ajustes */}
+      <Route path="/terms" element={<LegalPage doc="terms" />} />
+      <Route path="/privacy" element={<LegalPage doc="privacy" />} />
 
       {/* Protected routes */}
       <Route
