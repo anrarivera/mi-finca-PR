@@ -263,7 +263,6 @@ export default function FarmMap({ center = PR_CENTER, zoom = DEFAULT_ZOOM }: Pro
   // Fly-to-field request (drawer card double-click / Editar). The nonce
   // re-triggers the flight when the same field is requested again.
   const [zoomTarget, setZoomTarget] = useState<{ field: FieldModel; nonce: number } | null>(null)
-  const boundaryLoaded = useRef(false)
 
   const { fields, removeField } = useFieldStore()
   useFarms() // hydrates the farm store; loading state unused here
@@ -374,18 +373,19 @@ export default function FarmMap({ center = PR_CENTER, zoom = DEFAULT_ZOOM }: Pro
     }
   }, [fieldEditing.active, fieldEditing.editingFieldId])
 
-  // When active farm loads, restore its boundary into the drawing layer
+  // On farm switch, load its boundary into the drawing layer — or clear
+  // the layer when the farm has none yet, so a new farm never inherits
+  // the previous farm's polygon (and area readout, and a save that would
+  // copy it onto the new farm). Keyed on the id only: refetches replace
+  // the farm object and must not stomp an in-progress edit.
   useEffect(() => {
-    if (!activeFarm?.boundary || activeFarm.boundary.length < 3) return
-    if (boundaryLoaded.current) return  // only load once per farm
-    boundaryLoaded.current = true
-    const points = activeFarm.boundary.map(p => L.latLng(p.lat, p.lng))
-    drawing.loadBoundary(points)
-  }, [activeFarm?.id, activeFarm?.boundary])
-
-  // Reset boundary loaded flag when farm changes
-  useEffect(() => {
-    boundaryLoaded.current = false
+    const boundary = activeFarm?.boundary
+    if (boundary && boundary.length >= 3) {
+      drawing.loadBoundary(boundary.map(p => L.latLng(p.lat, p.lng)))
+    } else {
+      drawing.clearDrawing()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeFarm?.id])
 
   async function handleSaveFarm() {

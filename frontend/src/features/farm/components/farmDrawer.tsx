@@ -6,6 +6,7 @@ import {
   AlertCircle, Clock,
 } from 'lucide-react'
 import { useDeleteField } from '@/features/field/hooks/useFieldsApi'
+import { useDeleteFarm } from '../hooks/useFarmsApi'
 import { useIsPhone } from '@/hooks/useViewport'
 import TeamModal from './teamModal'
 import JoinFarmModal from './joinFarmModal'
@@ -63,8 +64,9 @@ export default function FarmDrawer({
 
   const {
     farms, activeFarm, activeFarmId, favoriteFarmId,
-    setActiveFarm, setFavoriteFarm, deleteFarm,
+    setActiveFarm, setFavoriteFarm,
   } = useFarmStore()
+  const deleteFarmApi = useDeleteFarm()
   const { getFieldsByFarmId, updateField, removeFieldsByFarmId } = useFieldStore()
 
   // Auto-navigate to fields level when only one farm
@@ -90,11 +92,18 @@ export default function FarmDrawer({
     setLevel('farms')
   }
 
-  function handleDeleteFarm(farm: Farm) {
+  // Delete on the server first — the mutation's onSuccess removes the
+  // farm from the store. A store-only delete came back on every refetch.
+  async function handleDeleteFarm(farm: Farm) {
     if (!window.confirm(t('confirmDeleteFarm', { name: farm.name }))) return
-    removeFieldsByFarmId(farm.id)
-    deleteFarm(farm.id)
-    if (farms.length <= 1) setLevel('farms')
+    try {
+      await deleteFarmApi.mutateAsync(farm.id)
+      removeFieldsByFarmId(farm.id)
+      if (farms.length <= 1) setLevel('farms')
+    } catch (err) {
+      console.error('Failed to delete farm:', err)
+      // toast.error already fired by api.ts handleResponse
+    }
   }
 
   const fields = activeFarm ? getFieldsByFarmId(activeFarm.id) : []
