@@ -170,7 +170,7 @@ export default function FarmDrawer({
               focusNonce={focusRequest?.nonce ?? 0}
               onSelectField={onSelectField}
               onZoomToField={onZoomToField}
-              showBackButton={farms.length > 1}
+              showBackButton
               onBack={handleBackToFarms}
               onTeam={() => setTeamFarm(activeFarm)}
               onClose={() => onOpenChange(false)}
