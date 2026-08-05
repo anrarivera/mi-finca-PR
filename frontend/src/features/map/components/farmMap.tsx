@@ -347,14 +347,20 @@ export default function FarmMap({ center = PR_CENTER, zoom = DEFAULT_ZOOM }: Pro
     [farmFields, farmFindings]
   )
 
-  // Fly to the favorite (or first) farm on load, and again if the active
-  // farm goes away (delete). Never steal an existing selection — creating
-  // farm #2 re-fired this and snapped the view back to farm #1.
+  // Fly to the active (or favorite/first) farm once on load, and again
+  // only if the active farm goes away (delete). Never steal a live
+  // selection — creating farm #2 re-fired this and snapped the view
+  // back to farm #1.
+  const didInitialFly = useRef(false)
   useEffect(() => {
     if (farms.length === 0) return
-    if (activeFarm && farms.some(f => f.id === activeFarm.id)) return
-    const target = farms.find(f => f.id === favoriteFarmId) ?? farms[0]
-    setActiveFarm(target)
+    const selectionValid = activeFarm != null && farms.some(f => f.id === activeFarm.id)
+    if (didInitialFly.current && selectionValid) return
+    didInitialFly.current = true
+    const target = selectionValid
+      ? activeFarm
+      : (farms.find(f => f.id === favoriteFarmId) ?? farms[0])
+    if (!selectionValid) setActiveFarm(target)
     flyToFarm(target)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [farms.length])
