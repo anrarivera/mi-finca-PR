@@ -28,7 +28,7 @@ export function useFarms() {
       const data = await api.get<ApiFarm[]>('/api/v1/farms')
       console.log('Farms from API:', data)
       // Sync API response into Zustand store
-      const { clearFarms } = useFarmStore.getState()
+      const { clearFarms, activeFarmId: prevActiveId } = useFarmStore.getState()
       clearFarms();
 
        data.forEach(apiFarm => {
@@ -47,11 +47,16 @@ export function useFarms() {
           })
       })
 
-      // Set active farm to favorite or first
+      // Re-activate the farm that was selected before the refetch — an
+      // invalidation (create/update/join) must not steal the selection.
+      // Fall back to favorite or first (initial load).
       if (data.length > 0) {
-        const fav = data.find(f => f.isFavorite) ?? data[0]
-        const farmInStore = useFarmStore.getState().farms.find(f => f.id === fav.id)
-        if (farmInStore) setActiveFarm(farmInStore)
+        const farmsInStore = useFarmStore.getState().farms
+        const favId = (data.find(f => f.isFavorite) ?? data[0]).id
+        const target =
+          farmsInStore.find(f => f.id === prevActiveId) ??
+          farmsInStore.find(f => f.id === favId)
+        if (target) setActiveFarm(target)
       }
 
       return data

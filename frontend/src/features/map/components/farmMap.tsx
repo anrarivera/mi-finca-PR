@@ -348,9 +348,12 @@ export default function FarmMap({ center = PR_CENTER, zoom = DEFAULT_ZOOM }: Pro
     [farmFields, farmFindings]
   )
 
-  // On mount — fly to favorite or first farm
+  // Fly to the favorite (or first) farm on load, and again if the active
+  // farm goes away (delete). Never steal an existing selection — creating
+  // farm #2 re-fired this and snapped the view back to farm #1.
   useEffect(() => {
     if (farms.length === 0) return
+    if (activeFarm && farms.some(f => f.id === activeFarm.id)) return
     const target = farms.find(f => f.id === favoriteFarmId) ?? farms[0]
     setActiveFarm(target)
     flyToFarm(target)
