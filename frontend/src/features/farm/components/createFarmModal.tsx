@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import { X } from 'lucide-react'
 
@@ -18,17 +19,20 @@ export default function CreateFarmModal({ onClose, onSubmit }: Props) {
     onClose()
   }
 
-  return (
+  // Portaled: also opens from inside the farm drawer, and z-40/50 would
+  // land behind the leaflet panes and the drawer (same gotcha as
+  // JoinFarmModal — keep the z levels in sync with it).
+  return createPortal(
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/30 z-40 backdrop-blur-sm"
+        className="fixed inset-0 bg-black/30 z-[2200] backdrop-blur-sm"
         onClick={onClose}
       />
 
       {/* Modal */}
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
+      <div className="fixed inset-0 z-[2300] flex items-center justify-center p-4 pointer-events-none">
+        <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden pointer-events-auto">
 
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-[#e0e8d8]">
@@ -94,6 +98,7 @@ export default function CreateFarmModal({ onClose, onSubmit }: Props) {
 
         </div>
       </div>
-    </>
+    </>,
+    document.body
   )
 }
