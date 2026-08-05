@@ -102,6 +102,7 @@
     "farmDeleted": "Farm deleted",
     "confirmSwitchField": "Switch fields? Unsaved changes to the current field will be lost.",
     "saveBoundaryFirst": "First save your farm's boundary before adding fields.",
+    "switchFarmConfirm": "Switch to the farm \"{{name}}\"? Unsaved changes will be lost.",
     "createFarmError": "Error creating the farm. Please try again."
   }
 }

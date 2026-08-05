@@ -102,6 +102,7 @@
     "farmDeleted": "Finca eliminada",
     "confirmSwitchField": "¿Cambiar de campo? Los cambios sin guardar del campo actual se perderán.",
     "saveBoundaryFirst": "Primero guarda el límite de tu finca antes de añadir campos.",
+    "switchFarmConfirm": "¿Cambiar a la finca \"{{name}}\"? Los cambios sin guardar se perderán.",
     "createFarmError": "Error al crear la finca. Por favor intenta de nuevo."
   }
 }

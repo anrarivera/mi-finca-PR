@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { MapContainer, TileLayer, useMapEvents, useMap, Polygon, Polyline, CircleMarker } from 'react-leaflet'
+import { MapContainer, TileLayer, useMapEvents, useMap, Polygon, Polyline, CircleMarker, Marker } from 'react-leaflet'
 import * as L from 'leaflet'
 import {
   useFarms,
@@ -90,6 +90,28 @@ function FieldZoomController({ target }: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [target?.nonce])
   return null
+}
+
+// ─── Pin for a non-active farm — click to switch to it ────────────────
+//     Same pin shape as the field pins, in the app's dark farm green.
+function createFarmPinIcon(name: string): L.DivIcon {
+  return L.divIcon({
+    className: '',
+    iconAnchor: [14, 36],
+    html: `
+      <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+        <div style="background:#2d4a1e;border:1.5px solid #d4e8b0;color:#d4e8b0;font-size:10px;
+          font-weight:600;padding:2px 7px;border-radius:4px;white-space:nowrap;
+          box-shadow:0 1px 4px rgba(0,0,0,0.25);font-family:system-ui,sans-serif;
+          max-width:140px;overflow:hidden;text-overflow:ellipsis;">${name}</div>
+        <svg width="28" height="36" viewBox="0 0 24 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 0C5.373 0 0 5.373 0 12c0 9 12 20 12 20S24 21 24 12C24 5.373 18.627 0 12 0z"
+            fill="#2d4a1e" stroke="white" stroke-width="1.5"/>
+          <circle cx="12" cy="12" r="4" fill="#d4e8b0"/>
+        </svg>
+      </div>
+    `,
+  })
 }
 
 // ─── Map resizer ──────────────────────────────────────────────────────
@@ -437,6 +459,19 @@ async function handleDeleteFarm() {
   }
 }
 
+  // Click on another farm's map pin — switch to it, warning first when an
+  // editing session (field editor or boundary drawing) would lose work.
+  function handleSwitchFarmFromMap(farm: Farm) {
+    const busy = fieldEditing.active ||
+      drawing.mode === 'drawing' || drawing.mode === 'editing'
+    if (busy && !window.confirm(t('map.switchFarmConfirm', { name: farm.name }))) return
+    if (fieldEditing.active) fieldEditing.cancel()
+    setFocusRequest(null)
+    setZoomTarget(null)
+    setActiveFarm(farm)
+    flyToFarm(farm)
+  }
+
   // Start on-map field editing — with a fieldId it opens straight into
   // editing that field (double-click on a map field or a drawer card);
   // without one it starts a new field. Guarded against non-string args so
@@ -557,6 +592,18 @@ async function handleDeleteFarm() {
                 setFocusRequest(prev => ({ fieldId, nonce: (prev?.nonce ?? 0) + 1 }))
                 zoomToField(fieldId)
               }}
+            />
+          ))}
+
+        {/* Pins for the non-active farms — click to switch farms */}
+        {farms
+          .filter(f => f.id !== activeFarm?.id && f.boundary.length >= 3)
+          .map(farm => (
+            <Marker
+              key={farm.id}
+              position={L.latLngBounds(farm.boundary.map(p => L.latLng(p.lat, p.lng))).getCenter()}
+              icon={createFarmPinIcon(farm.name)}
+              eventHandlers={{ click: () => handleSwitchFarmFromMap(farm) }}
             />
           ))}
 
