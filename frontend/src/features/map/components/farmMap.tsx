@@ -29,6 +29,7 @@ import { useFarmStore, canManageStructure, isFarmOwner } from '@/store/useFarmSt
 import type { Farm } from '@/store/useFarmStore'
 import type { PlacedField as FieldModel } from '@/features/field/types'
 import { toast } from '@/store/useToastStore'
+import { hasUnsavedWork } from '@/store/useUnsavedWorkStore'
 
 delete (L.Icon.Default.prototype as { _getIconUrl?: unknown })._getIconUrl
 L.Icon.Default.mergeOptions({
@@ -460,10 +461,12 @@ async function handleDeleteFarm() {
 }
 
   // Click on another farm's map pin — switch to it, warning first when an
-  // editing session (field editor or boundary drawing) would lose work.
+  // editing session (field editor, boundary drawing, or an open entry form
+  // like a check-off or hallazgo) would lose work.
   function handleSwitchFarmFromMap(farm: Farm) {
     const busy = fieldEditing.active ||
-      drawing.mode === 'drawing' || drawing.mode === 'editing'
+      drawing.mode === 'drawing' || drawing.mode === 'editing' ||
+      hasUnsavedWork()
     if (busy && !window.confirm(t('map.switchFarmConfirm', { name: farm.name }))) return
     if (fieldEditing.active) fieldEditing.cancel()
     setFocusRequest(null)

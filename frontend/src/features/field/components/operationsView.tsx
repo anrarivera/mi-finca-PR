@@ -12,6 +12,7 @@ import type { FarmOperation } from '../hooks/useOperationsApi'
 import { getCropById } from '../data/cropLibrary'
 import PriceInput from './priceInput'
 import { useHarvestHighlightStore } from '@/store/useHarvestHighlightStore'
+import { useMarkUnsavedWork } from '@/store/useUnsavedWorkStore'
 import { useIsPhone } from '@/hooks/useViewport'
 import { dateLocale, localName, localOpLabel } from '@/i18n'
 
@@ -617,6 +618,8 @@ export function CheckOffModal({
 }) {
   const { t } = useTranslation('field')
   const isPhone = useIsPhone()
+  // The farm-switch guard warns before discarding this form's input.
+  useMarkUnsavedWork()
   const today = new Date().toISOString().split('T')[0]
   const isEdit = mode === 'edit'
   const targets = harvestTargets ?? { rows: [], freePlants: [] }

@@ -12,6 +12,7 @@ import { getPestById, pestsForCrops, type PestType } from '../data/pestLibrary'
 import { SEVERITY_COLORS, type Finding } from '../types'
 import { fieldScopeTargets } from '../utils/findingScope'
 import { toast } from '@/store/useToastStore'
+import { useMarkUnsavedWork } from '@/store/useUnsavedWorkStore'
 import { useIsPhone } from '@/hooks/useViewport'
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -39,6 +40,8 @@ export default function FindingModal({
 }: Props) {
   const { t } = useTranslation('scouting')
   const isPhone = useIsPhone()
+  // The farm-switch guard warns before discarding this form's input.
+  useMarkUnsavedWork()
   const today = new Date().toISOString().split('T')[0]
   const createFinding = useCreateFinding(farmId)
   const addObservation = useAddObservation(farmId)
