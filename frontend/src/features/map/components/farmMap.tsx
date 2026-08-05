@@ -50,7 +50,23 @@ function MapController({ target }: { target: { farm: Farm; nonce: number } | nul
     const bounds = L.latLngBounds(
       farm.boundary.map(p => L.latLng(p.lat, p.lng))
     )
-    map.flyToBounds(bounds, { padding: [40, 40], duration: 1.2 })
+    // Leaflet animates a flyTo even when the target view is the current
+    // one, wobbling the map in place — skip the flight when already there.
+    // (80 = the [40, 40] flyToBounds padding applied to both corners.)
+    const targetZoom = map.getBoundsZoom(bounds, false, L.point(80, 80))
+    const targetCenter = map.unproject(
+      map.project(bounds.getSouthWest(), targetZoom)
+        .add(map.project(bounds.getNorthEast(), targetZoom))
+        .divideBy(2),
+      targetZoom
+    )
+    const alreadyThere =
+      map.getZoom() === targetZoom &&
+      map.latLngToContainerPoint(targetCenter)
+        .distanceTo(map.latLngToContainerPoint(map.getCenter())) < 4
+    if (!alreadyThere) {
+      map.flyToBounds(bounds, { padding: [40, 40], duration: 1.2 })
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [target?.farm.id, target?.nonce])
   return null
