@@ -93,6 +93,52 @@ function FieldZoomController({ target }: {
   return null
 }
 
+// ─── Where a farm's pin goes ──────────────────────────────────────────
+//     The polygon centroid (shoelace formula) — the bounding-box center
+//     drifts off the farm for L-shaped or diagonal boundaries. If a very
+//     concave shape puts even the centroid outside, snap to the nearest
+//     boundary vertex so the pin always touches the farm.
+function farmPinPosition(boundary: Array<{ lat: number; lng: number }>): L.LatLng {
+  let area = 0, cLat = 0, cLng = 0
+  for (let i = 0; i < boundary.length; i++) {
+    const a = boundary[i]
+    const b = boundary[(i + 1) % boundary.length]
+    const cross = a.lng * b.lat - b.lng * a.lat
+    area += cross
+    cLat += (a.lat + b.lat) * cross
+    cLng += (a.lng + b.lng) * cross
+  }
+  if (Math.abs(area) < 1e-12) return L.latLng(boundary[0].lat, boundary[0].lng)
+  const lat = cLat / (3 * area)
+  const lng = cLng / (3 * area)
+  if (pointInPolygon(lat, lng, boundary)) return L.latLng(lat, lng)
+  const nearest = boundary.reduce(
+    (best, p) => {
+      const d = (p.lat - lat) ** 2 + (p.lng - lng) ** 2
+      return d < best.d ? { p, d } : best
+    },
+    { p: boundary[0], d: Infinity }
+  ).p
+  return L.latLng(nearest.lat, nearest.lng)
+}
+
+// Ray casting on raw lat/lng — accurate enough at farm scale.
+function pointInPolygon(
+  lat: number, lng: number, poly: Array<{ lat: number; lng: number }>
+): boolean {
+  let inside = false
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const a = poly[i], b = poly[j]
+    if (
+      (a.lat > lat) !== (b.lat > lat) &&
+      lng < ((b.lng - a.lng) * (lat - a.lat)) / (b.lat - a.lat) + a.lng
+    ) {
+      inside = !inside
+    }
+  }
+  return inside
+}
+
 // ─── Pin for a non-active farm — click to switch to it ────────────────
 //     Same pin shape as the field pins, in the app's dark farm green.
 function createFarmPinIcon(name: string): L.DivIcon {
@@ -604,7 +650,7 @@ async function handleDeleteFarm() {
           .map(farm => (
             <Marker
               key={farm.id}
-              position={L.latLngBounds(farm.boundary.map(p => L.latLng(p.lat, p.lng))).getCenter()}
+              position={farmPinPosition(farm.boundary)}
               icon={createFarmPinIcon(farm.name)}
               eventHandlers={{ click: () => handleSwitchFarmFromMap(farm) }}
             />
