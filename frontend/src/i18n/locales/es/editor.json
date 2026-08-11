@@ -237,5 +237,6 @@
     "meatHint": "Registrar carne reduce el rebaño: los animales indicados saldrán del conteo del grupo ({{count}} actualmente).",
     "submit": "Registrar",
     "logged": "Producción de \"{{name}}\" registrada"
-  }
+  },
+  "unsavedCancelConfirm": "El campo tiene cambios sin guardar (hileras, plantas o forma). ¿Cerrar el editor y descartarlos?"
 }

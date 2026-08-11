@@ -88,6 +88,33 @@ export function useMapFieldEditing(
     [JSON.stringify(farmBoundary)]
   )
 
+  // Snapshot of the editable state at session start (and on field switch)
+  // — cancel compares against it so hours of row-laying don't vanish
+  // behind an unconfirmed close. plantingEvents are excluded: loadField
+  // refreshes their statuses, which would read as a phantom edit.
+  // The live values go through a ref refreshed every render because
+  // cancel() is often called from stale closures (the Escape handler's
+  // effect deliberately doesn't re-register on every editor keystroke).
+  const liveWork = useRef({ state: {} as unknown, removals: 0 })
+  liveWork.current = {
+    state: {
+      name: editor.name, shape: editor.shape, points: editor.points,
+      rows: editor.rows, freePlants: editor.freePlants,
+    },
+    removals: removalLogs.length,
+  }
+  const serializeWork = () => JSON.stringify(liveWork.current.state)
+  const baseline = useRef<string | null>(null)
+  useEffect(() => {
+    baseline.current = active ? serializeWork() : null
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, editingFieldId, isCreatingNew])
+
+  function hasUnsavedChanges() {
+    if (liveWork.current.removals > 0) return true
+    return baseline.current !== null && serializeWork() !== baseline.current
+  }
+
   function reset() {
     editor.reset()
     setEditingFieldId(null)
@@ -119,10 +146,18 @@ export function useMapFieldEditing(
     setActive(true)
   }
 
-  // ── Cancel — discard edits and queued removal logs ──────────────
-  function cancel() {
+  // ── Cancel — discard edits and queued removal logs. Warns when work
+  //    would be lost; discard() skips the warning for callers that
+  //    already confirmed with the user (e.g. the farm-switch guard). ──
+  function discard() {
     reset()
     setActive(false)
+  }
+
+  function cancel() {
+    if (hasUnsavedChanges() &&
+        !window.confirm(i18n.t('editor:unsavedCancelConfirm'))) return
+    discard()
   }
 
   // ── Selection toggles — used by panel checkboxes AND map clicks ──
@@ -332,7 +367,7 @@ export function useMapFieldEditing(
     toggleRowSelected, togglePlantSelected,
     reveal,
     editingBoundary,
-    startEdit, startNew, cancel, save,
+    startEdit, startNew, cancel, discard, save, hasUnsavedChanges,
     pendingDelete, setPendingDelete,
     requestDeleteRows, requestDeleteSelection, confirmDeletePending,
   }

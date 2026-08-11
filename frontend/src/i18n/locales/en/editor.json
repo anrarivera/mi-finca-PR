@@ -237,5 +237,6 @@
     "meatHint": "Logging meat reduces the herd: the animals entered will leave the group's count ({{count}} currently).",
     "submit": "Log",
     "logged": "Production for \"{{name}}\" logged"
-  }
+  },
+  "unsavedCancelConfirm": "This field has unsaved changes (rows, plants, or shape). Close the editor and discard them?"
 }

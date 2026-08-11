@@ -517,7 +517,8 @@ async function handleDeleteFarm() {
       drawing.mode === 'drawing' || drawing.mode === 'editing' ||
       hasUnsavedWork()
     if (busy && !window.confirm(t('map.switchFarmConfirm', { name: farm.name }))) return
-    if (fieldEditing.active) fieldEditing.cancel()
+    // Already confirmed above — discard skips the editor's own warning.
+    if (fieldEditing.active) fieldEditing.discard()
     setFocusRequest(null)
     setZoomTarget(null)
     setActiveFarm(farm)

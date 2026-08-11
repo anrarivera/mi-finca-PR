@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pencil, Trash2, Check, Milestone, Plus, Undo2, X } from 'lucide-react'
 import { useIsPhone } from '@/hooks/useViewport'
@@ -77,9 +77,13 @@ export default function DrawingPanel({
   // finca". Closes on dismiss or by drawing; only shows while there is
   // no boundary (mode 'idle').
   const [cardOpen, setCardOpen] = useState(firstFarm)
-  useEffect(() => {
+  // Render-time adjustment (same idiom as prevMode below): a new nonce
+  // means a farm was just created — pop the card open.
+  const [seenNonce, setSeenNonce] = useState(openCardNonce)
+  if (openCardNonce !== seenNonce) {
+    setSeenNonce(openCardNonce)
     if (openCardNonce > 0) setCardOpen(true)
-  }, [openCardNonce])
+  }
   const active = mode === 'drawing' || mode === 'editing'
   const showOnboard = mode === 'idle' && cardOpen
 
