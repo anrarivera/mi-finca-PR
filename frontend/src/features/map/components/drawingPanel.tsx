@@ -105,11 +105,14 @@ export default function DrawingPanel({
 
   return (
     <>
-      {/* Tap-outside closes the menu / dismisses the onboarding card */}
-      {(menuOpen || showOnboard) && (
+      {/* Tap-outside closes the action menu. The onboarding card gets NO
+          backdrop on purpose: the user needs to pan/zoom the map to find
+          their land while it's open — it only closes explicitly ("Ahora
+          no", the FAB, or starting to draw). */}
+      {menuOpen && (
         <div
           className="absolute inset-0 z-[999]"
-          onClick={() => { setMenuOpen(false); setOnboardDismissed(true) }}
+          onClick={() => setMenuOpen(false)}
         />
       )}
 
