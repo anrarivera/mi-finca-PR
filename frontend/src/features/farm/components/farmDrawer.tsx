@@ -28,7 +28,9 @@ type Props = {
   /** Open the field editor editing this specific field. */
   onEditField: (fieldId: string) => void
   onDeleteField: (fieldId: string) => void
-  onFlyToFarm: (farm: Farm) => void
+  /** Switch to + fly to this farm. The host owns the unsaved-work guard
+      and returns false when the user declines the switch. */
+  onFlyToFarm: (farm: Farm) => boolean | void
   onOpenFieldEditor: (farmId: string) => void
   /** Set on a map field click: opens the drawer focused on that field.
       The nonce lets the same field re-trigger after the drawer closes. */
@@ -83,8 +85,9 @@ export default function FarmDrawer({
   }, [activeFarmId])
 
   function handleSelectFarm(farm: Farm) {
-    setActiveFarm(farm)
-    onFlyToFarm(farm)
+    // The host activates the farm (after its unsaved-work guard) — a
+    // false return means the user chose to stay put.
+    if (onFlyToFarm(farm) === false) return
     setLevel('fields')
   }
 

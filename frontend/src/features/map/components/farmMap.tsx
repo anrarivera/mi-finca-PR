@@ -351,6 +351,22 @@ export default function FarmMap({ center = PR_CENTER, zoom = DEFAULT_ZOOM }: Pro
     ? fields.filter(f => f.farmId === activeFarm.id)
     : []
 
+  // Unsaved boundary work — points on the map that differ from the active
+  // farm's saved boundary. True mid-draw (any point placed) and after
+  // Completar/while editing whenever the shape doesn't match what's
+  // stored. Farm switches (pins, drawer, creating another farm) confirm
+  // before the switch effect wipes the drawing layer.
+  function boundaryDirty(): boolean {
+    if (drawing.mode === 'drawing') return drawing.points.length > 0
+    if (drawing.mode !== 'editing' && drawing.mode !== 'complete') return false
+    const saved = activeFarm?.boundary ?? []
+    if (drawing.points.length !== saved.length) return true
+    return drawing.points.some((p, i) =>
+      Math.abs(p.lat - saved[i].lat) > 1e-9 ||
+      Math.abs(p.lng - saved[i].lng) > 1e-9
+    )
+  }
+
   function flyToFarm(farm: Farm) {
     setFlyTarget(prev => ({ farm, nonce: (prev?.nonce ?? 0) + 1 }))
   }
@@ -513,9 +529,7 @@ async function handleDeleteFarm() {
   // editing session (field editor, boundary drawing, or an open entry form
   // like a check-off or hallazgo) would lose work.
   function handleSwitchFarmFromMap(farm: Farm) {
-    const busy = fieldEditing.active ||
-      drawing.mode === 'drawing' || drawing.mode === 'editing' ||
-      hasUnsavedWork()
+    const busy = fieldEditing.active || boundaryDirty() || hasUnsavedWork()
     if (busy && !window.confirm(t('map.switchFarmConfirm', { name: farm.name }))) return
     // Already confirmed above — discard skips the editor's own warning.
     if (fieldEditing.active) fieldEditing.discard()
@@ -545,6 +559,11 @@ async function handleDeleteFarm() {
   }
 
   async function handleCreateFarm(data: { name: string; location: string }) {
+    // Creating a farm activates it — same discard risk as switching.
+    if ((boundaryDirty() || hasUnsavedWork()) &&
+        !window.confirm(t('map.switchFarmConfirm', { name: data.name }))) {
+      return
+    }
     try {
       await createFarm.mutateAsync({
         name: data.name,
@@ -705,6 +724,13 @@ async function handleDeleteFarm() {
           removeFieldIdFromFarm(activeFarm.id, fieldId)
         }}
         onFlyToFarm={(farm) => {
+          // Same unsaved-work gate as the map pins: an unsaved boundary
+          // (or open entry form) confirms before the switch discards it.
+          if (farm.id !== activeFarm?.id &&
+              (boundaryDirty() || hasUnsavedWork()) &&
+              !window.confirm(t('map.switchFarmConfirm', { name: farm.name }))) {
+            return false
+          }
           setActiveFarm(farm)
           flyToFarm(farm)
         }}
