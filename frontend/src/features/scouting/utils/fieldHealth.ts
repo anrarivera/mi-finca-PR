@@ -24,9 +24,10 @@ export const FIELD_HEALTH_COLORS = {
 
 // Desaturated severity colors — "treated, awaiting confirmation": the
 // field shouldn't look healthy yet, but the alarm can stop shouting.
+// Muted counterparts of SEVERITY_COLORS (yellow / amber / red).
 export const SEVERITY_COLORS_SOFT: Record<number, string> = {
-  1: '#dfc389',
-  2: '#dfa889',
+  1: '#dfd489',
+  2: '#dfc389',
   3: '#df8f8f',
 }
 

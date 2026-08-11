@@ -48,11 +48,12 @@ export const SEVERITY_LABELS: Record<number, string> = {
   3: 'Severa',
 }
 
-// Amber → red, used both in lists and for the map paint of affected
-// rows/plants.
+// Yellow → amber → red, used both in lists and for the map paint of
+// affected rows/plants. Deliberately far apart: the old amber/orange/red
+// ramp read as one color at a glance on the satellite imagery.
 export const SEVERITY_COLORS: Record<number, string> = {
-  1: '#f59e0b',
-  2: '#ea580c',
+  1: '#facc15',
+  2: '#f59e0b',
   3: '#dc2626',
 }
 
