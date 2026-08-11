@@ -29,7 +29,7 @@ import { useFarmStore, canManageStructure, isFarmOwner } from '@/store/useFarmSt
 import type { Farm } from '@/store/useFarmStore'
 import type { PlacedField as FieldModel } from '@/features/field/types'
 import { toast } from '@/store/useToastStore'
-import { hasUnsavedWork } from '@/store/useUnsavedWorkStore'
+import { hasUnsavedWork, registerUnsavedWorkChecker } from '@/store/useUnsavedWorkStore'
 
 delete (L.Icon.Default.prototype as { _getIconUrl?: unknown })._getIconUrl
 L.Icon.Default.mergeOptions({
@@ -366,6 +366,15 @@ export default function FarmMap({ center = PR_CENTER, zoom = DEFAULT_ZOOM }: Pro
       Math.abs(p.lng - saved[i].lng) > 1e-9
     )
   }
+
+  // Report the map's unsaved work (boundary or field editor) to the
+  // cross-cutting guard lazily — nav clicks and beforeunload evaluate it
+  // at decision time, nothing is tracked per render. The ref keeps the
+  // registered callback reading fresh closures.
+  const unsavedRef = useRef<() => boolean>(() => false)
+  unsavedRef.current = () =>
+    boundaryDirty() || (fieldEditing.active && fieldEditing.hasUnsavedChanges())
+  useEffect(() => registerUnsavedWorkChecker(() => unsavedRef.current()), [])
 
   function flyToFarm(farm: Farm) {
     setFlyTarget(prev => ({ farm, nonce: (prev?.nonce ?? 0) + 1 }))

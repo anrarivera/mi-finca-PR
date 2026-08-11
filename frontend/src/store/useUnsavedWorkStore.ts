@@ -17,7 +17,21 @@ export const useUnsavedWorkStore = create<UnsavedWorkStore>(set => ({
   end: () => set(s => ({ count: Math.max(0, s.count - 1) })),
 }))
 
-export const hasUnsavedWork = () => useUnsavedWorkStore.getState().count > 0
+// Lazy dirty checkers — screens whose "unsaved" is a computation over
+// editing state (the map's boundary drawing / field editor) register a
+// callback instead of begin/end, so dirtiness is evaluated at decision
+// time (a nav click, beforeunload) rather than tracked on every render.
+type UnsavedWorkChecker = () => boolean
+const checkers = new Set<UnsavedWorkChecker>()
+
+/** Registers a dirty-check; returns the unregister cleanup. */
+export function registerUnsavedWorkChecker(fn: UnsavedWorkChecker): () => void {
+  checkers.add(fn)
+  return () => { checkers.delete(fn) }
+}
+
+export const hasUnsavedWork = () =>
+  useUnsavedWorkStore.getState().count > 0 || [...checkers].some(fn => fn())
 
 /** Counts the calling component as unsaved work while it is mounted. */
 export function useMarkUnsavedWork() {

@@ -10,7 +10,8 @@
     "settingsLong": "Configuración",
     "logout": "Cerrar sesión",
     "login": "Iniciar sesión",
-    "register": "Crear cuenta"
+    "register": "Crear cuenta",
+    "unsavedLeaveConfirm": "Tienes cambios sin guardar. ¿Salir y descartarlos?"
   },
   "actions": {
     "save": "Guardar",

@@ -10,7 +10,8 @@
     "settingsLong": "Settings",
     "logout": "Log out",
     "login": "Log in",
-    "register": "Create account"
+    "register": "Create account",
+    "unsavedLeaveConfirm": "You have unsaved changes. Leave and discard them?"
   },
   "actions": {
     "save": "Save",

@@ -3,14 +3,19 @@ import { useTranslation } from 'react-i18next'
 import { Settings, LogOut, LayoutDashboard, Map, Calculator, NotebookPen } from 'lucide-react'
 import { useAuthStore } from '@/store/useAuthStore'
 import { useLogout } from '@/features/auth/hooks/useAuth'
+import { useGuardedNavigate } from '@/hooks/useGuardedNavigate'
 
 export default function SideMenu() {
   const { t } = useTranslation()
   const navigate = useNavigate()
+  const { guardedNavigate, confirmLeave } = useGuardedNavigate()
   const user = useAuthStore(s => s.user)
   const logout = useLogout()
 
   async function handleLogout() {
+    // Logging out discards unsaved work even without a route change —
+    // confirm once here, then redirect unguarded.
+    if (!confirmLeave()) return
     try {
       await logout.mutateAsync()
     } catch {
@@ -24,22 +29,22 @@ export default function SideMenu() {
   return (
     <nav className="hidden sm:flex w-16 h-full bg-[#d9ded7] flex-col items-center py-6">
       <div className="flex flex-col items-center gap-4">
-        <button onClick={() => navigate('/')} aria-label={t('nav.map')} title={t('nav.map')} className={itemClass}>
+        <button onClick={() => guardedNavigate('/')} aria-label={t('nav.map')} title={t('nav.map')} className={itemClass}>
           <Map size={20} />
         </button>
-        <button onClick={() => navigate('/dashboard')} aria-label={t('nav.dashboardLong')} title={t('nav.dashboardLong')} className={itemClass}>
+        <button onClick={() => guardedNavigate('/dashboard')} aria-label={t('nav.dashboardLong')} title={t('nav.dashboardLong')} className={itemClass}>
           <LayoutDashboard size={20} />
         </button>
-        <button onClick={() => navigate('/inventory')} aria-label={t('nav.notebookLong')} title={t('nav.notebookLong')} className={itemClass}>
+        <button onClick={() => guardedNavigate('/inventory')} aria-label={t('nav.notebookLong')} title={t('nav.notebookLong')} className={itemClass}>
           <NotebookPen size={20} />
         </button>
-        <button onClick={() => navigate('/simulator')} aria-label={t('nav.simulator')} title={t('nav.simulator')} className={itemClass}>
+        <button onClick={() => guardedNavigate('/simulator')} aria-label={t('nav.simulator')} title={t('nav.simulator')} className={itemClass}>
           <Calculator size={20} />
         </button>
       </div>
 
       <div className="mt-auto flex flex-col items-center gap-4">
-        <button onClick={() => navigate('/settings')} aria-label={t('nav.settingsLong')} title={t('nav.settingsLong')} className={itemClass}>
+        <button onClick={() => guardedNavigate('/settings')} aria-label={t('nav.settingsLong')} title={t('nav.settingsLong')} className={itemClass}>
           <Settings size={20} />
         </button>
 

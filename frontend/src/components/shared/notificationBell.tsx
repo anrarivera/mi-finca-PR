@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { localOpLabel, formatRelativeDays } from '@/i18n'
 import { useTranslation } from 'react-i18next'
-import { useNavigate } from 'react-router-dom'
+import { useGuardedNavigate } from '@/hooks/useGuardedNavigate'
 import { Bell, AlertCircle, Clock, Wheat, CheckCheck, Settings } from 'lucide-react'
 import { useFieldStore } from '@/store/useFieldStore'
 import { useSettingsStore } from '@/store/useSettingsStore'
@@ -27,7 +27,7 @@ export default function NotificationBell() {
   const { t } = useTranslation('pages')
   const [open, setOpen] = useState(false)
   const panelRef = useRef<HTMLDivElement>(null)
-  const navigate = useNavigate()
+  const { guardedNavigate } = useGuardedNavigate()
 
   const fields = useFieldStore(s => s.fields)
   const prefs = useSettingsStore(s => s.notificationPrefs)
@@ -59,7 +59,7 @@ export default function NotificationBell() {
 
   function handleOpenSettings() {
     setOpen(false)
-    navigate('/settings')
+    guardedNavigate('/settings')
   }
 
   return (

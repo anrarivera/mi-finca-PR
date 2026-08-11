@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { Settings, LogOut, LogIn, UserPlus } from 'lucide-react'
 import { useAuthStore } from '@/store/useAuthStore'
 import { useLogout } from '@/features/auth/hooks/useAuth'
+import { useGuardedNavigate } from '@/hooks/useGuardedNavigate'
 import NotificationBell from './notificationBell'
 
 function initialsFromName(fullName: string): string {
@@ -20,6 +21,7 @@ export default function TopNav() {
   const [open, setOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
+  const { guardedNavigate, confirmLeave, confirmLeaveTo } = useGuardedNavigate()
   const user = useAuthStore(s => s.user)
   const logout = useLogout()
 
@@ -34,6 +36,9 @@ export default function TopNav() {
   }, [])
 
   async function handleLogout() {
+    // Logging out discards unsaved work even without a route change —
+    // confirm once here, then redirect unguarded.
+    if (!confirmLeave()) return
     setOpen(false)
     try {
       await logout.mutateAsync()
@@ -45,13 +50,14 @@ export default function TopNav() {
 
   function handleSettings() {
     setOpen(false)
-    navigate('/settings')
+    guardedNavigate('/settings')
   }
 
   return (
     <nav className="w-full h-16 bg-[#2d4a1e] border-b-2 border-[#3d6128] flex items-center justify-between px-6">
       <Link
         to="/"
+        onClick={(e) => { if (!confirmLeaveTo('/')) e.preventDefault() }}
         className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-white/10 transition-colors"
       >
         <span className="text-2xl">🌱</span>

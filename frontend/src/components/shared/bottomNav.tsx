@@ -1,6 +1,7 @@
-import { useNavigate, useLocation } from 'react-router-dom'
+import { useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Settings, LayoutDashboard, Map, Calculator, NotebookPen } from 'lucide-react'
+import { useGuardedNavigate } from '@/hooks/useGuardedNavigate'
 
 const TABS = [
   { path: '/', labelKey: 'nav.map', icon: Map },
@@ -14,7 +15,7 @@ const TABS = [
 // Logout lives in the top nav's user menu on both form factors.
 export default function BottomNav() {
   const { t } = useTranslation()
-  const navigate = useNavigate()
+  const { guardedNavigate } = useGuardedNavigate()
   const { pathname } = useLocation()
 
   return (
@@ -25,7 +26,7 @@ export default function BottomNav() {
         return (
           <button
             key={path}
-            onClick={() => navigate(path)}
+            onClick={() => guardedNavigate(path)}
             aria-label={label}
             aria-current={active ? 'page' : undefined}
             className={`flex-1 flex flex-col items-center gap-0.5 pt-2 pb-1.5 transition-colors ${
