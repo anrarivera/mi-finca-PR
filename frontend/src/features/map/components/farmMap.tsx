@@ -332,6 +332,9 @@ export default function FarmMap({ center = PR_CENTER, zoom = DEFAULT_ZOOM }: Pro
   // Fly-to-field request (drawer card double-click / Editar). The nonce
   // re-triggers the flight when the same field is requested again.
   const [zoomTarget, setZoomTarget] = useState<{ field: FieldModel; nonce: number } | null>(null)
+  // Bumped when "Añadir finca" creates a farm — tells the boundary panel
+  // to open its draw card for the new farm.
+  const [drawPrompt, setDrawPrompt] = useState(0)
 
   const { fields, removeField } = useFieldStore()
   useFarms() // hydrates the farm store; loading state unused here
@@ -548,6 +551,10 @@ async function handleDeleteFarm() {
         farmType: 'mixed',
       })
       setShowModal(false)
+      // The new farm is now active (no boundary yet) — close the drawer
+      // and open the boundary card so drawing is the immediate next step.
+      setDrawerOpen(false)
+      setDrawPrompt(n => n + 1)
     } catch (err) {
       console.error('Failed to create farm:', err)
       alert(t('map.createFarmError'))
@@ -565,6 +572,7 @@ async function handleDeleteFarm() {
           // Only farm ever + no boundary yet → the boundary card starts
           // expanded so first-time users can find it.
           firstFarm={farms.length === 1}
+          openCardNonce={drawPrompt}
           mode={drawing.mode}
           pointCount={drawing.points.length}
           areaAcres={drawing.areaAcres}

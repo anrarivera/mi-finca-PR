@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pencil, Trash2, Check, Milestone, Plus, Undo2, X } from 'lucide-react'
 import { useIsPhone } from '@/hooks/useViewport'
@@ -31,6 +31,10 @@ type Props = {
       doesn't have to discover the small FAB; once dismissed (or once
       there are more farms / a saved boundary) it stays collapsed. */
   firstFarm?: boolean
+  /** Bumped by the host right after "Añadir finca" creates a farm —
+      opens the boundary card so drawing is the immediate next step,
+      for every new farm (not just the first). */
+  openCardNonce?: number
 }
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -62,16 +66,22 @@ export default function DrawingPanel({
   onInsertPointAfterSelected,
   canDeleteFarm = true,
   firstFarm = false,
+  openCardNonce = 0,
 }: Props) {
   const { t } = useTranslation('farm')
   const isPhone = useIsPhone()
   const [menuOpen, setMenuOpen] = useState(false)
-  // First-farm onboarding card — open until the user dismisses it (or
-  // starts drawing). Session-local: it re-opens on the next visit as long
-  // as the first farm still has no boundary.
-  const [onboardDismissed, setOnboardDismissed] = useState(false)
+  // Boundary onboarding card — starts open during first-farm onboarding,
+  // and re-opens every time a farm is created (openCardNonce) so drawing
+  // the boundary is always the in-your-face next step after "Añadir
+  // finca". Closes on dismiss or by drawing; only shows while there is
+  // no boundary (mode 'idle').
+  const [cardOpen, setCardOpen] = useState(firstFarm)
+  useEffect(() => {
+    if (openCardNonce > 0) setCardOpen(true)
+  }, [openCardNonce])
   const active = mode === 'drawing' || mode === 'editing'
-  const showOnboard = firstFarm && mode === 'idle' && !onboardDismissed
+  const showOnboard = mode === 'idle' && cardOpen
 
   // Finishing a draw/edit lands in 'complete' — surface the menu so the
   // save action is in the user's face instead of hidden behind the FAB.
@@ -137,9 +147,10 @@ export default function DrawingPanel({
           <button
             onClick={() => {
               if (mode !== 'idle') { setMenuOpen(open => !open); return }
-              // First farm: the FAB toggles the onboarding card; everyone
-              // else goes straight into drawing, as before.
-              if (firstFarm) setOnboardDismissed(dismissed => !dismissed)
+              // Card showing → collapse it. First farm re-opens it on the
+              // next click; veterans go straight into drawing, as before.
+              if (cardOpen) setCardOpen(false)
+              else if (firstFarm) setCardOpen(true)
               else onStart()
             }}
             title={t('drawing.boundaryTitle')}
@@ -171,7 +182,7 @@ export default function DrawingPanel({
                 {t('drawing.onboardStart')}
               </button>
               <button
-                onClick={() => setOnboardDismissed(true)}
+                onClick={() => setCardOpen(false)}
                 className="w-full py-1.5 text-xs text-[#9aab8a] hover:text-[#5a6a4a] hover:bg-[#f5f8f0] rounded-lg transition-colors"
               >
                 {t('drawing.onboardLater')}
