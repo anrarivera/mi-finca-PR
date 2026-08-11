@@ -76,6 +76,9 @@
   },
   "drawing": {
     "drawYourFarm": "Draw your farm",
+    "onboardBody": "Your farm is created. Now draw its boundary on the map: find your land, place the corners, and save it. With the boundary in place you can add fields and crops.",
+    "onboardStart": "Draw the farm boundary",
+    "onboardLater": "Not now",
     "boundaryTitle": "Farm boundary",
     "acresPoints": "acres · {{count}} points",
     "saveFarm": "Save farm",

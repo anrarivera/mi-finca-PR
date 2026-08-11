@@ -26,6 +26,11 @@ type Props = {
   onInsertPointAfterSelected: () => void
   /** Owner-only action — hidden for admins (the server rejects them). */
   canDeleteFarm?: boolean
+  /** True while the user's ONLY farm has no boundary yet — first-farm
+      onboarding. The boundary card then starts expanded so a new user
+      doesn't have to discover the small FAB; once dismissed (or once
+      there are more farms / a saved boundary) it stays collapsed. */
+  firstFarm?: boolean
 }
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -56,11 +61,17 @@ export default function DrawingPanel({
   onDeleteSelectedPoint,
   onInsertPointAfterSelected,
   canDeleteFarm = true,
+  firstFarm = false,
 }: Props) {
   const { t } = useTranslation('farm')
   const isPhone = useIsPhone()
   const [menuOpen, setMenuOpen] = useState(false)
+  // First-farm onboarding card — open until the user dismisses it (or
+  // starts drawing). Session-local: it re-opens on the next visit as long
+  // as the first farm still has no boundary.
+  const [onboardDismissed, setOnboardDismissed] = useState(false)
   const active = mode === 'drawing' || mode === 'editing'
+  const showOnboard = firstFarm && mode === 'idle' && !onboardDismissed
 
   // Finishing a draw/edit lands in 'complete' — surface the menu so the
   // save action is in the user's face instead of hidden behind the FAB.
@@ -94,31 +105,40 @@ export default function DrawingPanel({
 
   return (
     <>
-      {/* Tap-outside closes the menu */}
-      {menuOpen && (
+      {/* Tap-outside closes the menu / dismisses the onboarding card */}
+      {(menuOpen || showOnboard) && (
         <div
           className="absolute inset-0 z-[999]"
-          onClick={() => setMenuOpen(false)}
+          onClick={() => { setMenuOpen(false); setOnboardDismissed(true) }}
         />
       )}
 
       <div className="absolute right-4 top-4 z-[1000] flex flex-col items-end gap-2">
         <div className="flex items-center gap-2">
-          {/* Onboarding chip until the first boundary exists; acreage after */}
+          {/* Onboarding chip until the first boundary exists (the expanded
+              first-farm card replaces it); acreage after */}
           {mode === 'idle' ? (
-            <button
-              onClick={onStart}
-              className="px-2.5 py-1.5 bg-white border border-[#e0e8d8] rounded-full shadow-md text-[11px] font-medium text-[#2d4a1e]"
-            >
-              {t('drawing.drawYourFarm')}
-            </button>
+            !showOnboard && (
+              <button
+                onClick={onStart}
+                className="px-2.5 py-1.5 bg-white border border-[#e0e8d8] rounded-full shadow-md text-[11px] font-medium text-[#2d4a1e]"
+              >
+                {t('drawing.drawYourFarm')}
+              </button>
+            )
           ) : areaAcres !== null && (
             <span className="px-2.5 py-1.5 bg-white border border-[#e0e8d8] rounded-full shadow-md text-[11px] font-medium text-[#5a6a4a]">
               {t('acresShort', { value: areaAcres })}
             </span>
           )}
           <button
-            onClick={() => (mode === 'idle' ? onStart() : setMenuOpen(open => !open))}
+            onClick={() => {
+              if (mode !== 'idle') { setMenuOpen(open => !open); return }
+              // First farm: the FAB toggles the onboarding card; everyone
+              // else goes straight into drawing, as before.
+              if (firstFarm) setOnboardDismissed(dismissed => !dismissed)
+              else onStart()
+            }}
             title={t('drawing.boundaryTitle')}
             aria-label={t('drawing.boundaryTitle')}
             className="w-11 h-11 flex items-center justify-center rounded-full bg-[#2d4a1e] text-[#d4e8b0] shadow-lg hover:bg-[#3d6128] transition-colors"
@@ -126,6 +146,36 @@ export default function DrawingPanel({
             <Milestone size={18} />
           </button>
         </div>
+
+        {/* ── First-farm onboarding card — expanded by default ── */}
+        {showOnboard && (
+          <div className="w-64 bg-white rounded-xl border border-[#e0e8d8] shadow-lg overflow-hidden">
+            <div className="px-4 py-3 border-b border-[#e0e8d8] bg-[#f5f8f0] flex items-center gap-2">
+              <Milestone size={14} className="text-[#639922]" />
+              <span className="text-xs font-semibold text-[#2d4a1e] uppercase tracking-wide">
+                {t('drawing.boundaryTitle')}
+              </span>
+            </div>
+            <div className="p-4 flex flex-col gap-3">
+              <p className="text-xs text-[#5a6a4a] leading-relaxed">
+                {t('drawing.onboardBody')}
+              </p>
+              <button
+                onClick={onStart}
+                className="w-full flex items-center justify-center gap-2 py-2.5 text-xs font-medium bg-[#2d4a1e] text-[#d4e8b0] rounded-lg hover:bg-[#3d6128] transition-colors"
+              >
+                <Pencil size={13} />
+                {t('drawing.onboardStart')}
+              </button>
+              <button
+                onClick={() => setOnboardDismissed(true)}
+                className="w-full py-1.5 text-xs text-[#9aab8a] hover:text-[#5a6a4a] hover:bg-[#f5f8f0] rounded-lg transition-colors"
+              >
+                {t('drawing.onboardLater')}
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* ── Boundary action menu (complete mode) ── */}
         {menuOpen && mode === 'complete' && (

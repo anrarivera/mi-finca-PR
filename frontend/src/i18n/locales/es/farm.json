@@ -76,6 +76,9 @@
   },
   "drawing": {
     "drawYourFarm": "Dibuja tu finca",
+    "onboardBody": "Tu finca ya está creada. Ahora dibuja su límite en el mapa: busca tu terreno, coloca las esquinas y guárdalo. Con el límite listo podrás añadir campos y cultivos.",
+    "onboardStart": "Dibujar límite de la finca",
+    "onboardLater": "Ahora no",
     "boundaryTitle": "Límite de finca",
     "acresPoints": "acres · {{count}} puntos",
     "saveFarm": "Guardar finca",

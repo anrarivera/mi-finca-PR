@@ -562,6 +562,9 @@ async function handleDeleteFarm() {
       {!fieldEditing.active && canManageStructure(activeFarm) && (
         <DrawingPanel
           canDeleteFarm={isFarmOwner(activeFarm)}
+          // Only farm ever + no boundary yet → the boundary card starts
+          // expanded so first-time users can find it.
+          firstFarm={farms.length === 1}
           mode={drawing.mode}
           pointCount={drawing.points.length}
           areaAcres={drawing.areaAcres}
