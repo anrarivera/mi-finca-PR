@@ -81,6 +81,18 @@ app.use(cors({
 app.use(express.json({ limit: '20mb' }))
 app.use(cookieParser())
 
+// API responses are per-user, but repeat GETs (fields, crops, operations)
+// usually return an identical body. 'private, no-cache' lets the browser
+// keep a private copy that it must always revalidate — Express's default
+// ETag then answers an unchanged refetch with an empty 304 instead of a
+// multi-megabyte body. Correctness is guaranteed by the revalidation:
+// a 304 only ever means "what you cached is byte-identical to what I
+// would send you now".
+app.use('/api', (req, res, next) => {
+  res.set('Cache-Control', 'private, no-cache')
+  next()
+})
+
 // ── Health check ───────────────────────────────────────────────────────
 app.get('/health', async (req, res) => {
   try {

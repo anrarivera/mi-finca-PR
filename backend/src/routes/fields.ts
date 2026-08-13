@@ -105,51 +105,70 @@ function validateFieldInsideFarm(
   }
 }
 
+// Coordinates ship at 6 decimals (~11 cm on the ground) — full double
+// precision nearly doubles the JSON size of a plant for zero agronomic
+// value, and a big field carries 10k+ of them.
+const round6 = (n: unknown) => Math.round(Number(n) * 1e6) / 1e6
+
 function serializeField(field: any) {
+  // Strip the raw Prisma relations before spreading: field.plants holds
+  // EVERY plant (row plants included), and each event carries its own
+  // plants + recommended — spreading them verbatim shipped every plant
+  // up to three times. Only the nested rows/freePlants shapes go out.
+  const { plants: fieldPlants, plantingEvents, ...rest } = field
   return {
-    ...field,
-    farmLat: Number(field.farmLat),
-    farmLng: Number(field.farmLng),
+    ...rest,
+    farmLat: round6(field.farmLat),
+    farmLng: round6(field.farmLng),
+    boundary: Array.isArray(field.boundary)
+      ? field.boundary.map((p: any) => ({ lat: round6(p.lat), lng: round6(p.lng) }))
+      : field.boundary,
     rows: (field.rows ?? []).map((row: any) => ({
       ...row,
-      startLat: Number(row.startLat),
-      startLng: Number(row.startLng),
-      endLat: Number(row.endLat),
-      endLng: Number(row.endLng),
+      startLat: round6(row.startLat),
+      startLng: round6(row.startLng),
+      endLat: round6(row.endLat),
+      endLng: round6(row.endLng),
       spacingFt: Number(row.spacingFt),
       plantingDate: toDateStr(row.plantingDate),
+      path: Array.isArray(row.path)
+        ? row.path.map((p: any) => ({ lat: round6(p.lat), lng: round6(p.lng) }))
+        : row.path,
       plants: (row.plants ?? []).map((p: any) => ({
         ...p,
-        lat: Number(p.lat),
-        lng: Number(p.lng),
+        lat: round6(p.lat),
+        lng: round6(p.lng),
         plantingDate: toDateStr(p.plantingDate),
       })),
     })),
-    freePlants: (field.plants ?? [])
+    freePlants: (fieldPlants ?? [])
       .filter((p: any) => !p.rowId)
       .map((p: any) => ({
         ...p,
-        lat: Number(p.lat),
-        lng: Number(p.lng),
+        lat: round6(p.lat),
+        lng: round6(p.lng),
         plantingDate: toDateStr(p.plantingDate),
       })),
-    plantingEvents: (field.plantingEvents ?? []).map((e: any) => ({
-      ...e,
-      plantingDate: toDateStr(e.plantingDate),
-      rowIds: [...new Set(
-        (e.plants ?? [])
-          .filter((p: any) => p.rowId)
-          .map((p: any) => p.rowId as string)
-      )],
-      freePlantIds: (e.plants ?? [])
-        .filter((p: any) => !p.rowId)
-        .map((p: any) => p.id as string),
-      operations: (e.recommended ?? []).map((op: any) => ({
-        ...op,
-        recommendedDate: toDateStr(op.recommendedDate),
-        completedDate: op.completedDate ? toDateStr(op.completedDate) : null,
-      })),
-    })),
+    plantingEvents: (plantingEvents ?? []).map((e: any) => {
+      const { plants: eventPlants, recommended, ...event } = e
+      return {
+        ...event,
+        plantingDate: toDateStr(e.plantingDate),
+        rowIds: [...new Set(
+          (eventPlants ?? [])
+            .filter((p: any) => p.rowId)
+            .map((p: any) => p.rowId as string)
+        )],
+        freePlantIds: (eventPlants ?? [])
+          .filter((p: any) => !p.rowId)
+          .map((p: any) => p.id as string),
+        operations: (recommended ?? []).map((op: any) => ({
+          ...op,
+          recommendedDate: toDateStr(op.recommendedDate),
+          completedDate: op.completedDate ? toDateStr(op.completedDate) : null,
+        })),
+      }
+    }),
   }
 }
 

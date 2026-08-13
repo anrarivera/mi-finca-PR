@@ -53,6 +53,11 @@ type PendingRemovalLog = {
   plantCount?: number
 }
 
+// Wire-format coordinate rounding: 6 decimals ≈ 11 cm on the ground.
+const round6 = (n: number) => Math.round(n * 1e6) / 1e6
+const roundPt = <T extends { lat: number; lng: number }>(p: T): T =>
+  ({ ...p, lat: round6(p.lat), lng: round6(p.lng) })
+
 // ── The session hook ──────────────────────────────────────────────────
 export function useMapFieldEditing(
   farmId: string,
@@ -293,7 +298,20 @@ export function useMapFieldEditing(
   // ── Save ─────────────────────────────────────────────────────────
   async function save() {
     if (editor.points.length < 3 || !editor.name.trim() || !bbox) return
-    const boundaryLatLng = editor.canvasPointsToLatLng(bbox)
+    // Coordinates upload at 6 decimals (~11 cm) — request bodies aren't
+    // compressed, and at 10k+ plants full double precision doubles a
+    // multi-megabyte payload for zero agronomic value.
+    const boundaryLatLng = editor.canvasPointsToLatLng(bbox).map(roundPt)
+    const rows = editor.rows.map(row => ({
+      ...row,
+      startLat: round6(row.startLat),
+      startLng: round6(row.startLng),
+      endLat: round6(row.endLat),
+      endLng: round6(row.endLng),
+      path: row.path?.map(roundPt),
+      plants: row.plants.map(roundPt),
+    }))
+    const freePlants = editor.freePlants.map(roundPt)
 
     // A failed save must NOT tear down the editor — the drawn rows and
     // plants only exist here until the server accepts them, so we keep
@@ -306,8 +324,8 @@ export function useMapFieldEditing(
             name: editor.name,
             shape: editor.shape,
             boundary: boundaryLatLng,
-            rows: editor.rows,
-            freePlants: editor.freePlants,
+            rows,
+            freePlants,
             plantingEvents: editor.plantingEvents,
           },
         })
@@ -321,12 +339,12 @@ export function useMapFieldEditing(
           color: randomFieldColor(),
           shape: editor.shape,
           boundary: boundaryLatLng,
-          farmLat: boundaryLatLng.reduce((s, p) => s + p.lat, 0) / boundaryLatLng.length,
-          farmLng: boundaryLatLng.reduce((s, p) => s + p.lng, 0) / boundaryLatLng.length,
+          farmLat: round6(boundaryLatLng.reduce((s, p) => s + p.lat, 0) / boundaryLatLng.length),
+          farmLng: round6(boundaryLatLng.reduce((s, p) => s + p.lng, 0) / boundaryLatLng.length),
           isPositioning: false,
           displayMode: 'shape' as const,
-          rows: editor.rows,
-          freePlants: editor.freePlants,
+          rows,
+          freePlants,
           plantingEvents: editor.plantingEvents,
         })
         addFieldIdToFarm(farmId, saved.id)
