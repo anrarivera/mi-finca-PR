@@ -1,7 +1,9 @@
-import { Fragment, useEffect, useRef, useState } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { Polygon, Polyline, CircleMarker, Marker, Tooltip } from 'react-leaflet'
 import * as L from 'leaflet'
 import { useFieldStore } from '@/store/useFieldStore'
+import { usePlantView, cullPlants } from '../hooks/usePlantLod'
+import type { HarvestHighlight, MapSelectionToggles } from '@/store/useHarvestHighlightStore'
 import { useLivestockStore } from '@/store/useLivestockStore'
 import { getAnimalById } from '@/features/livestock/data/animalLibrary'
 import { useIsCoarsePointer } from '@/hooks/useViewport'
@@ -23,8 +25,9 @@ const EMPTY_MARKS: PlantMarks = { plantIds: new Set(), rowIds: new Set() }
 // Leaflet fires click twice before dblclick, so the single-click action is
 // deferred ~250 ms and cancelled when a double-click lands.
 // Detail rendering: crop rows are drawn as lines inside every field shape;
-// individual plants are drawn only for the selected field (`detailed`) to
-// keep marker counts sane on farms with many fields.
+// individual plants are drawn only for the selected field (`detailed`),
+// and even then with level-of-detail (zoomed-in + viewport-culled + capped
+// — see usePlantLod) so a 10k-plant field can't flood the map with markers.
 // ──────────────────────────────────────────────────────────────────────────
 
 const DOUBLE_CLICK_WINDOW_MS = 250
@@ -183,14 +186,6 @@ export default function PlacedField({
   }
 
   const positions = field.boundary.map(p => L.latLng(p.lat, p.lng))
-  // Plants draw for the selected field — and while ITS scope selector is
-  // open, so they can be clicked to toggle their selection.
-  const plants = detailed || fieldToggles
-    ? [
-        ...field.rows.flatMap(r => r.plants.map(p => ({ plant: p, rowId: r.id as string | undefined }))),
-        ...field.freePlants.map(p => ({ plant: p, rowId: undefined as string | undefined })),
-      ]
-    : []
 
   return (
     <>
@@ -252,8 +247,50 @@ export default function PlacedField({
         )
       })}
 
-      {/* Individual plants — only for the selected field. Colors:
-          white = planned, green = planted, red = harvested/removed */}
+      {/* Individual plants — only for the selected field, and while ITS
+          scope selector is open so they can be clicked to toggle their
+          selection. A child component so only that one field re-renders
+          on pan/zoom (the LOD hook subscribes to map move events). */}
+      {(detailed || fieldToggles) && (
+        <FieldPlants
+          field={field}
+          fieldToggles={fieldToggles}
+          harvestHighlight={harvestHighlight}
+          plantMarks={plantMarks}
+          findingMarks={findingMarks}
+        />
+      )}
+    </>
+  )
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Plant dots with level-of-detail: zoomed out (or with too many plants on
+// screen) the rows alone carry the picture — dots render only when zoomed
+// in enough to be readable, and only inside the viewport. Colors:
+// white = planned, green = planted, red = harvested/removed.
+// ──────────────────────────────────────────────────────────────────────────
+function FieldPlants({
+  field, fieldToggles, harvestHighlight, plantMarks, findingMarks,
+}: {
+  field: PlacedFieldType
+  fieldToggles: MapSelectionToggles | null
+  harvestHighlight: HarvestHighlight | null
+  plantMarks: PlantMarks
+  findingMarks: FindingMarks
+}) {
+  const view = usePlantView()
+  const allPlants = useMemo(
+    () => [
+      ...field.rows.flatMap(r => r.plants.map(p => ({ plant: p, rowId: r.id as string | undefined }))),
+      ...field.freePlants.map(p => ({ plant: p, rowId: undefined as string | undefined })),
+    ],
+    [field.rows, field.freePlants]
+  )
+  const plants = cullPlants(allPlants, view)
+
+  return (
+    <>
       {plants.map(({ plant, rowId }) => {
         const style = PLANT_STATUS_STYLE[plantVisualStatus(plant, plantMarks, rowId)]
         const inHarvest = harvestHighlight?.plantIds.includes(plant.id) ?? false

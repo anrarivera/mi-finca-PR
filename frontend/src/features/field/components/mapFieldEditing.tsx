@@ -10,6 +10,7 @@ import { useCreateField, useUpdateField } from '../hooks/useFieldsApi'
 import { useCreateOperation } from '../hooks/useOperationsApi'
 import { latlngToCanvas, canvasToLatlng, farmBoundaryToBBox } from '../utils/canvasGeo'
 import { attachPointerDrag } from '@/features/map/utils/pointerDrag'
+import { usePlantView, cullPlants } from '../hooks/usePlantLod'
 import { useIsCoarsePointer, useIsPhone } from '@/hooks/useViewport'
 import type { BBox } from '../utils/canvasGeo'
 import { getCropById } from '../data/cropLibrary'
@@ -444,6 +445,9 @@ export function MapFieldEditingLayer({
 }) {
   const { editor, bbox } = session
   const [rectDraft, setRectDraft] = useState<{ start: CanvasPoint; current: CanvasPoint } | null>(null)
+  // Level-of-detail window for plant dots — a 10k-plant field would
+  // otherwise mount 10k markers and freeze the editor.
+  const plantView = usePlantView()
 
   const map = useMapEvents({
     click(e) {
@@ -665,11 +669,13 @@ export function MapFieldEditingLayer({
         />
       )}
 
-      {/* Plants — white planned / green planted / red removed; clickable */}
-      {[
+      {/* Plants — white planned / green planted / red removed; clickable.
+          Culled to the zoomed-in viewport (usePlantLod): zoomed out, the
+          row lines carry the picture and stay selectable. */}
+      {cullPlants([
         ...editor.rows.flatMap(r => r.plants.map(p => ({ plant: p, rowId: r.id }))),
         ...editor.freePlants.map(p => ({ plant: p, rowId: undefined as string | undefined })),
-      ].map(({ plant, rowId }) => {
+      ], plantView).map(({ plant, rowId }) => {
         const status = plantVisualStatus(plant, plantMarks, rowId)
         const style = PLANT_STATUS_STYLE[status]
         const selected = session.selectedPlantIds.has(plant.id)
