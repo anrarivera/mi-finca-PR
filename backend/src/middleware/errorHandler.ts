@@ -19,6 +19,19 @@ export function errorHandler(
     })
   }
 
+  // body-parser rejections (not AppErrors) — keep their real status instead
+  // of collapsing them into a 500, so the client can tell "too big" apart
+  // from "server broke".
+  if ((err as { type?: string }).type === 'entity.too.large') {
+    return res.status(413).json({
+      success: false,
+      error: {
+        code: 'PAYLOAD_TOO_LARGE',
+        message: 'The data being saved is too large for the server to accept',
+      }
+    })
+  }
+
   return res.status(500).json({
     success: false,
     error: {

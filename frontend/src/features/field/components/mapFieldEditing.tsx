@@ -294,39 +294,48 @@ export function useMapFieldEditing(
     if (editor.points.length < 3 || !editor.name.trim() || !bbox) return
     const boundaryLatLng = editor.canvasPointsToLatLng(bbox)
 
-    if (editingFieldId) {
-      await updateField_api.mutateAsync({
-        id: editingFieldId,
-        updates: {
+    // A failed save must NOT tear down the editor — the drawn rows and
+    // plants only exist here until the server accepts them, so we keep
+    // the session alive and tell the user instead of dying silently.
+    try {
+      if (editingFieldId) {
+        await updateField_api.mutateAsync({
+          id: editingFieldId,
+          updates: {
+            name: editor.name,
+            shape: editor.shape,
+            boundary: boundaryLatLng,
+            rows: editor.rows,
+            freePlants: editor.freePlants,
+            plantingEvents: editor.plantingEvents,
+          },
+        })
+        await flushRemovalLogs(editingFieldId)
+        toast.success(i18n.t('editor:save.fieldUpdated'))
+        opts?.onSaved?.(editingFieldId)
+      } else {
+        const saved = await createField.mutateAsync({
           name: editor.name,
+          kind: editor.kind,
+          color: randomFieldColor(),
           shape: editor.shape,
           boundary: boundaryLatLng,
+          farmLat: boundaryLatLng.reduce((s, p) => s + p.lat, 0) / boundaryLatLng.length,
+          farmLng: boundaryLatLng.reduce((s, p) => s + p.lng, 0) / boundaryLatLng.length,
+          isPositioning: false,
+          displayMode: 'shape' as const,
           rows: editor.rows,
           freePlants: editor.freePlants,
           plantingEvents: editor.plantingEvents,
-        },
-      })
-      await flushRemovalLogs(editingFieldId)
-      toast.success(i18n.t('editor:save.fieldUpdated'))
-      opts?.onSaved?.(editingFieldId)
-    } else {
-      const saved = await createField.mutateAsync({
-        name: editor.name,
-        kind: editor.kind,
-        color: randomFieldColor(),
-        shape: editor.shape,
-        boundary: boundaryLatLng,
-        farmLat: boundaryLatLng.reduce((s, p) => s + p.lat, 0) / boundaryLatLng.length,
-        farmLng: boundaryLatLng.reduce((s, p) => s + p.lng, 0) / boundaryLatLng.length,
-        isPositioning: false,
-        displayMode: 'shape' as const,
-        rows: editor.rows,
-        freePlants: editor.freePlants,
-        plantingEvents: editor.plantingEvents,
-      })
-      addFieldIdToFarm(farmId, saved.id)
-      toast.success(i18n.t('editor:save.fieldSaved'))
-      opts?.onSaved?.(saved.id)
+        })
+        addFieldIdToFarm(farmId, saved.id)
+        toast.success(i18n.t('editor:save.fieldSaved'))
+        opts?.onSaved?.(saved.id)
+      }
+    } catch (err) {
+      console.error('Field save failed:', err)
+      toast.error(i18n.t('editor:save.fieldSaveError'))
+      return
     }
     reset()
     setActive(false)

@@ -116,7 +116,17 @@ class ApiClient {
   }
 
   private async handleResponse<T>(res: Response): Promise<T> {
-    const json: ApiResult<T> = await res.json()
+    // A proxy or the body parser can answer with HTML or an empty body
+    // (e.g. 413 on oversized saves) — those must still surface as a
+    // toastable error, not a JSON parse exception.
+    let json: ApiResult<T>
+    try {
+      json = await res.json()
+    } catch {
+      const message = `Error ${res.status}`
+      toast.error(message)
+      throw new Error(message)
+    }
 
     if (!json.success) {
       const message = json.error.message || 'An error occurred'

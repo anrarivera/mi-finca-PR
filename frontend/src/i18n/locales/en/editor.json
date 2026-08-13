@@ -127,7 +127,8 @@
   },
   "save": {
     "fieldUpdated": "Field updated",
-    "fieldSaved": "Field saved"
+    "fieldSaved": "Field saved",
+    "fieldSaveError": "The field could not be saved. Your changes are still in the editor — try again."
   },
   "customCrop": {
     "title": "New custom crop",

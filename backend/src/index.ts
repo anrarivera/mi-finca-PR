@@ -75,7 +75,10 @@ app.use(cors({
     : (origin, cb) => cb(null, !origin || origin === ALLOWED_ORIGIN || PRIVATE_LAN_ORIGIN.test(origin)),
   credentials: true,
 }))
-app.use(express.json())
+// Field saves send every plant as an individual lat/lng, so a large field
+// (tens of acres, thousands of plants) produces a multi-megabyte body —
+// Express's default 100kb limit rejected those saves with a 413.
+app.use(express.json({ limit: '20mb' }))
 app.use(cookieParser())
 
 // ── Health check ───────────────────────────────────────────────────────
