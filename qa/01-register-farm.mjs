@@ -79,9 +79,13 @@ try {
 try {
   await page.getByRole('button', { name: /Guardar finca/i }).click()
   await page.waitForTimeout(2000)
-  const t = await page.textContent('body')
-  if (t.includes('Finca guardada')) log('smoke', 'save farm + toast', 'PASS')
-  else log('smoke', 'save farm + toast', 'WARN', 'no toast text seen')
+  const t = await page.evaluate(() => document.body.innerText)
+  // Drawn at island-wide zoom, this boundary is ENORMOUS — the server
+  // must reject it with the friendly size validation (fix a1edc24).
+  // 02-boundary.mjs draws the real, accepted boundary afterwards.
+  if (t.includes('demasiado grande')) log('smoke', 'giant boundary rejected with friendly message', 'PASS')
+  else if (t.includes('Finca guardada')) log('smoke', 'giant boundary rejected', 'FAIL', 'huge boundary was accepted!')
+  else log('smoke', 'giant boundary rejected', 'WARN', 'no recognizable toast')
 } catch (e) {
   log('smoke', 'save farm', 'FAIL', e.message.slice(0, 200))
 }
