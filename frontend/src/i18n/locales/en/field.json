@@ -150,7 +150,8 @@
     "editModalTitle": "Edit entry",
     "confirmDeleteTitle": "Delete this {{type}} entry?",
     "confirmDeleteLinked": "If this entry completed a calendar task, the task will go back to pending. Linked harvests will also be deleted.",
-    "confirmDeletePlain": "This entry will be removed from the operations history."
+    "confirmDeletePlain": "This entry will be removed from the operations history.",
+    "performedBy": "by {{name}}"
   },
   "opType": {
     "planting": "Planting",

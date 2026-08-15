@@ -198,10 +198,12 @@ function OperationLogRow({ op, fieldName, livestockName, onEdit, onDelete }: {
   const { t } = useTranslation('field')
   const meta = TYPE_META[op.type] ?? TYPE_META.other
 
-  // Context line: where + what was used, e.g. "Campo Norte · 25 kg · Nitrato…"
+  // Context line: where + who + what was used,
+  // e.g. "Campo Norte · por Luis · 25 kg · Nitrato…"
   const details = [
     fieldName,
     livestockName,
+    op.performedBy?.fullName ? t('log.performedBy', { name: op.performedBy.fullName }) : null,
     op.quantity ? `${fmtNumber(op.quantity)} ${op.unit ?? ''}`.trim() : null,
     op.product,
     op.notes,

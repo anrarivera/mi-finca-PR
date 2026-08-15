@@ -154,6 +154,8 @@ router.get('/export', async (req: Request, res: Response, next: NextFunction) =>
       include: {
         field: { select: { name: true } },
         livestockUnit: { select: { name: true } },
+        // Compliance CSVs need "quién" as a column, not just "qué/cuándo".
+        performedBy: { select: { fullName: true } },
       },
       orderBy: { actualDate: 'desc' },
     })
@@ -165,13 +167,14 @@ router.get('/export', async (req: Request, res: Response, next: NextFunction) =>
       return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
     }
 
-    const header = 'date,type,field,livestock_unit,product,quantity,unit,quality_rating,rows_covered,plants_covered,notes'
+    const header = 'date,type,field,livestock_unit,performed_by,product,quantity,unit,quality_rating,rows_covered,plants_covered,notes'
     const rows = operations.map(op =>
       [
         toDateStr(op.actualDate),
         op.type,
         op.field?.name ?? '',
         op.livestockUnit?.name ?? '',
+        op.performedBy?.fullName ?? '',
         op.product ?? '',
         op.quantity !== null ? Number(op.quantity) : '',
         op.unit ?? '',

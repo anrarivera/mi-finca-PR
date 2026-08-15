@@ -150,7 +150,8 @@
     "editModalTitle": "Editar registro",
     "confirmDeleteTitle": "¿Eliminar este registro de {{type}}?",
     "confirmDeleteLinked": "Si este registro completó una labor del calendario, la labor volverá a quedar pendiente. Las cosechas asociadas también se eliminarán.",
-    "confirmDeletePlain": "Este registro se eliminará del historial de operaciones."
+    "confirmDeletePlain": "Este registro se eliminará del historial de operaciones.",
+    "performedBy": "por {{name}}"
   },
   "opType": {
     "planting": "Siembra",

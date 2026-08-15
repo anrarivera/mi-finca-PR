@@ -30,6 +30,9 @@ export type FarmOperation = {
   rowIds: string[]
   /** Individually covered plant ids outside those rows (partial rows, loose plants). */
   plantIds: string[]
+  /** Who logged it — the server includes { id, fullName } on farm-scoped
+      operation lists so the cuaderno can show "por Luis". */
+  performedBy?: { id: string; fullName: string } | null
   createdAt: string
 }
 
