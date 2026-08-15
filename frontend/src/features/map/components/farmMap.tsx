@@ -10,6 +10,7 @@ import {
 } from '@/features/farm/hooks/useFarmsApi'
 import { useDrawing, findNearestEdgeIndex } from '../hooks/useDrawing'
 import { attachPointerDrag } from '../utils/pointerDrag'
+import { municipioLatLng } from '../utils/prMunicipios'
 import { useIsCoarsePointer } from '@/hooks/useViewport'
 import DrawingPanel from './drawingPanel'
 import FarmDrawer from '@/features/farm/components/farmDrawer'
@@ -47,7 +48,15 @@ function MapController({ target }: { target: { farm: Farm; nonce: number } | nul
   const map = useMap()
   useEffect(() => {
     const farm = target?.farm
-    if (!farm?.boundary || farm.boundary.length < 3) return
+    if (!farm) return
+    if (!farm.boundary || farm.boundary.length < 3) {
+      // No boundary yet (farm just created) — fly to the municipio the
+      // farmer typed instead of leaving them on an island-wide view to
+      // hunt for their town on satellite imagery.
+      const town = municipioLatLng(farm.location)
+      if (town) map.flyTo(L.latLng(town.lat, town.lng), 14, { duration: 1.2 })
+      return
+    }
     const bounds = L.latLngBounds(
       farm.boundary.map(p => L.latLng(p.lat, p.lng))
     )
@@ -579,7 +588,7 @@ async function handleDeleteFarm() {
       return
     }
     try {
-      await createFarm.mutateAsync({
+      const created = await createFarm.mutateAsync({
         name: data.name,
         location: data.location,
         farmType: 'mixed',
@@ -589,6 +598,10 @@ async function handleDeleteFarm() {
       // and open the boundary card so drawing is the immediate next step.
       setDrawerOpen(false)
       setDrawPrompt(n => n + 1)
+      // Fly toward the municipio the farmer just typed (MapController
+      // resolves boundary-less farms to their town center).
+      const farm = useFarmStore.getState().farms.find(f => f.id === created.id)
+      if (farm) flyToFarm(farm)
     } catch (err) {
       console.error('Failed to create farm:', err)
       alert(t('map.createFarmError'))
