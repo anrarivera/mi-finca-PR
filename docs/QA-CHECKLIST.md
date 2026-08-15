@@ -140,7 +140,7 @@ Conventions: test on **desktop Chrome + a real phone** (the map editor, drawers,
 - [ ] Siembras: grid rows match reality; every sort column works both directions
 - [ ] Siembras on phone: cards render instead of the 9-column table
 - [ ] Labores: history filtered/complete; checkable where pending
-- [ ] Cosechas: log with amounts and dates
+- [ ] Producción: harvest/production log with amounts and dates
 - [ ] Sanidad: findings + treatments
 - [ ] Animales: herds and producción
 - [ ] Every tab has a sane EMPTY state (brand-new farm)
