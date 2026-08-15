@@ -382,11 +382,17 @@ export function useMapFieldEditing(
   }, [active, editor.mode, selectedPlantIds, editingRowIds, pendingDelete])
 
   // Boundary of the field being edited (feeds row fill/edit panels).
-  const editingBoundary: LatLngPoint[] = bbox
-    ? (editingFieldId
-        ? (getField(editingFieldId)?.boundary ?? editor.canvasPointsToLatLng(bbox))
-        : editor.canvasPointsToLatLng(bbox))
-    : []
+  // MUST be referentially stable across preview updates: rowFillPanel's
+  // builtRows memo depends on this array's identity, and its preview
+  // effect re-renders this hook's host — an unstable array here loops
+  // preview → re-render → new array → preview forever ("Maximum update
+  // depth exceeded").
+  const storedBoundary = editingFieldId ? getField(editingFieldId)?.boundary : undefined
+  const editingBoundary: LatLngPoint[] = useMemo(
+    () => (bbox ? (storedBoundary ?? editor.canvasPointsToLatLng(bbox)) : []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [bbox, storedBoundary, editor.points]
+  )
 
   return {
     editor, bbox, active, editingFieldId, isCreatingNew, farmId,
