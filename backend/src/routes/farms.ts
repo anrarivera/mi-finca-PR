@@ -2,7 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express'
 import { prisma } from '../lib/prisma'
 import { requireAuth } from '../middleware/auth'
 import { Errors } from '../lib/errors'
-import { requireFields, requireValidId, requireBoundaryBounds } from '../lib/validate'
+import { requireFields, requireValidId, requireBoundaryBounds, requireNameLength } from '../lib/validate'
 import { calculateAreaAcres, formatFarm } from '../lib/farmUtils'
 import { requireFarmRole } from '../lib/farmAccess'
 import { hashInviteCode } from '../lib/farmInvites'
@@ -63,6 +63,8 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
     const { name, location, farmType, description } = req.body
 
     requireFields(req.body, ['name', 'location'])
+    requireNameLength(name, 80)
+    requireNameLength(location, 120)
 
     // Validate farmType if provided
     const validTypes = ['crop', 'livestock', 'mixed', 'apiary']
@@ -196,6 +198,8 @@ router.patch('/:id', async (req: Request, res: Response, next: NextFunction) => 
     await requireFarmRole(req.user!.userId, id, 'admin')
 
     const { name, location, farmType, description, boundary, isFavorite } = req.body
+    requireNameLength(name, 80)
+    requireNameLength(location, 120)
 
     // Validate farmType if provided
     const validTypes = ['crop', 'livestock', 'mixed', 'apiary']

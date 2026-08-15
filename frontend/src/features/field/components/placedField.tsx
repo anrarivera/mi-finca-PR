@@ -202,7 +202,13 @@ export default function PlacedField({
         eventHandlers={eventHandlers}
       >
         <Tooltip permanent direction="top" offset={[0, -4]}>
-          <span style={{ fontSize: 11, fontWeight: 600, color: '#2d4a1e' }}>
+          {/* Ellipsize: an unbounded name would render as a label spanning
+              the whole map. */}
+          <span style={{
+            fontSize: 11, fontWeight: 600, color: '#2d4a1e',
+            display: 'inline-block', maxWidth: 180, overflow: 'hidden',
+            textOverflow: 'ellipsis', whiteSpace: 'nowrap', verticalAlign: 'bottom',
+          }}>
             {tooltipLabel}
           </span>
         </Tooltip>

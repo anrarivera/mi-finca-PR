@@ -59,6 +59,7 @@ export default function CreateFarmModal({ onClose, onSubmit }: Props) {
               <input
                 type="text"
                 placeholder={t('create.namePlaceholder')}
+                maxLength={80}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 className="w-full px-3 py-2.5 rounded-lg border border-[#d0dcc0] text-sm text-[#2d4a1e] placeholder:text-[#b0bea0] focus:outline-none focus:border-[#639922] focus:ring-1 focus:ring-[#639922] transition-colors"
@@ -72,6 +73,7 @@ export default function CreateFarmModal({ onClose, onSubmit }: Props) {
               <input
                 type="text"
                 placeholder={t('create.locationPlaceholder')}
+                maxLength={120}
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
                 className="w-full px-3 py-2.5 rounded-lg border border-[#d0dcc0] text-sm text-[#2d4a1e] placeholder:text-[#b0bea0] focus:outline-none focus:border-[#639922] focus:ring-1 focus:ring-[#639922] transition-colors"

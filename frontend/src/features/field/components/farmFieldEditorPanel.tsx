@@ -211,6 +211,7 @@ export default function FarmFieldEditorPanel({
           <input
             type="text"
             placeholder={t('panel.namePlaceholder')}
+            maxLength={80}
             value={name}
             onChange={e => onNameChange(e.target.value)}
             className="w-full px-3 py-2 rounded-lg border border-[#d0dcc0] text-sm text-[#2d4a1e] placeholder:text-[#b0bea0] focus:outline-none focus:border-[#639922] focus:ring-1 focus:ring-[#639922] transition-colors"

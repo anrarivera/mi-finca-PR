@@ -83,6 +83,15 @@ export function requireRevenue(value: unknown, name = 'revenue'): void {
   }
 }
 
+// Names render in map tooltips and cards — unbounded ones (a 175-char
+// field name) turn into screen-wide labels. Enforced here because the
+// input maxLength is only a convenience, not a guarantee.
+export function requireNameLength(value: unknown, max = 80): void {
+  if (typeof value === 'string' && value.trim().length > max) {
+    throw Errors.validation(`El nombre es demasiado largo (máximo ${max} caracteres)`)
+  }
+}
+
 export function requireQuantity(value: unknown, name = 'quantity'): void {
   if (value === undefined || value === null) return
   if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
