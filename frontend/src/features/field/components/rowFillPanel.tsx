@@ -72,11 +72,15 @@ export default function RowFillPanel({ boundary, onPreview, onConfirm, onCancel 
   const [rotateDeg, setRotateDeg] = useState(0)
   const [moveStepFt, setMoveStepFt] = useState(5)
   const hasTransform = offsetAlongFt !== 0 || offsetAcrossFt !== 0 || rotateDeg !== 0
-  // Default the row count to what fills the field once (rows along the long
-  // axis stack across the short side), then let the user edit it.
+  // Default the row count to what fills the field — CAPPED. On a big
+  // field "fill" is hundreds of rows and tens of thousands of plants;
+  // accepting defaults must never create a monster (the input shows the
+  // real máximo, so typing more stays one keystroke away).
+  const DEFAULT_COUNT_CAP = 20
   const [count, setCount] = useState(() => {
     const stackFt = dims.shortFt - 2 * DEFAULT_MARGIN
-    return Math.max(1, Math.floor(stackFt / DEFAULT_ROW_SPACING) + 1)
+    const fill = Math.max(1, Math.floor(stackFt / DEFAULT_ROW_SPACING) + 1)
+    return Math.min(DEFAULT_COUNT_CAP, fill)
   })
 
   // Added by Claude — the most rows that fit; the count input is capped to it.
@@ -212,6 +216,25 @@ export default function RowFillPanel({ boundary, onPreview, onConfirm, onCancel 
           </p>
         </div>
 
+        {/* Crop first — a farmer thinks "qué siembro" before row layout.
+            The create button stays disabled until this is chosen. */}
+        {/* Primary crop */}
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs font-medium text-[#5a6a4a]">
+            {t('common.primaryCrop')} <span className="text-red-400">*</span>
+          </label>
+          <CropSelector value={primaryCropId} onChange={setPrimaryCropId} placeholder={t('common.selectCrop')} />
+        </div>
+
+        {/* Companion crop */}
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs font-medium text-[#5a6a4a]">
+            {t('common.companionCrop')} <span className="text-[#9aab8a] font-normal">{t('common.optional')}</span>
+          </label>
+          <CropSelector value={companionCropId} onChange={setCompanionCropId} placeholder={t('common.noCompanion')} allowClear />
+        </div>
+
+
         {/* Pattern — straight rows vs contour rings (Added by Claude) */}
         <div className="flex flex-col gap-1.5">
           <label className="text-xs font-medium text-[#5a6a4a]">{t('fill.pattern')}</label>
@@ -247,9 +270,12 @@ export default function RowFillPanel({ boundary, onPreview, onConfirm, onCancel 
               <button key={o.key}
                 onClick={() => {
                   setOrientation(o.key)
-                  // Added by Claude — refill the count for the new orientation
-                  // (e.g. 'a lo largo' fits 10, 'a lo ancho' fits 32).
-                  setCount(maxRowsThatFit(boundary, o.key, marginFt, rowSpacingFt))
+                  // Refill the count for the new orientation — same cap as
+                  // the initial default so flipping never explodes the count.
+                  setCount(Math.min(
+                    DEFAULT_COUNT_CAP,
+                    maxRowsThatFit(boundary, o.key, marginFt, rowSpacingFt)
+                  ))
                 }}
                 className={`flex flex-col items-center gap-0.5 py-2.5 rounded-lg border text-[11px] font-medium transition-colors ${
                   orientation === o.key
@@ -420,22 +446,6 @@ export default function RowFillPanel({ boundary, onPreview, onConfirm, onCancel 
             onChange={e => setPlantingDate(e.target.value)}
             className="w-full px-3 py-2 rounded-lg border border-[#d0dcc0] text-sm text-[#2d4a1e] focus:outline-none focus:border-[#639922] transition-colors"
           />
-        </div>
-
-        {/* Primary crop */}
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-[#5a6a4a]">
-            {t('common.primaryCrop')} <span className="text-red-400">*</span>
-          </label>
-          <CropSelector value={primaryCropId} onChange={setPrimaryCropId} placeholder={t('common.selectCrop')} />
-        </div>
-
-        {/* Companion crop */}
-        <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-[#5a6a4a]">
-            {t('common.companionCrop')} <span className="text-[#9aab8a] font-normal">{t('common.optional')}</span>
-          </label>
-          <CropSelector value={companionCropId} onChange={setCompanionCropId} placeholder={t('common.noCompanion')} allowClear />
         </div>
 
         {/* Live count */}
