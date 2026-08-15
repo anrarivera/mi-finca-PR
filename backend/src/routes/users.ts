@@ -4,6 +4,8 @@ import bcrypt from 'bcryptjs'
 import { prisma } from '../lib/prisma'
 import { parseBody } from '../lib/validate'
 import { requireAuth } from '../middleware/auth'
+import { buildExport, restoreFromBackup, clearUserData, BACKUP_VERSION } from '../lib/backup'
+import { restoreBackupRequestSchema } from '../contracts/backupContract'
 import { Errors } from '../lib/errors'
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -80,6 +82,52 @@ router.delete('/me', async (req: Request, res: Response, next: NextFunction) => 
 
     res.clearCookie('refreshToken', { path: '/api/v1/auth' })
     res.json({ success: true, data: { deleted: true } })
+  } catch (err) {
+    next(err)
+  }
+})
+
+// ── GET /api/v1/users/me/export — full account backup (v2) ─────────────
+// Everything the account owns, straight from the database: farms with
+// fields/rows/plants/events/calendar, the operations log, harvests,
+// findings, livestock, team roster, custom crops.
+router.get('/me/export', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const data = await buildExport(req.user!.userId)
+    const filename = `mi-finca-respaldo-${new Date().toISOString().slice(0, 10)}.json`
+    res.setHeader('Content-Type', 'application/json; charset=utf-8')
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`)
+    res.send(JSON.stringify(data, null, 2))
+  } catch (err) {
+    next(err)
+  }
+})
+
+// ── POST /api/v1/users/me/restore — transactional replace ──────────────
+router.post('/me/restore', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const body = req.body ?? {}
+    if (typeof body.version === 'number' && body.version < BACKUP_VERSION) {
+      throw Errors.validation(
+        'Este respaldo es de una versión anterior de la app y no contiene todos tus registros. Exporta un respaldo nuevo.'
+      )
+    }
+    if (typeof body.version === 'number' && body.version > BACKUP_VERSION) {
+      throw Errors.validation('Este respaldo es de una versión más nueva de la app.')
+    }
+    parseBody(restoreBackupRequestSchema, body)
+    const result = await restoreFromBackup(req.user!.userId, body)
+    res.json({ success: true, data: result })
+  } catch (err) {
+    next(err)
+  }
+})
+
+// ── POST /api/v1/users/me/clear-data — delete all owned farm data ──────
+router.post('/me/clear-data', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    await clearUserData(req.user!.userId)
+    res.json({ success: true, data: { cleared: true } })
   } catch (err) {
     next(err)
   }

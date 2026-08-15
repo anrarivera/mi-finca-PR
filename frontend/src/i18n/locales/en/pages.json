@@ -146,17 +146,17 @@
       "sectionTitle": "My data",
       "export": {
         "title": "Download backup",
-        "description": "Save all your farms, fields, animals, and calendars to a JSON file.",
+        "description": "Download ALL of your account data as a JSON file: farms, fields, tasks, production, plant health, team, and custom crops.",
         "button": "Export"
       },
       "import": {
         "title": "Restore backup",
-        "description": "Replace the current data with a previously exported backup file.",
+        "description": "Replace your account data with a previously exported backup. This substitutes everything current.",
         "button": "Import"
       },
       "clear": {
         "title": "Delete all data",
-        "description": "Deletes everything stored on this device. This action cannot be undone.",
+        "description": "Deletes all your farms and records from your account. This cannot be undone.",
         "button": "Delete all"
       }
     },
@@ -169,15 +169,16 @@
       "dataCleared": "Data deleted"
     },
     "restoreConfirm": {
-      "title": "Restore backup?",
+      "title": "Restore this backup?",
       "message_one": "The backup contains {{count}} farm. All current app data will be replaced.",
       "message_other": "The backup contains {{count}} farms. All current app data will be replaced.",
-      "confirm": "Restore"
+      "confirm": "Yes, restore",
+      "message": "ALL current account data will be replaced with the {{count}} farm(s) in the backup. Current records not in the file will be lost."
     },
     "clearConfirm": {
       "title": "Delete all data?",
-      "message": "All farms, fields, animals, and calendars stored on this device will be deleted. Consider downloading a backup first.",
-      "confirm": "Delete all"
+      "message": "All your farms, fields, tasks, production, and health records will be deleted from your account. This cannot be undone.",
+      "confirm": "Yes, delete everything"
     },
     "about": {
       "sectionTitle": "About",

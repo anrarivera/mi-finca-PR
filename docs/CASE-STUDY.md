@@ -131,6 +131,19 @@ actually produce. Writing the first contract immediately caught a real
 data-loss bug (contour rows' drawn paths were silently dropped by the
 database layer) — the pattern paid for itself on day one.
 
+**Backup that actually backs up.** The original backup/restore predated the
+server: it snapshotted localStorage stores, so "restore" wrote local state
+that the next refetch silently clobbered — and the file never contained the
+operations log, harvests, or findings at all. The v2 system is server-side:
+export streams the account's complete data from the database, restore is a
+transactional replace that preserves ids so internal links (completed
+check-offs, harvest yields, treatment labores, corral assignments) survive
+the roundtrip, and "delete all data" actually deletes. Old v1 files are
+rejected with an explanation rather than silently discarding most of an
+account's records. Proven by an export → clear → restore roundtrip test that
+asserts identical row counts across nine tables, and verified end-to-end
+through the real UI.
+
 Failure handling follows one rule learned the hard way: **a failed save must
 never cost the user their input.** The field editor stays open with work intact
 on error; check-off modals await the mutation and close only on success; backend

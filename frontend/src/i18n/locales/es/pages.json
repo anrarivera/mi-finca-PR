@@ -146,17 +146,17 @@
       "sectionTitle": "Mis datos",
       "export": {
         "title": "Descargar respaldo",
-        "description": "Guarda todas tus fincas, campos, animales y calendarios en un archivo JSON.",
+        "description": "Descarga TODOS los datos de tu cuenta en un archivo JSON: fincas, campos, labores, producción, sanidad, equipo y cultivos personalizados.",
         "button": "Exportar"
       },
       "import": {
         "title": "Restaurar respaldo",
-        "description": "Reemplaza los datos actuales con un archivo de respaldo exportado antes.",
+        "description": "Reemplaza los datos de tu cuenta con un respaldo exportado antes. Esta acción sustituye todo lo actual.",
         "button": "Importar"
       },
       "clear": {
         "title": "Borrar todos los datos",
-        "description": "Elimina todo lo guardado en este dispositivo. Esta acción no se puede deshacer.",
+        "description": "Elimina todas tus fincas y registros de tu cuenta. Esta acción no se puede deshacer.",
         "button": "Borrar todo"
       }
     },
@@ -169,15 +169,16 @@
       "dataCleared": "Datos eliminados"
     },
     "restoreConfirm": {
-      "title": "¿Restaurar respaldo?",
+      "title": "¿Restaurar este respaldo?",
       "message_one": "El respaldo contiene {{count}} finca. Se reemplazarán todos los datos actuales de la aplicación.",
       "message_other": "El respaldo contiene {{count}} fincas. Se reemplazarán todos los datos actuales de la aplicación.",
-      "confirm": "Restaurar"
+      "confirm": "Sí, restaurar",
+      "message": "Se reemplazarán TODOS los datos actuales de tu cuenta con las {{count}} finca(s) del respaldo. Los registros actuales que no estén en el archivo se perderán."
     },
     "clearConfirm": {
       "title": "¿Borrar todos los datos?",
-      "message": "Se eliminarán todas las fincas, campos, animales y calendarios guardados en este dispositivo. Considera descargar un respaldo primero.",
-      "confirm": "Borrar todo"
+      "message": "Se eliminarán todas tus fincas, campos, labores, producción y sanidad de tu cuenta. Esta acción no se puede deshacer.",
+      "confirm": "Sí, borrar todo"
     },
     "about": {
       "sectionTitle": "Acerca de",

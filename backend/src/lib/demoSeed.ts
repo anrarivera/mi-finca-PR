@@ -125,8 +125,9 @@ export async function seedDemoFarm(userId: string): Promise<string> {
     })
   }
 
-  // The completed cultivación also exists in the operations log (history).
-  await prisma.operation.create({
+  // The completed cultivación also exists in the operations log (history),
+  // linked BOTH ways like a real check-off (routes/operations.ts).
+  const cultivacionLog = await prisma.operation.create({
     data: {
       farmId: farm.id,
       fieldId: f1.id,
@@ -137,6 +138,10 @@ export async function seedDemoFarm(userId: string): Promise<string> {
       notes: 'Deshierbe completo entre hileras',
       performedByUserId: userId,
     },
+  })
+  await prisma.recommendedOperation.update({
+    where: { id: `ro_demo_${uid}_p1` },
+    data: { completedOperationId: cultivacionLog.id },
   })
 
   // ── Field 2: Café de Altura (10 weeks in; has an open finding) ──────

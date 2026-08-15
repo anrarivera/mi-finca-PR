@@ -115,7 +115,7 @@ function validateFieldInsideFarm(
 // value, and a big field carries 10k+ of them.
 const round6 = (n: unknown) => Math.round(Number(n) * 1e6) / 1e6
 
-function serializeField(field: any) {
+export function serializeField(field: any) {
   // Strip the raw Prisma relations before spreading: field.plants holds
   // EVERY plant (row plants included), and each event carries its own
   // plants + recommended — spreading them verbatim shipped every plant
@@ -182,7 +182,7 @@ function serializeField(field: any) {
   return enforceContract(fieldResponseSchema, built, 'field')
 }
 
-const fieldInclude = {
+export const fieldInclude = {
   rows: {
     where: {},
     include: { plants: true },
