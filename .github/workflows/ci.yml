@@ -1,0 +1,49 @@
+# CI — build, lint, and test on every push and pull request.
+#
+# Deliberately NOT run here: the backend Jest suite. Its current setup
+# connects to the DATABASE_URL environment and wipes every table between
+# tests — it needs an isolated test database (see docs/SDD Amendment §3)
+# before it can run anywhere automated. Backend correctness is covered by
+# strict TypeScript compilation until that refresh lands.
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+jobs:
+  frontend:
+    name: Frontend — build, lint, unit tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run build          # tsc -b + vite build
+      - run: npm run lint
+      - run: npx vitest run
+
+  backend:
+    name: Backend — typecheck
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - run: npx prisma generate    # tsc needs the generated client types
+      - run: npx tsc --noEmit
