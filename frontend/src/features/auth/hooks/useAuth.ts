@@ -60,7 +60,6 @@ export function useLogin() {
 // ── Register ──────────────────────────────────────────────────────────
 export function useRegister() {
   const { setAuth } = useAuthStore()
-  const navigate = useNavigate()
 
   return useMutation({
     mutationFn: async (data: {
@@ -74,9 +73,12 @@ export function useRegister() {
         '/api/v1/auth/register', data
       )
     },
+    // Navigation after signup belongs to RegisterPage (it may join a farm
+    // by invite code first, then goes to '/'). A stray navigate('/login')
+    // here used to yank every new user back to the login screen 2.5s
+    // after they were already inside the app.
     onSuccess: (data) => {
       setAuth(data.accessToken, data.user)
-      setTimeout(() => navigate('/login'), 2500)
     },
   })
 }
