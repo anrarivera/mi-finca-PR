@@ -243,8 +243,13 @@ function DrawingLayer({
     click(e) {
       if (mode !== 'drawing') return
       if (points.length >= 3) {
-        const distance = map.distance(points[0], e.latlng)
-        if (distance < 20) { onComplete(points); return }
+        // Close on proximity in SCREEN pixels, not meters — a fixed
+        // 20 m radius made plots with sides under ~20 m impossible to
+        // draw (the polygon closed itself on the second corner when
+        // zoomed in). Mirrors the field editor's 12-unit canvas check.
+        const px = map.latLngToContainerPoint(points[0])
+          .distanceTo(map.latLngToContainerPoint(e.latlng))
+        if (px < 12) { onComplete(points); return }
       }
       onAddPoint(e.latlng)
     },
