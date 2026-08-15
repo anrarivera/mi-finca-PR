@@ -105,7 +105,7 @@ export default function LaboresPanel() {
   const smallBtn = 'text-[10px] shrink-0 transition-colors pointer-coarse:text-[11px] pointer-coarse:p-2'
 
   return (
-    <section className="bg-white rounded-2xl border border-[#e0e8d8] overflow-hidden">
+    <section data-tour="labores-panel" className="bg-white rounded-2xl border border-[#e0e8d8] overflow-hidden">
       <div className="flex items-center gap-2 px-5 py-4 border-b border-[#e0e8d8]">
         <CalendarDays size={16} className="text-[#639922]" />
         <h2 className="text-sm font-semibold text-[#2d4a1e]">{t('panel.title')}</h2>

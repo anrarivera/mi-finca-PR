@@ -147,6 +147,21 @@ before and after a full run. CI runs everything on every push: frontend build +
 lint + unit tests, backend typecheck, and the API suite against a throwaway
 Postgres service container.
 
+## The demo funnel
+
+"Probar la demo" on the auth pages creates an **ephemeral account** seeded
+with a living farm in Utuado — plátanos with an overdue labor waiting to be
+checked off, café with history and an open broca finding, a gallinero with
+egg production and revenue in the ledger, all dates relative to *now* so the
+demo never rots. A hand-rolled bilingual guided tour (spotlight coach marks,
+no library) auto-starts on first entry and walks the visitor through the map,
+the field drawer, the boundary tools, the dashboard, and the compliance
+notebook, ending on a register CTA; a persistent banner offers the tour again
+and the conversion action. Demo accounts have no password, are excluded from
+email digests, and a nightly job purges them after 7 days. This replaced a
+dead pre-backend "use without an account" link that had been silently
+bouncing visitors back to the login page.
+
 ## Observability
 
 One structured JSON log stream (pino) carries everything: per-request lines

@@ -258,5 +258,46 @@
     "confirmButton": "Eliminar permanentemente",
     "deleting": "Eliminando…",
     "deleted": "Cuenta eliminada. Hasta pronto."
+  },
+  "demoBanner": {
+    "text": "Modo demostración — explora con datos de ejemplo. Esta finca se borra en unos días.",
+    "tour": "Ver tutorial",
+    "register": "Crear mi cuenta"
+  },
+  "demoTour": {
+    "back": "Atrás",
+    "next": "Siguiente",
+    "skip": "Saltar el tutorial",
+    "finish": "¡A explorar!",
+    "steps": {
+      "welcome": {
+        "title": "¡Bienvenido!",
+        "body": "Esta es una finca de demostración con datos de ejemplo. Todo funciona de verdad: toca, marca labores y explora sin miedo — nada de aquí es permanente."
+      },
+      "map": {
+        "title": "El mapa de tu finca",
+        "body": "El límite verde es tu terreno sobre imágenes de satélite. Adentro están tus campos: Los Plátanos, Café de Altura y El Gallinero."
+      },
+      "drawer": {
+        "title": "Tus campos",
+        "body": "Esta pestaña abre la lista de campos. Cada campo muestra sus plantas y las labores que tocan, listas para marcar con Completa · Parcial · Omitir. ¡Hay una fertilización vencida esperándote!"
+      },
+      "boundary": {
+        "title": "Límite y campos nuevos",
+        "body": "Con este botón editas el límite de la finca y creas campos nuevos: dibujas el área en el mapa y la llenas con hileras de tu cultivo."
+      },
+      "panel": {
+        "title": "El Panel de control",
+        "body": "Lo que está pasando hoy: labores vencidas y próximas (de cultivos Y animales), recomendaciones, y alertas de sanidad — todo marcable desde aquí."
+      },
+      "cuaderno": {
+        "title": "El Cuaderno de campo",
+        "body": "Todo queda registrado: siembras, labores, producción y sanidad. Exportable a CSV — el récord que piden las certificaciones agrícolas."
+      },
+      "finish": {
+        "title": "¡Explora!",
+        "body": "Marca la fertilización vencida, reporta un hallazgo, registra huevos del gallinero… Cuando quieras tu propia finca, crea tu cuenta gratis desde la barra de arriba."
+      }
+    }
   }
 }

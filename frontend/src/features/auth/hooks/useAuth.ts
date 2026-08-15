@@ -10,6 +10,8 @@ type User = {
   language: string
   unitSystem: string
   emailVerified: boolean
+  /** Ephemeral try-before-signup account ("Probar la demo"). */
+  isDemo?: boolean
 }
 
 type AuthResponse = {
@@ -79,6 +81,24 @@ export function useRegister() {
     // after they were already inside the app.
     onSuccess: (data) => {
       setAuth(data.accessToken, data.user)
+    },
+  })
+}
+
+// ── Demo mode ─────────────────────────────────────────────────────────
+// "Probar la demo": the server creates an ephemeral account seeded with a
+// sample farm and signs the visitor straight in.
+export function useDemoLogin() {
+  const { setAuth } = useAuthStore()
+  const navigate = useNavigate()
+
+  return useMutation({
+    mutationFn: async () => {
+      return api.post<AuthResponse>('/api/v1/auth/demo')
+    },
+    onSuccess: (data) => {
+      setAuth(data.accessToken, data.user)
+      navigate('/')
     },
   })
 }

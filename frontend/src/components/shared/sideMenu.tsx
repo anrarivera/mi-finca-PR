@@ -32,7 +32,7 @@ export default function SideMenu() {
         <button onClick={() => guardedNavigate('/')} aria-label={t('nav.map')} title={t('nav.map')} className={itemClass}>
           <Map size={20} />
         </button>
-        <button onClick={() => guardedNavigate('/dashboard')} aria-label={t('nav.dashboardLong')} title={t('nav.dashboardLong')} className={itemClass}>
+        <button data-tour="nav-dashboard" onClick={() => guardedNavigate('/dashboard')} aria-label={t('nav.dashboardLong')} title={t('nav.dashboardLong')} className={itemClass}>
           <LayoutDashboard size={20} />
         </button>
         <button onClick={() => guardedNavigate('/inventory')} aria-label={t('nav.notebookLong')} title={t('nav.notebookLong')} className={itemClass}>

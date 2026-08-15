@@ -123,6 +123,7 @@ export default function FarmDrawer({
       {/* ── Drawer toggle tab (hidden while a full-width drawer is open) ── */}
       {!(isPhone && isOpen) && (
       <button
+        data-tour="drawer-tab"
         onClick={() => onOpenChange(!isOpen)}
         className="absolute left-0 top-1/2 -translate-y-1/2 z-[1001] bg-white border border-[#e0e8d8] border-l-0 rounded-r-lg px-1.5 py-4 flex flex-col items-center gap-1.5 shadow-md hover:bg-[#f5f8f0] transition-all"
         style={{

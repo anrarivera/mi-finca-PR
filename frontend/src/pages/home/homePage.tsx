@@ -29,7 +29,7 @@ export default function HomePage() {
   }
 
   return (
-    <div className="flex flex-col h-full relative">
+    <div className="flex flex-col h-full relative" data-tour="map">
       {farms.length === 0 ? (
         <EmptyFarmState onAddFarm={() => setShowModal(true)} />
       ) : (

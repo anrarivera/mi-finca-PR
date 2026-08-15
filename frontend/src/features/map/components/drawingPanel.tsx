@@ -162,6 +162,7 @@ export default function DrawingPanel({
             </span>
           )}
           <button
+            data-tour="boundary-fab"
             onClick={() => {
               if (mode !== 'idle') { setMenuOpen(open => !open); return }
               // Card showing → collapse it. First farm re-opens it on the

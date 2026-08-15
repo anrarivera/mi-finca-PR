@@ -7,6 +7,8 @@ type User = {
   language: string
   unitSystem: string
   emailVerified: boolean
+  /** Ephemeral try-before-signup account ("Probar la demo"). */
+  isDemo?: boolean
 }
 
 type AuthStore = {

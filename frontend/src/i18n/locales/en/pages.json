@@ -258,5 +258,46 @@
     "confirmButton": "Delete permanently",
     "deleting": "Deleting…",
     "deleted": "Account deleted. Take care."
+  },
+  "demoBanner": {
+    "text": "Demo mode — exploring with sample data. This farm is deleted after a few days.",
+    "tour": "View tutorial",
+    "register": "Create my account"
+  },
+  "demoTour": {
+    "back": "Back",
+    "next": "Next",
+    "skip": "Skip the tutorial",
+    "finish": "Start exploring!",
+    "steps": {
+      "welcome": {
+        "title": "Welcome!",
+        "body": "This is a demo farm with sample data. Everything really works: tap around, check off tasks, and explore freely — nothing here is permanent."
+      },
+      "map": {
+        "title": "Your farm map",
+        "body": "The green boundary is your land over satellite imagery. Inside are your fields: Los Plátanos, Café de Altura, and El Gallinero."
+      },
+      "drawer": {
+        "title": "Your fields",
+        "body": "This tab opens the field list. Each field shows its plants and the tasks that are due, ready to check off with Complete · Partial · Skip. There is an overdue fertilization waiting for you!"
+      },
+      "boundary": {
+        "title": "Boundary and new fields",
+        "body": "This button edits the farm boundary and creates new fields: draw the area on the map and fill it with rows of your crop."
+      },
+      "panel": {
+        "title": "The dashboard",
+        "body": "What is happening today: overdue and upcoming tasks (crops AND animals), recommendations, and health alerts — all checkable from here."
+      },
+      "cuaderno": {
+        "title": "The field notebook",
+        "body": "Everything is recorded: plantings, tasks, production, and plant health. Exportable to CSV — the record agricultural certifications ask for."
+      },
+      "finish": {
+        "title": "Explore!",
+        "body": "Check off the overdue fertilization, report a finding, log eggs from the coop… When you want your own farm, create your free account from the bar above."
+      }
+    }
   }
 }

@@ -124,7 +124,7 @@ export default function InventoryPage() {
       </div>
 
       {/* Tab bar */}
-      <div className="flex flex-wrap border-b border-[#e0e8d8]">
+      <div data-tour="cuaderno-tabs" className="flex flex-wrap border-b border-[#e0e8d8]">
         {TABS.map(tabDef => (
           <button
             key={tabDef.id}

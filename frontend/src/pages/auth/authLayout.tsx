@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { useDemoLogin } from '@/features/auth/hooks/useAuth'
 
 // Shared centered-card shell for the login/register pages.
 export default function AuthLayout({ title, subtitle, children }: {
@@ -9,6 +10,7 @@ export default function AuthLayout({ title, subtitle, children }: {
   children: ReactNode
 }) {
   const { t } = useTranslation('auth')
+  const demoLogin = useDemoLogin()
   return (
     <div className="min-h-dvh flex flex-col items-center justify-center bg-[#f7f9f4] px-4 py-8">
       <Link to="/" className="flex items-center gap-2 mb-6">
@@ -27,12 +29,16 @@ export default function AuthLayout({ title, subtitle, children }: {
         {children}
       </div>
 
-      <Link
-        to="/"
-        className="mt-5 text-xs text-[#7a8a6a] hover:text-[#2d4a1e] transition-colors"
+      {/* Try-before-signup: creates an ephemeral demo account seeded
+          with a sample farm (replaces the pre-backend localStorage mode,
+          whose link had been silently bouncing back to /login). */}
+      <button
+        onClick={() => demoLogin.mutate()}
+        disabled={demoLogin.isPending}
+        className="mt-5 text-xs text-[#7a8a6a] hover:text-[#2d4a1e] transition-colors disabled:opacity-60"
       >
-        {t('layout.continueWithoutAccount')}
-      </Link>
+        {demoLogin.isPending ? t('layout.demoLoading') : t('layout.tryDemo')}
+      </button>
     </div>
   )
 }
