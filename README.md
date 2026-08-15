@@ -1,6 +1,10 @@
 # 🌱 Mi Finca PR
 
+![CI](https://github.com/anrarivera/mi-finca-PR/actions/workflows/ci.yml/badge.svg)
+
 A farm management platform built for small to mid-size agricultural operations in Puerto Rico and the broader Caribbean. Mi Finca PR helps farmers visually map their land, manage crop and livestock inventory, log operations, and receive agronomic recommendations.
+
+> 📖 **[Engineering Case Study](./docs/CASE-STUDY.md)** — the narrative behind the build: architecture decisions, the computational-geometry and rendering-performance work, the QA story, security posture, and known debt, stated honestly.
 
 ---
 
@@ -64,7 +68,8 @@ Mi Finca PR is a three-phase agricultural platform:
 | ORM / Database | Prisma 6 + PostgreSQL |
 | Auth | JWT (15-min access in memory, 30-day refresh in HttpOnly cookie) |
 | Email | Resend (verification, password reset, email change) |
-| Backend Tests | Jest + Supertest |
+| Testing | Vitest (frontend units) · Playwright QA harness (`qa/`) · Jest + Supertest (backend — quarantined until it targets an isolated test DB) |
+| CI | GitHub Actions — frontend build + lint + unit tests, backend strict typecheck |
 
 ---
 
@@ -152,7 +157,7 @@ The **frontend** optionally takes `VITE_API_URL` (defaults to `http://localhost:
 | `npm run dev` | Start the API with hot reload at localhost:3001 |
 | `npm run build` / `npm start` | Compile and run for production |
 | `npm run seed` | Upsert built-in crops from `prisma/crops.json` |
-| `npm test` | Run the Jest + Supertest suite (needs a test database) |
+| `npm test` | ⚠️ Quarantined — the suite wipes whatever database `DATABASE_URL` points at. Do not run until it targets an isolated test DB. |
 
 ---
 
@@ -231,10 +236,20 @@ Public farm map with pins, product listings for crops and animal products, resta
 
 ---
 
+## Testing & Quality
+
+- **CI** (`.github/workflows/ci.yml`) — every push runs the frontend build, ESLint, and the Vitest unit suite (115 tests, heavy on the field-geometry invariants), plus a strict backend typecheck.
+- **QA checklist** ([docs/QA-CHECKLIST.md](./docs/QA-CHECKLIST.md)) — three tiers: a 15-minute pre-deploy smoke pass, a full per-feature regression sweep, and an adversarial annex (interruption, concurrency, hostile input, scale). Bugs found get fixed and promoted to permanent checklist lines.
+- **Playwright harness** ([qa/](./qa/)) — scripts that drive the *running* app through every major flow with a real browser: onboarding, boundary drawing, row fill, check-offs, findings, harvests, invite codes and role limits, two-tab concurrency, backup/restore round-trips, a phone viewport, and persona walks. See `qa/README.md` for the hard-won conventions.
+
+---
+
 ## Documentation
 
 | Document | Description | Status |
 |----------|-------------|--------|
+| [Engineering Case Study](./docs/CASE-STUDY.md) | Architecture rationale, hard problems, quality story, security posture, known debt | ✅ Complete |
+| [QA Checklist](./docs/QA-CHECKLIST.md) | Smoke / regression / adversarial test tiers | ✅ Living document |
 | [SRS v1.3.0](./docs/MiFincaPR-SRS-Phase1-v1.3.0.md) | Software Requirements Specification, with per-requirement implementation status | ✅ Complete |
 | SDD v1.0.0 | Software Design Document (maintained externally as PDF) | ✅ Complete |
 | [SDD Amendment A](./docs/MiFincaPR-SDD-v1.0.0-Amendment-A.md) | Implementation status and deviations from SDD v1.0.0 | ✅ Complete |
