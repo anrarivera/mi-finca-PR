@@ -68,8 +68,8 @@ Mi Finca PR is a three-phase agricultural platform:
 | ORM / Database | Prisma 6 + PostgreSQL |
 | Auth | JWT (15-min access in memory, 30-day refresh in HttpOnly cookie) |
 | Email | Resend (verification, password reset, email change) |
-| Testing | Vitest (frontend units) · Playwright QA harness (`qa/`) · Jest + Supertest (backend — quarantined until it targets an isolated test DB) |
-| CI | GitHub Actions — frontend build + lint + unit tests, backend strict typecheck |
+| Testing | Vitest (frontend units) · Jest + Supertest (backend API, against a guarded dedicated test DB) · Playwright QA harness (`qa/`) |
+| CI | GitHub Actions — frontend build + lint + unit tests, backend typecheck + API tests vs. a Postgres service container |
 
 ---
 
@@ -157,7 +157,7 @@ The **frontend** optionally takes `VITE_API_URL` (defaults to `http://localhost:
 | `npm run dev` | Start the API with hot reload at localhost:3001 |
 | `npm run build` / `npm start` | Compile and run for production |
 | `npm run seed` | Upsert built-in crops from `prisma/crops.json` |
-| `npm test` | ⚠️ Quarantined — the suite wipes whatever database `DATABASE_URL` points at. Do not run until it targets an isolated test DB. |
+| `npm test` | Run the Jest + Supertest API suite. Requires `TEST_DATABASE_URL` in `.env` pointing at a dedicated test database — triple-guarded setup refuses to run otherwise (the suite wipes its target DB between tests). |
 
 ---
 
@@ -238,7 +238,7 @@ Public farm map with pins, product listings for crops and animal products, resta
 
 ## Testing & Quality
 
-- **CI** (`.github/workflows/ci.yml`) — every push runs the frontend build, ESLint, and the Vitest unit suite (115 tests, heavy on the field-geometry invariants), plus a strict backend typecheck.
+- **CI** (`.github/workflows/ci.yml`) — every push runs the frontend build, ESLint, and the Vitest unit suite (115 tests, heavy on the field-geometry invariants), plus a strict backend typecheck and the 104-test Jest + Supertest API suite against a throwaway Postgres service container.
 - **QA checklist** ([docs/QA-CHECKLIST.md](./docs/QA-CHECKLIST.md)) — three tiers: a 15-minute pre-deploy smoke pass, a full per-feature regression sweep, and an adversarial annex (interruption, concurrency, hostile input, scale). Bugs found get fixed and promoted to permanent checklist lines.
 - **Playwright harness** ([qa/](./qa/)) — scripts that drive the *running* app through every major flow with a real browser: onboarding, boundary drawing, row fill, check-offs, findings, harvests, invite codes and role limits, two-tab concurrency, backup/restore round-trips, a phone viewport, and persona walks. See `qa/README.md` for the hard-won conventions.
 

@@ -119,10 +119,16 @@ never cost the user their input.** The field editor stays open with work intact
 on error; check-off modals await the mutation and close only on success; backend
 fallback errors are mapped to localized messages client-side.
 
-CI runs the frontend build + lint + unit tests and backend strict typecheck on
-every push. The backend Jest suite is deliberately quarantined until it gets an
-isolated test database — its current setup wipes whatever database it's pointed
-at, which is exactly the kind of landmine worth documenting instead of hiding.
+The backend API suite (104 Jest + Supertest tests) has its own safety story:
+an early version wiped whatever database it was pointed at — a landmine that
+earned a standing "never run this" rule. The fix made the dangerous thing
+*impossible* rather than merely avoided: setup refuses to run unless a
+dedicated `TEST_DATABASE_URL` is set, differs from the dev URL, and names a
+database containing "test"; the redirect happens in every Jest worker before
+any database client can be constructed. Verified by counting dev-database rows
+before and after a full run. CI runs everything on every push: frontend build +
+lint + unit tests, backend typecheck, and the API suite against a throwaway
+Postgres service container.
 
 ## Security posture
 
@@ -136,8 +142,6 @@ React's escaping verified against script-tag input by the adversarial suite.
 
 ## Known debt, stated plainly
 
-- **Backend test suite** — quarantined until it targets an isolated test DB;
-  typecheck-only coverage on the API today. This is the top gap.
 - **No shared API contract** — response shapes are hand-typed on both sides;
   serializers are ad-hoc. A drift here caused the triple-payload bug. Zod-based
   shared schemas (or OpenAPI generation) is the planned fix.

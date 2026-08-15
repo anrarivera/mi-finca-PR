@@ -46,9 +46,16 @@ describe('GET /api/v1/farms/:farmId/recommended-operations/due-soon', () => {
     const { token } = await createTestUser()
     const farm = await createTestFarm(token)
     const field = await createTestField(token, farm.id)
+    // Dates RELATIVE to today — hardcoded dates rotted (a date "inside
+    // the 14-day window" became overdue as real time passed).
+    const daysFromNow = (n: number) => {
+      const d = new Date()
+      d.setDate(d.getDate() + n)
+      return d.toISOString().split('T')[0]
+    }
     // One clearly overdue, one inside the 14-day window
-    await seedRecommendedOp(field.id, { recommendedDate: '2026-07-01' })
-    await seedRecommendedOp(field.id, { recommendedDate: '2026-08-05' })
+    await seedRecommendedOp(field.id, { recommendedDate: daysFromNow(-10) })
+    await seedRecommendedOp(field.id, { recommendedDate: daysFromNow(7) })
 
     const res = await request
       .get(`/api/v1/farms/${farm.id}/recommended-operations/due-soon`)
