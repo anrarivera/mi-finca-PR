@@ -619,6 +619,7 @@ async function handleDeleteFarm() {
           // Only farm ever + no boundary yet → the boundary card starts
           // expanded so first-time users can find it.
           firstFarm={farms.length === 1}
+          promptFirstField={farmFields.length === 0}
           openCardNonce={drawPrompt}
           mode={drawing.mode}
           pointCount={drawing.points.length}

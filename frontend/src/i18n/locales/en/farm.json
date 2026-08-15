@@ -96,7 +96,10 @@
     "complete": "Complete",
     "addPoint": "Add point",
     "deletePoint": "Delete point",
-    "finish": "Finish"
+    "finish": "Finish",
+    "fieldOnboardTitle": "First field",
+    "fieldOnboardBody": "Your boundary is saved. Now create your first field: draw the planting area inside the farm and fill it with rows of your crop.",
+    "fieldOnboardStart": "Create my first field"
   },
   "map": {
     "noActiveFarm": "No active farm selected",

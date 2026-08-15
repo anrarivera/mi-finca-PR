@@ -96,7 +96,10 @@
     "complete": "Completar",
     "addPoint": "Añadir punto",
     "deletePoint": "Eliminar punto",
-    "finish": "Terminar"
+    "finish": "Terminar",
+    "fieldOnboardTitle": "Primer campo",
+    "fieldOnboardBody": "Tu límite está guardado. Ahora crea tu primer campo: dibuja el área de siembra dentro de la finca y llénala con hileras de tu cultivo.",
+    "fieldOnboardStart": "Crear mi primer campo"
   },
   "map": {
     "noActiveFarm": "No hay finca activa seleccionada",

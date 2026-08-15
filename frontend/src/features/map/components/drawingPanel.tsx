@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Pencil, Trash2, Check, Milestone, Plus, Undo2, X } from 'lucide-react'
+import { Pencil, Trash2, Check, Milestone, Plus, Sprout, Undo2, X } from 'lucide-react'
 import { useIsPhone } from '@/hooks/useViewport'
 import type { DrawingMode } from '../hooks/useDrawing'
 import { fmtNumber } from '@/i18n'
@@ -32,6 +32,9 @@ type Props = {
       doesn't have to discover the small FAB; once dismissed (or once
       there are more farms / a saved boundary) it stays collapsed. */
   firstFarm?: boolean
+  /** Boundary saved but the farm has no fields yet — show the
+      "create your first field" follow-up card. */
+  promptFirstField?: boolean
   /** Bumped by the host right after "Añadir finca" creates a farm —
       opens the boundary card so drawing is the immediate next step,
       for every new farm (not just the first). */
@@ -67,6 +70,7 @@ export default function DrawingPanel({
   onInsertPointAfterSelected,
   canDeleteFarm = true,
   firstFarm = false,
+  promptFirstField = false,
   openCardNonce = 0,
 }: Props) {
   const { t } = useTranslation('farm')
@@ -87,6 +91,14 @@ export default function DrawingPanel({
   }
   const active = mode === 'drawing' || mode === 'editing'
   const showOnboard = mode === 'idle' && cardOpen
+
+  // Second onboarding moment: boundary saved but the farm has no fields
+  // yet. Without this the trail went cold after "Finca guardada" — the
+  // only path to crops was the subtle drawer tab. Session-dismissable;
+  // yields to the action menu when that is open.
+  const [fieldCardOpen, setFieldCardOpen] = useState(true)
+  const showFieldOnboard =
+    mode === 'complete' && promptFirstField && fieldCardOpen && !menuOpen
 
   // Finishing a draw/edit lands in 'complete' — surface the menu so the
   // save action is in the user's face instead of hidden behind the FAB.
@@ -188,6 +200,36 @@ export default function DrawingPanel({
               </button>
               <button
                 onClick={() => setCardOpen(false)}
+                className="w-full py-1.5 text-xs text-[#9aab8a] hover:text-[#5a6a4a] hover:bg-[#f5f8f0] rounded-lg transition-colors"
+              >
+                {t('drawing.onboardLater')}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── First-field onboarding card — boundary saved, no fields ── */}
+        {showFieldOnboard && (
+          <div className="w-64 bg-white rounded-xl border border-[#e0e8d8] shadow-lg overflow-hidden">
+            <div className="px-4 py-3 border-b border-[#e0e8d8] bg-[#f5f8f0] flex items-center gap-2">
+              <Sprout size={14} className="text-[#639922]" />
+              <span className="text-xs font-semibold text-[#2d4a1e] uppercase tracking-wide">
+                {t('drawing.fieldOnboardTitle')}
+              </span>
+            </div>
+            <div className="p-4 flex flex-col gap-3">
+              <p className="text-xs text-[#5a6a4a] leading-relaxed">
+                {t('drawing.fieldOnboardBody')}
+              </p>
+              <button
+                onClick={() => { setFieldCardOpen(false); onAddField() }}
+                className="w-full flex items-center justify-center gap-2 py-2.5 text-xs font-medium bg-[#2d4a1e] text-[#d4e8b0] rounded-lg hover:bg-[#3d6128] transition-colors"
+              >
+                <Plus size={13} />
+                {t('drawing.fieldOnboardStart')}
+              </button>
+              <button
+                onClick={() => setFieldCardOpen(false)}
                 className="w-full py-1.5 text-xs text-[#9aab8a] hover:text-[#5a6a4a] hover:bg-[#f5f8f0] rounded-lg transition-colors"
               >
                 {t('drawing.onboardLater')}
