@@ -167,6 +167,8 @@ function serializeField(field: any) {
           ...op,
           recommendedDate: toDateStr(op.recommendedDate),
           completedDate: op.completedDate ? toDateStr(op.completedDate) : null,
+          // Prisma Decimal serializes as a string — normalize to number.
+          quantity: op.quantity !== null && op.quantity !== undefined ? Number(op.quantity) : null,
         })),
       }
     }),

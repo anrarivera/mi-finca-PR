@@ -80,11 +80,15 @@ const backupOperationSchema = z.looseObject({
   labelEs: z.string(),
   recommendedDate: z.string(),
   status: z.enum(['pending', 'due', 'completed', 'skipped']).catch('pending'),
-  completedDate: z.string().optional(),
-  notes: z.string().optional(),
-  product: z.string().optional(),
-  quantity: z.number().optional(),
-  unit: z.string().optional(),
+  // The server serializes open operations with explicit nulls — a plain
+  // .optional() rejected them, which made EVERY backup taken while any
+  // labor was pending fail its own restore.
+  completedDate: z.string().nullish(),
+  notes: z.string().nullish(),
+  product: z.string().nullish(),
+  // Prisma Decimal can arrive as a numeric string; coerce, else null.
+  quantity: z.coerce.number().nullish().catch(null),
+  unit: z.string().nullish(),
 })
 
 const backupEventSchema = z.looseObject({
