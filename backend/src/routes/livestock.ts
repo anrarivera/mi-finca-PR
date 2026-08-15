@@ -2,7 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express'
 import { prisma } from '../lib/prisma'
 import { requireAuth } from '../middleware/auth'
 import { Errors } from '../lib/errors'
-import { requireFields, requireValidId, requireLat, requireLng, requireRevenue } from '../lib/validate'
+import { requireFields, requireValidId, requireLat, requireLng, requireRevenue, requireQuantity } from '../lib/validate'
 import { requireFarmRole } from '../lib/farmAccess'
 
 const router = Router({ mergeParams: true }) // mounted at /api/v1/farms/:farmId/livestock
@@ -203,6 +203,7 @@ router.post('/:id/production', async (req: Request, res: Response, next: NextFun
 
     const { productId, quantity, unit: qtyUnit, date, notes, headCount, countReason, revenue } = req.body
     requireRevenue(revenue)
+    requireQuantity(quantity)
 
     const validProducts = ANIMAL_PRODUCTS[unit.animalType] ?? []
     if (!validProducts.includes(productId)) {

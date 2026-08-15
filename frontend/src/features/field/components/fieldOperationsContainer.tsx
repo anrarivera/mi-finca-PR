@@ -56,12 +56,12 @@ export default function FieldOperationsContainer({ farmId, fieldId, onClose }: P
         />
       }
       onClose={onClose}
-      onCompleteOperation={(eventId, opId, data) => {
-        completeOp.mutate(
-          { fieldId: field.id, eventId, operationId: opId, data },
-          { onSuccess: () => toast.success(t('toast.opLogged')) }
-        )
-      }}
+      onCompleteOperation={(eventId, opId, data) =>
+        // mutateAsync: the modal awaits and stays open if the save fails.
+        completeOp
+          .mutateAsync({ fieldId: field.id, eventId, operationId: opId, data })
+          .then(() => toast.success(t('toast.opLogged')))
+      }
       onSkipOperation={(eventId, opId) => {
         skipOp.mutate({ fieldId: field.id, eventId, operationId: opId })
       }}
@@ -73,11 +73,11 @@ export default function FieldOperationsContainer({ farmId, fieldId, onClose }: P
           { onSuccess: () => toast.success(t('toast.opUndone')) }
         )
       }}
-      onEditOperation={(_eventId, _opId, logId, data) => {
+      onEditOperation={(_eventId, _opId, logId, data) =>
         // Corrects the linked operations-log entry; the server mirrors the
         // fix onto the recommendation and the harvest yield.
-        updateOpLog.mutate(
-          {
+        updateOpLog
+          .mutateAsync({
             id: logId,
             updates: {
               actualDate: data.completedDate,
@@ -88,14 +88,13 @@ export default function FieldOperationsContainer({ farmId, fieldId, onClose }: P
               rowIds: data.rowIds ?? [],
               plantIds: data.plantIds ?? [],
             },
-          },
-          { onSuccess: () => toast.success(t('toast.opCorrected')) }
-        )
-      }}
-      onPartialLog={(_eventId, opId, data) => {
+          })
+          .then(() => toast.success(t('toast.opCorrected')))
+      }
+      onPartialLog={(_eventId, opId, data) =>
         // Multi-day harvest: logs the day's progress, item stays open.
-        partialOp.mutate(
-          {
+        partialOp
+          .mutateAsync({
             operationId: opId,
             data: {
               date: data.completedDate,
@@ -107,10 +106,9 @@ export default function FieldOperationsContainer({ farmId, fieldId, onClose }: P
               rowIds: data.rowIds,
               plantIds: data.plantIds,
             },
-          },
-          { onSuccess: () => toast.success(t('toast.partialLogged')) }
-        )
-      }}
+          })
+          .then(() => toast.success(t('toast.partialLogged')))
+      }
     />
   )
 }

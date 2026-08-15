@@ -2,7 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express'
 import { prisma } from '../lib/prisma'
 import { requireAuth } from '../middleware/auth'
 import { Errors } from '../lib/errors'
-import { requireFields, requireValidId, requireRevenue } from '../lib/validate'
+import { requireFields, requireValidId, requireRevenue, requireQuantity } from '../lib/validate'
 import { requireFarmRole } from '../lib/farmAccess'
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -224,6 +224,7 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
     }
 
     requireRevenue(revenue)
+    requireQuantity(quantity)
     if (!VALID_OPERATION_TYPES.includes(type)) {
       throw Errors.validation(`type must be one of: ${VALID_OPERATION_TYPES.join(', ')}`)
     }

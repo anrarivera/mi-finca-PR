@@ -68,9 +68,27 @@ export function parseBody<T>(schema: ZodType<T>, body: unknown): T {
 }
 // Sale revenue on production entries — optional, but when present it must
 // be a non-negative number.
+// The quantity/revenue columns are Decimal(10,3)/(10,2) — values beyond
+// ~10M overflow Postgres numerics and surface as generic 500s. Cap well
+// below the column limit with a farmer-readable message.
+const MAX_AMOUNT = 9_999_999
+
 export function requireRevenue(value: unknown, name = 'revenue'): void {
   if (value === undefined || value === null) return
   if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
     throw Errors.validation(`${name} must be a non-negative number`)
+  }
+  if (value > MAX_AMOUNT) {
+    throw Errors.validation('El valor en dólares es demasiado grande (máximo 9,999,999)')
+  }
+}
+
+export function requireQuantity(value: unknown, name = 'quantity'): void {
+  if (value === undefined || value === null) return
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
+    throw Errors.validation(`${name} must be a non-negative number`)
+  }
+  if (value > MAX_AMOUNT) {
+    throw Errors.validation('La cantidad es demasiado grande (máximo 9,999,999)')
   }
 }

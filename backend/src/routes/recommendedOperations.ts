@@ -3,7 +3,7 @@ import { prisma } from '../lib/prisma'
 import { requireAuth } from '../middleware/auth'
 import { Errors } from '../lib/errors'
 import { requireFarmRole } from '../lib/farmAccess'
-import { requireRevenue } from '../lib/validate'
+import { requireRevenue, requireQuantity } from '../lib/validate'
 
 // ──────────────────────────────────────────────────────────────────────────
 // Recommended operations — SDD §4.6. These are the calendar entries the
@@ -181,6 +181,7 @@ router.post('/:id/complete', async (req: Request, res: Response, next: NextFunct
       completedDate, product, quantity, unit, notes, rowIds, plantIds, revenue,
     } = req.body ?? {}
     requireRevenue(revenue)
+    requireQuantity(quantity)
     const actualDate = new Date(completedDate ?? todayUtc())
 
     if (rowIds !== undefined &&
@@ -295,6 +296,7 @@ router.post('/:id/log-partial', async (req: Request, res: Response, next: NextFu
 
     const { date, product, quantity, unit, notes, rowIds, plantIds, revenue } = req.body ?? {}
     requireRevenue(revenue)
+    requireQuantity(quantity)
     const actualDate = new Date(date ?? todayUtc())
 
     if (rowIds !== undefined &&

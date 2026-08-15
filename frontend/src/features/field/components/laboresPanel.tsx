@@ -205,10 +205,12 @@ export default function LaboresPanel() {
                 )
               : undefined
           })()}
-          onConfirm={(data) => {
-            if (checking.mode === 'partial') {
-              partialOp.mutate(
-                {
+          onConfirm={async (data) => {
+            // Close only on success — a failed save keeps the modal (and
+            // the entered data) open; the API client toasts the reason.
+            try {
+              if (checking.mode === 'partial') {
+                await partialOp.mutateAsync({
                   operationId: checking.op.id,
                   data: {
                     date: data.completedDate,
@@ -220,16 +222,16 @@ export default function LaboresPanel() {
                     rowIds: data.rowIds,
                     plantIds: data.plantIds,
                   },
-                },
-                { onSuccess: () => toast.success(t('toast.partialLogged')) }
-              )
-            } else {
-              completeOp.mutate(
-                { ...mutationIds(checking.op), data },
-                { onSuccess: () => toast.success(t('toast.opLogged')) }
-              )
+                })
+                toast.success(t('toast.partialLogged'))
+              } else {
+                await completeOp.mutateAsync({ ...mutationIds(checking.op), data })
+                toast.success(t('toast.opLogged'))
+              }
+              setChecking(null)
+            } catch {
+              /* modal stays open */
             }
-            setChecking(null)
           }}
           onCancel={() => setChecking(null)}
         />

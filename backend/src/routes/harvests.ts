@@ -2,7 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express'
 import { prisma } from '../lib/prisma'
 import { requireAuth } from '../middleware/auth'
 import { Errors } from '../lib/errors'
-import { requireFields, requireValidId, requireRevenue } from '../lib/validate'
+import { requireFields, requireValidId, requireRevenue, requireQuantity } from '../lib/validate'
 import { requireFarmRole } from '../lib/farmAccess'
 
 const router = Router({ mergeParams: true }) // mounted at /api/v1/farms/:farmId/harvests
@@ -116,6 +116,7 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
 
     const { fieldId, cropTypeId, quantity, unit, harvestDate, notes, revenue } = req.body
     requireRevenue(revenue)
+    requireQuantity(quantity)
 
     // If fieldId provided, verify it belongs to this farm
     if (fieldId) {
@@ -186,6 +187,7 @@ router.patch('/:id', async (req: Request, res: Response, next: NextFunction) => 
 
     const { fieldId, cropTypeId, quantity, unit, harvestDate, notes, revenue } = req.body
     requireRevenue(revenue)
+    requireQuantity(quantity)
 
     if (fieldId !== undefined && fieldId !== null) {
       const field = await prisma.field.findFirst({

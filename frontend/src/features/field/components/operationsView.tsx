@@ -141,14 +141,16 @@ type Props = {
       import-cycle free — the finding modal reuses HarvestSelector. */
   findingsSection?: React.ReactNode
   onClose: () => void
-  onCompleteOperation: (eventId: string, operationId: string, data: CheckOffFormData) => void
+  /** May return a promise — the check-off modal awaits it and only closes
+      on success, so a failed save keeps the farmer's input on screen. */
+  onCompleteOperation: (eventId: string, operationId: string, data: CheckOffFormData) => void | Promise<unknown>
   onSkipOperation: (eventId: string, operationId: string) => void
   /** Reopen a completed or skipped operation. */
   onUndoOperation: (eventId: string, operationId: string) => void
   /** Correct the values of a completed operation (logId = operations-log entry). */
-  onEditOperation: (eventId: string, operationId: string, logId: string, data: CheckOffFormData) => void
+  onEditOperation: (eventId: string, operationId: string, logId: string, data: CheckOffFormData) => void | Promise<unknown>
   /** Log a day's progress without completing the operation. */
-  onPartialLog: (eventId: string, operationId: string, data: CheckOffFormData) => void
+  onPartialLog: (eventId: string, operationId: string, data: CheckOffFormData) => void | Promise<unknown>
 }
 
 export default function OperationsView({
@@ -299,18 +301,25 @@ export default function OperationsView({
             const fo = farmOperations.find(f => f.id === modal.operation.completedOperationId)
             return fo ? { rowIds: fo.rowIds, plantIds: fo.plantIds } : undefined
           })()}
-          onConfirm={(data) => {
-            if (modal.mode === 'complete') {
-              onCompleteOperation(modal.eventId, modal.operationId, data)
-            } else if (modal.mode === 'partial') {
-              onPartialLog(modal.eventId, modal.operationId, data)
-            } else if (modal.operation.completedOperationId) {
-              onEditOperation(
-                modal.eventId, modal.operationId,
-                modal.operation.completedOperationId, data
-              )
+          onConfirm={async (data) => {
+            // Close only on success — a failed save (validation, network)
+            // keeps the modal and the farmer's input alive for a retry.
+            // The API client already toasts the reason.
+            try {
+              if (modal.mode === 'complete') {
+                await onCompleteOperation(modal.eventId, modal.operationId, data)
+              } else if (modal.mode === 'partial') {
+                await onPartialLog(modal.eventId, modal.operationId, data)
+              } else if (modal.operation.completedOperationId) {
+                await onEditOperation(
+                  modal.eventId, modal.operationId,
+                  modal.operation.completedOperationId, data
+                )
+              }
+              setModal(null)
+            } catch {
+              /* modal stays open */
             }
-            setModal(null)
           }}
           onCancel={() => setModal(null)}
         />
