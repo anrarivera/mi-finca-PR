@@ -162,6 +162,12 @@ model FieldRow {
   primaryCropTypeId   String
   companionCropTypeId String?
   plantingDate        DateTime  @db.Date
+  // Contour rows: the drawn ring/arc as [{lat,lng},…] and whether it
+  // closes. Straight rows leave these null (start/end suffice). Added
+  // because the client always sent them and the server silently dropped
+  // them — contour rings reloaded as straight lines.
+  path                Json?
+  pathClosed          Boolean?
   createdAt           DateTime  @default(now())
   field               Field     @relation(fields: [fieldId], references: [id], onDelete: Cascade)
   plants              PlantInstance[]

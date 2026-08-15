@@ -130,6 +130,19 @@ before and after a full run. CI runs everything on every push: frontend build +
 lint + unit tests, backend typecheck, and the API suite against a throwaway
 Postgres service container.
 
+## Observability
+
+One structured JSON log stream (pino) carries everything: per-request lines
+with method, path, status, duration, and the acting user; handled rejections
+at warn; unexpected failures at error with full stacks and request context;
+and — via a rate-limited, size-capped intake endpoint — **client-side crashes
+too**. Uncaught exceptions, unhandled rejections, and React error-boundary
+catches on a farmer's phone report themselves into the same searchable stream
+as server errors, with no third-party service required (and secrets redacted
+at the logger level). The top-level error boundary turns what used to be a
+silent white screen into a bilingual recovery page that has already filed its
+own report.
+
 ## Security posture
 
 Rotating refresh tokens (single-use, HttpOnly, SameSite=Strict), rate limiting
@@ -142,9 +155,14 @@ React's escaping verified against script-tag input by the adversarial suite.
 
 ## Known debt, stated plainly
 
-- **No shared API contract** — response shapes are hand-typed on both sides;
-  serializers are ad-hoc. A drift here caused the triple-payload bug. Zod-based
-  shared schemas (or OpenAPI generation) is the planned fix.
+- **API contract coverage is partial** — the fields resource (the largest and
+  historically drift-prone one) now has a zod contract: the server parses every
+  response through it (unknown keys stripped, drift logged), and a compile-time
+  test asserts the frontend types stay assignable to the schema's output.
+  Writing that contract immediately caught a real bug: contour rows' drawn
+  paths were silently dropped by the database layer. The remaining resources
+  (farms, operations, findings, livestock) still use hand-typed shapes and are
+  next in line for the same treatment.
 - **Derived-plants storage** — plants are stored as individual rows though they
   are largely derivable from row spec + spacing + removals. Fine at current
   scale; the redesign is specced for when multi-hundred-acre farms are normal.

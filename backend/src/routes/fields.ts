@@ -7,6 +7,8 @@ import {
   requireNameLength,
 } from '../lib/validate'
 import { requireFarmRole } from '../lib/farmAccess'
+import { fieldResponseSchema } from '../contracts/fieldContract'
+import { logger } from '../lib/logger'
 
 const router = Router({ mergeParams: true })
 
@@ -117,7 +119,7 @@ function serializeField(field: any) {
   // plants + recommended — spreading them verbatim shipped every plant
   // up to three times. Only the nested rows/freePlants shapes go out.
   const { plants: fieldPlants, plantingEvents, ...rest } = field
-  return {
+  const built = {
     ...rest,
     farmLat: round6(field.farmLat),
     farmLng: round6(field.farmLng),
@@ -173,6 +175,19 @@ function serializeField(field: any) {
       }
     }),
   }
+
+  // Contract enforcement: parse strips every key not in the schema and
+  // validates the rest. Fail-soft — a contract mismatch must never take
+  // a farmer's data offline, but it screams in the logs.
+  const parsed = fieldResponseSchema.safeParse(built)
+  if (!parsed.success) {
+    logger.error({
+      fieldId: field?.id,
+      issues: parsed.error.issues.slice(0, 5),
+    }, 'field response violates contract — serving unparsed body')
+    return built
+  }
+  return parsed.data
 }
 
 const fieldInclude = {
@@ -306,6 +321,9 @@ router.post('/', requireAuth, async (req: Request, res: Response, next: NextFunc
           primaryCropTypeId: row.primaryCropTypeId,
           companionCropTypeId: row.companionCropTypeId ?? null,
           plantingDate: new Date(row.plantingDate),
+          // Contour rows carry their drawn path; straight rows leave null.
+          ...(Array.isArray(row.path) ? { path: row.path } : {}),
+          ...(typeof row.pathClosed === 'boolean' ? { pathClosed: row.pathClosed } : {}),
           plants: {
             create: (row.plants ?? []).map((p: any) => ({
               id: p.id,
@@ -403,6 +421,8 @@ router.patch('/:id', requireAuth, async (req: Request, res: Response, next: Next
             primaryCropTypeId: row.primaryCropTypeId,
             companionCropTypeId: row.companionCropTypeId ?? null,
             plantingDate: new Date(row.plantingDate),
+            ...(Array.isArray(row.path) ? { path: row.path } : {}),
+            ...(typeof row.pathClosed === 'boolean' ? { pathClosed: row.pathClosed } : {}),
             plants: {
               create: (row.plants ?? []).map((p: any) => ({
                 id: p.id,

@@ -47,14 +47,17 @@ export type RecommendedOperation = {
   labelEs: string
   recommendedDate: string
   status: OperationStatus
-  completedDate?: string
+  // The wire carries explicit nulls for open operations (see the field
+  // API contract in backend/src/contracts/fieldContract.ts — the contract
+  // test asserts these types stay assignable).
+  completedDate?: string | null
   // Set by the backend when a check-off creates an operations-log entry
   // (SDD §6.2). Round-tripped on field saves so the link survives edits.
   completedOperationId?: string | null
-  notes?: string
-  product?: string
-  quantity?: number
-  unit?: string
+  notes?: string | null
+  product?: string | null
+  quantity?: number | null
+  unit?: string | null
 }
 
 export type PlantingEvent = {
