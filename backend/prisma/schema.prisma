@@ -10,6 +10,9 @@ datasource db {
 model User {
   id                String    @id @default(uuid())
   email             String    @unique
+  // Ephemeral try-before-signup accounts ("Probar la demo") — seeded with
+  // a sample farm, excluded from digests, purged by cron after a few days.
+  isDemo            Boolean   @default(false)
   passwordHash      String?
   fullName          String
   profilePhotoUrl   String?

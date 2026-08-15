@@ -210,6 +210,23 @@ if (process.env.NODE_ENV !== 'test') {
     console.log(`[digest] daily run: ${result.sent} sent, ${result.skipped} skipped`)
   }, { timezone: 'America/Puerto_Rico' })
 
+  // Demo accounts are ephemeral by contract ("nada aquí es permanente") —
+  // purge them after 7 days; cascades take the seeded farm with them.
+  cron.schedule('30 4 * * *', async () => {
+    const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+    const stale = await prisma.user.findMany({
+      where: { isDemo: true, createdAt: { lt: cutoff } },
+      select: { id: true },
+    })
+    for (const u of stale) {
+      await prisma.$transaction([
+        prisma.refreshToken.deleteMany({ where: { userId: u.id } }),
+        prisma.user.delete({ where: { id: u.id } }),
+      ])
+    }
+    if (stale.length > 0) logger.info({ purged: stale.length }, 'demo accounts purged')
+  }, { timezone: 'America/Puerto_Rico' })
+
   app.listen(PORT, () => {
     console.log(`\n🌱 Mi Finca PR API running on http://localhost:${PORT}`)
     console.log(`   Health:   http://localhost:${PORT}/health`)

@@ -1,6 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express'
 import bcrypt from 'bcryptjs'
 import rateLimit from 'express-rate-limit'
+import { seedDemoFarm } from '../lib/demoSeed'
 import { z } from 'zod'
 import { prisma } from '../lib/prisma'
 import {
@@ -208,8 +209,69 @@ router.post('/register', authLimiter, async (req: Request, res: Response, next: 
           language: user.language,
           unitSystem: user.unitSystem,
           emailVerified: user.emailVerified,
+          isDemo: user.isDemo,
         }
       }
+    })
+  } catch (err) {
+    next(err)
+  }
+})
+
+// ─────────────────────────────────────────────────────────────────────
+// POST /api/v1/auth/demo
+// "Probar la demo": creates an EPHEMERAL account seeded with a sample
+// farm (see lib/demoSeed) and signs the visitor straight in. No password
+// (passwordHash null — login/reset flows reject it), unverified email on
+// a reserved domain (digests skip unverified), purged by cron after
+// DEMO_TTL_DAYS. Rate-limited: each call creates DB rows.
+// ─────────────────────────────────────────────────────────────────────
+const demoLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: () => process.env.NODE_ENV === 'test',
+  handler: (_req, res) => {
+    res.status(429).json({
+      success: false,
+      error: { code: 'RATE_LIMITED', message: 'Too many attempts. Please try again later.' },
+    })
+  },
+})
+
+router.post('/demo', demoLimiter, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const user = await prisma.user.create({
+      data: {
+        email: `demo-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}@demo.mifinca.local`,
+        passwordHash: null,
+        fullName: 'Visitante de Demostración',
+        isDemo: true,
+      },
+    })
+    await seedDemoFarm(user.id)
+
+    const payload = { userId: user.id, email: user.email }
+    const accessToken = signAccessToken(payload)
+    const refreshToken = signRefreshToken(payload)
+    await saveRefreshToken(user.id, refreshToken)
+    setRefreshCookie(res, refreshToken)
+
+    res.status(201).json({
+      success: true,
+      data: {
+        accessToken,
+        user: {
+          id: user.id,
+          email: user.email,
+          fullName: user.fullName,
+          language: user.language,
+          unitSystem: user.unitSystem,
+          emailVerified: user.emailVerified,
+          isDemo: user.isDemo,
+        },
+      },
     })
   } catch (err) {
     next(err)
@@ -261,6 +323,7 @@ router.post('/login', authLimiter, async (req: Request, res: Response, next: Nex
           language: user.language,
           unitSystem: user.unitSystem,
           emailVerified: user.emailVerified,
+          isDemo: user.isDemo,
         }
       }
     })
@@ -330,6 +393,7 @@ router.post('/refresh', async (req: Request, res: Response, next: NextFunction) 
           language: user.language,
           unitSystem: user.unitSystem,
           emailVerified: user.emailVerified,
+          isDemo: user.isDemo,
         }
       }
     })
@@ -554,6 +618,7 @@ router.get('/me', requireAuth, async (req: Request, res: Response, next: NextFun
         language: user.language,
         unitSystem: user.unitSystem,
         emailVerified: user.emailVerified,
+        isDemo: user.isDemo,
         createdAt: user.createdAt,
       }
     })
