@@ -10,7 +10,7 @@ import { requireFarmRole } from '../lib/farmAccess'
 import {
   fieldResponseSchema, createFieldRequestSchema, updateFieldRequestSchema,
 } from '../contracts/fieldContract'
-import { enforceContract } from '../contracts/common'
+import { enforceContract } from '../contracts/enforce'
 
 const router = Router({ mergeParams: true })
 

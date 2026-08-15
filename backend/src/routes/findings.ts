@@ -15,7 +15,7 @@ import { requireFarmRole } from '../lib/farmAccess'
 // Mounted at /api/v1/farms/:farmId/findings
 // ──────────────────────────────────────────────────────────────────────────
 
-import { enforceContract } from '../contracts/common'
+import { enforceContract } from '../contracts/enforce'
 import {
   findingResponseSchema, createFindingRequestSchema, updateFindingRequestSchema,
   observationRequestSchema, treatmentRequestSchema,

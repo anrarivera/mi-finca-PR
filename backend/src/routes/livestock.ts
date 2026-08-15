@@ -5,7 +5,7 @@ import { Errors } from '../lib/errors'
 import { requireFields, requireValidId, requireLat, requireLng, requireRevenue, requireQuantity, parseBody } from '../lib/validate'
 import { requireFarmRole } from '../lib/farmAccess'
 
-import { enforceContract } from '../contracts/common'
+import { enforceContract } from '../contracts/enforce'
 import {
   livestockResponseSchema, createLivestockRequestSchema, updateLivestockRequestSchema,
   productionRequestSchema,

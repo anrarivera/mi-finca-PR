@@ -4,7 +4,7 @@ import { requireAuth } from '../middleware/auth'
 import { Errors } from '../lib/errors'
 import { requireFarmRole } from '../lib/farmAccess'
 import { requireRevenue, requireQuantity, parseBody } from '../lib/validate'
-import { enforceContract } from '../contracts/common'
+import { enforceContract } from '../contracts/enforce'
 import {
   recommendedOperationListItemSchema, completeRecOpRequestSchema, partialLogRequestSchema,
 } from '../contracts/operationContract'

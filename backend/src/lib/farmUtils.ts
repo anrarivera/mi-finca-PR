@@ -1,4 +1,4 @@
-import { enforceContract } from '../contracts/common'
+import { enforceContract } from '../contracts/enforce'
 import { farmResponseSchema } from '../contracts/farmContract'
 
 type LatLng = { lat: number; lng: number }
