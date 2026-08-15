@@ -18,6 +18,7 @@ import CorralCard from '@/features/livestock/components/corralCard'
 import type { Farm } from '@/store/useFarmStore'
 import type { PlacedField } from '@/features/field/types'
 import { toast } from '@/store/useToastStore'
+import { fmtNumber } from '@/i18n'
 
 type Props = {
   /** Open state lives in the host so it survives the drawer unmounting
@@ -306,7 +307,7 @@ function FarmList({
                           </span>
                           {farm.boundary?.length > 0 && (
                             <span className="text-[10px] text-[#7a8a6a]">
-                              {farm.totalAreaAcres > 0 ? t('acresShort', { value: farm.totalAreaAcres }) : ''}
+                              {farm.totalAreaAcres > 0 ? t('acresShort', { value: fmtNumber(farm.totalAreaAcres) }) : ''}
                             </span>
                           )}
                         </div>

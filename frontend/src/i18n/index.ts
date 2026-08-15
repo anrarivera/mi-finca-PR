@@ -55,6 +55,14 @@ export function dateLocale(): string {
   return i18n.language?.startsWith('en') ? 'en-US' : 'es-PR'
 }
 
+// Number formatting pinned to Puerto Rico / US conventions in BOTH
+// languages (comma thousands, period decimal — es-PR CLDR matches
+// en-US). Never use bare toLocaleString(): it follows the browser
+// locale, and e.g. plain 'es' renders 130.611 acres as "130,611".
+export function fmtNumber(n: number, maxDecimals = 2): string {
+  return n.toLocaleString(dateLocale(), { maximumFractionDigits: maxDecimals })
+}
+
 const isEnglish = () => i18n.language?.startsWith('en') ?? false
 
 // ── Data-library names ────────────────────────────────────────────────

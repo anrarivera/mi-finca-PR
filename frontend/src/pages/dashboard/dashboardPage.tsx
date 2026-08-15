@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import {
   MapPin, Layers, Sprout, PawPrint, Ruler, Lightbulb,
 } from 'lucide-react'
+import { fmtNumber } from '@/i18n'
 import { useFarmStore } from '@/store/useFarmStore'
 import { useFieldStore } from '@/store/useFieldStore'
 import { useLivestockStore } from '@/store/useLivestockStore'
@@ -82,9 +83,9 @@ export default function DashboardPage() {
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
             <StatTile icon={<MapPin size={16} />} label={t('dashboard.tiles.farms', { count: farms.length })} value={String(farms.length)} />
             <StatTile icon={<Layers size={16} />} label={t('dashboard.tiles.fields', { count: fields.length })} value={String(fields.length)} />
-            <StatTile icon={<Ruler size={16} />} label={t('dashboard.tiles.totalArea')} value={stats.totalAcres >= 100 ? Math.round(stats.totalAcres).toLocaleString() : stats.totalAcres.toFixed(2)} suffix="ac" />
-            <StatTile icon={<Sprout size={16} />} label={t('dashboard.tiles.plants')} value={stats.totalPlants.toLocaleString()} />
-            <StatTile icon={<PawPrint size={16} />} label={t('dashboard.tiles.animals')} value={stats.totalAnimals.toLocaleString()} />
+            <StatTile icon={<Ruler size={16} />} label={t('dashboard.tiles.totalArea')} value={fmtNumber(stats.totalAcres, stats.totalAcres >= 100 ? 0 : 2)} suffix="ac" />
+            <StatTile icon={<Sprout size={16} />} label={t('dashboard.tiles.plants')} value={fmtNumber(stats.totalPlants)} />
+            <StatTile icon={<PawPrint size={16} />} label={t('dashboard.tiles.animals')} value={fmtNumber(stats.totalAnimals)} />
           </div>
 
           {/* ── Labores due (checkable) + recommendations ──────────── */}

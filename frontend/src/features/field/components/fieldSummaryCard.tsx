@@ -22,7 +22,7 @@ import {
   useCompleteRecommendedOp, useSkipRecommendedOp, useLogPartialRecommendedOp,
 } from '../hooks/useOperationsApi'
 import { toast } from '@/store/useToastStore'
-import { dateLocale, localName, localOpLabel } from '@/i18n'
+import { dateLocale, fmtNumber, localName, localOpLabel } from '@/i18n'
 import type { PlacedField, PlantingEvent, RecommendedOperation } from '../types'
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -246,7 +246,7 @@ export default function FieldSummaryCard({
         const acres = ft2ToAcres(areaFt2(pts, scale))
         return (
           <p className="text-[10px] text-[#9aab8a] mb-1.5">
-            {acres.toFixed(3)} ac
+            {fmtNumber(acres)} ac
           </p>
         )
       })()}

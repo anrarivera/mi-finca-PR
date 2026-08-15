@@ -10,7 +10,7 @@ import { useLivestockStore } from '@/store/useLivestockStore'
 import { getAnimalById } from '@/features/livestock/data/animalLibrary'
 import { getCropById } from '../data/cropLibrary'
 import PriceInput, { formatMoney } from './priceInput'
-import { dateLocale, localName } from '@/i18n'
+import { dateLocale, fmtNumber, localName } from '@/i18n'
 
 // ──────────────────────────────────────────────────────────────────────────
 // Producción registrada — the unified production ledger, read STRAIGHT from
@@ -200,7 +200,7 @@ export default function HarvestLogSection({ limit = 6 }: Props) {
           const subtitle = [
             field?.name ?? unit?.name,
             dateFormatted,
-            row.quantity ? `${row.quantity.toLocaleString()} ${row.unit}` : null,
+            row.quantity ? `${fmtNumber(row.quantity)} ${row.unit}` : null,
             row.notes,
           ].filter(Boolean).join(' · ')
           const isEditing = editing?.id === row.id

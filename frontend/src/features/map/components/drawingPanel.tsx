@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { Pencil, Trash2, Check, Milestone, Plus, Undo2, X } from 'lucide-react'
 import { useIsPhone } from '@/hooks/useViewport'
 import type { DrawingMode } from '../hooks/useDrawing'
+import { fmtNumber } from '@/i18n'
 
 type Props = {
   mode: DrawingMode
@@ -145,7 +146,7 @@ export default function DrawingPanel({
             )
           ) : areaAcres !== null && (
             <span className="px-2.5 py-1.5 bg-white border border-[#e0e8d8] rounded-full shadow-md text-[11px] font-medium text-[#5a6a4a]">
-              {t('acresShort', { value: areaAcres })}
+              {t('acresShort', { value: fmtNumber(areaAcres) })}
             </span>
           )}
           <button
@@ -286,7 +287,7 @@ function Toolbar({
         : t('drawing.pointCount', { count: pointCount })
       : selectedPointIndex !== null
       ? t('drawing.pointSelected', { number: selectedPointIndex + 1 })
-      : `${areaAcres !== null ? `${t('acresShort', { value: areaAcres })} · ` : ''}${t('drawing.tapPointToEdit')}`
+      : `${areaAcres !== null ? `${t('acresShort', { value: fmtNumber(areaAcres) })} · ` : ''}${t('drawing.tapPointToEdit')}`
 
   return (
     <div

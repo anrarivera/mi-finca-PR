@@ -9,7 +9,7 @@ import { useFieldStore } from '@/store/useFieldStore'
 import { useLivestockStore } from '@/store/useLivestockStore'
 import { useConfirm } from '@/components/shared/confirmDialog'
 import { toast } from '@/store/useToastStore'
-import { dateLocale } from '@/i18n'
+import { dateLocale, fmtNumber } from '@/i18n'
 import {
   useOperations, useDueSoonOperations, useExportOperations,
   useUpdateOperation, useDeleteOperation,
@@ -202,7 +202,7 @@ function OperationLogRow({ op, fieldName, livestockName, onEdit, onDelete }: {
   const details = [
     fieldName,
     livestockName,
-    op.quantity ? `${op.quantity.toLocaleString()} ${op.unit ?? ''}`.trim() : null,
+    op.quantity ? `${fmtNumber(op.quantity)} ${op.unit ?? ''}`.trim() : null,
     op.product,
     op.notes,
   ].filter(Boolean).join(' · ')

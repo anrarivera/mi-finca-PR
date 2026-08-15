@@ -13,7 +13,7 @@ import {
   buildInventoryRows, summarizeInventory,
   type InventoryRow, type InventoryStatus,
 } from '@/features/inventory/inventoryBuilder'
-import { dateLocale, localName, localOpLabel, formatRelativeDays } from '@/i18n'
+import { dateLocale, fmtNumber, formatRelativeDays, localName, localOpLabel } from '@/i18n'
 import OperationsLogSection from '@/features/field/components/operationsLogSection'
 import OperationsCalendar from '@/features/field/components/operationsCalendar'
 import HarvestLogSection from '@/features/field/components/harvestLogSection'
@@ -179,7 +179,7 @@ export default function InventoryPage() {
           {/* ── Roll-up tiles ──────────────────────────────────────── */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
             <StatTile icon={<Package size={16} />} label={t('inventory.tiles.plantings')} value={String(summary.plantings)} />
-            <StatTile icon={<Sprout size={16} />} label={t('inventory.tiles.plants')} value={summary.plants.toLocaleString()} />
+            <StatTile icon={<Sprout size={16} />} label={t('inventory.tiles.plants')} value={fmtNumber(summary.plants)} />
             <StatTile icon={<Wheat size={16} />} label={t('inventory.tiles.crops')} value={String(summary.crops)} />
             <StatTile icon={<AlertCircle size={16} />} label={t('inventory.tiles.overdueOps')} value={String(summary.overdue)} alert={summary.overdue > 0} />
             <StatTile icon={<ClipboardList size={16} />} label={t('inventory.tiles.pendingOps')} value={String(summary.pending)} />
@@ -332,7 +332,7 @@ function InventoryRowView({ row, expanded, onToggle }: {
             {row.rowCount > 0 && ` (${row.rowCount})`}
           </span>
         </td>
-        <td className="px-3 py-3 font-medium text-[#2d4a1e]">{row.plantCount.toLocaleString()}</td>
+        <td className="px-3 py-3 font-medium text-[#2d4a1e]">{fmtNumber(row.plantCount)}</td>
         <td className="px-3 py-3 text-[#5a6a4a]">
           {formatDateEs(row.plantingDate)}
           <span className="block text-[10px] text-[#9aab8a]">{t('inventory.ageDays', { count: row.ageDays })}</span>

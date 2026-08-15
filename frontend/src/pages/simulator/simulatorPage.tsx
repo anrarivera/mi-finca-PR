@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Calculator, Sprout, TrendingUp, TrendingDown, DollarSign, Scale } from 'lucide-react'
-import { dateLocale, localName } from '@/i18n'
+import { dateLocale, fmtNumber, localName } from '@/i18n'
 import { useFieldStore } from '@/store/useFieldStore'
 import { computeCropSummary } from '@/features/field/utils/rowCalculator'
 import { getCropById } from '@/features/field/data/cropLibrary'
@@ -130,7 +130,7 @@ export default function SimulatorPage() {
             <TotalTile
               icon={<Scale size={15} />}
               label={t('simulator.totals.production')}
-              value={`${Math.round(result.totals.annualYieldLbs).toLocaleString()} lbs`}
+              value={`${fmtNumber(result.totals.annualYieldLbs, 0)} lbs`}
             />
             <TotalTile
               icon={<DollarSign size={15} />}

@@ -14,7 +14,7 @@ import PriceInput from './priceInput'
 import { useHarvestHighlightStore } from '@/store/useHarvestHighlightStore'
 import { useMarkUnsavedWork } from '@/store/useUnsavedWorkStore'
 import { useIsPhone } from '@/hooks/useViewport'
-import { dateLocale, localName, localOpLabel } from '@/i18n'
+import { dateLocale, fmtNumber, localName, localOpLabel } from '@/i18n'
 
 // ──────────────────────────────────────────────────────────────────────────
 // Operations view — the calendar check-off drawer (SDD §6.2), docked left
@@ -473,7 +473,7 @@ function OperationRow({
       }
     }
     const qty = Object.entries(totals)
-      .map(([u, q]) => `${q.toLocaleString()} ${u}`)
+      .map(([u, q]) => `${fmtNumber(q)} ${u}`)
       .join(' + ')
     return `${t('count.partialLogs', { count: partials.length })}${qty ? ` · ${qty}` : ''}`
   })()
@@ -524,7 +524,7 @@ function OperationRow({
           )}
           {operation.quantity != null && status === 'completed' && (
             <p className="text-[10px] text-[#9aab8a]">
-              · {operation.quantity.toLocaleString()} {operation.unit ?? ''}
+              · {fmtNumber(operation.quantity)} {operation.unit ?? ''}
             </p>
           )}
         </div>
