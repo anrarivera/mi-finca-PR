@@ -1,5 +1,14 @@
 import { useAuthStore } from '@/store/useAuthStore'
 import { toast } from '@/store/useToastStore'
+import i18n from '@/i18n'
+
+// Server fallback errors are English-only (the backend doesn't know the
+// UI language) — these codes get localized client-side. Specific
+// validation messages pass through untouched: they're written for the
+// farmer in Spanish already.
+const LOCALIZED_ERROR_CODES = new Set([
+  'INTERNAL_ERROR', 'RATE_LIMITED', 'PAYLOAD_TOO_LARGE',
+])
 
 // Default: the API lives on the same host the page was loaded from. That
 // makes LAN dev work with zero config — a phone loading the app from
@@ -123,13 +132,15 @@ class ApiClient {
     try {
       json = await res.json()
     } catch {
-      const message = `Error ${res.status}`
+      const message = i18n.t('common:errors.GENERIC', { status: res.status })
       toast.error(message)
       throw new Error(message)
     }
 
     if (!json.success) {
-      const message = json.error.message || 'An error occurred'
+      const message = LOCALIZED_ERROR_CODES.has(json.error.code)
+        ? i18n.t(`common:errors.${json.error.code}`)
+        : (json.error.message || i18n.t('common:errors.GENERIC', { status: res.status }))
       toast.error(message)
       throw new Error(message)
     }

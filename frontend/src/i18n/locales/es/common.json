@@ -13,6 +13,12 @@
     "register": "Crear cuenta",
     "unsavedLeaveConfirm": "Tienes cambios sin guardar. ¿Salir y descartarlos?"
   },
+  "errors": {
+    "INTERNAL_ERROR": "Algo salió mal en el servidor. Intenta de nuevo.",
+    "RATE_LIMITED": "Demasiados intentos. Espera unos minutos y vuelve a intentar.",
+    "PAYLOAD_TOO_LARGE": "Los datos son demasiado grandes para guardarlos de una vez.",
+    "GENERIC": "Ocurrió un error ({{status}}). Intenta de nuevo."
+  },
   "actions": {
     "save": "Guardar",
     "cancel": "Cancelar",

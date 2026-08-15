@@ -128,7 +128,8 @@
   "save": {
     "fieldUpdated": "Campo actualizado",
     "fieldSaved": "Campo guardado",
-    "fieldSaveError": "No se pudo guardar el campo. Tus cambios siguen en el editor — intenta de nuevo."
+    "fieldSaveError": "No se pudo guardar el campo. Tus cambios siguen en el editor — intenta de nuevo.",
+    "duplicateNameConfirm": "Ya existe un campo llamado \"{{name}}\" en esta finca. ¿Guardar otro con el mismo nombre?"
   },
   "customCrop": {
     "title": "Nuevo cultivo personalizado",

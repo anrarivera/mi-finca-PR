@@ -128,7 +128,8 @@
   "save": {
     "fieldUpdated": "Field updated",
     "fieldSaved": "Field saved",
-    "fieldSaveError": "The field could not be saved. Your changes are still in the editor — try again."
+    "fieldSaveError": "The field could not be saved. Your changes are still in the editor — try again.",
+    "duplicateNameConfirm": "A field named \"{{name}}\" already exists on this farm. Save another one with the same name?"
   },
   "customCrop": {
     "title": "New custom crop",

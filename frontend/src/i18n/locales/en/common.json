@@ -13,6 +13,12 @@
     "register": "Create account",
     "unsavedLeaveConfirm": "You have unsaved changes. Leave and discard them?"
   },
+  "errors": {
+    "INTERNAL_ERROR": "Something went wrong on the server. Please try again.",
+    "RATE_LIMITED": "Too many attempts. Wait a few minutes and try again.",
+    "PAYLOAD_TOO_LARGE": "The data is too large to save at once.",
+    "GENERIC": "An error occurred ({{status}}). Please try again."
+  },
   "actions": {
     "save": "Save",
     "cancel": "Cancel",

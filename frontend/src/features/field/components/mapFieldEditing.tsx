@@ -298,6 +298,17 @@ export function useMapFieldEditing(
   // ── Save ─────────────────────────────────────────────────────────
   async function save() {
     if (editor.points.length < 3 || !editor.name.trim() || !bbox) return
+    // Duplicate names are legal (two "Plátanos" plots exist in real life)
+    // but usually accidental — confirm before saving a second one, since
+    // twin names make the drawer and reports ambiguous.
+    const trimmedName = editor.name.trim().toLowerCase()
+    const duplicate = useFieldStore.getState().fields.some(f =>
+      f.farmId === farmId && f.id !== editingFieldId &&
+      f.name.trim().toLowerCase() === trimmedName
+    )
+    if (duplicate && !window.confirm(
+      i18n.t('editor:save.duplicateNameConfirm', { name: editor.name.trim() })
+    )) return
     // Coordinates upload at 6 decimals (~11 cm) — request bodies aren't
     // compressed, and at 10k+ plants full double precision doubles a
     // multi-megabyte payload for zero agronomic value.
