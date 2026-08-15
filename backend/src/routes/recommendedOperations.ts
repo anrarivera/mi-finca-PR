@@ -3,9 +3,11 @@ import { prisma } from '../lib/prisma'
 import { requireAuth } from '../middleware/auth'
 import { Errors } from '../lib/errors'
 import { requireFarmRole } from '../lib/farmAccess'
-import { requireRevenue, requireQuantity } from '../lib/validate'
+import { requireRevenue, requireQuantity, parseBody } from '../lib/validate'
 import { enforceContract } from '../contracts/common'
-import { recommendedOperationListItemSchema } from '../contracts/operationContract'
+import {
+  recommendedOperationListItemSchema, completeRecOpRequestSchema, partialLogRequestSchema,
+} from '../contracts/operationContract'
 
 // ──────────────────────────────────────────────────────────────────────────
 // Recommended operations — SDD §4.6. These are the calendar entries the
@@ -182,6 +184,7 @@ router.post('/:id/complete', async (req: Request, res: Response, next: NextFunct
     const {
       completedDate, product, quantity, unit, notes, rowIds, plantIds, revenue,
     } = req.body ?? {}
+    parseBody(completeRecOpRequestSchema, req.body ?? {})
     requireRevenue(revenue)
     requireQuantity(quantity)
     const actualDate = new Date(completedDate ?? todayUtc())
@@ -297,6 +300,7 @@ router.post('/:id/log-partial', async (req: Request, res: Response, next: NextFu
     }
 
     const { date, product, quantity, unit, notes, rowIds, plantIds, revenue } = req.body ?? {}
+    parseBody(partialLogRequestSchema, req.body ?? {})
     requireRevenue(revenue)
     requireQuantity(quantity)
     const actualDate = new Date(date ?? todayUtc())

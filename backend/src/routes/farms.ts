@@ -2,7 +2,10 @@ import { Router, Request, Response, NextFunction } from 'express'
 import { prisma } from '../lib/prisma'
 import { requireAuth } from '../middleware/auth'
 import { Errors } from '../lib/errors'
-import { requireFields, requireValidId, requireBoundaryBounds, requireNameLength } from '../lib/validate'
+import { requireFields, requireValidId, requireBoundaryBounds, requireNameLength, parseBody } from '../lib/validate'
+import {
+  createFarmRequestSchema, updateFarmRequestSchema, joinFarmRequestSchema,
+} from '../contracts/farmContract'
 import { calculateAreaAcres, formatFarm } from '../lib/farmUtils'
 import { requireFarmRole } from '../lib/farmAccess'
 import { hashInviteCode } from '../lib/farmInvites'
@@ -62,6 +65,7 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
     const { name, location, farmType, description } = req.body
 
     requireFields(req.body, ['name', 'location'])
+    parseBody(createFarmRequestSchema, req.body)
     requireNameLength(name, 80)
     requireNameLength(location, 120)
 
@@ -117,6 +121,7 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
 router.post('/join', async (req: Request, res: Response, next: NextFunction) => {
   try {
     requireFields(req.body, ['code'])
+    parseBody(joinFarmRequestSchema, req.body)
     const userId = req.user!.userId
 
     const invite = await prisma.farmInvite.findUnique({
@@ -197,6 +202,7 @@ router.patch('/:id', async (req: Request, res: Response, next: NextFunction) => 
     await requireFarmRole(req.user!.userId, id, 'admin')
 
     const { name, location, farmType, description, boundary, isFavorite } = req.body
+    parseBody(updateFarmRequestSchema, req.body)
     requireNameLength(name, 80)
     requireNameLength(location, 120)
 

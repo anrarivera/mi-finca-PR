@@ -33,3 +33,45 @@ export const findingResponseSchema = z.object({
 
 export type FindingResponse = z.output<typeof findingResponseSchema>
 export type FindingObservationResponse = z.output<typeof findingObservationResponseSchema>
+
+// ── Request bodies ──────────────────────────────────────────────────────
+// Liberal on purpose (loose objects — unknown keys pass through): requests
+// are validated for the structure and types of everything the server
+// READS. The Spanish domain guards (name lengths, quantity caps, geometry
+// bounds, farm containment) still run after this structural gate.
+
+export const createFindingRequestSchema = z.looseObject({
+  fieldId: z.string().min(1),
+  pestId: z.string().min(1),
+  severity: z.number(),
+  foundDate: z.string().nullish(),
+  notes: z.string().nullish(),
+  rowIds: z.array(z.string()).optional(),
+  plantIds: z.array(z.string()).optional(),
+})
+
+export const updateFindingRequestSchema = z.looseObject({
+  pestId: z.string().min(1).optional(),
+  severity: z.number().optional(),
+  status: z.enum(['open', 'treated', 'resolved']).optional(),
+  foundDate: z.string().nullish(),
+  notes: z.string().nullish(),
+  rowIds: z.array(z.string()).optional(),
+  plantIds: z.array(z.string()).optional(),
+})
+
+export const observationRequestSchema = z.looseObject({
+  severity: z.number(),
+  date: z.string().nullish(),
+  notes: z.string().nullish(),
+  rowIds: z.array(z.string()).optional(),
+  plantIds: z.array(z.string()).optional(),
+})
+
+export const treatmentRequestSchema = z.looseObject({
+  plantingEventId: z.string().min(1),
+  labelEs: z.string().min(1),
+  type: z.string().nullish(),
+  recommendedDate: z.string().nullish(),
+  notes: z.string().nullish(),
+})

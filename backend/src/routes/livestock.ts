@@ -2,11 +2,14 @@ import { Router, Request, Response, NextFunction } from 'express'
 import { prisma } from '../lib/prisma'
 import { requireAuth } from '../middleware/auth'
 import { Errors } from '../lib/errors'
-import { requireFields, requireValidId, requireLat, requireLng, requireRevenue, requireQuantity } from '../lib/validate'
+import { requireFields, requireValidId, requireLat, requireLng, requireRevenue, requireQuantity, parseBody } from '../lib/validate'
 import { requireFarmRole } from '../lib/farmAccess'
 
 import { enforceContract } from '../contracts/common'
-import { livestockResponseSchema } from '../contracts/livestockContract'
+import {
+  livestockResponseSchema, createLivestockRequestSchema, updateLivestockRequestSchema,
+  productionRequestSchema,
+} from '../contracts/livestockContract'
 
 const router = Router({ mergeParams: true }) // mounted at /api/v1/farms/:farmId/livestock
 
@@ -83,6 +86,7 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
     const userId = req.user!.userId
 
     requireFields(req.body, ['name', 'animalType', 'currentCount', 'acquisitionDate'])
+    parseBody(createLivestockRequestSchema, req.body)
     await requireFarmStructure(userId, farmId)
 
     const { name, animalType, currentCount, acquisitionDate, farmLat, farmLng, notes, fieldId } = req.body
@@ -153,6 +157,7 @@ router.patch('/:id', async (req: Request, res: Response, next: NextFunction) => 
     if (!existing) throw Errors.notFound('Livestock unit')
 
     const { name, animalType, currentCount, acquisitionDate, farmLat, farmLng, notes, fieldId } = req.body
+    parseBody(updateLivestockRequestSchema, req.body)
 
     // Corral can be set, moved (pasture rotation), or cleared with null
     if (fieldId != null) await requireCorral(farmId, fieldId)
@@ -197,6 +202,7 @@ router.post('/:id/production', async (req: Request, res: Response, next: NextFun
 
     requireValidId(id, 'Livestock unit')
     requireFields(req.body, ['productId', 'quantity', 'unit', 'date'])
+    parseBody(productionRequestSchema, req.body)
     await requireFarmOwnership(userId, farmId)
 
     const unit = await prisma.livestockUnit.findFirst({

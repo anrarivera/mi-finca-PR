@@ -98,3 +98,79 @@ export type RowResponse = z.output<typeof rowResponseSchema>
 export type PlantResponse = z.output<typeof plantResponseSchema>
 export type PlantingEventResponse = z.output<typeof plantingEventResponseSchema>
 export type RecommendedOperationResponse = z.output<typeof recommendedOperationResponseSchema>
+
+// ── Request bodies ──────────────────────────────────────────────────────
+// Liberal on purpose (loose objects — unknown keys pass through): requests
+// are validated for the structure and types of everything the server
+// READS. The Spanish domain guards (name lengths, quantity caps, geometry
+// bounds, farm containment) still run after this structural gate.
+
+const plantRequest = z.looseObject({
+  id: z.string(),
+  cropTypeId: z.string(),
+  lat: z.number(),
+  lng: z.number(),
+  plantingDate: z.string().min(1),
+})
+
+const rowRequest = z.looseObject({
+  id: z.string(),
+  startLat: z.number(),
+  startLng: z.number(),
+  endLat: z.number(),
+  endLng: z.number(),
+  spacingFt: z.number(),
+  primaryCropTypeId: z.string(),
+  companionCropTypeId: z.string().nullish(),
+  plantingDate: z.string().min(1),
+  path: z.array(latLng).nullish(),
+  pathClosed: z.boolean().nullish(),
+  plants: z.array(plantRequest).optional(),
+})
+
+// Round-tripped calendar entries (client-generated ids; status and the
+// completed-operation link must survive re-saves).
+const eventOperationRequest = z.looseObject({
+  id: z.string(),
+  templateId: z.string(),
+  type: z.string(),
+  labelEs: z.string(),
+  recommendedDate: z.string().min(1),
+  status: z.string().optional(),
+  completedDate: z.string().nullish(),
+  completedOperationId: z.string().nullish(),
+  notes: z.string().nullish(),
+  product: z.string().nullish(),
+  quantity: z.number().nullish(),
+  unit: z.string().nullish(),
+})
+
+const plantingEventRequest = z.looseObject({
+  id: z.string(),
+  cropTypeId: z.string(),
+  plantingDate: z.string().min(1),
+  plantCount: z.number(),
+  isSimulated: z.boolean().optional(),
+  rowIds: z.array(z.string()).optional(),
+  freePlantIds: z.array(z.string()).optional(),
+  operations: z.array(eventOperationRequest).optional(),
+})
+
+export const createFieldRequestSchema = z.looseObject({
+  name: z.string().min(1),
+  kind: z.enum(['crops', 'livestock']).optional(),
+  color: z.string().min(1),
+  shape: z.enum(['rectangle', 'polygon']),
+  boundary: z.array(latLng).optional(),
+  farmLat: z.number(),
+  farmLng: z.number(),
+  displayMode: z.enum(['pin', 'shape']).optional(),
+  isPositioning: z.boolean().optional(),
+  isSimulated: z.boolean().optional(),
+  farmModelId: z.string().nullish(),
+  rows: z.array(rowRequest).optional(),
+  freePlants: z.array(plantRequest).optional(),
+  plantingEvents: z.array(plantingEventRequest).optional(),
+})
+
+export const updateFieldRequestSchema = createFieldRequestSchema.partial()

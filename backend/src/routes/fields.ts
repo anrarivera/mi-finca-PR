@@ -4,10 +4,12 @@ import { prisma } from '../lib/prisma'
 import { Errors } from '../lib/errors'
 import {
   requireFields, requireValidId, requireLat, requireLng, requireBoundaryBounds,
-  requireNameLength,
+  requireNameLength, parseBody,
 } from '../lib/validate'
 import { requireFarmRole } from '../lib/farmAccess'
-import { fieldResponseSchema } from '../contracts/fieldContract'
+import {
+  fieldResponseSchema, createFieldRequestSchema, updateFieldRequestSchema,
+} from '../contracts/fieldContract'
 import { enforceContract } from '../contracts/common'
 
 const router = Router({ mergeParams: true })
@@ -229,6 +231,7 @@ router.post('/', requireAuth, async (req: Request, res: Response, next: NextFunc
 
     requireFields(req.body, ['name', 'color', 'shape', 'farmLat', 'farmLng'])
     requireNameLength(req.body?.name, 80)
+    parseBody(createFieldRequestSchema, req.body)
     if (kind !== undefined && !['crops', 'livestock'].includes(kind)) {
       throw Errors.validation("kind must be 'crops' or 'livestock'")
     }
@@ -367,6 +370,7 @@ router.patch('/:id', requireAuth, async (req: Request, res: Response, next: Next
 
     requireGeometryBounds({ boundary, farmLat, farmLng, rows, freePlants })
     requireNameLength(req.body?.name, 80)
+    parseBody(updateFieldRequestSchema, req.body)
 
     // Validate field boundary is inside farm boundary
     if (boundary && boundary.length >= 3) {

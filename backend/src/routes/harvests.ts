@@ -2,11 +2,13 @@ import { Router, Request, Response, NextFunction } from 'express'
 import { prisma } from '../lib/prisma'
 import { requireAuth } from '../middleware/auth'
 import { Errors } from '../lib/errors'
-import { requireFields, requireValidId, requireRevenue, requireQuantity } from '../lib/validate'
+import { requireFields, requireValidId, requireRevenue, requireQuantity, parseBody } from '../lib/validate'
 import { requireFarmRole } from '../lib/farmAccess'
 
 import { enforceContract } from '../contracts/common'
-import { harvestResponseSchema } from '../contracts/harvestContract'
+import {
+  harvestResponseSchema, createHarvestRequestSchema, updateHarvestRequestSchema,
+} from '../contracts/harvestContract'
 
 const router = Router({ mergeParams: true }) // mounted at /api/v1/farms/:farmId/harvests
 
@@ -115,6 +117,7 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
     const userId = req.user!.userId
 
     requireFields(req.body, ['cropTypeId', 'quantity', 'unit', 'harvestDate'])
+    parseBody(createHarvestRequestSchema, req.body)
     await requireFarmOwnership(userId, farmId)
 
     const { fieldId, cropTypeId, quantity, unit, harvestDate, notes, revenue } = req.body
@@ -189,6 +192,7 @@ router.patch('/:id', async (req: Request, res: Response, next: NextFunction) => 
     if (!existing) throw Errors.notFound('Harvest')
 
     const { fieldId, cropTypeId, quantity, unit, harvestDate, notes, revenue } = req.body
+    parseBody(updateHarvestRequestSchema, req.body)
     requireRevenue(revenue)
     requireQuantity(quantity)
 

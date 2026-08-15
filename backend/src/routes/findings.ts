@@ -2,7 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express'
 import { prisma } from '../lib/prisma'
 import { requireAuth } from '../middleware/auth'
 import { Errors } from '../lib/errors'
-import { requireFields, requireValidId } from '../lib/validate'
+import { requireFields, requireValidId, parseBody } from '../lib/validate'
 import { requireFarmRole } from '../lib/farmAccess'
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -16,7 +16,10 @@ import { requireFarmRole } from '../lib/farmAccess'
 // ──────────────────────────────────────────────────────────────────────────
 
 import { enforceContract } from '../contracts/common'
-import { findingResponseSchema } from '../contracts/findingContract'
+import {
+  findingResponseSchema, createFindingRequestSchema, updateFindingRequestSchema,
+  observationRequestSchema, treatmentRequestSchema,
+} from '../contracts/findingContract'
 
 const router = Router({ mergeParams: true })
 
@@ -185,6 +188,7 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
     const userId = req.user!.userId
 
     requireFields(req.body, ['fieldId', 'pestId', 'severity'])
+    parseBody(createFindingRequestSchema, req.body)
     await requireFarmOwnership(userId, farmId)
 
     const { fieldId, pestId, severity, foundDate, notes, rowIds, plantIds } = req.body
@@ -252,6 +256,7 @@ router.patch('/:id', async (req: Request, res: Response, next: NextFunction) => 
     if (!existing) throw Errors.notFound('Finding')
 
     const { pestId, severity, status, foundDate, notes, rowIds, plantIds } = req.body
+    parseBody(updateFindingRequestSchema, req.body)
 
     if (status !== undefined && !FINDING_STATUSES.includes(status)) {
       throw Errors.validation(`status must be one of: ${FINDING_STATUSES.join(', ')}`)
@@ -296,6 +301,7 @@ router.post('/:id/observations', async (req: Request, res: Response, next: NextF
 
     requireValidId(id, 'Finding')
     requireFields(req.body, ['severity'])
+    parseBody(observationRequestSchema, req.body)
     await requireFarmOwnership(userId, farmId)
 
     const finding = await prisma.finding.findFirst({
@@ -381,6 +387,7 @@ router.post('/:id/create-operation', async (req: Request, res: Response, next: N
 
     requireValidId(id, 'Finding')
     requireFields(req.body, ['plantingEventId', 'labelEs'])
+    parseBody(treatmentRequestSchema, req.body)
     await requireFarmOwnership(userId, farmId)
 
     const finding = await prisma.finding.findFirst({

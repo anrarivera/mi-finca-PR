@@ -114,10 +114,13 @@ Testing arrived late and then arrived seriously. The sequence:
    fields rejecting the server's explicit nulls). All fixed, each with a
    regression test in the harness.
 
-**API contracts, enforced three ways.** Every resource response (farms, fields,
+**API contracts, enforced three ways.** Every resource (farms, fields,
 operations, the recommendations calendar, findings, livestock, harvests) is
-defined once as a zod schema in `backend/src/contracts/` and enforced on three
-axes: at runtime the server parses each response through its schema — unknown
+defined in `backend/src/contracts/` — response schemas AND request-body
+schemas. Requests are gated on entry (structural validation of everything the
+server reads, deliberately liberal about unknown keys; the Spanish
+farmer-facing domain guards still run behind the gate). Responses are enforced
+on three axes: at runtime the server parses each response through its schema — unknown
 keys are stripped (the payload-stowaway class of bug is structurally
 impossible) and drift logs loudly while failing soft; at compile time a
 frontend contract test type-imports the schemas and asserts the hand-written
@@ -169,10 +172,6 @@ React's escaping verified against script-tag input by the adversarial suite.
 
 ## Known debt, stated plainly
 
-- **Contracts cover responses, not yet request bodies** — every API response
-  now flows through a zod contract, but write payloads are still validated by
-  hand-rolled guards plus scattered zod. Unifying request validation under the
-  same contract files is the natural next step.
 - **Derived-plants storage** — plants are stored as individual rows though they
   are largely derivable from row spec + spacing + removals. Fine at current
   scale; the redesign is specced for when multi-hundred-acre farms are normal.

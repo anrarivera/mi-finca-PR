@@ -20,3 +20,29 @@ export const harvestResponseSchema = z.object({
 })
 
 export type HarvestResponse = z.output<typeof harvestResponseSchema>
+
+// ── Request bodies ──────────────────────────────────────────────────────
+// Liberal on purpose (loose objects — unknown keys pass through): requests
+// are validated for the structure and types of everything the server
+// READS. The Spanish domain guards (name lengths, quantity caps, geometry
+// bounds, farm containment) still run after this structural gate.
+
+export const createHarvestRequestSchema = z.looseObject({
+  cropTypeId: z.string().min(1),
+  quantity: z.number(),
+  unit: z.string().min(1),
+  harvestDate: z.string().min(1),
+  fieldId: z.string().nullish(),
+  notes: z.string().nullish(),
+  revenue: z.number().nullish(),
+})
+
+export const updateHarvestRequestSchema = z.looseObject({
+  cropTypeId: z.string().min(1).optional(),
+  quantity: z.number().optional(),
+  unit: z.string().min(1).optional(),
+  harvestDate: z.string().min(1).optional(),
+  fieldId: z.string().nullish(),
+  notes: z.string().nullish(),
+  revenue: z.number().nullish(),
+})
