@@ -1,0 +1,9 @@
+{
+  "name": "mi-finca-qa",
+  "private": true,
+  "type": "module",
+  "description": "Playwright QA harness — drives the running dev app through the flows in docs/QA-CHECKLIST.md",
+  "dependencies": {
+    "playwright": "^1.62.1"
+  }
+}
