@@ -218,6 +218,14 @@ router.patch('/:id', async (req: Request, res: Response, next: NextFunction) => 
     let totalAreaAcres: number | undefined
     if (boundary && Array.isArray(boundary) && boundary.length >= 3) {
       totalAreaAcres = calculateAreaAcres(boundary)
+      // A few taps on an island-wide map view make a "farm" of millions of
+      // acres — which also overflows the Decimal(10,4) column into a 500.
+      // The largest real farms in PR are a few thousand acres.
+      if (totalAreaAcres > 20000) {
+        throw Errors.validation(
+          'El límite dibujado es demasiado grande (más de 20,000 acres). Acércate al mapa hasta ver tu terreno y dibuja solo tu finca.'
+        )
+      }
     }
 
     // Build update object — only include fields that were provided
