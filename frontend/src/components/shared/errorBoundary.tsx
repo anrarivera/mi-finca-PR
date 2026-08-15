@@ -1,6 +1,7 @@
 import { Component } from 'react'
 import type { ErrorInfo, ReactNode } from 'react'
 import i18n from '@/i18n'
+import { reportClientError } from '@/lib/errorReporting'
 
 // ──────────────────────────────────────────────────────────────────────────
 // Top-level error boundary. Without one, any render error unmounts the whole
@@ -20,6 +21,9 @@ export default class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error('Error no controlado en la interfaz:', error, info.componentStack)
+    // Ship the crash to the server logs — a white screen on a farmer's
+    // phone is invisible unless it reports itself.
+    reportClientError('react-error-boundary', error)
   }
 
   render() {

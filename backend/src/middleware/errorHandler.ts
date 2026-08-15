@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express'
 import { AppError } from '../lib/errors'
+import { logger } from '../lib/logger'
 
 export function errorHandler(
   err: Error,
@@ -9,6 +10,16 @@ export function errorHandler(
 ) {
 
   if (err instanceof AppError) {
+    // Expected rejections (validation, auth, not-found) — logged lean at
+    // warn so spikes are visible without stack noise.
+    logger.warn({
+      code: err.code,
+      status: err.statusCode,
+      msg: err.message,
+      method: req.method,
+      url: req.originalUrl,
+      userId: req.user?.userId ?? null,
+    }, 'request rejected')
     return res.status(err.statusCode).json({
       success: false,
       error: {
@@ -31,6 +42,15 @@ export function errorHandler(
       }
     })
   }
+
+  // Unexpected — the bug class. Full stack + request context so a Railway
+  // log search for "unhandled error" reconstructs what happened.
+  logger.error({
+    err,
+    method: req.method,
+    url: req.originalUrl,
+    userId: req.user?.userId ?? null,
+  }, 'unhandled error')
 
   return res.status(500).json({
     success: false,

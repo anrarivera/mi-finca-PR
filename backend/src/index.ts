@@ -1,5 +1,7 @@
 import 'dotenv/config' // load .env before anything reads process.env
-import express from 'express'
+import express, { Request } from 'express'
+import pinoHttp from 'pino-http'
+import { logger } from './lib/logger'
 import cors from 'cors'
 import helmet from 'helmet'
 import compression from 'compression'
@@ -17,6 +19,7 @@ import operationRoutes from './routes/operations'
 import recommendedOperationRoutes from './routes/recommendedOperations'
 import cropRoutes from './routes/crops'
 import userRoutes from './routes/users'
+import clientErrorRoutes from './routes/clientErrors'
 import findingRoutes from './routes/findings'
 import memberRoutes from './routes/members'
 import cron from 'node-cron'
@@ -93,6 +96,28 @@ app.use('/api', (req, res, next) => {
   next()
 })
 
+// Request logging — one structured line per API request with method, path,
+// status, duration, and the acting user. /health is excluded (uptime
+// pollers would drown everything else).
+app.use('/api', pinoHttp({
+  logger,
+  autoLogging: true,
+  customProps: (req) => ({
+    // requireAuth has run by response time — attribute the request.
+    userId: (req as Request).user?.userId ?? null,
+  }),
+  customLogLevel: (_req, res, err) => {
+    if (err || res.statusCode >= 500) return 'error'
+    if (res.statusCode >= 400) return 'warn'
+    return 'info'
+  },
+  // The default serializers dump entire header maps; keep lines lean.
+  serializers: {
+    req: (req) => ({ method: req.method, url: req.url }),
+    res: (res) => ({ statusCode: res.statusCode }),
+  },
+}))
+
 // ── Health check ───────────────────────────────────────────────────────
 app.get('/health', async (req, res) => {
   try {
@@ -128,6 +153,7 @@ app.use('/api/v1/farms/:farmId/findings', findingRoutes)
 app.use('/api/v1/farms/:farmId/members', memberRoutes)
 app.use('/api/v1/crops', cropRoutes)
 app.use('/api/v1/users', userRoutes)
+app.use('/api/v1/client-errors', clientErrorRoutes)
 
 // ── Static frontend (production) ───────────────────────────────────────
 // One origin serves everything: the built frontend lands in backend/public
