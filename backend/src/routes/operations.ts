@@ -4,6 +4,8 @@ import { requireAuth } from '../middleware/auth'
 import { Errors } from '../lib/errors'
 import { requireFields, requireValidId, requireRevenue, requireQuantity } from '../lib/validate'
 import { requireFarmRole } from '../lib/farmAccess'
+import { enforceContract } from '../contracts/common'
+import { operationResponseSchema } from '../contracts/operationContract'
 
 // ──────────────────────────────────────────────────────────────────────────
 // Operations log — SDD §4.5 / §6.2. An Operation is something that actually
@@ -38,13 +40,14 @@ function toDateStr(val: any): string {
   return String(val).split('T')[0]
 }
 
-// Prisma Decimal → number, Date → date string.
+// Prisma Decimal → number, Date → date string — parsed through the
+// operation contract (unknown keys stripped, drift logged).
 function serializeOperation(op: any) {
-  return {
+  return enforceContract(operationResponseSchema, {
     ...op,
     quantity: op.quantity !== null && op.quantity !== undefined ? Number(op.quantity) : null,
     actualDate: toDateStr(op.actualDate),
-  }
+  }, 'operation')
 }
 
 // Shared logic for confirming a recommendation: verifies the recommended

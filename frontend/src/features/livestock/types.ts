@@ -19,7 +19,8 @@ export type LivestockUnit = {
   animalType: AnimalType
   currentCount: number
   acquisitionDate: string // ISO date (YYYY-MM-DD)
-  notes?: string
+  // The wire carries explicit null (see backend livestock contract).
+  notes?: string | null
 }
 
 /** Why animals left the herd when logging meat production. */

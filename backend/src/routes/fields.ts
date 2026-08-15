@@ -8,7 +8,7 @@ import {
 } from '../lib/validate'
 import { requireFarmRole } from '../lib/farmAccess'
 import { fieldResponseSchema } from '../contracts/fieldContract'
-import { logger } from '../lib/logger'
+import { enforceContract } from '../contracts/common'
 
 const router = Router({ mergeParams: true })
 
@@ -176,18 +176,8 @@ function serializeField(field: any) {
     }),
   }
 
-  // Contract enforcement: parse strips every key not in the schema and
-  // validates the rest. Fail-soft — a contract mismatch must never take
-  // a farmer's data offline, but it screams in the logs.
-  const parsed = fieldResponseSchema.safeParse(built)
-  if (!parsed.success) {
-    logger.error({
-      fieldId: field?.id,
-      issues: parsed.error.issues.slice(0, 5),
-    }, 'field response violates contract — serving unparsed body')
-    return built
-  }
-  return parsed.data
+  // Contract enforcement: unknown keys stripped, drift logged, fail-soft.
+  return enforceContract(fieldResponseSchema, built, 'field')
 }
 
 const fieldInclude = {

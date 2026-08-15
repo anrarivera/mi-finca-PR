@@ -15,6 +15,9 @@ import { requireFarmRole } from '../lib/farmAccess'
 // Mounted at /api/v1/farms/:farmId/findings
 // ──────────────────────────────────────────────────────────────────────────
 
+import { enforceContract } from '../contracts/common'
+import { findingResponseSchema } from '../contracts/findingContract'
+
 const router = Router({ mergeParams: true })
 
 router.use(requireAuth)
@@ -39,13 +42,13 @@ function toDateStr(val: any): string {
 }
 
 function serializeFinding(finding: any) {
-  return {
+  return enforceContract(findingResponseSchema, {
     ...finding,
     foundDate: toDateStr(finding.foundDate),
     ...(finding.observations
       ? { observations: finding.observations.map(serializeObservation) }
       : {}),
-  }
+  }, 'finding')
 }
 
 function serializeObservation(obs: any) {

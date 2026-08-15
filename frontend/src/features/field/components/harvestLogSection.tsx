@@ -21,8 +21,9 @@ import { dateLocale, fmtNumber, localName } from '@/i18n'
 // PriceInput that PATCHes /harvests/:id { revenue } for later sales.
 // ──────────────────────────────────────────────────────────────────────────
 
-// Backend harvest_yields row (backend/src/routes/harvests.ts).
-type ApiHarvestRow = {
+// Backend harvest_yields row (backend/src/routes/harvests.ts). Exported
+// for the API contract test.
+export type ApiHarvestRow = {
   id: string
   farmId: string
   fieldId: string | null

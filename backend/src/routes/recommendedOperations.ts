@@ -4,6 +4,8 @@ import { requireAuth } from '../middleware/auth'
 import { Errors } from '../lib/errors'
 import { requireFarmRole } from '../lib/farmAccess'
 import { requireRevenue, requireQuantity } from '../lib/validate'
+import { enforceContract } from '../contracts/common'
+import { recommendedOperationListItemSchema } from '../contracts/operationContract'
 
 // ──────────────────────────────────────────────────────────────────────────
 // Recommended operations — SDD §4.6. These are the calendar entries the
@@ -42,12 +44,12 @@ function toDateStr(val: any): string {
 }
 
 function serializeRecOp(op: any) {
-  return {
+  return enforceContract(recommendedOperationListItemSchema, {
     ...op,
     quantity: op.quantity !== null && op.quantity !== undefined ? Number(op.quantity) : null,
     recommendedDate: toDateStr(op.recommendedDate),
     completedDate: op.completedDate ? toDateStr(op.completedDate) : null,
-  }
+  }, 'recommendedOperation')
 }
 
 // Today at UTC midnight — recommendedDate is a @db.Date column (stored at

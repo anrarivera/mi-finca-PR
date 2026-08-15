@@ -5,9 +5,19 @@ import type {
   rowResponseSchema,
   plantResponseSchema,
 } from '../../../../backend/src/contracts/fieldContract'
+import type { farmResponseSchema } from '../../../../backend/src/contracts/farmContract'
+import type { operationResponseSchema } from '../../../../backend/src/contracts/operationContract'
+import type { findingResponseSchema } from '../../../../backend/src/contracts/findingContract'
+import type { livestockResponseSchema } from '../../../../backend/src/contracts/livestockContract'
+import type { harvestResponseSchema } from '../../../../backend/src/contracts/harvestContract'
 import type {
   PlacedField, FieldRow, PlantInstance, PlantingEvent, RecommendedOperation,
 } from './types'
+import type { Farm } from '@/store/useFarmStore'
+import type { FarmOperation } from './hooks/useOperationsApi'
+import type { Finding } from '@/features/scouting/types'
+import type { LivestockUnit } from '@/features/livestock/types'
+import type { ApiHarvestRow } from './components/harvestLogSection'
 
 // ──────────────────────────────────────────────────────────────────────────
 // Compile-time contract test. The backend's zod schema is the single
@@ -44,5 +54,28 @@ describe('field API contract', () => {
 
   it('server field response satisfies the frontend PlacedField', () => {
     expectTypeOf<FieldResponse>().toMatchTypeOf<WirePlacedField>()
+  })
+
+  it('server farm response satisfies the frontend Farm', () => {
+    expectTypeOf<z.output<typeof farmResponseSchema>>().toMatchTypeOf<Farm>()
+  })
+
+  it('server operation response satisfies the frontend FarmOperation', () => {
+    expectTypeOf<z.output<typeof operationResponseSchema>>().toMatchTypeOf<FarmOperation>()
+  })
+
+  it('server finding response satisfies the frontend Finding', () => {
+    expectTypeOf<z.output<typeof findingResponseSchema>>().toMatchTypeOf<Finding>()
+  })
+
+  it('server livestock response satisfies the frontend LivestockUnit', () => {
+    // animalType widened: the column is free text, the frontend union is
+    // the built-in library.
+    type WireLivestockUnit = Omit<LivestockUnit, 'animalType'> & { animalType: string }
+    expectTypeOf<z.output<typeof livestockResponseSchema>>().toMatchTypeOf<WireLivestockUnit>()
+  })
+
+  it('server harvest response satisfies the frontend ApiHarvestRow', () => {
+    expectTypeOf<z.output<typeof harvestResponseSchema>>().toMatchTypeOf<ApiHarvestRow>()
   })
 })

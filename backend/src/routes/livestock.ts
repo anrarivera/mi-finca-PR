@@ -5,6 +5,9 @@ import { Errors } from '../lib/errors'
 import { requireFields, requireValidId, requireLat, requireLng, requireRevenue, requireQuantity } from '../lib/validate'
 import { requireFarmRole } from '../lib/farmAccess'
 
+import { enforceContract } from '../contracts/common'
+import { livestockResponseSchema } from '../contracts/livestockContract'
+
 const router = Router({ mergeParams: true }) // mounted at /api/v1/farms/:farmId/livestock
 
 router.use(requireAuth)
@@ -43,11 +46,11 @@ const COUNT_REASONS = ['slaughtered', 'sold', 'died', 'other']
 
 // Prisma returns Decimal for farmLat/farmLng — convert to numbers
 function serializeLivestock(unit: any) {
-  return {
+  return enforceContract(livestockResponseSchema, {
     ...unit,
     farmLat: unit.farmLat !== null ? Number(unit.farmLat) : null,
     farmLng: unit.farmLng !== null ? Number(unit.farmLng) : null,
-  }
+  }, 'livestock')
 }
 
 // ─────────────────────────────────────────────────────────────────────

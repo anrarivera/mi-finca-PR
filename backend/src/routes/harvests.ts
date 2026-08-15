@@ -5,6 +5,9 @@ import { Errors } from '../lib/errors'
 import { requireFields, requireValidId, requireRevenue, requireQuantity } from '../lib/validate'
 import { requireFarmRole } from '../lib/farmAccess'
 
+import { enforceContract } from '../contracts/common'
+import { harvestResponseSchema } from '../contracts/harvestContract'
+
 const router = Router({ mergeParams: true }) // mounted at /api/v1/farms/:farmId/harvests
 
 router.use(requireAuth)
@@ -16,11 +19,11 @@ const requireFarmOwnership = (userId: string, farmId: string) =>
 
 // Prisma returns Decimal for quantity — convert to number
 function serializeHarvest(harvest: any) {
-  return {
+  return enforceContract(harvestResponseSchema, {
     ...harvest,
     quantity: Number(harvest.quantity),
     revenue: harvest.revenue != null ? Number(harvest.revenue) : null,
-  }
+  }, 'harvest')
 }
 
 // ─────────────────────────────────────────────────────────────────────

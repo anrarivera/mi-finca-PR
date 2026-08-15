@@ -12,16 +12,7 @@ import { z } from 'zod'
 // test.ts), so both sides drift-check against one definition.
 // ──────────────────────────────────────────────────────────────────────────
 
-const latLng = z.object({ lat: z.number(), lng: z.number() })
-
-// Prisma hands us Date objects; the wire carries ISO strings. Accept both
-// so PATCH echoes (already strings) parse too.
-const isoDate = z.union([z.date().transform(d => d.toISOString()), z.string()])
-
-// Optional-on-the-wire: DB nulls become absent keys so frontend `?.` types
-// (`path?: LatLngPoint[]`) match without null-vs-undefined friction.
-const absentIfNull = <T extends z.ZodTypeAny>(schema: T) =>
-  schema.nullish().transform(v => (v === null ? undefined : v))
+import { latLng, isoDate, absentIfNull } from './common'
 
 export const plantResponseSchema = z.object({
   id: z.string(),

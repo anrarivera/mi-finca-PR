@@ -1,3 +1,6 @@
+import { enforceContract } from '../contracts/common'
+import { farmResponseSchema } from '../contracts/farmContract'
+
 type LatLng = { lat: number; lng: number }
 
 // Geodesic area calculation using the Shoelace formula
@@ -22,10 +25,11 @@ export function calculateAreaAcres(boundary: LatLng[]): number {
   return parseFloat((sqMeters * 0.000247105).toFixed(4))
 }
 
-// Format a farm record for API response
-// Ensures consistent shape and converts Prisma types
-export function formatFarm(farm: any) {
-  return {
+// Format a farm record for API response — parsed through the farm
+// contract (unknown keys stripped, drift logged). myRole rides along on
+// listings and single-farm GETs.
+export function formatFarm(farm: any, myRole?: string) {
+  return enforceContract(farmResponseSchema, {
     id: farm.id,
     name: farm.name,
     location: farm.location,
@@ -37,5 +41,6 @@ export function formatFarm(farm: any) {
     fieldIds: farm.fields?.map((f: any) => f.id) ?? [],
     createdAt: farm.createdAt,
     updatedAt: farm.updatedAt,
-  }
+    ...(myRole ? { myRole } : {}),
+  }, 'farm')
 }

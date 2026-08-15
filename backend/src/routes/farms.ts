@@ -44,10 +44,9 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
     res.json({
       success: true,
       // myRole lets the client hide UI the server would reject anyway
-      data: farms.map(f => ({
-        ...formatFarm(f),
-        myRole: f.userId === userId ? 'owner' : (f.members[0]?.role ?? 'operator'),
-      }))
+      data: farms.map(f =>
+        formatFarm(f, f.userId === userId ? 'owner' : (f.members[0]?.role ?? 'operator'))
+      )
     })
   } catch (err) {
     next(err)
@@ -179,7 +178,7 @@ router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
 
     if (!farm) throw Errors.notFound('Farm')
 
-    res.json({ success: true, data: { ...formatFarm(farm), myRole: role } })
+    res.json({ success: true, data: formatFarm(farm, role) })
   } catch (err) {
     next(err)
   }

@@ -12,7 +12,8 @@ export type Farm = {
   boundary: Array<{ lat: number; lng: number }>
   fieldIds: string[]
   isFavorite: boolean
-  description?: string
+  // The wire carries explicit null (see backend farm contract).
+  description?: string | null
   /** The requesting user's role on this farm (roles phase 3). */
   myRole?: FarmRole
 }
