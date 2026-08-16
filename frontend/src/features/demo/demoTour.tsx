@@ -106,7 +106,7 @@ export default function DemoTour() {
     cardStyle = {
       position: 'fixed',
       top: below ? Math.min(rect.bottom + 14, window.innerHeight - 220) : undefined,
-      bottom: below ? undefined : Math.max(window.innerHeight - rect.top + 14, 16),
+      bottom: below ? undefined : Math.min(Math.max(window.innerHeight - rect.top + 14, 16), window.innerHeight - 240),
       left: Math.max(12, Math.min(rect.left + rect.width / 2 - CARD_W / 2, window.innerWidth - CARD_W - 12)),
     }
   } else {
