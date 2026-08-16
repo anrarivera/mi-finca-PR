@@ -105,7 +105,11 @@
     "income": "Ingresos",
     "editRevenue": "Registrar o corregir el precio de venta",
     "empty": "Sin producción registrada todavía. Completa una labor de cosecha o registra producción animal y aparecerá aquí.",
-    "exportError": "No se pudo exportar la producción"
+    "exportError": "No se pudo exportar la producción",
+    "allFarms": "Todas las fincas",
+    "allProducts": "Todos los productos",
+    "allOrigins": "Todos los orígenes",
+    "noMatch": "Ningún registro coincide con los filtros."
   },
   "selector": {
     "harvestTitle": "¿Qué cosechaste?",
@@ -151,7 +155,13 @@
     "confirmDeleteTitle": "¿Eliminar este registro de {{type}}?",
     "confirmDeleteLinked": "Si este registro completó una labor del calendario, la labor volverá a quedar pendiente. Las cosechas asociadas también se eliminarán.",
     "confirmDeletePlain": "Este registro se eliminará del historial de operaciones.",
-    "performedBy": "por {{name}}"
+    "performedBy": "por {{name}}",
+    "farmFilter": "Finca",
+    "allFarms": "Todas las fincas",
+    "allFields": "Todos los campos",
+    "allTypes": "Todas las labores",
+    "shownCount": "Mostrando {{shown}} de {{count}}",
+    "noMatch": "Ninguna operación coincide con los filtros."
   },
   "opType": {
     "planting": "Siembra",

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
   Package, Sprout, AlertCircle, Clock, CheckCircle2, ClipboardList,
-  ChevronDown, ChevronRight, ArrowUpDown, Wheat,
+  ChevronDown, ChevronRight, Wheat,
   CalendarDays, Bug, PawPrint, Download,
 } from 'lucide-react'
 import { useFarmStore } from '@/store/useFarmStore'
@@ -15,6 +15,7 @@ import {
 } from '@/features/inventory/inventoryBuilder'
 import { dateLocale, fmtNumber, formatRelativeDays, localName, localOpLabel } from '@/i18n'
 import { downloadCsv } from '@/lib/csv'
+import { SortableTh, type SortDir } from '@/components/shared/logFilters'
 import OperationsLogSection from '@/features/field/components/operationsLogSection'
 import OperationsCalendar from '@/features/field/components/operationsCalendar'
 import HarvestLogSection from '@/features/field/components/harvestLogSection'
@@ -41,7 +42,6 @@ const TABS: Array<{ id: CuadernoTab; labelKey: string; icon: React.ReactNode }> 
 ]
 
 type SortKey = 'crop' | 'field' | 'plants' | 'planted' | 'nextOp' | 'harvest'
-type SortDir = 'asc' | 'desc'
 
 const STATUS_META: Record<InventoryStatus, { labelKey: string; classes: string }> = {
   overdue: { labelKey: 'inventory.status.overdue', classes: 'bg-red-50 text-red-700' },
@@ -221,15 +221,19 @@ export default function InventoryPage() {
 
           {/* ── Filters ────────────────────────────────────────────── */}
           <div className="flex flex-wrap items-center gap-2">
-            <select
-              aria-label={t('inventory.filters.allFarms')}
-              value={farmFilter}
-              onChange={e => setFarmFilter(e.target.value)}
-              className="px-3 py-2 text-xs text-[#2d4a1e] bg-white border border-[#c8dca8] rounded-lg focus:outline-none focus:border-[#639922]"
-            >
-              <option value="all">{t('inventory.filters.allFarms')}</option>
-              {farms.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
-            </select>
+            {/* Hidden with a single farm, like every other Cuaderno tab —
+                a one-choice dropdown is noise. */}
+            {farms.length > 1 && (
+              <select
+                aria-label={t('inventory.filters.allFarms')}
+                value={farmFilter}
+                onChange={e => setFarmFilter(e.target.value)}
+                className="px-3 py-2 text-xs text-[#2d4a1e] bg-white border border-[#c8dca8] rounded-lg focus:outline-none focus:border-[#639922]"
+              >
+                <option value="all">{t('inventory.filters.allFarms')}</option>
+                {farms.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+              </select>
+            )}
             <select
               aria-label={t('inventory.filters.allCrops')}
               value={cropFilter}
@@ -326,28 +330,6 @@ function SiembrasExportButton({ onClick, disabled }: {
     >
       <Download size={12} /> {t('inventory.exportCsv')}
     </button>
-  )
-}
-
-function SortableTh({ label, active, dir, onClick }: {
-  label: string
-  active: boolean
-  dir: SortDir
-  onClick: () => void
-}) {
-  return (
-    <th className="px-3 py-3">
-      <button
-        onClick={onClick}
-        className={`flex items-center gap-1 font-semibold transition-colors ${
-          active ? 'text-[#2d4a1e]' : 'text-[#5a6a4a] hover:text-[#2d4a1e]'
-        }`}
-      >
-        {label}
-        <ArrowUpDown size={10} className={active ? 'opacity-100' : 'opacity-40'} />
-        {active && <span className="text-[9px]">{dir === 'asc' ? '↑' : '↓'}</span>}
-      </button>
-    </th>
   )
 }
 

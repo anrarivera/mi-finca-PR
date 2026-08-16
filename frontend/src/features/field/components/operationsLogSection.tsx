@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   ClipboardList, AlertCircle, Clock, Download, Loader2,
@@ -7,11 +7,13 @@ import {
 import { useFarmStore } from '@/store/useFarmStore'
 import { useFieldStore } from '@/store/useFieldStore'
 import { useLivestockStore } from '@/store/useLivestockStore'
+import { DateRangeSelect, filterSelectClass, Pager } from '@/components/shared/logFilters'
+import { minDateFor, type DateRange } from '@/lib/dateRange'
 import { useConfirm } from '@/components/shared/confirmDialog'
 import { toast } from '@/store/useToastStore'
 import { dateLocale, fmtNumber } from '@/i18n'
 import {
-  useOperations, useDueSoonOperations, useExportOperations,
+  useOperationsLedger, useDueSoonSummary, useExportOperations,
   useUpdateOperation, useDeleteOperation,
   type FarmOperation,
 } from '../hooks/useOperationsApi'
@@ -46,32 +48,78 @@ const TYPE_META: Record<string, { labelKey: string; emoji: string }> = {
   other: { labelKey: 'opType.other', emoji: '📋' },
 }
 
-const MAX_ROWS = 8 // recent entries shown; the CSV export has everything
+const PAGE_SIZE = 8 // rows per page
 
 export default function OperationsLogSection() {
   const { t } = useTranslation('field')
   const activeFarm = useFarmStore(s => s.activeFarm)
-  const farmId = activeFarm?.id ?? null
+  const farms = useFarmStore(s => s.farms)
 
-  const { data: operations, isLoading } = useOperations(farmId)
-  const { data: dueSoon } = useDueSoonOperations(farmId)
-  const exportCsv = useExportOperations(farmId ?? '')
+  // Farm scope — "Todas las fincas" by default, like the Siembras grid.
+  const [farmFilter, setFarmFilter] = useState('all')
+  const farmIds = useMemo(
+    () => (farmFilter === 'all' ? farms.map(f => f.id) : [farmFilter]),
+    [farmFilter, farms]
+  )
+
+  const { data: operations, isLoading } = useOperationsLedger(farmIds)
+  const { data: dueSoon } = useDueSoonSummary(farmIds)
+  // The export endpoint is per farm: the selected farm when one is
+  // filtered, the active farm otherwise.
+  const exportFarmId = farmFilter !== 'all' ? farmFilter : activeFarm?.id ?? null
+  const exportCsv = useExportOperations(exportFarmId ?? '')
 
   // Every entry is correctable: edits/deletes propagate server-side to the
   // linked recommendation and harvest yield, so fixing "300 lb" to "30 lb"
-  // here fixes it everywhere.
-  const updateOp = useUpdateOperation(farmId ?? '')
-  const deleteOp = useDeleteOperation(farmId ?? '')
+  // here fixes it everywhere. farmId travels per row (multi-farm view).
+  const updateOp = useUpdateOperation()
+  const deleteOp = useDeleteOperation()
   const { confirm, confirmDialog } = useConfirm()
   const [editing, setEditing] = useState<FarmOperation | null>(null)
 
   // Resolve fieldId / livestockUnitId to display names from the stores.
   const getField = useFieldStore(s => s.getField)
+  const allFields = useFieldStore(s => s.fields)
   const livestockUnits = useLivestockStore(s => s.units)
   const unitName = (id: string | null) =>
     id ? livestockUnits.find(u => u.id === id)?.name ?? null : null
 
-  if (!farmId) return null
+  // ── Filters — field, labor type, date range; applied BEFORE paging so
+  //    a filtered view never silently hides matches. Every filter change
+  //    returns to page 1 in its own handler. ────────────────────────────
+  const [fieldFilter, setFieldFilter] = useState('all')
+  const [typeFilter, setTypeFilter] = useState('all')
+  const [dateRange, setDateRange] = useState<DateRange>('all')
+  const [page, setPage] = useState(1)
+
+  function changeFarmFilter(v: string) {
+    setFarmFilter(v)
+    setFieldFilter('all')
+    setTypeFilter('all')
+    setPage(1)
+  }
+  function changeFieldFilter(v: string) { setFieldFilter(v); setPage(1) }
+  function changeTypeFilter(v: string) { setTypeFilter(v); setPage(1) }
+  function changeDateRange(v: DateRange) { setDateRange(v); setPage(1) }
+
+  const scopedFields = useMemo(
+    () => (farmFilter === 'all' ? allFields : allFields.filter(f => f.farmId === farmFilter)),
+    [allFields, farmFilter]
+  )
+  const presentTypes = useMemo(
+    () => [...new Set((operations ?? []).map(o => o.type))],
+    [operations]
+  )
+  const filtered = useMemo(() => {
+    const minDate = minDateFor(dateRange)
+    return (operations ?? []).filter(op =>
+      (fieldFilter === 'all' || op.fieldId === fieldFilter) &&
+      (typeFilter === 'all' || op.type === typeFilter) &&
+      (minDate === null || op.actualDate >= minDate)
+    )
+  }, [operations, fieldFilter, typeFilter, dateRange])
+
+  if (farms.length === 0) return null
 
   async function handleDelete(op: FarmOperation) {
     const meta = TYPE_META[op.type] ?? TYPE_META.other
@@ -84,13 +132,18 @@ export default function OperationsLogSection() {
       danger: true,
     })
     if (!ok) return
-    deleteOp.mutate(op.id, {
+    deleteOp.mutate({ farmId: op.farmId, id: op.id }, {
       onSuccess: () => toast.success(t('toast.entryDeleted')),
     })
   }
 
-  const recent = (operations ?? []).slice(0, MAX_ROWS)
+  // Paged view — clamp so a shrinking filter never strands the user on a
+  // page past the end.
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const currentPage = Math.min(page, pageCount)
+  const recent = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
   const total = operations?.length ?? 0
+  const selectedFarm = farms.find(f => f.id === farmFilter)
 
   return (
     <section className="bg-white rounded-2xl border border-[#e0e8d8] overflow-hidden">
@@ -102,13 +155,13 @@ export default function OperationsLogSection() {
         {total > 0 && (
           <span className="text-xs text-[#66755a]">
             {t('count.logged', { count: total })}
-            {activeFarm ? ` · ${activeFarm.name}` : ''}
+            {selectedFarm ? ` · ${selectedFarm.name}` : ''}
           </span>
         )}
         <div className="flex-1" />
         <button
           onClick={() => exportCsv.mutate()}
-          disabled={total === 0 || exportCsv.isPending}
+          disabled={total === 0 || !exportFarmId || exportCsv.isPending}
           className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-[#2d4a1e] border border-[#d0dcc0] rounded-lg hover:bg-[#f0f5e8] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           title={total === 0 ? t('log.nothingToExport') : t('log.downloadCsv')}
         >
@@ -118,6 +171,48 @@ export default function OperationsLogSection() {
           {t('log.exportCsv')}
         </button>
       </div>
+
+      {/* Filters — farm (when there are several), field, type, dates */}
+      {total > 0 && (
+        <div className="flex flex-wrap items-center gap-2 px-5 py-3 border-b border-[#f0f5e8]">
+          {farms.length > 1 && (
+            <select
+              aria-label={t('log.farmFilter')}
+              value={farmFilter}
+              onChange={e => changeFarmFilter(e.target.value)}
+              className={filterSelectClass}
+            >
+              <option value="all">{t('log.allFarms')}</option>
+              {farms.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+            </select>
+          )}
+          <select
+            aria-label={t('log.allFields')}
+            value={fieldFilter}
+            onChange={e => changeFieldFilter(e.target.value)}
+            className={filterSelectClass}
+          >
+            <option value="all">{t('log.allFields')}</option>
+            {scopedFields.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+          </select>
+          <select
+            aria-label={t('log.allTypes')}
+            value={typeFilter}
+            onChange={e => changeTypeFilter(e.target.value)}
+            className={filterSelectClass}
+          >
+            <option value="all">{t('log.allTypes')}</option>
+            {presentTypes.map(type => {
+              const meta = TYPE_META[type] ?? TYPE_META.other
+              return <option key={type} value={type}>{meta.emoji} {t(meta.labelKey)}</option>
+            })}
+          </select>
+          <DateRangeSelect value={dateRange} onChange={changeDateRange} />
+          <span className="ml-auto text-[11px] text-[#66755a]">
+            {t('log.shownCount', { shown: recent.length, count: filtered.length })}
+          </span>
+        </div>
+      )}
 
       {/* Server-verified calendar badges (includes livestock recommendations,
           which the client-side "Labores" numbers don't cover) */}
@@ -150,21 +245,27 @@ export default function OperationsLogSection() {
         </div>
       ) : recent.length === 0 ? (
         <p className="px-5 py-6 text-xs text-[#66755a] text-center">
-          {t('log.empty')}
+          {total === 0 ? t('log.empty') : t('log.noMatch')}
         </p>
       ) : (
-        <div className="divide-y divide-[#f0f5e8]">
-          {recent.map(op => (
-            <OperationLogRow
-              key={op.id}
-              op={op}
-              fieldName={op.fieldId ? getField(op.fieldId)?.name ?? null : null}
-              livestockName={unitName(op.livestockUnitId)}
-              onEdit={() => setEditing(op)}
-              onDelete={() => handleDelete(op)}
-            />
-          ))}
-        </div>
+        <>
+          <div className="divide-y divide-[#f0f5e8]">
+            {recent.map(op => (
+              <OperationLogRow
+                key={op.id}
+                op={op}
+                fieldName={op.fieldId ? getField(op.fieldId)?.name ?? null : null}
+                livestockName={unitName(op.livestockUnitId)}
+                farmName={farmFilter === 'all' && farms.length > 1
+                  ? farms.find(f => f.id === op.farmId)?.name ?? null
+                  : null}
+                onEdit={() => setEditing(op)}
+                onDelete={() => handleDelete(op)}
+              />
+            ))}
+          </div>
+          <Pager page={currentPage} pageCount={pageCount} onPage={setPage} />
+        </>
       )}
 
       {/* Edit modal */}
@@ -174,7 +275,7 @@ export default function OperationsLogSection() {
           onCancel={() => setEditing(null)}
           onSave={(updates) => {
             updateOp.mutate(
-              { id: editing.id, updates },
+              { farmId: editing.farmId, id: editing.id, updates },
               { onSuccess: () => toast.success(t('toast.entryUpdated')) }
             )
             setEditing(null)
@@ -188,10 +289,12 @@ export default function OperationsLogSection() {
 }
 
 // ── Single log entry row ──────────────────────────────────────────────
-function OperationLogRow({ op, fieldName, livestockName, onEdit, onDelete }: {
+function OperationLogRow({ op, fieldName, livestockName, farmName, onEdit, onDelete }: {
   op: FarmOperation
   fieldName: string | null
   livestockName: string | null
+  /** Shown in the all-farms view to disambiguate same-named fields. */
+  farmName: string | null
   onEdit: () => void
   onDelete: () => void
 }) {
@@ -199,8 +302,9 @@ function OperationLogRow({ op, fieldName, livestockName, onEdit, onDelete }: {
   const meta = TYPE_META[op.type] ?? TYPE_META.other
 
   // Context line: where + who + what was used,
-  // e.g. "Campo Norte · por Luis · 25 kg · Nitrato…"
+  // e.g. "Finca Verde · Campo Norte · por Luis · 25 kg · Nitrato…"
   const details = [
+    farmName,
     fieldName,
     livestockName,
     op.performedBy?.fullName ? t('log.performedBy', { name: op.performedBy.fullName }) : null,

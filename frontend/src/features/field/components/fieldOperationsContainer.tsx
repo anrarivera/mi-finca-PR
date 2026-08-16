@@ -32,7 +32,7 @@ export default function FieldOperationsContainer({ farmId, fieldId, onClose }: P
   const skipOp = useSkipRecommendedOp(farmId)
   const undoOp = useUndoRecommendedOp(farmId)
   const partialOp = useLogPartialRecommendedOp(farmId)
-  const updateOpLog = useUpdateOperation(farmId)
+  const updateOpLog = useUpdateOperation()
   // Farm operations log — partial-progress captions + edit prefills.
   const { data: farmOperations } = useOperations(farmId)
 
@@ -78,6 +78,7 @@ export default function FieldOperationsContainer({ farmId, fieldId, onClose }: P
         // fix onto the recommendation and the harvest yield.
         updateOpLog
           .mutateAsync({
+            farmId,
             id: logId,
             updates: {
               actualDate: data.completedDate,

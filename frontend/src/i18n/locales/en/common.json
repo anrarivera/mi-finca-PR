@@ -29,6 +29,18 @@
     "confirm": "Confirm",
     "loading": "Loading…"
   },
+  "filters": {
+    "dateRange": "Date range",
+    "allDates": "All dates",
+    "last30": "Last 30 days",
+    "last90": "Last 90 days",
+    "thisYear": "This year"
+  },
+  "pager": {
+    "prev": "Previous",
+    "next": "Next",
+    "pageOf": "Page {{page}} of {{count}}"
+  },
   "relative": {
     "today": "today",
     "tomorrow": "tomorrow",

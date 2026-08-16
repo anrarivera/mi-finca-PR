@@ -62,6 +62,26 @@ export function useOperations(farmId: string | null) {
   })
 }
 
+// ── Multi-farm operations ledger ──────────────────────────────────────
+// The Cuaderno's "Todas las fincas" view: every requested farm's log in
+// one list, newest first (same shape as the harvest ledger). Mutations
+// invalidate the bare ['operations'] prefix so this refreshes too.
+export function useOperationsLedger(farmIds: string[]) {
+  return useQuery({
+    queryKey: ['operations', 'ledger', [...farmIds].sort().join(',')],
+    queryFn: async () => {
+      const results = await Promise.all(
+        farmIds.map(id => api.get<FarmOperation[]>(`/api/v1/farms/${id}/operations`))
+      )
+      return results.flat().sort((a, b) =>
+        b.actualDate.localeCompare(a.actualDate) || b.createdAt.localeCompare(a.createdAt)
+      )
+    },
+    enabled: farmIds.length > 0,
+    staleTime: 60 * 1000,
+  })
+}
+
 // Shared helper: apply a status change to one recommended operation inside
 // the local field store, so the operations view updates without waiting for
 // the refetch.
@@ -156,6 +176,29 @@ export function useDueSoonOperations(farmId: string | null) {
   })
 }
 
+// Aggregated overdue/due badges across several farms — the Cuaderno's
+// "Todas las fincas" counterpart of useDueSoonOperations.
+export function useDueSoonSummary(farmIds: string[]) {
+  return useQuery({
+    queryKey: ['recommended-operations', 'due-soon', 'summary', [...farmIds].sort().join(',')],
+    queryFn: async () => {
+      const results = await Promise.all(
+        farmIds.map(id =>
+          api.get<{ overdueCount: number; dueSoonCount: number }>(
+            `/api/v1/farms/${id}/recommended-operations/due-soon`
+          )
+        )
+      )
+      return {
+        overdueCount: results.reduce((s, r) => s + r.overdueCount, 0),
+        dueSoonCount: results.reduce((s, r) => s + r.dueSoonCount, 0),
+      }
+    },
+    enabled: farmIds.length > 0,
+    staleTime: 60 * 1000,
+  })
+}
+
 // ── Complete (check off) a recommended operation ──────────────────────
 export function useCompleteRecommendedOp(farmId: string) {
   const queryClient = useQueryClient()
@@ -183,7 +226,7 @@ export function useCompleteRecommendedOp(farmId: string) {
       // The server also created an operations-log row (and possibly a
       // harvest yield) — refresh everything derived from them.
       queryClient.invalidateQueries({ queryKey: ['fields', farmId] })
-      queryClient.invalidateQueries({ queryKey: ['operations', farmId] })
+      queryClient.invalidateQueries({ queryKey: ['operations'] })
       queryClient.invalidateQueries({ queryKey: ['recommended-operations'] })
     },
     onError: (_err, vars) => {
@@ -253,7 +296,7 @@ export function useUndoRecommendedOp(farmId: string) {
         completedOperationId: null,
       })
       queryClient.invalidateQueries({ queryKey: ['fields', farmId] })
-      queryClient.invalidateQueries({ queryKey: ['operations', farmId] })
+      queryClient.invalidateQueries({ queryKey: ['operations'] })
       queryClient.invalidateQueries({ queryKey: ['recommended-operations'] })
     },
   })
@@ -287,7 +330,7 @@ export function useLogPartialRecommendedOp(farmId: string) {
       )
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['operations', farmId] })
+      queryClient.invalidateQueries({ queryKey: ['operations'] })
       queryClient.invalidateQueries({ queryKey: ['recommended-operations'] })
     },
   })
@@ -296,23 +339,26 @@ export function useLogPartialRecommendedOp(farmId: string) {
 // ── Edit a logged operation ───────────────────────────────────────────
 // The server mirrors changes onto the linked harvest yield and, when this
 // entry completed a recommendation, onto the recommendation's shown values.
-export function useUpdateOperation(farmId: string) {
+// farmId travels per call (not per hook) so multi-farm views — the
+// Cuaderno's "Todas las fincas" ledger — can correct any row in place.
+export function useUpdateOperation() {
   const queryClient = useQueryClient()
 
   return useMutation({
     mutationFn: async (vars: {
+      farmId: string
       id: string
       updates: Partial<Pick<FarmOperation,
         'type' | 'actualDate' | 'notes' | 'product' | 'quantity' | 'unit' | 'qualityRating' | 'rowIds' | 'plantIds'>>
     }) => {
       return api.patch<FarmOperation>(
-        `/api/v1/farms/${farmId}/operations/${vars.id}`,
+        `/api/v1/farms/${vars.farmId}/operations/${vars.id}`,
         vars.updates
       )
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['operations', farmId] })
-      queryClient.invalidateQueries({ queryKey: ['fields', farmId] })
+    onSuccess: (_data, vars) => {
+      queryClient.invalidateQueries({ queryKey: ['operations'] })
+      queryClient.invalidateQueries({ queryKey: ['fields', vars.farmId] })
       queryClient.invalidateQueries({ queryKey: ['recommended-operations'] })
     },
   })
@@ -321,17 +367,17 @@ export function useUpdateOperation(farmId: string) {
 // ── Delete a logged operation ─────────────────────────────────────────
 // Server-side this also removes the linked harvest yield and reopens any
 // recommendation this entry had completed.
-export function useDeleteOperation(farmId: string) {
+export function useDeleteOperation() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: async (id: string) => {
-      await api.delete(`/api/v1/farms/${farmId}/operations/${id}`)
-      return id
+    mutationFn: async (vars: { farmId: string; id: string }) => {
+      await api.delete(`/api/v1/farms/${vars.farmId}/operations/${vars.id}`)
+      return vars.id
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['operations', farmId] })
-      queryClient.invalidateQueries({ queryKey: ['fields', farmId] })
+    onSuccess: (_id, vars) => {
+      queryClient.invalidateQueries({ queryKey: ['operations'] })
+      queryClient.invalidateQueries({ queryKey: ['fields', vars.farmId] })
       queryClient.invalidateQueries({ queryKey: ['recommended-operations'] })
     },
   })

@@ -105,7 +105,11 @@
     "income": "Income",
     "editRevenue": "Record or correct the sale price",
     "empty": "No production recorded yet. Complete a harvest task or log animal production and it will appear here.",
-    "exportError": "Could not export production"
+    "exportError": "Could not export production",
+    "allFarms": "All farms",
+    "allProducts": "All products",
+    "allOrigins": "All origins",
+    "noMatch": "No entries match the filters."
   },
   "selector": {
     "harvestTitle": "What did you harvest?",
@@ -151,7 +155,13 @@
     "confirmDeleteTitle": "Delete this {{type}} entry?",
     "confirmDeleteLinked": "If this entry completed a calendar task, the task will go back to pending. Linked harvests will also be deleted.",
     "confirmDeletePlain": "This entry will be removed from the operations history.",
-    "performedBy": "by {{name}}"
+    "performedBy": "by {{name}}",
+    "farmFilter": "Farm",
+    "allFarms": "All farms",
+    "allFields": "All fields",
+    "allTypes": "All task types",
+    "shownCount": "Showing {{shown}} of {{count}}",
+    "noMatch": "No operations match the filters."
   },
   "opType": {
     "planting": "Planting",

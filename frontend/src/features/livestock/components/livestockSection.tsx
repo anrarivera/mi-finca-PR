@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Plus, PawPrint, Download } from 'lucide-react'
+import { filterSelectClass } from '@/components/shared/logFilters'
 import { useLivestockStore } from '@/store/useLivestockStore'
 import { useCreateLivestock } from '../hooks/useLivestockApi'
 import { useFarmStore } from '@/store/useFarmStore'
@@ -24,6 +25,18 @@ export default function LivestockSection() {
   const farms = useFarmStore(s => s.farms)
   const fields = useFieldStore(s => s.fields)
   const [adding, setAdding] = useState(false)
+
+  // ── Filters — farm (when there are several) and animal type. ────────
+  const [farmFilter, setFarmFilter] = useState('all')
+  const [typeFilter, setTypeFilter] = useState('all')
+  const presentTypes = useMemo(
+    () => [...new Set(units.map(u => u.animalType))],
+    [units]
+  )
+  const shown = units.filter(u =>
+    (farmFilter === 'all' || u.farmId === farmFilter) &&
+    (typeFilter === 'all' || u.animalType === typeFilter)
+  )
 
   // Row actions (edit/move/delete/producción) live in LivestockUnitRow —
   // the same rows the corral card in the farm drawer renders.
@@ -57,9 +70,9 @@ export default function LivestockSection() {
         <div className="flex items-center gap-2">
           <PawPrint size={16} className="text-[#4d7a1b]" />
           <h2 className="text-sm font-semibold text-[#2d4a1e]">{t('livestock.title')}</h2>
-          {units.length > 0 && (
+          {shown.length > 0 && (
             <span className="text-xs text-[#66755a]">
-              {t('livestock.total', { count: units.reduce((s, u) => s + u.currentCount, 0) })}
+              {t('livestock.total', { count: shown.reduce((s, u) => s + u.currentCount, 0) })}
             </span>
           )}
         </div>
@@ -83,6 +96,39 @@ export default function LivestockSection() {
         </div>
       </div>
 
+      {/* Filters — only meaningful once there are herds */}
+      {units.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 px-5 py-3 border-b border-[#f0f5e8]">
+          {farms.length > 1 && (
+            <select
+              aria-label={t('livestock.allFarms')}
+              value={farmFilter}
+              onChange={e => setFarmFilter(e.target.value)}
+              className={filterSelectClass}
+            >
+              <option value="all">{t('livestock.allFarms')}</option>
+              {farms.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+            </select>
+          )}
+          <select
+            aria-label={t('livestock.allTypes')}
+            value={typeFilter}
+            onChange={e => setTypeFilter(e.target.value)}
+            className={filterSelectClass}
+          >
+            <option value="all">{t('livestock.allTypes')}</option>
+            {presentTypes.map(type => {
+              const animal = getAnimalById(type)
+              return (
+                <option key={type} value={type}>
+                  {animal ? `${animal.emoji} ${localName(animal)}` : type}
+                </option>
+              )
+            })}
+          </select>
+        </div>
+      )}
+
       {units.length === 0 ? (
         <div className="px-5 py-8 text-center">
           <p className="text-3xl mb-2">🐔🐐🐝</p>
@@ -92,9 +138,13 @@ export default function LivestockSection() {
               : t('livestock.emptyNoUnits')}
           </p>
         </div>
+      ) : shown.length === 0 ? (
+        <p className="px-5 py-6 text-xs text-[#66755a] text-center">
+          {t('livestock.noMatch')}
+        </p>
       ) : (
         <div className="divide-y divide-[#f0f5e8]">
-          {units.map(unit => <LivestockUnitRow key={unit.id} unit={unit} />)}
+          {shown.map(unit => <LivestockUnitRow key={unit.id} unit={unit} />)}
         </div>
       )}
 

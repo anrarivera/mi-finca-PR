@@ -20,6 +20,22 @@ export function useFindings(farmId: string | null) {
   })
 }
 
+// Multi-farm findings ledger — the Cuaderno's "Todas las fincas" view.
+// Mutations invalidate the bare ['findings'] prefix so this refreshes too.
+export function useFindingsLedger(farmIds: string[]) {
+  return useQuery({
+    queryKey: ['findings', 'ledger', [...farmIds].sort().join(',')],
+    queryFn: async () => {
+      const results = await Promise.all(
+        farmIds.map(id => api.get<Finding[]>(`/api/v1/farms/${id}/findings`))
+      )
+      return results.flat()
+    },
+    enabled: farmIds.length > 0,
+    staleTime: 60 * 1000,
+  })
+}
+
 export type CreateFindingData = {
   fieldId: string
   pestId: string
@@ -37,7 +53,7 @@ export function useCreateFinding(farmId: string) {
     mutationFn: (data: CreateFindingData) =>
       api.post<Finding>(`/api/v1/farms/${farmId}/findings`, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['findings', farmId] })
+      queryClient.invalidateQueries({ queryKey: ['findings'] })
     },
   })
 }
@@ -60,7 +76,7 @@ export function useUpdateFinding(farmId: string) {
     }) =>
       api.patch<Finding>(`/api/v1/farms/${farmId}/findings/${vars.id}`, vars.updates),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['findings', farmId] })
+      queryClient.invalidateQueries({ queryKey: ['findings'] })
     },
   })
 }
@@ -74,7 +90,7 @@ export function useDeleteFinding(farmId: string) {
       return id
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['findings', farmId] })
+      queryClient.invalidateQueries({ queryKey: ['findings'] })
     },
   })
 }
@@ -122,7 +138,7 @@ export function useAddObservation(farmId: string) {
         vars.data
       ),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['findings', farmId] })
+      queryClient.invalidateQueries({ queryKey: ['findings'] })
     },
   })
 }
@@ -150,7 +166,7 @@ export function useCreateTreatmentOp(farmId: string) {
         vars.data
       ),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['findings', farmId] })
+      queryClient.invalidateQueries({ queryKey: ['findings'] })
       // The new recommendation lives inside the field's planting events.
       queryClient.invalidateQueries({ queryKey: ['fields', farmId] })
       queryClient.invalidateQueries({ queryKey: ['recommended-operations'] })

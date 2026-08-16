@@ -3,6 +3,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { Check, Pencil, Download, Loader2 } from 'lucide-react'
 import { api } from '@/lib/api'
+import { DateRangeSelect, filterSelectClass, Pager } from '@/components/shared/logFilters'
+import { minDateFor, type DateRange } from '@/lib/dateRange'
 import { toast } from '@/store/useToastStore'
 import { useFieldStore } from '@/store/useFieldStore'
 import { useFarmStore } from '@/store/useFarmStore'
@@ -75,15 +77,52 @@ export default function HarvestLogSection({ limit = 6 }: Props) {
   const fields = useFieldStore(s => s.fields)
   const livestockUnits = useLivestockStore(s => s.units)
   const entries = useHarvestLedger()
-
-  // CSV export — the active farm's ledger, same pattern as the other
-  // exports (api.download carries auth + the silent token refresh).
+  const farms = useFarmStore(s => s.farms)
   const activeFarm = useFarmStore(s => s.activeFarm)
+
+  // ── Filters — farm, product/crop, origin (field or herd), dates.
+  //    The ledger spans every farm, so the farm filter defaults to all. ─
+  const [farmFilter, setFarmFilter] = useState('all')
+  const [productFilter, setProductFilter] = useState('all')
+  const [originFilter, setOriginFilter] = useState('all')
+  const [dateRange, setDateRange] = useState<DateRange>('all')
+  const [page, setPage] = useState(1)
+  // Every filter change returns to page 1 in its own handler.
+  function changeFarmFilter(v: string) { setFarmFilter(v); setPage(1) }
+  function changeProductFilter(v: string) { setProductFilter(v); setPage(1) }
+  function changeOriginFilter(v: string) { setOriginFilter(v); setPage(1) }
+  function changeDateRange(v: DateRange) { setDateRange(v); setPage(1) }
+
+  // A row's product key: crops by cropTypeId, animal products by productId.
+  const productKey = (row: ApiHarvestRow) =>
+    row.cropTypeId ? `crop:${row.cropTypeId}` : row.productId ? `prod:${row.productId}` : 'other'
+  const originKey = (row: ApiHarvestRow) =>
+    row.fieldId ? `field:${row.fieldId}` : row.livestockUnitId ? `unit:${row.livestockUnitId}` : 'other'
+
+  const filtered = useMemo(() => {
+    const minDate = minDateFor(dateRange)
+    return entries.filter(row =>
+      (farmFilter === 'all' || row.farmId === farmFilter) &&
+      (productFilter === 'all' || productKey(row) === productFilter) &&
+      (originFilter === 'all' || originKey(row) === originFilter) &&
+      (minDate === null || row.harvestDate.slice(0, 10) >= minDate)
+    )
+  }, [entries, farmFilter, productFilter, originFilter, dateRange])
+
+  // Paged view — clamped so a shrinking filter never strands the user on
+  // a page past the end.
+  const pageCount = Math.max(1, Math.ceil(filtered.length / limit))
+  const currentPage = Math.min(page, pageCount)
+  const pagedEntries = filtered.slice((currentPage - 1) * limit, currentPage * limit)
+
+  // CSV export — a farm's ledger from the server: the filtered farm when
+  // one is selected, the active farm otherwise (the endpoint is per farm).
+  const exportFarmId = farmFilter !== 'all' ? farmFilter : activeFarm?.id ?? null
   const exportCsv = useMutation({
     mutationFn: async () => {
-      if (!activeFarm) return
+      if (!exportFarmId) return
       const { blob, filename } =
-        await api.download(`/api/v1/farms/${activeFarm.id}/harvests/export?format=csv`)
+        await api.download(`/api/v1/farms/${exportFarmId}/harvests/export?format=csv`)
       const a = document.createElement('a')
       a.href = URL.createObjectURL(blob)
       a.download = filename ?? 'produccion.csv'
@@ -125,11 +164,13 @@ export default function HarvestLogSection({ limit = 6 }: Props) {
     return (unit ? getAnimalById(unit.animalType)?.emoji : undefined) ?? '🐾'
   }
 
-  // Ingresos: total of the recorded revenues + a per-crop/product breakdown.
+  // Ingresos: total of the recorded revenues + a per-crop/product
+  // breakdown — over the FILTERED rows, so a date range answers "what
+  // did I sell this quarter" directly.
   const income = useMemo(() => {
     let total = 0
     const byLabel = new Map<string, number>()
-    for (const row of entries) {
+    for (const row of filtered) {
       if (row.revenue == null) continue
       total += row.revenue
       const key = rowLabel(row)
@@ -141,7 +182,25 @@ export default function HarvestLogSection({ limit = 6 }: Props) {
       hasAny: byLabel.size > 0,
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [entries, livestockUnits, tEditor])
+  }, [filtered, livestockUnits, tEditor])
+
+  // Filter options — only what actually appears in the ledger.
+  const productOptions = useMemo(() => {
+    const seen = new Map<string, string>()
+    for (const row of entries) seen.set(productKey(row), rowLabel(row))
+    return [...seen.entries()].sort((a, b) => a[1].localeCompare(b[1]))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entries, tEditor])
+  const originOptions = useMemo(() => {
+    const seen = new Map<string, string>()
+    for (const row of entries) {
+      const label = row.fieldId
+        ? fields.find(f => f.id === row.fieldId)?.name
+        : livestockUnits.find(u => u.id === row.livestockUnitId)?.name
+      if (label) seen.set(originKey(row), label)
+    }
+    return [...seen.entries()].sort((a, b) => a[1].localeCompare(b[1]))
+  }, [entries, fields, livestockUnits])
 
   return (
     <section className="bg-white rounded-2xl border border-[#e0e8d8] overflow-hidden">
@@ -154,7 +213,7 @@ export default function HarvestLogSection({ limit = 6 }: Props) {
         <div className="flex-1" />
         <button
           onClick={() => exportCsv.mutate()}
-          disabled={entries.length === 0 || !activeFarm || exportCsv.isPending}
+          disabled={entries.length === 0 || !exportFarmId || exportCsv.isPending}
           className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-[#2d4a1e] border border-[#d0dcc0] rounded-lg hover:bg-[#f0f5e8] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           title={entries.length === 0 ? t('log.nothingToExport') : t('log.downloadCsv')}
         >
@@ -164,6 +223,49 @@ export default function HarvestLogSection({ limit = 6 }: Props) {
           {t('log.exportCsv')}
         </button>
       </div>
+
+      {/* Filters — farm, product, origin, dates */}
+      {entries.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 px-5 py-3 border-b border-[#f0f5e8]">
+          {farms.length > 1 && (
+            <select
+              aria-label={t('log.farmFilter')}
+              value={farmFilter}
+              onChange={e => changeFarmFilter(e.target.value)}
+              className={filterSelectClass}
+            >
+              <option value="all">{t('harvestLog.allFarms')}</option>
+              {farms.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+            </select>
+          )}
+          <select
+            aria-label={t('harvestLog.allProducts')}
+            value={productFilter}
+            onChange={e => changeProductFilter(e.target.value)}
+            className={filterSelectClass}
+          >
+            <option value="all">{t('harvestLog.allProducts')}</option>
+            {productOptions.map(([key, label]) => (
+              <option key={key} value={key}>{label}</option>
+            ))}
+          </select>
+          <select
+            aria-label={t('harvestLog.allOrigins')}
+            value={originFilter}
+            onChange={e => changeOriginFilter(e.target.value)}
+            className={filterSelectClass}
+          >
+            <option value="all">{t('harvestLog.allOrigins')}</option>
+            {originOptions.map(([key, label]) => (
+              <option key={key} value={key}>{label}</option>
+            ))}
+          </select>
+          <DateRangeSelect value={dateRange} onChange={changeDateRange} />
+          <span className="ml-auto text-[11px] text-[#66755a]">
+            {t('log.shownCount', { shown: pagedEntries.length, count: filtered.length })}
+          </span>
+        </div>
+      )}
 
       {/* Ingresos — sum of every recorded sale, broken down by product */}
       {income.hasAny && (
@@ -183,15 +285,19 @@ export default function HarvestLogSection({ limit = 6 }: Props) {
         </div>
       )}
 
-      {entries.length === 0 && (
+      {entries.length === 0 ? (
         <p className="px-5 py-6 text-xs text-[#66755a] text-center">
           {t('harvestLog.empty')}
+        </p>
+      ) : filtered.length === 0 && (
+        <p className="px-5 py-6 text-xs text-[#66755a] text-center">
+          {t('harvestLog.noMatch')}
         </p>
       )}
 
       {/* Recent entries — crop harvests and animal production, one list */}
       <div className="divide-y divide-[#f0f5e8]">
-        {entries.slice(0, limit).map(row => {
+        {pagedEntries.map(row => {
           const field = row.fieldId ? fields.find(f => f.id === row.fieldId) : undefined
           const unit = row.livestockUnitId
             ? livestockUnits.find(u => u.id === row.livestockUnitId)
@@ -266,6 +372,8 @@ export default function HarvestLogSection({ limit = 6 }: Props) {
           )
         })}
       </div>
+
+      <Pager page={currentPage} pageCount={pageCount} onPage={setPage} />
     </section>
   )
 }

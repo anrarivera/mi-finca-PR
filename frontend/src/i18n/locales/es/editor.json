@@ -198,6 +198,9 @@
     "addButton": "Añadir",
     "exportCsv": "Exportar CSV",
     "nothingToExport": "No hay animales que exportar",
+    "allFarms": "Todas las fincas",
+    "allTypes": "Todos los animales",
+    "noMatch": "Ningún grupo coincide con los filtros.",
     "exportCols": {
       "type": "Tipo",
       "name": "Nombre",

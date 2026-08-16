@@ -198,6 +198,9 @@
     "addButton": "Add",
     "exportCsv": "Export CSV",
     "nothingToExport": "No animals to export",
+    "allFarms": "All farms",
+    "allTypes": "All animals",
+    "noMatch": "No groups match the filters.",
     "exportCols": {
       "type": "Type",
       "name": "Name",
