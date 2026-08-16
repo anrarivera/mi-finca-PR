@@ -119,10 +119,10 @@ export default function CustomCropModal({ onClose, onCreated }: Props) {
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-[#e0e8d8] sticky top-0 bg-white">
           <div className="flex items-center gap-2">
-            <Sprout size={16} className="text-[#639922]" />
+            <Sprout size={16} className="text-[#4d7a1b]" />
             <h2 className="text-sm font-semibold text-[#2d4a1e]">{t('customCrop.title')}</h2>
           </div>
-          <button onClick={onClose} aria-label={t('customCrop.close')} className="text-[#9aab8a] hover:text-[#2d4a1e] transition-colors">
+          <button onClick={onClose} aria-label={t('customCrop.close')} className="text-[#66755a] hover:text-[#2d4a1e] transition-colors">
             <X size={16} />
           </button>
         </div>
@@ -179,7 +179,7 @@ export default function CustomCropModal({ onClose, onCreated }: Props) {
             />
             <div>
               <p className="text-xs font-medium text-[#2d4a1e]">{t('customCrop.addRecipe')}</p>
-              <p className="text-[10px] text-[#9aab8a]">
+              <p className="text-[10px] text-[#66755a]">
                 {t('customCrop.recipeHint')}
               </p>
             </div>
@@ -237,7 +237,7 @@ export default function CustomCropModal({ onClose, onCreated }: Props) {
                     <button
                       onClick={() => setOps(prev => prev.filter((_, j) => j !== i))}
                       aria-label={t('customCrop.deleteOp')}
-                      className="text-[#9aab8a] hover:text-red-500 transition-colors shrink-0"
+                      className="text-[#66755a] hover:text-red-600 transition-colors shrink-0"
                     >
                       <Trash2 size={13} />
                     </button>
@@ -245,7 +245,7 @@ export default function CustomCropModal({ onClose, onCreated }: Props) {
                 ))}
                 <button
                   onClick={() => setOps(prev => [...prev, { type: 'monitoring', labelEs: '', offsetDays: '30' }])}
-                  className="flex items-center gap-1.5 self-start px-2.5 py-1.5 text-[11px] text-[#639922] border border-[#c8dca8] rounded-lg hover:bg-[#eaf3de] transition-colors"
+                  className="flex items-center gap-1.5 self-start px-2.5 py-1.5 text-[11px] text-[#4d7a1b] border border-[#c8dca8] rounded-lg hover:bg-[#eaf3de] transition-colors"
                 >
                   <Plus size={11} /> {t('customCrop.addOp')}
                 </button>

@@ -70,7 +70,7 @@ export default function LivestockFormModal({
             <h2 className="text-[#2d4a1e] font-semibold text-base">
               {unit ? t('livestock.editTitle') : t('livestock.addTitle')}
             </h2>
-            <p className="text-[#9aab8a] text-xs mt-0.5">
+            <p className="text-[#66755a] text-xs mt-0.5">
               {t('livestock.formSubtitle')}
             </p>
           </div>
@@ -133,7 +133,7 @@ export default function LivestockFormModal({
             {!fixedFieldId && corrales.length > 0 && (
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-medium text-[#5a6a4a]">
-                  {t('corral.select')} <span className="font-normal text-[#9aab8a]">{t('common.optional')}</span>
+                  {t('corral.select')} <span className="font-normal text-[#66755a]">{t('common.optional')}</span>
                 </label>
                 <select
                   value={fieldId}

@@ -21,8 +21,8 @@ import { toast } from '@/store/useToastStore'
 
 const ROLE_META: Record<FarmRole, { labelKey: string; icon: React.ReactNode }> = {
   owner: { labelKey: 'roles.owner', icon: <Crown size={11} className="text-amber-500" /> },
-  admin: { labelKey: 'roles.admin', icon: <Shield size={11} className="text-[#639922]" /> },
-  operator: { labelKey: 'roles.operator', icon: <Wrench size={11} className="text-[#7a8a6a]" /> },
+  admin: { labelKey: 'roles.admin', icon: <Shield size={11} className="text-[#4d7a1b]" /> },
+  operator: { labelKey: 'roles.operator', icon: <Wrench size={11} className="text-[#5a6a4a]" /> },
 }
 
 export default function TeamModal({ farm, onClose }: {
@@ -85,14 +85,14 @@ export default function TeamModal({ farm, onClose }: {
           <div className="px-5 py-4 border-b border-[#e0e8d8] bg-[#f5f8f0] flex items-center justify-between">
             <div>
               <p className="text-sm font-semibold text-[#2d4a1e] flex items-center gap-1.5">
-                <Users size={14} className="text-[#639922]" /> {t('team.title', { name: farm.name })}
+                <Users size={14} className="text-[#4d7a1b]" /> {t('team.title', { name: farm.name })}
               </p>
-              <p className="text-[10px] text-[#9aab8a] mt-0.5">
+              <p className="text-[10px] text-[#66755a] mt-0.5">
                 {canManage ? t('team.subtitleManage') : t('team.subtitleView')}
               </p>
             </div>
             <button onClick={onClose}
-              className="w-8 h-8 pointer-coarse:w-11 pointer-coarse:h-11 flex items-center justify-center rounded-lg text-[#9aab8a] hover:bg-[#e8f0e0] transition-colors shrink-0"
+              className="w-8 h-8 pointer-coarse:w-11 pointer-coarse:h-11 flex items-center justify-center rounded-lg text-[#66755a] hover:bg-[#e8f0e0] transition-colors shrink-0"
             >
               <X size={15} />
             </button>
@@ -101,7 +101,7 @@ export default function TeamModal({ farm, onClose }: {
           {/* Roster */}
           <div className="px-5 py-3 flex flex-col divide-y divide-[#f0f5e8]">
             {isLoading && (
-              <p className="py-4 text-xs text-[#9aab8a] text-center">{t('team.loading')}</p>
+              <p className="py-4 text-xs text-[#66755a] text-center">{t('team.loading')}</p>
             )}
             {(members ?? []).map(m => {
               const meta = ROLE_META[m.role]
@@ -112,7 +112,7 @@ export default function TeamModal({ farm, onClose }: {
                     <p className="text-xs font-medium text-[#2d4a1e] truncate">
                       {m.fullName}{isSelf ? ` ${t('team.you')}` : ''}
                     </p>
-                    <p className="text-[10px] text-[#9aab8a] truncate">{m.email}</p>
+                    <p className="text-[10px] text-[#66755a] truncate">{m.email}</p>
                   </div>
 
                   {/* Role — editable for members when the viewer can manage */}
@@ -141,7 +141,7 @@ export default function TeamModal({ farm, onClose }: {
                         onSuccess: () => toast.success(isSelf ? t('team.youLeft') : t('team.memberRemoved')),
                       })}
                       title={isSelf ? t('team.leaveTitle') : t('team.removeTitle')}
-                      className="p-1 pointer-coarse:p-2 rounded text-[#c0d0b0] hover:text-red-500 hover:bg-red-50 transition-colors shrink-0"
+                      className="p-1 pointer-coarse:p-2 rounded text-[#66755a] hover:text-red-600 hover:bg-red-50 transition-colors shrink-0"
                     >
                       <Trash2 size={12} />
                     </button>
@@ -178,7 +178,7 @@ export default function TeamModal({ farm, onClose }: {
               >
                 <Plus size={13} /> {t('team.addButton')}
               </button>
-              <p className="text-[10px] text-[#9aab8a] leading-relaxed">
+              <p className="text-[10px] text-[#66755a] leading-relaxed">
                 {t('team.roleHelp')}
               </p>
             </form>
@@ -188,9 +188,9 @@ export default function TeamModal({ farm, onClose }: {
           {canManage && (
             <div className="px-5 py-4 border-t border-[#e0e8d8] flex flex-col gap-2">
               <p className="text-xs font-semibold text-[#2d4a1e] flex items-center gap-1.5">
-                <Ticket size={13} className="text-[#639922]" /> {t('team.inviteCode')}
+                <Ticket size={13} className="text-[#4d7a1b]" /> {t('team.inviteCode')}
               </p>
-              <p className="text-[10px] text-[#9aab8a] leading-relaxed">
+              <p className="text-[10px] text-[#66755a] leading-relaxed">
                 {t('team.inviteHelp')}
               </p>
 
@@ -200,7 +200,7 @@ export default function TeamModal({ farm, onClose }: {
                     {freshCode}
                   </span>
                   <button onClick={handleCopyCode} title={t('team.copyCode')}
-                    className="p-1.5 pointer-coarse:p-2.5 rounded text-[#639922] hover:bg-white transition-colors"
+                    className="p-1.5 pointer-coarse:p-2.5 rounded text-[#4d7a1b] hover:bg-white transition-colors"
                   >
                     <Copy size={14} />
                   </button>
@@ -218,7 +218,7 @@ export default function TeamModal({ farm, onClose }: {
                   <button
                     onClick={handleGenerateCode}
                     disabled={createInvite.isPending}
-                    className="flex-1 flex items-center justify-center gap-2 py-2 text-xs font-medium text-[#639922] border border-[#c8dca8] rounded-lg hover:bg-[#eaf3de] transition-colors disabled:opacity-40"
+                    className="flex-1 flex items-center justify-center gap-2 py-2 text-xs font-medium text-[#4d7a1b] border border-[#c8dca8] rounded-lg hover:bg-[#eaf3de] transition-colors disabled:opacity-40"
                   >
                     <Ticket size={13} /> {t('team.generateCode')}
                   </button>
@@ -243,7 +243,7 @@ export default function TeamModal({ farm, onClose }: {
                             toast.success(t('team.codeRevoked'))
                           },
                         })}
-                        className="text-[10px] pointer-coarse:p-2 text-[#c0d0b0] hover:text-red-500 transition-colors"
+                        className="text-[10px] pointer-coarse:p-2 text-[#66755a] hover:text-red-600 transition-colors"
                       >
                         {t('team.revoke')}
                       </button>

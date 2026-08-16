@@ -98,11 +98,11 @@ export default function ProductionModal({
         >
           <div className="px-5 py-4 border-b border-[#e0e8d8] bg-[#f5f8f0] flex items-center justify-between sticky top-0">
             <p className="text-sm font-semibold text-[#2d4a1e] flex items-center gap-1.5 min-w-0">
-              <ClipboardList size={14} className="text-[#639922] shrink-0" />
+              <ClipboardList size={14} className="text-[#4d7a1b] shrink-0" />
               <span className="truncate">{t('production.title', { name: unit.name })}</span>
             </p>
             <button type="button" onClick={onClose}
-              className="w-8 h-8 pointer-coarse:w-11 pointer-coarse:h-11 flex items-center justify-center rounded-lg text-[#9aab8a] hover:bg-[#e8f0e0] transition-colors shrink-0"
+              className="w-8 h-8 pointer-coarse:w-11 pointer-coarse:h-11 flex items-center justify-center rounded-lg text-[#66755a] hover:bg-[#e8f0e0] transition-colors shrink-0"
             >
               <X size={15} />
             </button>
@@ -176,7 +176,7 @@ export default function ProductionModal({
             {/* Meat = herd ledger: how many animals left, and why */}
             {isMeat && (
               <>
-                <p className="text-[11px] text-[#7a8a6a] leading-relaxed bg-[#f5f8f0] rounded-lg px-3 py-2">
+                <p className="text-[11px] text-[#5a6a4a] leading-relaxed bg-[#f5f8f0] rounded-lg px-3 py-2">
                   {t('production.meatHint', { count: unit.currentCount })}
                 </p>
                 <div className="grid grid-cols-2 gap-3">

@@ -182,14 +182,13 @@ export default function FieldSummaryCard({
   }, [focused, focusNonce])
 
   return (
+    // Card body: pointer conveniences only (click select, dblclick zoom).
+    // The KEYBOARD path is the field-name button below — a role="button"
+    // card would nest interactive elements (axe: nested-interactive).
+    // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
     <div
       ref={cardRef}
-      role="button"
-      tabIndex={0}
       onClick={handleCardClick}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleCardClick() }
-      }}
       onDoubleClick={handleCardDoubleClick}
       className={`px-4 py-3 hover:bg-[#fafcf8] transition-colors cursor-pointer ${
         focused ? 'bg-[#f5f8f0] border-l-2 border-l-[#639922]' : ''
@@ -202,14 +201,20 @@ export default function FieldSummaryCard({
           <div className="w-3 h-3 rounded-full shrink-0"
             style={{ backgroundColor: scoutHealth.color }}
           />
-          <span className="text-sm font-medium text-[#2d4a1e] truncate">{field.name}</span>
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); handleCardClick() }}
+            className="text-sm font-medium text-[#2d4a1e] truncate text-left hover:underline decoration-[#c0dd97] underline-offset-2"
+          >
+            {field.name}
+          </button>
           {/* Visible path to the double-click zoom — the only one on touch */}
           {onCardDoubleClick && (
             <button
               onClick={(e) => { e.stopPropagation(); onCardDoubleClick() }}
               onDoubleClick={(e) => e.stopPropagation()}
               title={t('card.viewOnMap')}
-              className="shrink-0 p-1 pointer-coarse:p-2 rounded text-[#9aab8a] hover:text-[#639922] hover:bg-[#eaf3de] transition-colors"
+              className="shrink-0 p-1 pointer-coarse:p-2 rounded text-[#66755a] hover:text-[#4d7a1b] hover:bg-[#eaf3de] transition-colors"
             >
               <Locate size={12} />
             </button>
@@ -230,7 +235,7 @@ export default function FieldSummaryCard({
           )}
           {health.overdue > 0 && (
             <div className="flex items-center gap-0.5 px-1.5 py-0.5 bg-red-50 rounded-full">
-              <AlertCircle size={8} className="text-red-500" />
+              <AlertCircle size={8} className="text-red-600" />
               <span className="text-[9px] text-red-600 font-bold">{health.overdue}</span>
             </div>
           )}
@@ -250,7 +255,7 @@ export default function FieldSummaryCard({
         const pts = field.boundary.map(p => latlngToCanvas(p.lat, p.lng, bbox))
         const acres = ft2ToAcres(areaFt2(pts, scale))
         return (
-          <p className="text-[10px] text-[#9aab8a] mb-1.5">
+          <p className="text-[10px] text-[#66755a] mb-1.5">
             {fmtNumber(acres)} ac
           </p>
         )
@@ -283,7 +288,7 @@ export default function FieldSummaryCard({
             <p className="text-[10px] font-medium text-[#2d4a1e] truncate">
               {nextCrop?.emoji ?? '🌱'} {localOpLabel(next.op.labelEs)}
             </p>
-            <p className={`text-[9px] ${nextIsDue ? 'text-red-500 font-medium' : 'text-[#9aab8a]'}`}>
+            <p className={`text-[9px] ${nextIsDue ? 'text-red-600 font-medium' : 'text-[#66755a]'}`}>
               {nextIsDue ? t('status.overduePrefix') : ''}{nextDate}
               {nextCrop ? ` · ${localName(nextCrop)}` : ''}
             </p>
@@ -295,7 +300,7 @@ export default function FieldSummaryCard({
               openChecking({ mode: 'complete', op: next.op, event: next.event })
             }}
             title={t('actions.completeTitle')}
-            className="pointer-coarse:p-2 text-[10px] shrink-0 text-[#2d4a1e] font-semibold hover:text-[#639922] transition-colors"
+            className="pointer-coarse:p-2 text-[10px] shrink-0 text-[#2d4a1e] font-semibold hover:text-[#4d7a1b] transition-colors"
           >
             {t('actions.complete')}
           </button>
@@ -305,7 +310,7 @@ export default function FieldSummaryCard({
               openChecking({ mode: 'partial', op: next.op, event: next.event })
             }}
             title={t('actions.partialTitle')}
-            className="pointer-coarse:p-2 text-[10px] shrink-0 text-[#639922] hover:text-[#2d4a1e] font-medium transition-colors"
+            className="pointer-coarse:p-2 text-[10px] shrink-0 text-[#4d7a1b] hover:text-[#2d4a1e] font-medium transition-colors"
           >
             {t('actions.partial')}
           </button>
@@ -317,7 +322,7 @@ export default function FieldSummaryCard({
                 { onSuccess: () => toast.success(t('toast.opSkipped')) }
               )
             }}
-            className="pointer-coarse:p-2 text-[10px] shrink-0 text-[#c0d0b0] hover:text-[#9aab8a] transition-colors"
+            className="pointer-coarse:p-2 text-[10px] shrink-0 text-[#66755a] hover:text-[#66755a] transition-colors"
           >
             {t('actions.skip')}
           </button>
@@ -332,15 +337,15 @@ export default function FieldSummaryCard({
         >
           {field.displayMode === 'pin' ? (
             <>
-              <MapPin size={10} className="text-[#639922]" />
+              <MapPin size={10} className="text-[#4d7a1b]" />
               <span>{t('card.showAsPin')}</span>
-              <ToggleLeft size={13} className="text-[#c0d0b0] ml-auto" />
+              <ToggleLeft size={13} className="text-[#66755a] ml-auto" />
             </>
           ) : (
             <>
-              <Layers size={10} className="text-[#639922]" />
+              <Layers size={10} className="text-[#4d7a1b]" />
               <span>{t('card.showAsShape')}</span>
-              <ToggleRight size={13} className="text-[#639922] ml-auto" />
+              <ToggleRight size={13} className="text-[#4d7a1b] ml-auto" />
             </>
           )}
         </button>
@@ -359,7 +364,7 @@ export default function FieldSummaryCard({
           {canManage && (
           <button
             onClick={(e) => { e.stopPropagation(); onOpenEditor() }}
-            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 pointer-coarse:py-2.5 text-[10px] text-[#639922] border border-[#c8dca8] rounded-lg hover:bg-[#eaf3de] transition-colors"
+            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 pointer-coarse:py-2.5 text-[10px] text-[#4d7a1b] border border-[#c8dca8] rounded-lg hover:bg-[#eaf3de] transition-colors"
           >
             <Pencil size={10} /> {t('actions.edit')}
           </button>
@@ -367,7 +372,7 @@ export default function FieldSummaryCard({
           {canManage && (
           <button
             onClick={(e) => { e.stopPropagation(); setConfirmDelete(true) }}
-            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 pointer-coarse:py-2.5 text-[10px] text-[#9aab8a] border border-[#e0e8d8] rounded-lg hover:text-red-500 hover:border-red-200 hover:bg-red-50 transition-colors"
+            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 pointer-coarse:py-2.5 text-[10px] text-[#66755a] border border-[#e0e8d8] rounded-lg hover:text-red-600 hover:border-red-200 hover:bg-red-50 transition-colors"
           >
             <Trash2 size={10} /> {t('actions.delete')}
           </button>
@@ -383,7 +388,7 @@ export default function FieldSummaryCard({
         </div>
       ) : (
         <div className="flex flex-col gap-1.5">
-          <p className="text-[10px] text-red-500 text-center">
+          <p className="text-[10px] text-red-600 text-center">
             {t('card.confirmDelete', { name: field.name })}
           </p>
           <div className="flex items-center gap-2">

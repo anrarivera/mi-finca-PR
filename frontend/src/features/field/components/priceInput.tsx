@@ -108,7 +108,7 @@ export default function PriceInput({ quantity, value, onChange, unitLabel }: {
     <div className="flex flex-col gap-1.5">
       <label className="text-xs font-medium text-[#5a6a4a]">
         {t('price.label')}
-        <span className="text-[#9aab8a] font-normal ml-1">{t('price.optional')}</span>
+        <span className="text-[#66755a] font-normal ml-1">{t('price.optional')}</span>
       </label>
 
       <div className="flex gap-2">
@@ -129,7 +129,7 @@ export default function PriceInput({ quantity, value, onChange, unitLabel }: {
 
         {/* Dollar input */}
         <div className="relative flex-1 min-w-0">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-[#9aab8a] pointer-events-none">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-[#66755a] pointer-events-none">
             $
           </span>
           <input
@@ -145,10 +145,10 @@ export default function PriceInput({ quantity, value, onChange, unitLabel }: {
       </div>
 
       {counterpart && (
-        <p className="text-[10px] text-[#9aab8a]">{counterpart}</p>
+        <p className="text-[10px] text-[#66755a]">{counterpart}</p>
       )}
       {qty == null && (
-        <p className="text-[10px] text-[#9aab8a]">{t('price.needsQuantity')}</p>
+        <p className="text-[10px] text-[#66755a]">{t('price.needsQuantity')}</p>
       )}
     </div>
   )

@@ -152,10 +152,10 @@ export default function FindingModal({
           {/* Header */}
           <div className="px-5 py-4 border-b border-[#e0e8d8] bg-[#f5f8f0]">
             <p className="text-sm font-semibold text-[#2d4a1e] flex items-center gap-1.5">
-              <Bug size={14} className="text-[#639922]" />
+              <Bug size={14} className="text-[#4d7a1b]" />
               {updateOf ? t('modal.titleUpdate') : t('modal.titleNew')}
             </p>
-            <p className="text-[10px] text-[#9aab8a] mt-1">
+            <p className="text-[10px] text-[#66755a] mt-1">
               {updateOf ? t('modal.helpUpdate') : t('modal.helpNew')}
             </p>
           </div>
@@ -246,7 +246,7 @@ export default function FindingModal({
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-[#5a6a4a]">
                 {t('modal.notesLabel')}
-                <span className="text-[#9aab8a] font-normal ml-1">{t('modal.optional')}</span>
+                <span className="text-[#66755a] font-normal ml-1">{t('modal.optional')}</span>
               </label>
               <textarea
                 value={notes}

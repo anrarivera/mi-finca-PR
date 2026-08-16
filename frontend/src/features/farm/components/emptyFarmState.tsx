@@ -29,7 +29,7 @@ export default function EmptyFarmState({ onAddFarm }: Props) {
       <p className="text-[#2d4a1e] font-semibold text-lg mb-1 tracking-tight">
         {t('empty.title')}
       </p>
-      <p className="text-[#7a8a6a] text-sm mb-8 text-center max-w-xs leading-relaxed">
+      <p className="text-[#5a6a4a] text-sm mb-8 text-center max-w-xs leading-relaxed">
         {t('empty.subtitle')}
       </p>
 

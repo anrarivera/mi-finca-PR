@@ -139,7 +139,7 @@ export default function DemoTour() {
           <span className="text-xs font-semibold text-[#2d4a1e] uppercase tracking-wide">
             {t(`demoTour.steps.${step.id}.title`)}
           </span>
-          <span className="text-[10px] text-[#9aab8a]">
+          <span className="text-[10px] text-[#66755a]">
             {stepIndex + 1}/{STEPS.length}
           </span>
         </div>
@@ -151,7 +151,7 @@ export default function DemoTour() {
             {stepIndex > 0 && (
               <button
                 onClick={() => setStepIndex(i => (i ?? 1) - 1)}
-                className="px-3 py-2 text-xs text-[#7a8a6a] hover:bg-[#f5f8f0] rounded-lg transition-colors"
+                className="px-3 py-2 text-xs text-[#5a6a4a] hover:bg-[#f5f8f0] rounded-lg transition-colors"
               >
                 {t('demoTour.back')}
               </button>
@@ -166,7 +166,7 @@ export default function DemoTour() {
           {!isLast && (
             <button
               onClick={end}
-              className="w-full py-1 text-[11px] text-[#9aab8a] hover:text-[#5a6a4a] transition-colors"
+              className="w-full py-1 text-[11px] text-[#66755a] hover:text-[#5a6a4a] transition-colors"
             >
               {t('demoTour.skip')}
             </button>

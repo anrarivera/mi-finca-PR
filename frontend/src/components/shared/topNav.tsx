@@ -63,7 +63,7 @@ export default function TopNav() {
         <span className="text-2xl">🌱</span>
         <span className="font-serif text-[#d4e8b0] text-lg font-bold tracking-wide">
           Mi Finca{' '}
-          <span className="text-[#8fba4e] text-xs font-normal tracking-widest uppercase">
+          <span className="text-[#a3c96c] text-xs font-normal tracking-widest uppercase">
             PR
           </span>
         </span>
@@ -77,7 +77,7 @@ export default function TopNav() {
               onClick={() => setOpen(prev => !prev)}
               aria-label={t('topNav.userMenu')}
               aria-expanded={open}
-              className="w-10 h-10 rounded-full bg-[#4a7a2a] border-2 border-[#6aaa3a] text-[#d4e8b0] text-sm font-semibold hover:bg-[#5a8f35] hover:border-[#8fba4e] transition-colors"
+              className="w-10 h-10 rounded-full bg-[#4a7a2a] border-2 border-[#6aaa3a] text-white text-sm font-semibold hover:bg-[#5a8f35] hover:border-[#8fba4e] transition-colors"
             >
               {initialsFromName(user.fullName)}
             </button>

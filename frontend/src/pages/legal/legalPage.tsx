@@ -62,12 +62,12 @@ export default function LegalPage({ doc }: { doc: 'terms' | 'privacy' }) {
     <div className="min-h-dvh bg-[#f7f9f4]">
       <div className="max-w-2xl mx-auto px-6 py-10">
         <div className="flex items-center justify-between mb-8">
-          <Link to="/" className="text-sm font-semibold text-[#639922] hover:underline">
+          <Link to="/" className="text-sm font-semibold text-[#4d7a1b] hover:underline">
             ← Mi Finca PR
           </Link>
           <button
             onClick={() => i18n.changeLanguage(lang === 'es' ? 'en' : 'es')}
-            className="text-xs text-[#7a8a6a] border border-[#d0dcc0] rounded-lg px-2.5 py-1.5 hover:bg-white transition-colors"
+            className="text-xs text-[#5a6a4a] border border-[#d0dcc0] rounded-lg px-2.5 py-1.5 hover:bg-white transition-colors"
           >
             {lang === 'es' ? 'English' : 'Español'}
           </button>
@@ -75,8 +75,8 @@ export default function LegalPage({ doc }: { doc: 'terms' | 'privacy' }) {
         <div className="bg-white rounded-2xl border border-[#e0e8d8] px-6 sm:px-10 py-8">
           <Markdown source={DOCS[doc][lang]} />
         </div>
-        <p className="text-xs text-[#9aab8a] text-center mt-6">
-          <Link to={doc === 'terms' ? '/privacy' : '/terms'} className="hover:underline text-[#639922]">
+        <p className="text-xs text-[#66755a] text-center mt-6">
+          <Link to={doc === 'terms' ? '/privacy' : '/terms'} className="hover:underline text-[#4d7a1b]">
             {doc === 'terms' ? t('legal.privacyLink') : t('legal.termsLink')}
           </Link>
         </p>

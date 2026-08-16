@@ -33,17 +33,17 @@ export default function JoinFarmModal({ onClose }: { onClose: () => void }) {
         >
           <div className="px-5 py-4 border-b border-[#e0e8d8] bg-[#f5f8f0] flex items-center justify-between">
             <p className="text-sm font-semibold text-[#2d4a1e] flex items-center gap-1.5">
-              <Ticket size={14} className="text-[#639922]" /> {t('join.title')}
+              <Ticket size={14} className="text-[#4d7a1b]" /> {t('join.title')}
             </p>
             <button type="button" onClick={onClose}
-              className="w-8 h-8 pointer-coarse:w-11 pointer-coarse:h-11 flex items-center justify-center rounded-lg text-[#9aab8a] hover:bg-[#e8f0e0] transition-colors"
+              className="w-8 h-8 pointer-coarse:w-11 pointer-coarse:h-11 flex items-center justify-center rounded-lg text-[#66755a] hover:bg-[#e8f0e0] transition-colors"
             >
               <X size={15} />
             </button>
           </div>
 
           <div className="px-5 py-4 flex flex-col gap-3">
-            <p className="text-[11px] text-[#7a8a6a] leading-relaxed">
+            <p className="text-[11px] text-[#5a6a4a] leading-relaxed">
               {t('join.help')}
             </p>
             <input

@@ -43,7 +43,7 @@ export default function RemovalReasonDialog({ title, subtitle, onConfirm, onCanc
 
           <div className="px-5 py-4 border-b border-[#e0e8d8] bg-[#f5f8f0]">
             <p className="text-sm font-semibold text-[#2d4a1e]">{title}</p>
-            {subtitle && <p className="text-xs text-[#7a8a6a] mt-0.5">{subtitle}</p>}
+            {subtitle && <p className="text-xs text-[#5a6a4a] mt-0.5">{subtitle}</p>}
           </div>
 
           <div className="px-5 py-4 flex flex-col gap-4">
@@ -72,7 +72,7 @@ export default function RemovalReasonDialog({ title, subtitle, onConfirm, onCanc
 
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-[#5a6a4a]">
-                {t('removal.note')} <span className="text-[#9aab8a] font-normal">{t('common.optional')}</span>
+                {t('removal.note')} <span className="text-[#66755a] font-normal">{t('common.optional')}</span>
               </label>
               <input
                 type="text"

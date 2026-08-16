@@ -17,14 +17,14 @@ export default function AuthLayout({ title, subtitle, children }: {
         <span className="text-3xl">🌱</span>
         <span className="font-serif text-[#2d4a1e] text-xl font-bold tracking-wide">
           Mi Finca{' '}
-          <span className="text-[#639922] text-xs font-normal tracking-widest uppercase">PR</span>
+          <span className="text-[#4d7a1b] text-xs font-normal tracking-widest uppercase">PR</span>
         </span>
       </Link>
 
       <div className="bg-white rounded-2xl shadow-xl border border-[#e0e8d8] w-full max-w-md overflow-hidden">
         <div className="px-8 pt-7 pb-2">
           <h1 className="text-lg font-semibold text-[#2d4a1e]">{title}</h1>
-          <p className="text-xs text-[#9aab8a] mt-1">{subtitle}</p>
+          <p className="text-xs text-[#66755a] mt-1">{subtitle}</p>
         </div>
         {children}
       </div>
@@ -35,7 +35,7 @@ export default function AuthLayout({ title, subtitle, children }: {
       <button
         onClick={() => demoLogin.mutate()}
         disabled={demoLogin.isPending}
-        className="mt-5 text-xs text-[#7a8a6a] hover:text-[#2d4a1e] transition-colors disabled:opacity-60"
+        className="mt-5 text-xs text-[#5a6a4a] hover:text-[#2d4a1e] transition-colors disabled:opacity-60"
       >
         {demoLogin.isPending ? t('layout.demoLoading') : t('layout.tryDemo')}
       </button>
@@ -48,5 +48,5 @@ export const authInputClass =
 
 export function FieldError({ message }: { message?: string }) {
   if (!message) return null
-  return <p className="text-[11px] text-red-500">{message}</p>
+  return <p className="text-[11px] text-red-600">{message}</p>
 }

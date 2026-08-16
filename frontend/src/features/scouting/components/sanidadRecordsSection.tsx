@@ -5,7 +5,7 @@ import { useFarmStore } from '@/store/useFarmStore'
 import { useFieldStore } from '@/store/useFieldStore'
 import { useFindings, useExportFindings } from '../hooks/useFindingsApi'
 import { getPestById } from '../data/pestLibrary'
-import { SEVERITY_COLORS, type Finding } from '../types'
+import { SEVERITY_COLORS, SEVERITY_TEXT_COLORS, type Finding } from '../types'
 import { findingScopeSummary } from '../utils/findingScope'
 import { dateLocale, localName } from '@/i18n'
 
@@ -68,7 +68,7 @@ export default function SanidadRecordsSection() {
       <div className="flex items-center gap-2 px-5 py-4 border-b border-[#e0e8d8]">
         <Bug size={16} className="text-[#b8860b]" />
         <h2 className="text-sm font-semibold text-[#2d4a1e]">{t('records.title')}</h2>
-        <span className="text-xs text-[#9aab8a]">
+        <span className="text-xs text-[#66755a]">
           {t('records.findingCount', { count: stats.all.length })}
           {activeFarm ? ` · ${activeFarm.name}` : ''}
         </span>
@@ -77,7 +77,7 @@ export default function SanidadRecordsSection() {
             onClick={() => exportCsv.mutate()}
             disabled={exportCsv.isPending}
             title={t('records.exportTitle')}
-            className="ml-auto flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] text-[#639922] border border-[#c8dca8] rounded-lg hover:bg-[#eaf3de] transition-colors disabled:opacity-50"
+            className="ml-auto flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] text-[#4d7a1b] border border-[#c8dca8] rounded-lg hover:bg-[#eaf3de] transition-colors disabled:opacity-50"
           >
             <Download size={10} /> {t('records.exportCsv')}
           </button>
@@ -85,7 +85,7 @@ export default function SanidadRecordsSection() {
       </div>
 
       {stats.all.length === 0 ? (
-        <p className="px-5 py-6 text-xs text-[#9aab8a] text-center">
+        <p className="px-5 py-6 text-xs text-[#66755a] text-center">
           {t('records.empty')}
         </p>
       ) : (
@@ -106,7 +106,7 @@ export default function SanidadRecordsSection() {
                   <span className="text-xs font-medium text-[#2d4a1e]">
                     {localName(pest, r.pestId)}
                   </span>
-                  <span className="text-xs text-[#7a8a6a]">
+                  <span className="text-xs text-[#5a6a4a]">
                     {t('records.timesLast', { times: r.count, date: fmtDate(r.lastDate) })}
                   </span>
                 </div>
@@ -131,8 +131,8 @@ export default function SanidadRecordsSection() {
                         {localName(pest, f.pestId)}
                       </p>
                       <span
-                        className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full text-white shrink-0"
-                        style={{ backgroundColor: SEVERITY_COLORS[f.severity] }}
+                        className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full shrink-0"
+                        style={{ backgroundColor: SEVERITY_COLORS[f.severity], color: SEVERITY_TEXT_COLORS[f.severity] }}
                       >
                         {t(`severity.${f.severity}`)}
                       </span>
@@ -140,20 +140,20 @@ export default function SanidadRecordsSection() {
                         resolved
                           ? 'bg-gray-100 text-gray-500'
                           : f.status === 'treated'
-                            ? 'bg-[#eaf3de] text-[#639922]'
-                            : 'bg-red-50 text-red-500'
+                            ? 'bg-[#eaf3de] text-[#3f6414]'
+                            : 'bg-red-50 text-red-700'
                       }`}>
                         {t(`status.${f.status}`)}
                       </span>
                     </div>
-                    <p className="text-[10px] text-[#9aab8a] truncate">
+                    <p className="text-[10px] text-[#66755a] truncate">
                       {fieldName(f.fieldId)}
                       {' · '}{findingScopeSummary(f, rowsFor(f))}
                       {obsCount > 1 && ` · ${t('records.obsCount', { count: obsCount })}`}
                       {f.treatmentRecommendedOperationId && ` · ${t('laborCreated')}`}
                     </p>
                   </div>
-                  <span className="text-[10px] font-semibold text-[#7a8a6a] shrink-0">
+                  <span className="text-[10px] font-semibold text-[#5a6a4a] shrink-0">
                     {fmtDate(f.foundDate)}
                   </span>
                 </div>

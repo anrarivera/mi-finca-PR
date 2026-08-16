@@ -56,7 +56,7 @@ export default function DashboardPage() {
 
       <div>
         <h1 className="text-2xl font-bold text-[#2d4a1e]">{t('dashboard.title')}</h1>
-        <p className="text-sm text-[#9aab8a] mt-1">
+        <p className="text-sm text-[#66755a] mt-1">
           {t('dashboard.subtitle', { count: farms.length })}
         </p>
       </div>
@@ -67,7 +67,7 @@ export default function DashboardPage() {
           <h2 className="text-base font-semibold text-[#2d4a1e] mb-1">
             {t('dashboard.empty.title')}
           </h2>
-          <p className="text-sm text-[#9aab8a] mb-4">
+          <p className="text-sm text-[#66755a] mb-4">
             {t('dashboard.empty.description')}
           </p>
           <Link
@@ -97,11 +97,11 @@ export default function DashboardPage() {
             {/* Recommendations panel */}
             <section className="bg-white rounded-2xl border border-[#e0e8d8] overflow-hidden">
               <div className="flex items-center gap-2 px-5 py-4 border-b border-[#e0e8d8]">
-                <Lightbulb size={16} className="text-[#639922]" />
+                <Lightbulb size={16} className="text-[#4d7a1b]" />
                 <h2 className="text-sm font-semibold text-[#2d4a1e]">{t('dashboard.recommendations.title')}</h2>
               </div>
               {stats.recommendations.length === 0 ? (
-                <p className="px-5 py-6 text-xs text-[#9aab8a] text-center">
+                <p className="px-5 py-6 text-xs text-[#66755a] text-center">
                   {t('dashboard.recommendations.empty')}
                 </p>
               ) : (
@@ -131,15 +131,15 @@ function StatTile({ icon, label, value, suffix }: {
 }) {
   return (
     <div className="bg-white rounded-2xl border border-[#e0e8d8] px-4 py-3.5">
-      <div className="flex items-center gap-1.5 text-[#639922] mb-1.5">
+      <div className="flex items-center gap-1.5 text-[#4d7a1b] mb-1.5">
         {icon}
-        <span className="text-[10px] font-semibold text-[#7a8a6a] uppercase tracking-wide">
+        <span className="text-[10px] font-semibold text-[#5a6a4a] uppercase tracking-wide">
           {label}
         </span>
       </div>
       <p className="text-xl font-bold text-[#2d4a1e]">
         {value}
-        {suffix && <span className="text-xs font-medium text-[#9aab8a] ml-1">{suffix}</span>}
+        {suffix && <span className="text-xs font-medium text-[#66755a] ml-1">{suffix}</span>}
       </p>
     </div>
   )

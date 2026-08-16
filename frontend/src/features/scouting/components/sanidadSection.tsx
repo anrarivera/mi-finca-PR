@@ -5,7 +5,7 @@ import { useFarmStore } from '@/store/useFarmStore'
 import { useFieldStore } from '@/store/useFieldStore'
 import { useFindings } from '../hooks/useFindingsApi'
 import { getPestById } from '../data/pestLibrary'
-import { SEVERITY_COLORS, type Finding } from '../types'
+import { SEVERITY_COLORS, SEVERITY_TEXT_COLORS, type Finding } from '../types'
 import {
   fieldHealth, findingExtentPct, findingTrend,
   FIELD_HEALTH_COLORS,
@@ -84,7 +84,7 @@ export default function SanidadSection() {
       <div className="flex items-center gap-2 px-5 py-4 border-b border-[#e0e8d8]">
         <Bug size={16} className="text-[#b8860b]" />
         <h2 className="text-sm font-semibold text-[#2d4a1e]">{t('dashboard.title')}</h2>
-        <span className="text-xs text-[#9aab8a]">
+        <span className="text-xs text-[#66755a]">
           {stats.active.length === 0
             ? t('dashboard.noActive')
             : t('dashboard.activeCount', { count: stats.active.length })}
@@ -102,11 +102,11 @@ export default function SanidadSection() {
       </div>
 
       {stats.all.length === 0 ? (
-        <p className="px-5 py-6 text-xs text-[#9aab8a] text-center">
+        <p className="px-5 py-6 text-xs text-[#66755a] text-center">
           {t('dashboard.emptyAll')}
         </p>
       ) : stats.active.length === 0 ? (
-        <p className="px-5 py-6 text-xs text-[#9aab8a] text-center">
+        <p className="px-5 py-6 text-xs text-[#66755a] text-center">
           {t('dashboard.emptyActive')}
         </p>
       ) : (
@@ -127,42 +127,42 @@ export default function SanidadSection() {
                           {localName(pest, f.pestId)}
                         </p>
                         <span
-                          className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full text-white shrink-0"
-                          style={{ backgroundColor: SEVERITY_COLORS[f.severity] }}
+                          className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full shrink-0"
+                          style={{ backgroundColor: SEVERITY_COLORS[f.severity], color: SEVERITY_TEXT_COLORS[f.severity] }}
                         >
                           {t(`severity.${f.severity}`)}
                         </span>
                         {trend === 'improving' && (
-                          <span className="flex items-center gap-0.5 text-[9px] font-medium text-[#639922] shrink-0">
+                          <span className="flex items-center gap-0.5 text-[9px] font-medium text-[#4d7a1b] shrink-0">
                             <TrendingDown size={9} /> {t('trend.improving')}
                           </span>
                         )}
                         {trend === 'worsening' && (
-                          <span className="flex items-center gap-0.5 text-[9px] font-medium text-red-500 shrink-0">
+                          <span className="flex items-center gap-0.5 text-[9px] font-medium text-red-600 shrink-0">
                             <TrendingUp size={9} /> {t('trend.worsening')}
                           </span>
                         )}
                         {trend === 'stable' && (
-                          <span className="flex items-center gap-0.5 text-[9px] font-medium text-[#9aab8a] shrink-0">
+                          <span className="flex items-center gap-0.5 text-[9px] font-medium text-[#66755a] shrink-0">
                             <MoveRight size={9} /> {t('trend.stable')}
                           </span>
                         )}
                       </div>
-                      <p className="text-[10px] text-[#9aab8a] truncate">
+                      <p className="text-[10px] text-[#66755a] truncate">
                         {fieldName(f.fieldId)}
                         {pct !== null && pct > 0 && ` · ${t('dashboard.extentOfField', { pct })}`}
                         {f.status === 'treated' && ` · ${t('dashboard.treatedTag')}`}
                         {f.treatmentRecommendedOperationId && ` · ${t('laborCreated')}`}
                       </p>
                     </div>
-                    <span className="text-[10px] font-semibold text-[#7a8a6a] shrink-0">
+                    <span className="text-[10px] font-semibold text-[#5a6a4a] shrink-0">
                       {fmtDate(f.foundDate)}
                     </span>
                   </div>
                 )
               })}
               {stats.active.length > ACTIVE_LIMIT && (
-                <p className="px-5 py-2 text-[10px] text-[#9aab8a] text-center">
+                <p className="px-5 py-2 text-[10px] text-[#66755a] text-center">
                   {t('dashboard.overflow', { count: stats.active.length - ACTIVE_LIMIT })}
                 </p>
               )}
@@ -187,11 +187,11 @@ function StripCell({ color, count, label }: {
           style={{ backgroundColor: color, opacity: count > 0 ? 1 : 0.35 }}
           aria-hidden
         />
-        <span className={`text-base font-bold ${count > 0 ? 'text-[#2d4a1e]' : 'text-[#c0d0b0]'}`}>
+        <span className={`text-base font-bold ${count > 0 ? 'text-[#2d4a1e]' : 'text-[#66755a]'}`}>
           {count}
         </span>
       </div>
-      <span className="text-[10px] text-[#9aab8a]">{label}</span>
+      <span className="text-[10px] text-[#66755a]">{label}</span>
     </div>
   )
 }

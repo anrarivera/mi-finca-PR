@@ -148,7 +148,7 @@ export default function HarvestLogSection({ limit = 6 }: Props) {
       <div className="flex items-center gap-2 px-5 py-4 border-b border-[#e0e8d8]">
         <span className="text-base" aria-hidden>🧺</span>
         <h2 className="text-sm font-semibold text-[#2d4a1e]">{t('harvestLog.title')}</h2>
-        <span className="text-xs text-[#9aab8a]">
+        <span className="text-xs text-[#66755a]">
           {t('harvestLog.count', { count: entries.length })}
         </span>
         <div className="flex-1" />
@@ -169,7 +169,7 @@ export default function HarvestLogSection({ limit = 6 }: Props) {
       {income.hasAny && (
         <div className="px-5 py-3 border-b border-[#f0f5e8] flex flex-col gap-2">
           <p className="text-xs font-semibold text-[#2d4a1e]">
-            {t('harvestLog.income')}: <span className="text-[#639922]">${formatMoney(income.total)}</span>
+            {t('harvestLog.income')}: <span className="text-[#4d7a1b]">${formatMoney(income.total)}</span>
           </p>
           <div className="flex flex-wrap gap-1.5">
             {income.breakdown.map(([label, amount]) => (
@@ -184,7 +184,7 @@ export default function HarvestLogSection({ limit = 6 }: Props) {
       )}
 
       {entries.length === 0 && (
-        <p className="px-5 py-6 text-xs text-[#9aab8a] text-center">
+        <p className="px-5 py-6 text-xs text-[#66755a] text-center">
           {t('harvestLog.empty')}
         </p>
       )}
@@ -214,7 +214,7 @@ export default function HarvestLogSection({ limit = 6 }: Props) {
                   <p className="text-xs font-medium text-[#2d4a1e] truncate">
                     {rowLabel(row)}
                   </p>
-                  <p className="text-[10px] text-[#9aab8a] truncate">{subtitle}</p>
+                  <p className="text-[10px] text-[#66755a] truncate">{subtitle}</p>
                 </div>
                 {/* Sale revenue — em dash until it's recorded */}
                 {row.revenue != null ? (
@@ -222,12 +222,12 @@ export default function HarvestLogSection({ limit = 6 }: Props) {
                     ${formatMoney(row.revenue)}
                   </span>
                 ) : (
-                  <span className="text-xs text-[#c0d0b0] shrink-0">—</span>
+                  <span className="text-xs text-[#66755a] shrink-0">—</span>
                 )}
                 <button
                   onClick={() => setEditing(isEditing ? null : { id: row.id, draft: row.revenue })}
                   title={t('harvestLog.editRevenue')}
-                  className="shrink-0 p-1 pointer-coarse:p-2 rounded text-[#9aab8a] hover:text-[#639922] hover:bg-[#eaf3de] transition-colors"
+                  className="shrink-0 p-1 pointer-coarse:p-2 rounded text-[#66755a] hover:text-[#4d7a1b] hover:bg-[#eaf3de] transition-colors"
                 >
                   <Pencil size={11} />
                 </button>

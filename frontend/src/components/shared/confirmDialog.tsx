@@ -67,7 +67,7 @@ function ConfirmDialog({ active }: { active: ActiveConfirm }) {
           <div className="px-6 pt-5 pb-4 flex gap-3">
             {danger && (
               <div className="w-9 h-9 shrink-0 rounded-full bg-red-50 flex items-center justify-center">
-                <AlertTriangle size={17} className="text-red-500" />
+                <AlertTriangle size={17} className="text-red-600" />
               </div>
             )}
             <div>

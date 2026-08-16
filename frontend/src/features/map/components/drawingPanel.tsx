@@ -184,7 +184,7 @@ export default function DrawingPanel({
         {showOnboard && (
           <div className="w-64 bg-white rounded-xl border border-[#e0e8d8] shadow-lg overflow-hidden">
             <div className="px-4 py-3 border-b border-[#e0e8d8] bg-[#f5f8f0] flex items-center gap-2">
-              <Milestone size={14} className="text-[#639922]" />
+              <Milestone size={14} className="text-[#4d7a1b]" />
               <span className="text-xs font-semibold text-[#2d4a1e] uppercase tracking-wide">
                 {t('drawing.boundaryTitle')}
               </span>
@@ -202,7 +202,7 @@ export default function DrawingPanel({
               </button>
               <button
                 onClick={() => setCardOpen(false)}
-                className="w-full py-1.5 text-xs text-[#9aab8a] hover:text-[#5a6a4a] hover:bg-[#f5f8f0] rounded-lg transition-colors"
+                className="w-full py-1.5 text-xs text-[#66755a] hover:text-[#5a6a4a] hover:bg-[#f5f8f0] rounded-lg transition-colors"
               >
                 {t('drawing.onboardLater')}
               </button>
@@ -214,7 +214,7 @@ export default function DrawingPanel({
         {showFieldOnboard && (
           <div className="w-64 bg-white rounded-xl border border-[#e0e8d8] shadow-lg overflow-hidden">
             <div className="px-4 py-3 border-b border-[#e0e8d8] bg-[#f5f8f0] flex items-center gap-2">
-              <Sprout size={14} className="text-[#639922]" />
+              <Sprout size={14} className="text-[#4d7a1b]" />
               <span className="text-xs font-semibold text-[#2d4a1e] uppercase tracking-wide">
                 {t('drawing.fieldOnboardTitle')}
               </span>
@@ -232,7 +232,7 @@ export default function DrawingPanel({
               </button>
               <button
                 onClick={() => setFieldCardOpen(false)}
-                className="w-full py-1.5 text-xs text-[#9aab8a] hover:text-[#5a6a4a] hover:bg-[#f5f8f0] rounded-lg transition-colors"
+                className="w-full py-1.5 text-xs text-[#66755a] hover:text-[#5a6a4a] hover:bg-[#f5f8f0] rounded-lg transition-colors"
               >
                 {t('drawing.onboardLater')}
               </button>
@@ -245,7 +245,7 @@ export default function DrawingPanel({
           <div className="w-56 bg-white rounded-xl border border-[#e0e8d8] shadow-lg overflow-hidden">
             <div className="px-4 py-3 border-b border-[#e0e8d8] bg-[#f5f8f0]">
               <div className="flex items-center gap-2">
-                <Milestone size={14} className="text-[#639922]" />
+                <Milestone size={14} className="text-[#4d7a1b]" />
                 <span className="text-xs font-semibold text-[#2d4a1e] uppercase tracking-wide">
                   {t('drawing.boundaryTitle')}
                 </span>
@@ -253,7 +253,7 @@ export default function DrawingPanel({
               {areaAcres !== null && (
                 <div className="flex items-baseline gap-1 mt-1.5">
                   <span className="text-2xl font-bold text-[#2d4a1e]">{areaAcres}</span>
-                  <span className="text-xs text-[#7a8a6a]">{t('drawing.acresPoints', { count: pointCount })}</span>
+                  <span className="text-xs text-[#5a6a4a]">{t('drawing.acresPoints', { count: pointCount })}</span>
                 </div>
               )}
             </div>
@@ -268,14 +268,14 @@ export default function DrawingPanel({
               </button>
               <button
                 onClick={onStartEditing}
-                className="w-full flex items-center justify-center gap-2 py-2 text-xs text-[#639922] hover:bg-[#eaf3de] rounded-lg transition-colors"
+                className="w-full flex items-center justify-center gap-2 py-2 text-xs text-[#4d7a1b] hover:bg-[#eaf3de] rounded-lg transition-colors"
               >
                 <Pencil size={13} />
                 {t('drawing.editBoundary')}
               </button>
               <button
                 onClick={onClear}
-                className="w-full flex items-center justify-center gap-2 py-2 text-xs text-[#9aab8a] hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                className="w-full flex items-center justify-center gap-2 py-2 text-xs text-[#66755a] hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
               >
                 <Trash2 size={13} />
                 {t('drawing.clearRedraw')}
@@ -292,7 +292,7 @@ export default function DrawingPanel({
               <div className="h-px bg-[#f0f5e8]" />
               <button
                 onClick={() => { setMenuOpen(false); onAddField() }}
-                className="w-full flex items-center justify-center gap-2 py-2 text-xs text-[#639922] hover:bg-[#eaf3de] rounded-lg transition-colors"
+                className="w-full flex items-center justify-center gap-2 py-2 text-xs text-[#4d7a1b] hover:bg-[#eaf3de] rounded-lg transition-colors"
               >
                 <Plus size={13} />
                 {t('drawing.manageFields')}
@@ -399,8 +399,8 @@ function ToolbarButton({
     tone === 'primary'
       ? 'bg-[#639922] text-white hover:bg-[#3b6d11]'
       : tone === 'danger'
-      ? 'text-[#9aab8a] hover:text-red-500 hover:bg-red-50'
-      : 'text-[#639922] hover:bg-[#eaf3de]'
+      ? 'text-[#66755a] hover:text-red-600 hover:bg-red-50'
+      : 'text-[#4d7a1b] hover:bg-[#eaf3de]'
 
   return (
     <button

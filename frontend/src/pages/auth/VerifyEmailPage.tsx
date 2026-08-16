@@ -69,18 +69,18 @@ export default function VerifyEmailPage() {
           <div className="px-8 py-8 text-center">
             {state === 'verifying' && (
               <>
-                <Loader2 size={40} className="text-[#639922] mx-auto mb-3 animate-spin" />
-                <p className="text-sm text-[#7a8a6a]">{t('verify.verifying')}</p>
+                <Loader2 size={40} className="text-[#4d7a1b] mx-auto mb-3 animate-spin" />
+                <p className="text-sm text-[#5a6a4a]">{t('verify.verifying')}</p>
               </>
             )}
 
             {state === 'success' && (
               <>
-                <CheckCircle size={40} className="text-[#639922] mx-auto mb-3" />
+                <CheckCircle size={40} className="text-[#4d7a1b] mx-auto mb-3" />
                 <p className="text-sm text-[#2d4a1e] font-medium mb-2">
                   {t('verify.successTitle')}
                 </p>
-                <p className="text-sm text-[#7a8a6a]">
+                <p className="text-sm text-[#5a6a4a]">
                   {t('verify.successBody')}
                 </p>
               </>
@@ -92,8 +92,8 @@ export default function VerifyEmailPage() {
                 <p className="text-sm text-[#2d4a1e] font-medium mb-2">
                   {t('verify.errorTitle')}
                 </p>
-                <p className="text-sm text-[#7a8a6a]">{errorMsg}</p>
-                <p className="text-xs text-[#9aab8a] mt-3">
+                <p className="text-sm text-[#5a6a4a]">{errorMsg}</p>
+                <p className="text-xs text-[#66755a] mt-3">
                   {t('verify.errorHint')}
                 </p>
               </>
@@ -103,7 +103,7 @@ export default function VerifyEmailPage() {
           <div className="px-8 pb-6 text-center">
             <Link
               to={state === 'success' ? '/' : '/login'}
-              className="text-sm text-[#639922] hover:text-[#2d4a1e] transition-colors"
+              className="text-sm text-[#4d7a1b] hover:text-[#2d4a1e] transition-colors"
             >
               {state === 'success' ? t('verify.goToFarm') : t('verify.backToLogin')}
             </Link>

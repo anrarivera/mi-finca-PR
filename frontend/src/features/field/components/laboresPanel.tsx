@@ -107,9 +107,9 @@ export default function LaboresPanel() {
   return (
     <section data-tour="labores-panel" className="bg-white rounded-2xl border border-[#e0e8d8] overflow-hidden">
       <div className="flex items-center gap-2 px-5 py-4 border-b border-[#e0e8d8]">
-        <CalendarDays size={16} className="text-[#639922]" />
+        <CalendarDays size={16} className="text-[#4d7a1b]" />
         <h2 className="text-sm font-semibold text-[#2d4a1e]">{t('panel.title')}</h2>
-        <span className="text-xs text-[#9aab8a]">
+        <span className="text-xs text-[#66755a]">
           {t('panel.subtitle')}{activeFarm ? ` · ${activeFarm.name}` : ''}
         </span>
       </div>
@@ -117,17 +117,17 @@ export default function LaboresPanel() {
       {/* Health summary — server-authoritative open counts */}
       <div className="grid grid-cols-3 divide-x divide-[#f0f5e8] border-b border-[#f0f5e8]">
         <HealthCell
-          icon={<AlertCircle size={13} className="text-red-500" />}
+          icon={<AlertCircle size={13} className="text-red-600" />}
           count={dueSoon?.overdueCount ?? 0} label={t('panel.overdue')}
-          className={(dueSoon?.overdueCount ?? 0) > 0 ? 'text-red-600' : 'text-[#9aab8a]'}
+          className={(dueSoon?.overdueCount ?? 0) > 0 ? 'text-red-600' : 'text-[#66755a]'}
         />
         <HealthCell
           icon={<Clock size={13} className="text-amber-500" />}
           count={dueSoon?.dueSoonCount ?? 0} label={t('panel.next14')}
-          className={(dueSoon?.dueSoonCount ?? 0) > 0 ? 'text-amber-600' : 'text-[#9aab8a]'}
+          className={(dueSoon?.dueSoonCount ?? 0) > 0 ? 'text-amber-600' : 'text-[#66755a]'}
         />
         <HealthCell
-          icon={<CheckCircle2 size={13} className="text-[#639922]" />}
+          icon={<CheckCircle2 size={13} className="text-[#4d7a1b]" />}
           count={completedCount} label={t('panel.completed')}
           className="text-[#2d4a1e]"
         />
@@ -135,7 +135,7 @@ export default function LaboresPanel() {
 
       {/* Open work, soonest first — checkable right here */}
       {operations.length === 0 ? (
-        <p className="px-5 py-6 text-xs text-[#9aab8a] text-center">
+        <p className="px-5 py-6 text-xs text-[#66755a] text-center">
           {t('panel.empty')}
         </p>
       ) : (
@@ -147,7 +147,7 @@ export default function LaboresPanel() {
                 <span className="text-lg" aria-hidden>{rowEmoji(op)}</span>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-medium text-[#2d4a1e] truncate">{localOpLabel(op.labelEs)}</p>
-                  <p className={`text-[10px] truncate ${overdue ? 'text-red-500 font-medium' : 'text-[#9aab8a]'}`}>
+                  <p className={`text-[10px] truncate ${overdue ? 'text-red-600 font-medium' : 'text-[#66755a]'}`}>
                     {overdue ? t('status.overduePrefix') : ''}
                     {new Date(op.recommendedDate + 'T12:00:00')
                       .toLocaleDateString(dateLocale(), { day: 'numeric', month: 'short' })}
@@ -158,14 +158,14 @@ export default function LaboresPanel() {
                 <button
                   onClick={() => setChecking({ mode: 'complete', op })}
                   title={t('actions.completeTitle')}
-                  className={`${smallBtn} text-[#2d4a1e] font-semibold hover:text-[#639922]`}
+                  className={`${smallBtn} text-[#2d4a1e] font-semibold hover:text-[#4d7a1b]`}
                 >
                   {t('actions.complete')}
                 </button>
                 <button
                   onClick={() => setChecking({ mode: 'partial', op })}
                   title={t('actions.partialTitle')}
-                  className={`${smallBtn} text-[#639922] hover:text-[#2d4a1e] font-medium`}
+                  className={`${smallBtn} text-[#4d7a1b] hover:text-[#2d4a1e] font-medium`}
                 >
                   {t('actions.partial')}
                 </button>
@@ -174,7 +174,7 @@ export default function LaboresPanel() {
                     mutationIds(op),
                     { onSuccess: () => toast.success(t('toast.opSkipped')) }
                   )}
-                  className={`${smallBtn} text-[#c0d0b0] hover:text-[#9aab8a]`}
+                  className={`${smallBtn} text-[#66755a] hover:text-[#66755a]`}
                 >
                   {t('actions.skip')}
                 </button>
@@ -182,7 +182,7 @@ export default function LaboresPanel() {
             )
           })}
           {operations.length > LIST_LIMIT && (
-            <p className="px-5 py-2 text-[10px] text-[#9aab8a] text-center">
+            <p className="px-5 py-2 text-[10px] text-[#66755a] text-center">
               {t('panel.moreInNotebook', { count: operations.length - LIST_LIMIT })}
             </p>
           )}
@@ -252,7 +252,7 @@ function HealthCell({ icon, count, label, className }: {
         {icon}
         <span className={`text-base font-bold ${className ?? ''}`}>{count}</span>
       </div>
-      <span className="text-[10px] text-[#9aab8a]">{label}</span>
+      <span className="text-[10px] text-[#66755a]">{label}</span>
     </div>
   )
 }

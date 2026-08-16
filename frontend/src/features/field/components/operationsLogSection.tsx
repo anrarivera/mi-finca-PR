@@ -97,10 +97,10 @@ export default function OperationsLogSection() {
 
       {/* Header — count + CSV export */}
       <div className="flex items-center gap-2 px-5 py-4 border-b border-[#e0e8d8]">
-        <ClipboardList size={16} className="text-[#639922]" />
+        <ClipboardList size={16} className="text-[#4d7a1b]" />
         <h2 className="text-sm font-semibold text-[#2d4a1e]">{t('log.title')}</h2>
         {total > 0 && (
-          <span className="text-xs text-[#9aab8a]">
+          <span className="text-xs text-[#66755a]">
             {t('count.logged', { count: total })}
             {activeFarm ? ` · ${activeFarm.name}` : ''}
           </span>
@@ -125,7 +125,7 @@ export default function OperationsLogSection() {
         <div className="flex gap-2 px-5 py-3 border-b border-[#f0f5e8]">
           {dueSoon.overdueCount > 0 && (
             <div className="flex items-center gap-1.5 px-2.5 py-1 bg-red-50 rounded-full">
-              <AlertCircle size={12} className="text-red-500" />
+              <AlertCircle size={12} className="text-red-600" />
               <span className="text-[11px] font-semibold text-red-600">
                 {t('count.overdue', { count: dueSoon.overdueCount })}
               </span>
@@ -145,11 +145,11 @@ export default function OperationsLogSection() {
       {/* Log entries */}
       {isLoading ? (
         <div className="flex items-center justify-center gap-2 px-5 py-8">
-          <Loader2 size={14} className="animate-spin text-[#9aab8a]" />
-          <span className="text-xs text-[#9aab8a]">{t('log.loading')}</span>
+          <Loader2 size={14} className="animate-spin text-[#66755a]" />
+          <span className="text-xs text-[#66755a]">{t('log.loading')}</span>
         </div>
       ) : recent.length === 0 ? (
-        <p className="px-5 py-6 text-xs text-[#9aab8a] text-center">
+        <p className="px-5 py-6 text-xs text-[#66755a] text-center">
           {t('log.empty')}
         </p>
       ) : (
@@ -218,10 +218,10 @@ function OperationLogRow({ op, fieldName, livestockName, onEdit, onDelete }: {
       <div className="flex-1 min-w-0">
         <p className="text-xs font-medium text-[#2d4a1e] truncate">{t(meta.labelKey)}</p>
         {details && (
-          <p className="text-[10px] text-[#9aab8a] truncate">{details}</p>
+          <p className="text-[10px] text-[#66755a] truncate">{details}</p>
         )}
       </div>
-      <span className="text-[10px] font-semibold text-[#7a8a6a] shrink-0">
+      <span className="text-[10px] font-semibold text-[#5a6a4a] shrink-0">
         {dateFormatted}
       </span>
       {/* Corrections: edit fixes values in place; delete removes the entry
@@ -229,14 +229,14 @@ function OperationLogRow({ op, fieldName, livestockName, onEdit, onDelete }: {
       <button
         onClick={onEdit}
         aria-label={t('log.editEntry')}
-        className="w-6 h-6 pointer-coarse:w-10 pointer-coarse:h-10 flex items-center justify-center rounded-lg text-[#c0d0b0] hover:text-[#2d4a1e] hover:bg-[#f0f5e8] transition-colors shrink-0"
+        className="w-6 h-6 pointer-coarse:w-10 pointer-coarse:h-10 flex items-center justify-center rounded-lg text-[#66755a] hover:text-[#2d4a1e] hover:bg-[#f0f5e8] transition-colors shrink-0"
       >
         <Pencil size={12} />
       </button>
       <button
         onClick={onDelete}
         aria-label={t('log.deleteEntry')}
-        className="w-6 h-6 pointer-coarse:w-10 pointer-coarse:h-10 flex items-center justify-center rounded-lg text-[#c0d0b0] hover:text-red-500 hover:bg-red-50 transition-colors shrink-0"
+        className="w-6 h-6 pointer-coarse:w-10 pointer-coarse:h-10 flex items-center justify-center rounded-lg text-[#66755a] hover:text-red-600 hover:bg-red-50 transition-colors shrink-0"
       >
         <Trash2 size={12} />
       </button>
@@ -280,7 +280,7 @@ function EditOperationModal({ op, onSave, onCancel }: {
 
           <div className="px-5 py-4 border-b border-[#e0e8d8] bg-[#f5f8f0]">
             <p className="text-sm font-semibold text-[#2d4a1e]">{t('log.editModalTitle')}</p>
-            <p className="text-xs text-[#7a8a6a] mt-0.5">{meta.emoji} {t(meta.labelKey)}</p>
+            <p className="text-xs text-[#5a6a4a] mt-0.5">{meta.emoji} {t(meta.labelKey)}</p>
           </div>
 
           <div className="px-5 py-4 flex flex-col gap-4">
@@ -295,7 +295,7 @@ function EditOperationModal({ op, onSave, onCancel }: {
 
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-[#5a6a4a]">
-                {t('form.quantity')} <span className="text-[#9aab8a] font-normal">{t('form.optional')}</span>
+                {t('form.quantity')} <span className="text-[#66755a] font-normal">{t('form.optional')}</span>
               </label>
               <div className="flex gap-2">
                 <input
@@ -314,7 +314,7 @@ function EditOperationModal({ op, onSave, onCancel }: {
 
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-[#5a6a4a]">
-                {t('form.product')} <span className="text-[#9aab8a] font-normal">{t('form.optional')}</span>
+                {t('form.product')} <span className="text-[#66755a] font-normal">{t('form.optional')}</span>
               </label>
               <input
                 type="text" value={product} placeholder={t('form.productPlaceholder')}
@@ -325,7 +325,7 @@ function EditOperationModal({ op, onSave, onCancel }: {
 
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-[#5a6a4a]">
-                {t('form.notes')} <span className="text-[#9aab8a] font-normal">{t('form.optional')}</span>
+                {t('form.notes')} <span className="text-[#66755a] font-normal">{t('form.optional')}</span>
               </label>
               <textarea
                 value={notes} rows={2} placeholder={t('form.notesPlaceholderShort')}

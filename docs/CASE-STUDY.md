@@ -188,6 +188,22 @@ at the logger level). The top-level error boundary turns what used to be a
 silent white screen into a bilingual recovery page that has already filed its
 own report.
 
+## Accessibility
+
+Enforced on two axes. Statically, `eslint-plugin-jsx-a11y` runs as errors in
+CI — fixing its 43 findings meant real keyboard work, not lint-appeasement:
+clickable cards expose their action as a focusable field-name button (a
+`role="button"` card would illegally nest the inner action buttons), backdrop
+scrims are `aria-hidden` pointer-only conveniences behind visible close
+buttons, and every switch, select, and icon button carries an accessible
+name. At runtime, an axe-core sweep (`qa/21-a11y.mjs`) audits the key screens
+against WCAG 2.1 A/AA — **zero violations**, after a computed contrast pass
+that re-derived the muted text palette against the app's actual backgrounds
+(the original grays sat at 1.9–3.6:1; every replacement was chosen by
+contrast math, including per-severity badge text where white-on-yellow was
+unreadable). The audience makes this non-optional: farmers skew older, and
+outdoor phone screens are the worst reading environment there is.
+
 ## Security posture
 
 Rotating refresh tokens (single-use, HttpOnly, SameSite=Strict), rate limiting

@@ -8,7 +8,7 @@ import {
   useFindings, useUpdateFinding, useDeleteFinding, useCreateTreatmentOp,
 } from '../hooks/useFindingsApi'
 import { getPestById } from '../data/pestLibrary'
-import { SEVERITY_COLORS, SEVERITY_LABELS, type Finding } from '../types'
+import { SEVERITY_COLORS, SEVERITY_TEXT_COLORS, SEVERITY_LABELS, type Finding } from '../types'
 import {
   findingScopeSummary, rowsCoveringFinding, eventForFinding,
   canCreateTreatmentLabor,
@@ -135,7 +135,7 @@ export default function FindingsSection({
         <Bug size={16} className="text-[#b8860b] shrink-0" />
         <div className="flex-1">
           <p className="text-sm font-semibold text-[#2d4a1e]">{t('list.title')}</p>
-          <p className="text-[10px] text-[#9aab8a]">
+          <p className="text-[10px] text-[#66755a]">
             {findings.length === 0
               ? t('list.empty')
               : t('list.summary', { count: openCount, total: findings.length })}
@@ -177,48 +177,48 @@ export default function FindingsSection({
                   <div className="flex items-center gap-1.5">
                     <span className="text-sm">{pest?.emoji ?? '🔍'}</span>
                     <p className={`text-xs font-medium ${
-                      isClosed ? 'text-[#9aab8a] line-through' : 'text-[#2d4a1e]'
+                      isClosed ? 'text-[#66755a] line-through' : 'text-[#2d4a1e]'
                     }`}>
                       {localName(pest, f.pestId)}
                     </p>
                     <span
-                      className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full text-white shrink-0"
-                      style={{ backgroundColor: SEVERITY_COLORS[f.severity] }}
+                      className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full shrink-0"
+                      style={{ backgroundColor: SEVERITY_COLORS[f.severity], color: SEVERITY_TEXT_COLORS[f.severity] }}
                     >
                       {t(`severity.${f.severity}`)}
                     </span>
                     {/* Direction of the last re-inspection */}
                     {trend === 'improving' && (
-                      <span className="flex items-center gap-0.5 text-[9px] font-medium text-[#639922] shrink-0">
+                      <span className="flex items-center gap-0.5 text-[9px] font-medium text-[#4d7a1b] shrink-0">
                         <TrendingDown size={9} /> {t('trend.improving')}
                       </span>
                     )}
                     {trend === 'worsening' && (
-                      <span className="flex items-center gap-0.5 text-[9px] font-medium text-red-500 shrink-0">
+                      <span className="flex items-center gap-0.5 text-[9px] font-medium text-red-600 shrink-0">
                         <TrendingUp size={9} /> {t('trend.worsening')}
                       </span>
                     )}
                     {trend === 'stable' && (
-                      <span className="flex items-center gap-0.5 text-[9px] font-medium text-[#9aab8a] shrink-0">
+                      <span className="flex items-center gap-0.5 text-[9px] font-medium text-[#66755a] shrink-0">
                         <MoveRight size={9} /> {t('trend.stable')}
                       </span>
                     )}
                   </div>
-                  <p className="text-[10px] text-[#9aab8a] mt-0.5">
+                  <p className="text-[10px] text-[#66755a] mt-0.5">
                     {dateFormatted} · {findingScopeSummary(f, fieldRows)}
                     {extentPct !== null && extentPct > 0 && ` ${t('list.extentOfField', { pct: extentPct })}`}
                     {f.status !== 'open' && ` · ${t(`status.${f.status}`)}`}
                     {f.treatmentRecommendedOperationId && ` · ${t('laborCreated')}`}
                   </p>
                   {f.notes && (
-                    <p className="text-[10px] text-[#7a8a6a] mt-0.5 truncate">{f.notes}</p>
+                    <p className="text-[10px] text-[#5a6a4a] mt-0.5 truncate">{f.notes}</p>
                   )}
                   {/* Re-inspection trail — like partial logs under an
                       operation row; the last entry is the current state */}
                   {history.length > 1 && (
                     <div className="mt-1 flex flex-col gap-0.5">
                       {history.map(obs => (
-                        <p key={obs.id} className="text-[10px] text-[#9aab8a]">
+                        <p key={obs.id} className="text-[10px] text-[#66755a]">
                           <span style={{ color: SEVERITY_COLORS[obs.severity] }}>●</span>
                           {' '}
                           {new Date(obs.date + 'T12:00:00')
@@ -238,7 +238,7 @@ export default function FindingsSection({
                 {/* Actions by status */}
                 {f.status !== 'resolved' && (
                   <button onClick={() => setUpdating(f)}
-                    className={`${smallBtn} text-[#7a8a6a] hover:text-[#2d4a1e]`}
+                    className={`${smallBtn} text-[#5a6a4a] hover:text-[#2d4a1e]`}
                     title={t('list.updateTitle')}
                   >
                     {t('list.update')}
@@ -248,14 +248,14 @@ export default function FindingsSection({
                   <>
                     {canCreateTreatmentLabor(f, plantingEvents) && (
                       <button onClick={() => startCreateTreatment(f)}
-                        className={`${smallBtn} text-[#2d4a1e] font-semibold hover:text-[#639922]`}
+                        className={`${smallBtn} text-[#2d4a1e] font-semibold hover:text-[#4d7a1b]`}
                         title={t('list.createLaborTitle')}
                       >
                         {t('list.createLabor')}
                       </button>
                     )}
                     <button onClick={() => setStatus(f, 'treated', t('list.toastTreated'))}
-                      className={`${smallBtn} text-[#639922] hover:text-[#2d4a1e] font-medium`}
+                      className={`${smallBtn} text-[#4d7a1b] hover:text-[#2d4a1e] font-medium`}
                       title={t('list.treatedTitle')}
                     >
                       {t('list.treated')}
@@ -265,13 +265,13 @@ export default function FindingsSection({
                 {f.status === 'treated' && (
                   <>
                     <button onClick={() => setStatus(f, 'resolved', t('list.toastResolved'))}
-                      className={`${smallBtn} text-[#639922] hover:text-[#2d4a1e] font-medium`}
+                      className={`${smallBtn} text-[#4d7a1b] hover:text-[#2d4a1e] font-medium`}
                       title={t('list.resolvedTitle')}
                     >
                       {t('list.resolved')}
                     </button>
                     <button onClick={() => setStatus(f, 'open', t('list.toastReopened'))}
-                      className={`${smallBtn} text-[#c0d0b0] hover:text-[#9aab8a]`}
+                      className={`${smallBtn} text-[#66755a] hover:text-[#66755a]`}
                     >
                       {t('list.reopen')}
                     </button>
@@ -279,7 +279,7 @@ export default function FindingsSection({
                 )}
                 {f.status === 'resolved' && (
                   <button onClick={() => setStatus(f, 'open', t('list.toastReopened'))}
-                    className={`${smallBtn} text-[#c0d0b0] hover:text-[#639922]`}
+                    className={`${smallBtn} text-[#66755a] hover:text-[#4d7a1b]`}
                   >
                     {t('list.reopen')}
                   </button>
@@ -288,7 +288,7 @@ export default function FindingsSection({
                   onClick={() => deleteFinding.mutate(f.id, {
                     onSuccess: () => toast.success(t('list.toastDeleted')),
                   })}
-                  className={`${smallBtn} text-[#c0d0b0] hover:text-red-400`}
+                  className={`${smallBtn} text-[#66755a] hover:text-red-400`}
                   title={t('list.deleteTitle')}
                 >
                   <X size={11} />
@@ -312,7 +312,7 @@ export default function FindingsSection({
                     pest: localName(getPestById(laborFor.pestId), laborFor.pestId),
                   })}
                 </h2>
-                <p className="text-[10px] text-[#9aab8a] mt-1">{t('laborDialog.hint')}</p>
+                <p className="text-[10px] text-[#66755a] mt-1">{t('laborDialog.hint')}</p>
               </div>
               <div className="px-6 py-4">
                 <label className="flex flex-col gap-1.5">

@@ -35,7 +35,7 @@ export default function ForgotPasswordPage() {
             <h2 className="text-lg font-semibold text-[#d4e8b0]">
               {t('forgot.title')}
             </h2>
-            <p className="text-sm text-[#8fba4e] mt-0.5">
+            <p className="text-sm text-[#4d7a1b] mt-0.5">
               {t('forgot.subtitle')}
             </p>
           </div>
@@ -43,11 +43,11 @@ export default function ForgotPasswordPage() {
           <div className="px-8 py-6">
             {submitted ? (
               <div className="text-center py-4">
-                <CheckCircle size={40} className="text-[#639922] mx-auto mb-3" />
+                <CheckCircle size={40} className="text-[#4d7a1b] mx-auto mb-3" />
                 <p className="text-sm text-[#2d4a1e] font-medium mb-2">
                   {t('forgot.sentTitle')}
                 </p>
-                <p className="text-sm text-[#7a8a6a]">
+                <p className="text-sm text-[#5a6a4a]">
                   {t('forgot.sentBody')}
                 </p>
               </div>
@@ -89,7 +89,7 @@ export default function ForgotPasswordPage() {
           <div className="px-8 pb-6 text-center">
             <Link
               to="/login"
-              className="flex items-center justify-center gap-1.5 text-sm text-[#639922] hover:text-[#2d4a1e] transition-colors"
+              className="flex items-center justify-center gap-1.5 text-sm text-[#4d7a1b] hover:text-[#2d4a1e] transition-colors"
             >
               <ArrowLeft size={14} />
               {t('forgot.backToLogin')}

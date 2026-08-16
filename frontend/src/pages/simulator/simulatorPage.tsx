@@ -71,10 +71,10 @@ export default function SimulatorPage() {
     <div className="max-w-5xl mx-auto flex flex-col gap-6">
       <div>
         <h1 className="text-2xl font-bold text-[#2d4a1e] flex items-center gap-2">
-          <Calculator size={22} className="text-[#639922]" />
+          <Calculator size={22} className="text-[#4d7a1b]" />
           {t('simulator.title')}
         </h1>
-        <p className="text-sm text-[#9aab8a] mt-1">
+        <p className="text-sm text-[#66755a] mt-1">
           {t('simulator.subtitle')}
         </p>
       </div>
@@ -95,9 +95,9 @@ export default function SimulatorPage() {
             }`}
           >
             <span className="flex items-center gap-1.5 text-sm font-semibold text-[#2d4a1e]">
-              <Sprout size={14} className="text-[#639922]" /> {t('simulator.myFarm')}
+              <Sprout size={14} className="text-[#4d7a1b]" /> {t('simulator.myFarm')}
             </span>
-            <span className="text-[11px] text-[#9aab8a]">
+            <span className="text-[11px] text-[#66755a]">
               {plantedSummary.length === 0
                 ? t('simulator.noCropsPlanted')
                 : t('simulator.plantedCount', { count: plantedSummary.reduce((s, c) => s + c.count, 0) })}
@@ -117,7 +117,7 @@ export default function SimulatorPage() {
               <span className="text-sm font-semibold text-[#2d4a1e]">
                 {model.emoji} {localName(model)}
               </span>
-              <span className="text-[11px] text-[#9aab8a]">{model.descriptionEs}</span>
+              <span className="text-[11px] text-[#66755a]">{model.descriptionEs}</span>
             </button>
           ))}
         </div>
@@ -154,14 +154,14 @@ export default function SimulatorPage() {
           <section className="bg-white rounded-2xl border border-[#e0e8d8] overflow-hidden">
             <div className="px-5 py-4 border-b border-[#e0e8d8]">
               <h2 className="text-sm font-semibold text-[#2d4a1e]">{t('simulator.perCrop.title')}</h2>
-              <p className="text-[11px] text-[#9aab8a] mt-0.5">
+              <p className="text-[11px] text-[#66755a] mt-0.5">
                 {t('simulator.perCrop.subtitle')}
               </p>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
                 <thead>
-                  <tr className="text-[10px] text-[#9aab8a] uppercase tracking-wide border-b border-[#f0f5e8]">
+                  <tr className="text-[10px] text-[#66755a] uppercase tracking-wide border-b border-[#f0f5e8]">
                     <th className="text-left px-5 py-2.5 font-semibold">{t('simulator.columns.crop')}</th>
                     <th className="text-right px-2 py-2.5 font-semibold">{t('simulator.columns.plants')}</th>
                     <th className="text-right px-2 py-2.5 font-semibold">{t('simulator.columns.lbsPerPlant')}</th>
@@ -219,7 +219,7 @@ export default function SimulatorPage() {
                             c.pricePerLb !== base.pricePerLb ||
                             c.cyclesPerYear !== base.cyclesPerYear ||
                             c.costPerPlantYear !== base.costPerPlantYear) && (
-                            <span className="block text-[9px] font-normal text-[#9aab8a]">{t('simulator.adjusted')}</span>
+                            <span className="block text-[9px] font-normal text-[#66755a]">{t('simulator.adjusted')}</span>
                           )}
                         </td>
                       </tr>
@@ -230,7 +230,7 @@ export default function SimulatorPage() {
             </div>
           </section>
 
-          <p className="text-[11px] text-[#9aab8a] px-1">
+          <p className="text-[11px] text-[#66755a] px-1">
             {t('simulator.disclaimer')}
           </p>
         </>
@@ -253,9 +253,9 @@ function TotalTile({ icon, label, value, accent }: {
         ? 'bg-red-50 border-red-200'
         : 'bg-white border-[#e0e8d8]'
     }`}>
-      <div className="flex items-center gap-1.5 text-[#639922] mb-1.5">
+      <div className="flex items-center gap-1.5 text-[#4d7a1b] mb-1.5">
         {icon}
-        <span className="text-[10px] font-semibold text-[#7a8a6a] uppercase tracking-wide">{label}</span>
+        <span className="text-[10px] font-semibold text-[#5a6a4a] uppercase tracking-wide">{label}</span>
       </div>
       <p className={`text-lg font-bold ${accent === 'negative' ? 'text-red-700' : 'text-[#2d4a1e]'}`}>
         {value}

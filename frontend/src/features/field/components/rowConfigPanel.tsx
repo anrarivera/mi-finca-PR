@@ -88,7 +88,7 @@ export default function RowConfigPanel({ rowDraft, bbox, onConfirm, onCancel }: 
           {t('rowConfig.title')}
         </p>
         <button onClick={onCancel}
-          className="w-5 h-5 pointer-coarse:w-10 pointer-coarse:h-10 flex items-center justify-center text-[#9aab8a] hover:text-red-400 transition-colors"
+          className="w-5 h-5 pointer-coarse:w-10 pointer-coarse:h-10 flex items-center justify-center text-[#66755a] hover:text-red-400 transition-colors"
         >
           <X size={13} />
         </button>
@@ -113,7 +113,7 @@ export default function RowConfigPanel({ rowDraft, bbox, onConfirm, onCancel }: 
               onChange={e => setSpacingFt(Math.max(1, Number(e.target.value)))}
               className="w-20 px-2 py-1.5 rounded-lg border border-[#d0dcc0] text-sm text-[#2d4a1e] focus:outline-none focus:border-[#639922] transition-colors"
             />
-            <span className="text-xs text-[#9aab8a]">{t('common.feet')}</span>
+            <span className="text-xs text-[#66755a]">{t('common.feet')}</span>
           </div>
         </div>
 
@@ -126,7 +126,7 @@ export default function RowConfigPanel({ rowDraft, bbox, onConfirm, onCancel }: 
 
         <div className="flex flex-col gap-1.5">
           <label className="text-xs font-medium text-[#5a6a4a]">
-            {t('common.companionCrop')} <span className="text-[#9aab8a] font-normal">{t('common.optional')}</span>
+            {t('common.companionCrop')} <span className="text-[#66755a] font-normal">{t('common.optional')}</span>
           </label>
           <CropSelector value={companionCropId} onChange={setCompanionCropId} placeholder={t('common.noCompanion')} allowClear />
         </div>
@@ -147,7 +147,7 @@ export default function RowConfigPanel({ rowDraft, bbox, onConfirm, onCancel }: 
             <Check size={13} /> {t('rowConfig.confirm')}
           </button>
           <button onClick={onCancel}
-            className="w-full py-2 text-xs text-[#9aab8a] hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+            className="w-full py-2 text-xs text-[#66755a] hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
           >
             {t('common.cancel')}
           </button>

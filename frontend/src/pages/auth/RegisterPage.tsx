@@ -159,7 +159,7 @@ export default function RegisterPage() {
           <label htmlFor="inviteCode" className="text-xs font-medium text-[#5a6a4a]">
             {gated
               ? <>{t('register.accessLabel')} <span className="text-red-400">*</span></>
-              : <>{t('register.inviteLabel')} <span className="text-[#9aab8a] font-normal">{t('register.inviteOptional')}</span></>}
+              : <>{t('register.inviteLabel')} <span className="text-[#66755a] font-normal">{t('register.inviteOptional')}</span></>}
           </label>
           <input
             id="inviteCode"
@@ -170,7 +170,7 @@ export default function RegisterPage() {
             {...register('inviteCode')}
           />
           {gated && (
-            <p className="text-[10px] text-[#9aab8a] leading-relaxed">
+            <p className="text-[10px] text-[#66755a] leading-relaxed">
               {t('register.accessHint')}
             </p>
           )}
@@ -186,11 +186,11 @@ export default function RegisterPage() {
             />
             <span className="text-xs text-[#5a6a4a] leading-relaxed">
               {t('register.consentAcceptPrefix')}{' '}
-              <Link to="/terms" target="_blank" className="text-[#639922] font-medium hover:underline">
+              <Link to="/terms" target="_blank" className="text-[#4d7a1b] font-medium hover:underline">
                 {t('legal.termsLink', { ns: 'common' })}
               </Link>{' '}
               {t('register.consentAcceptAnd')}{' '}
-              <Link to="/privacy" target="_blank" className="text-[#639922] font-medium hover:underline">
+              <Link to="/privacy" target="_blank" className="text-[#4d7a1b] font-medium hover:underline">
                 {t('legal.privacyLink', { ns: 'common' })}
               </Link>
             </span>
@@ -212,9 +212,9 @@ export default function RegisterPage() {
           {(isSubmitting || registerAccount.isPending) ? t('register.submitting') : t('register.submit')}
         </button>
 
-        <p className="text-xs text-[#7a8a6a] text-center">
+        <p className="text-xs text-[#5a6a4a] text-center">
           {t('register.haveAccount')}{' '}
-          <Link to="/login" className="text-[#639922] font-medium hover:underline">
+          <Link to="/login" className="text-[#4d7a1b] font-medium hover:underline">
             {t('register.login')}
           </Link>
         </p>

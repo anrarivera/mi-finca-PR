@@ -28,10 +28,10 @@ export default function LivestockSection() {
     <section className="bg-white rounded-2xl border border-[#e0e8d8] overflow-hidden">
       <div className="flex items-center justify-between px-5 py-4 border-b border-[#e0e8d8]">
         <div className="flex items-center gap-2">
-          <PawPrint size={16} className="text-[#639922]" />
+          <PawPrint size={16} className="text-[#4d7a1b]" />
           <h2 className="text-sm font-semibold text-[#2d4a1e]">{t('livestock.title')}</h2>
           {units.length > 0 && (
-            <span className="text-xs text-[#9aab8a]">
+            <span className="text-xs text-[#66755a]">
               {t('livestock.total', { count: units.reduce((s, u) => s + u.currentCount, 0) })}
             </span>
           )}
@@ -49,7 +49,7 @@ export default function LivestockSection() {
       {units.length === 0 ? (
         <div className="px-5 py-8 text-center">
           <p className="text-3xl mb-2">🐔🐐🐝</p>
-          <p className="text-xs text-[#9aab8a]">
+          <p className="text-xs text-[#66755a]">
             {farms.length === 0
               ? t('livestock.emptyNoFarm')
               : t('livestock.emptyNoUnits')}

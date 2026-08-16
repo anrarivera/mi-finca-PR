@@ -94,19 +94,19 @@ export default function LoginPage() {
 
         <div className="flex items-center gap-3">
           <div className="flex-1 h-px bg-[#e0e8d8]" />
-          <span className="text-xs text-[#9aab8a]">{t('login.or')}</span>
+          <span className="text-xs text-[#66755a]">{t('login.or')}</span>
           <div className="flex-1 h-px bg-[#e0e8d8]" />
         </div>
 
-        <p className="text-xs text-[#7a8a6a] text-center">
+        <p className="text-xs text-[#5a6a4a] text-center">
           {t('login.noAccount')}{' '}
-          <Link to="/register" className="text-[#639922] font-medium hover:underline">
+          <Link to="/register" className="text-[#4d7a1b] font-medium hover:underline">
             {t('login.createAccount')}
           </Link>
         </p>
 
         <p className="text-xs text-center">
-          <Link to="/forgot-password" className="text-[#639922] hover:underline">
+          <Link to="/forgot-password" className="text-[#4d7a1b] hover:underline">
             {t('login.forgotPassword')}
           </Link>
         </p>

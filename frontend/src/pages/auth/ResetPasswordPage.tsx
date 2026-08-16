@@ -54,7 +54,7 @@ export default function ResetPasswordPage() {
             <h2 className="text-lg font-semibold text-[#d4e8b0]">
               {t('reset.title')}
             </h2>
-            <p className="text-sm text-[#8fba4e] mt-0.5">
+            <p className="text-sm text-[#4d7a1b] mt-0.5">
               {t('reset.subtitle')}
             </p>
           </div>
@@ -62,11 +62,11 @@ export default function ResetPasswordPage() {
           <div className="px-8 py-6">
             {success ? (
               <div className="text-center py-4">
-                <CheckCircle size={40} className="text-[#639922] mx-auto mb-3" />
+                <CheckCircle size={40} className="text-[#4d7a1b] mx-auto mb-3" />
                 <p className="text-sm text-[#2d4a1e] font-medium mb-2">
                   {t('reset.successTitle')}
                 </p>
-                <p className="text-sm text-[#7a8a6a]">
+                <p className="text-sm text-[#5a6a4a]">
                   {t('reset.successBody')}
                 </p>
               </div>
@@ -94,7 +94,7 @@ export default function ResetPasswordPage() {
                     <button
                       type="button"
                       onClick={() => setShowPassword(p => !p)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9aab8a]"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-[#66755a]"
                     >
                       {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
                     </button>
@@ -132,7 +132,7 @@ export default function ResetPasswordPage() {
 
           {!success && (
             <div className="px-8 pb-6 text-center">
-              <Link to="/login" className="text-sm text-[#639922] hover:text-[#2d4a1e] transition-colors">
+              <Link to="/login" className="text-sm text-[#4d7a1b] hover:text-[#2d4a1e] transition-colors">
                 {t('reset.backToLogin')}
               </Link>
             </div>

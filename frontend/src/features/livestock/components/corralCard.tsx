@@ -94,14 +94,13 @@ export default function CorralCard({
   const canManage = canManageStructure(cardFarm)
 
   return (
+    // Card body: pointer conveniences only (click select, dblclick zoom).
+    // The KEYBOARD path is the field-name button below — a role="button"
+    // card would nest interactive elements (axe: nested-interactive).
+    // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
     <div
       ref={cardRef}
-      role="button"
-      tabIndex={0}
       onClick={handleCardClick}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleCardClick() }
-      }}
       onDoubleClick={handleCardDoubleClick}
       className={`px-4 py-3 hover:bg-[#fafcf8] transition-colors cursor-pointer ${
         focused ? 'bg-[#f5f8f0] border-l-2 border-l-[#639922]' : ''
@@ -112,7 +111,13 @@ export default function CorralCard({
         <div className="w-3 h-3 rounded-full shrink-0"
           style={{ backgroundColor: CORRAL_COLOR }}
         />
-        <span className="text-sm font-medium text-[#2d4a1e] truncate">{field.name}</span>
+        <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); handleCardClick() }}
+            className="text-sm font-medium text-[#2d4a1e] truncate text-left hover:underline decoration-[#c0dd97] underline-offset-2"
+          >
+            {field.name}
+          </button>
         <span className="shrink-0 px-1.5 py-0.5 rounded-full bg-[#f0ebe2] text-[9px] font-semibold text-[#8B7355] uppercase tracking-wide">
           {t('corral.badge')}
         </span>
@@ -120,7 +125,7 @@ export default function CorralCard({
           onClick={(e) => { e.stopPropagation(); onZoomToField() }}
           onDoubleClick={(e) => e.stopPropagation()}
           title={t('corral.viewOnMap')}
-          className="shrink-0 p-1 pointer-coarse:p-2 rounded text-[#9aab8a] hover:text-[#639922] hover:bg-[#eaf3de] transition-colors"
+          className="shrink-0 p-1 pointer-coarse:p-2 rounded text-[#66755a] hover:text-[#4d7a1b] hover:bg-[#eaf3de] transition-colors"
         >
           <Locate size={12} />
         </button>
@@ -128,7 +133,7 @@ export default function CorralCard({
 
       {/* Herds assigned to this corral */}
       {herds.length === 0 ? (
-        <p className="text-[10px] text-[#9aab8a] mb-2.5">{t('corral.empty')}</p>
+        <p className="text-[10px] text-[#66755a] mb-2.5">{t('corral.empty')}</p>
       ) : (
         <div className="flex flex-col gap-1 mb-2.5">
           {herds.map(unit => (
@@ -152,20 +157,20 @@ export default function CorralCard({
         <div className="flex items-center gap-2">
           <button
             onClick={(e) => { e.stopPropagation(); onOpenEditor() }}
-            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 pointer-coarse:py-2.5 text-[10px] text-[#639922] border border-[#c8dca8] rounded-lg hover:bg-[#eaf3de] transition-colors"
+            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 pointer-coarse:py-2.5 text-[10px] text-[#4d7a1b] border border-[#c8dca8] rounded-lg hover:bg-[#eaf3de] transition-colors"
           >
             <Pencil size={10} /> {t('corral.edit')}
           </button>
           <button
             onClick={(e) => { e.stopPropagation(); setConfirmDelete(true) }}
-            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 pointer-coarse:py-2.5 text-[10px] text-[#9aab8a] border border-[#e0e8d8] rounded-lg hover:text-red-500 hover:border-red-200 hover:bg-red-50 transition-colors"
+            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 pointer-coarse:py-2.5 text-[10px] text-[#66755a] border border-[#e0e8d8] rounded-lg hover:text-red-600 hover:border-red-200 hover:bg-red-50 transition-colors"
           >
             <Trash2 size={10} /> {t('corral.delete')}
           </button>
         </div>
       ) : (
         <div className="flex flex-col gap-1.5">
-          <p className="text-[10px] text-red-500 text-center">
+          <p className="text-[10px] text-red-600 text-center">
             {t('corral.confirmDelete', { name: field.name })}
           </p>
           <div className="flex items-center gap-2">

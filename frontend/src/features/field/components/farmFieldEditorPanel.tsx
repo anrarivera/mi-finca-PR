@@ -144,7 +144,7 @@ export default function FarmFieldEditorPanel({
           <p className="text-xs font-semibold text-[#2d4a1e] uppercase tracking-wide">
             {t('panel.farmFields')}
           </p>
-          <p className="text-[10px] text-[#9aab8a] mt-0.5">
+          <p className="text-[10px] text-[#66755a] mt-0.5">
             {t('panel.fieldCount', { count: allFields.length })}
           </p>
         </div>
@@ -153,7 +153,7 @@ export default function FarmFieldEditorPanel({
           {allFields.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-40 gap-2 px-4 text-center">
               <Square size={24} className="text-[#c0d8a0]" strokeWidth={1.5} />
-              <p className="text-xs text-[#9aab8a]">
+              <p className="text-xs text-[#66755a]">
                 {t('panel.noFields')}
               </p>
             </div>
@@ -194,7 +194,7 @@ export default function FarmFieldEditorPanel({
             {selectedFieldId ? t('panel.editingField') : t('panel.newField')}
           </p>
           <button onClick={onCancelField}
-            className="text-[#9aab8a] hover:text-red-400 transition-colors"
+            className="text-[#66755a] hover:text-red-400 transition-colors"
           >
             <X size={14} />
           </button>
@@ -231,7 +231,7 @@ export default function FarmFieldEditorPanel({
                       className={`flex flex-col items-center gap-1.5 py-3 rounded-lg border text-xs font-medium transition-colors ${
                         kind === k
                           ? 'bg-[#eaf3de] border-[#639922] text-[#2d4a1e]'
-                          : 'border-[#e0e8d8] text-[#7a8a6a] hover:bg-[#f5f8f0]'
+                          : 'border-[#e0e8d8] text-[#5a6a4a] hover:bg-[#f5f8f0]'
                       }`}
                     >
                       <span className="text-lg" aria-hidden>{k === 'crops' ? '🌱' : '🐄'}</span>
@@ -250,7 +250,7 @@ export default function FarmFieldEditorPanel({
                     className={`flex flex-col items-center gap-1.5 py-3 rounded-lg border text-xs font-medium transition-colors ${
                       shape === s
                         ? 'bg-[#eaf3de] border-[#639922] text-[#2d4a1e]'
-                        : 'border-[#e0e8d8] text-[#7a8a6a] hover:bg-[#f5f8f0]'
+                        : 'border-[#e0e8d8] text-[#5a6a4a] hover:bg-[#f5f8f0]'
                     }`}
                   >
                     {s === 'rectangle'
@@ -284,7 +284,7 @@ export default function FarmFieldEditorPanel({
               </span>
             </div>
             {shape === 'polygon' && (
-              <div className="flex flex-col gap-1.5 text-xs text-[#7a8a6a] bg-[#f5f8f0] rounded-lg p-3">
+              <div className="flex flex-col gap-1.5 text-xs text-[#5a6a4a] bg-[#f5f8f0] rounded-lg p-3">
                 <p>{t('panel.polyHintAdd')}</p>
                 <p>{t('panel.polyHintClose')}</p>
                 <p>{t('panel.polyHintUndo')}</p>
@@ -299,14 +299,14 @@ export default function FarmFieldEditorPanel({
                     <Check size={13} /> {t('panel.completeShape')}
                   </button>
                   <button onClick={onUndo} disabled={pointCount === 0}
-                    className="w-full flex items-center justify-center gap-2 py-2 text-xs text-[#7a8a6a] hover:bg-[#f5f8f0] rounded-lg transition-colors disabled:opacity-40"
+                    className="w-full flex items-center justify-center gap-2 py-2 text-xs text-[#5a6a4a] hover:bg-[#f5f8f0] rounded-lg transition-colors disabled:opacity-40"
                   >
                     <RotateCcw size={13} /> {t('panel.undoLastPoint')}
                   </button>
                 </>
               )}
               <button onClick={onCancelField}
-                className="w-full flex items-center justify-center gap-2 py-2 text-xs text-[#9aab8a] hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                className="w-full flex items-center justify-center gap-2 py-2 text-xs text-[#66755a] hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
               >
                 <Trash2 size={13} /> {t('common.cancel')}
               </button>
@@ -326,7 +326,7 @@ export default function FarmFieldEditorPanel({
                   </span>
                 </div>
                 <button onClick={() => onDeletePoint(selectedPointIndex)}
-                  className="text-xs text-red-500 hover:text-red-700 font-medium"
+                  className="text-xs text-red-600 hover:text-red-700 font-medium"
                 >
                   {t('panel.delete')}
                 </button>
@@ -347,7 +347,7 @@ export default function FarmFieldEditorPanel({
                       onClick={() => onChangeSelection(
                         allSelected ? new Set() : new Set(allPlantIds)
                       )}
-                      className="text-[10px] text-[#639922] hover:text-[#2d4a1e] transition-colors"
+                      className="text-[10px] text-[#4d7a1b] hover:text-[#2d4a1e] transition-colors"
                     >
                       {allSelected ? t('panel.none') : t('panel.all')}
                     </button>
@@ -358,13 +358,13 @@ export default function FarmFieldEditorPanel({
                   <div className="flex items-center gap-2">
                     {fullRowIds.length > 0 && (
                       <button onClick={() => onEditRows(fullRowIds)}
-                        className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-[10px] text-[#639922] border border-[#c8dca8] rounded-lg hover:bg-[#eaf3de] transition-colors"
+                        className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-[10px] text-[#4d7a1b] border border-[#c8dca8] rounded-lg hover:bg-[#eaf3de] transition-colors"
                       >
                         <Pencil size={10} /> {t('panel.editCount', { count: fullRowIds.length })}
                       </button>
                     )}
                     <button onClick={() => onDeleteSelection(fullRowIds, loosePlantIds)}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-[10px] text-[#9aab8a] border border-[#e0e8d8] rounded-lg hover:text-red-500 hover:border-red-200 hover:bg-red-50 transition-colors"
+                      className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-[10px] text-[#66755a] border border-[#e0e8d8] rounded-lg hover:text-red-600 hover:border-red-200 hover:bg-red-50 transition-colors"
                     >
                       <Trash2 size={10} /> {t('panel.deleteCount', { count: selectedPlantIds.size })}
                     </button>
@@ -407,31 +407,31 @@ export default function FarmFieldEditorPanel({
                               title={t('panel.viewRowPlants')}
                             >
                               {expanded
-                                ? <ChevronDown size={11} className="text-[#9aab8a] shrink-0" />
-                                : <ChevronRight size={11} className="text-[#9aab8a] shrink-0" />}
-                              <span className="text-xs text-[#9aab8a]">#{i + 1}</span>
+                                ? <ChevronDown size={11} className="text-[#66755a] shrink-0" />
+                                : <ChevronRight size={11} className="text-[#66755a] shrink-0" />}
+                              <span className="text-xs text-[#66755a]">#{i + 1}</span>
                               <span className="text-sm">{primary?.emoji}</span>
                               {companion && (
                                 <>
-                                  <span className="text-[10px] text-[#c0d0b0]">+</span>
+                                  <span className="text-[10px] text-[#66755a]">+</span>
                                   <span className="text-sm">{companion.emoji}</span>
                                 </>
                               )}
                               <span className={`text-[10px] shrink-0 ml-auto ${
-                                some ? 'text-[#639922] font-medium' : 'text-[#9aab8a]'
+                                some ? 'text-[#4d7a1b] font-medium' : 'text-[#66755a]'
                               }`}>
                                 {selCount}/{row.plants.length}
                               </span>
                             </button>
 
                             <button onClick={() => onEditRows([row.id])}
-                              className="p-0.5 pointer-coarse:p-2 text-[#c0d0b0] hover:text-[#639922] transition-colors shrink-0"
+                              className="p-0.5 pointer-coarse:p-2 text-[#66755a] hover:text-[#4d7a1b] transition-colors shrink-0"
                               title={t('panel.editRow')}
                             >
                               <Pencil size={11} />
                             </button>
                             <button onClick={() => onDeleteRows([row.id])}
-                              className="p-0.5 pointer-coarse:p-2 text-[#c0d0b0] hover:text-red-400 transition-colors shrink-0"
+                              className="p-0.5 pointer-coarse:p-2 text-[#66755a] hover:text-red-400 transition-colors shrink-0"
                               title={t('panel.deleteRow')}
                             >
                               <X size={11} />
@@ -464,7 +464,7 @@ export default function FarmFieldEditorPanel({
                     {/* Free-standing plants */}
                     {freePlants.length > 0 && (
                       <div className="bg-white border border-[#e8f0e0] rounded-lg px-2.5 py-2">
-                        <p className="text-[10px] font-medium text-[#7a8a6a] mb-1">
+                        <p className="text-[10px] font-medium text-[#5a6a4a] mb-1">
                           {t('panel.freePlants')}
                         </p>
                         <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
@@ -508,7 +508,7 @@ export default function FarmFieldEditorPanel({
                           <div key={u.id} className="flex items-center gap-2 px-2 py-1.5 bg-[#f5f8f0] rounded-lg min-w-0">
                             <span className="text-sm shrink-0" aria-hidden>{animal?.emoji ?? '🐾'}</span>
                             <span className="text-[11px] font-medium text-[#2d4a1e] truncate flex-1 min-w-0">{u.name}</span>
-                            <span className="text-[10px] text-[#7a8a6a] shrink-0">{u.currentCount}</span>
+                            <span className="text-[10px] text-[#5a6a4a] shrink-0">{u.currentCount}</span>
                           </div>
                         )
                       })}
@@ -522,7 +522,7 @@ export default function FarmFieldEditorPanel({
                       <PawPrint size={13} /> {t('corral.addAnimals')}
                     </button>
                   ) : (
-                    <p className="text-[10px] text-[#9aab8a] leading-relaxed">
+                    <p className="text-[10px] text-[#66755a] leading-relaxed">
                       {t('corral.saveFirst')}
                     </p>
                   )}
@@ -548,7 +548,7 @@ export default function FarmFieldEditorPanel({
               {!isLivestock && (
                 <>
                   <button onClick={onStartFillRows}
-                    className="w-full flex items-center justify-center gap-2 py-2 text-xs text-[#639922] border border-[#c8dca8] rounded-lg hover:bg-[#eaf3de] transition-colors"
+                    className="w-full flex items-center justify-center gap-2 py-2 text-xs text-[#4d7a1b] border border-[#c8dca8] rounded-lg hover:bg-[#eaf3de] transition-colors"
                   >
                     <LayoutGrid size={13} /> {t('panel.fillWithRows')}
                   </button>
@@ -562,7 +562,7 @@ export default function FarmFieldEditorPanel({
                     <button
                       onClick={() => { if (freeCropPick) { onStartAddFreePlant(freeCropPick) } }}
                       disabled={!freeCropPick}
-                      className="w-full flex items-center justify-center gap-2 py-2 text-xs text-[#639922] border border-[#c8dca8] rounded-lg hover:bg-[#eaf3de] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                      className="w-full flex items-center justify-center gap-2 py-2 text-xs text-[#4d7a1b] border border-[#c8dca8] rounded-lg hover:bg-[#eaf3de] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                       <Leaf size={13} /> {t('panel.placeFreePlant')}
                     </button>
@@ -578,7 +578,7 @@ export default function FarmFieldEditorPanel({
                 <Check size={13} /> {t('panel.saveField')}
               </button>
               <button onClick={onCancelField}
-                className="w-full flex items-center justify-center gap-2 py-2 text-xs text-[#9aab8a] hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                className="w-full flex items-center justify-center gap-2 py-2 text-xs text-[#66755a] hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
               >
                 <Trash2 size={13} /> {t('common.cancel')}
               </button>

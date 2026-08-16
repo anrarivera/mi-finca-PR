@@ -50,7 +50,7 @@ export default class ErrorBoundary extends Component<Props, State> {
           {t('errorBoundary.reload')}
         </button>
         <details className="text-left max-w-lg w-full">
-          <summary className="text-xs text-[#9aab8a] cursor-pointer">
+          <summary className="text-xs text-[#66755a] cursor-pointer">
             {t('errorBoundary.details')}
           </summary>
           <pre className="mt-2 p-3 bg-white border border-[#e0e8d8] rounded-lg text-[10px] text-red-700 overflow-x-auto">

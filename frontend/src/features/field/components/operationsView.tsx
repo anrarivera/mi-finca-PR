@@ -221,7 +221,7 @@ export default function OperationsView({
       <div className="h-12 bg-[#2d4a1e] flex items-center justify-between px-4 shrink-0">
         <div className="flex items-center gap-3">
           <button onClick={onClose}
-            className="w-8 h-8 pointer-coarse:w-11 pointer-coarse:h-11 flex items-center justify-center rounded-lg text-[#8fba4e] hover:bg-white/10 transition-colors"
+            className="w-8 h-8 pointer-coarse:w-11 pointer-coarse:h-11 flex items-center justify-center rounded-lg text-[#a3c96c] hover:bg-white/10 transition-colors"
           >
             <X size={16} />
           </button>
@@ -240,8 +240,8 @@ export default function OperationsView({
           )}
           {totalPending > 0 && (
             <div className="flex items-center gap-1.5 px-2.5 py-1 bg-white/10 rounded-lg">
-              <Clock size={12} className="text-[#8fba4e]" />
-              <span className="text-xs text-[#8fba4e] font-medium">
+              <Clock size={12} className="text-[#a3c96c]" />
+              <span className="text-xs text-[#a3c96c] font-medium">
                 {t('count.pending', { count: totalPending })}
               </span>
             </div>
@@ -258,7 +258,7 @@ export default function OperationsView({
         {sortedEvents.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-64 gap-3">
             <CheckCircle2 size={40} className="text-[#c0d8a0]" strokeWidth={1.5} />
-            <p className="text-sm text-[#9aab8a] text-center">
+            <p className="text-sm text-[#66755a] text-center">
               {t('view.empty')}
             </p>
           </div>
@@ -384,22 +384,22 @@ function PlantingEventCard({
           <p className="text-sm font-semibold text-[#2d4a1e]">
             {localName(crop, event.cropTypeId)}
           </p>
-          <p className="text-[10px] text-[#9aab8a]">
+          <p className="text-[10px] text-[#66755a]">
             {t('event.plantedSummary', { count: event.plantCount, date: plantingDateFormatted })}
           </p>
         </div>
         <div className="flex items-center gap-2">
           {due.length > 0 && (
-            <span className="text-[10px] font-semibold text-red-500 bg-red-50 px-2 py-0.5 rounded-full">
+            <span className="text-[10px] font-semibold text-red-600 bg-red-50 px-2 py-0.5 rounded-full">
               {t('count.overdue', { count: due.length })}
             </span>
           )}
-          <span className="text-[10px] text-[#9aab8a]">
+          <span className="text-[10px] text-[#66755a]">
             {completed.length}/{event.operations.length}
           </span>
           {expanded
-            ? <ChevronUp size={14} className="text-[#9aab8a]" />
-            : <ChevronDown size={14} className="text-[#9aab8a]" />
+            ? <ChevronUp size={14} className="text-[#66755a]" />
+            : <ChevronDown size={14} className="text-[#66755a]" />
           }
         </div>
       </button>
@@ -487,7 +487,7 @@ function OperationRow({
       {/* Status indicator — open items complete via the "Completa" button */}
       {status === 'completed' && (
         <div className="w-7 h-7 rounded-full bg-[#eaf3de] flex items-center justify-center shrink-0">
-          <Check size={14} className="text-[#639922]" />
+          <Check size={14} className="text-[#4d7a1b]" />
         </div>
       )}
       {status === 'skipped' && (
@@ -502,14 +502,14 @@ function OperationRow({
           <span className="text-sm">{operationTypeEmoji[operation.type] ?? '📋'}</span>
           <p className={`text-xs font-medium ${
             status === 'completed' || status === 'skipped'
-              ? 'text-[#9aab8a] line-through'
+              ? 'text-[#66755a] line-through'
               : 'text-[#2d4a1e]'
           }`}>
             {localOpLabel(operation.labelEs)}
           </p>
         </div>
         <div className="flex items-center gap-2 mt-0.5">
-          <p className={`text-[10px] ${status === 'due' ? 'text-red-500 font-medium' : 'text-[#9aab8a]'}`}>
+          <p className={`text-[10px] ${status === 'due' ? 'text-red-600 font-medium' : 'text-[#66755a]'}`}>
             {status === 'due' ? t('status.overdueWarnPrefix') : ''}
             {status === 'completed' && operation.completedDate
               ? t('status.completedOn', {
@@ -520,17 +520,17 @@ function OperationRow({
             }
           </p>
           {operation.product && status === 'completed' && (
-            <p className="text-[10px] text-[#9aab8a]">· {operation.product}</p>
+            <p className="text-[10px] text-[#66755a]">· {operation.product}</p>
           )}
           {operation.quantity != null && status === 'completed' && (
-            <p className="text-[10px] text-[#9aab8a]">
+            <p className="text-[10px] text-[#66755a]">
               · {fmtNumber(operation.quantity)} {operation.unit ?? ''}
             </p>
           )}
         </div>
         {/* Accumulated partial-log progress (multi-day work) */}
         {partialSummary && (
-          <p className="text-[10px] text-[#639922] font-medium mt-0.5">
+          <p className="text-[10px] text-[#4d7a1b] font-medium mt-0.5">
             {operationTypeEmoji[operation.type] ?? '📋'} {partialSummary}
           </p>
         )}
@@ -540,7 +540,7 @@ function OperationRow({
       {isOpen && (
         <>
           <button onClick={onCheckOff}
-            className={`${smallBtn} text-[#2d4a1e] font-semibold hover:text-[#639922]`}
+            className={`${smallBtn} text-[#2d4a1e] font-semibold hover:text-[#4d7a1b]`}
             title={t('actions.completeTitle')}
           >
             {t('actions.complete')}
@@ -548,13 +548,13 @@ function OperationRow({
           {/* Partial logging works for every type: "fertilized rows 1–3
               today, the rest tomorrow" — the item stays open until done */}
           <button onClick={onPartial}
-            className={`${smallBtn} text-[#639922] hover:text-[#2d4a1e] font-medium`}
+            className={`${smallBtn} text-[#4d7a1b] hover:text-[#2d4a1e] font-medium`}
             title={t('actions.partialTitle')}
           >
             {t('actions.partial')}
           </button>
           <button onClick={onSkip}
-            className={`${smallBtn} text-[#c0d0b0] hover:text-[#9aab8a]`}
+            className={`${smallBtn} text-[#66755a] hover:text-[#66755a]`}
           >
             {t('actions.skip')}
           </button>
@@ -567,14 +567,14 @@ function OperationRow({
               before the API wiring don't have one */}
           {operation.completedOperationId && (
             <button onClick={onEdit}
-              className={`${smallBtn} text-[#7a8a6a] hover:text-[#2d4a1e]`}
+              className={`${smallBtn} text-[#5a6a4a] hover:text-[#2d4a1e]`}
               title={t('actions.editTitle')}
             >
               {t('actions.edit')}
             </button>
           )}
           <button onClick={onUndo}
-            className={`${smallBtn} text-[#c0d0b0] hover:text-red-400`}
+            className={`${smallBtn} text-[#66755a] hover:text-red-400`}
             title={t('actions.undoTitle')}
           >
             {t('actions.undo')}
@@ -584,7 +584,7 @@ function OperationRow({
 
       {status === 'skipped' && (
         <button onClick={onUndo}
-          className={`${smallBtn} text-[#c0d0b0] hover:text-[#639922]`}
+          className={`${smallBtn} text-[#66755a] hover:text-[#4d7a1b]`}
           title={t('actions.reactivateTitle')}
         >
           {t('actions.reactivate')}
@@ -717,9 +717,9 @@ export function CheckOffModal({
             <p className="text-sm font-semibold text-[#2d4a1e]">
               {copy.title}
             </p>
-            <p className="text-xs text-[#7a8a6a] mt-0.5">{localOpLabel(operation.labelEs)}</p>
+            <p className="text-xs text-[#5a6a4a] mt-0.5">{localOpLabel(operation.labelEs)}</p>
             {mode === 'partial' && (
-              <p className="text-[10px] text-[#9aab8a] mt-1">
+              <p className="text-[10px] text-[#66755a] mt-1">
                 {t('modal.partialHint')}
               </p>
             )}
@@ -746,7 +746,7 @@ export function CheckOffModal({
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-medium text-[#5a6a4a]">
                   {t('form.productUsed')}
-                  <span className="text-[#9aab8a] font-normal ml-1">{t('form.optional')}</span>
+                  <span className="text-[#66755a] font-normal ml-1">{t('form.optional')}</span>
                 </label>
                 <input
                   type="text"
@@ -763,7 +763,7 @@ export function CheckOffModal({
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-medium text-[#5a6a4a]">
                   {t('form.quantity')}
-                  <span className="text-[#9aab8a] font-normal ml-1">{t('form.optional')}</span>
+                  <span className="text-[#66755a] font-normal ml-1">{t('form.optional')}</span>
                 </label>
                 <div className="flex gap-2">
                   <input
@@ -813,7 +813,7 @@ export function CheckOffModal({
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-[#5a6a4a]">
                 {t('form.notes')}
-                <span className="text-[#9aab8a] font-normal ml-1">{t('form.optional')}</span>
+                <span className="text-[#66755a] font-normal ml-1">{t('form.optional')}</span>
               </label>
               <textarea
                 value={notes}
@@ -979,12 +979,12 @@ export function HarvestSelector({ title, targets, selected, onChange, mapToggles
       <div className="flex items-center justify-between">
         <label className="text-xs font-medium text-[#5a6a4a]">
           {title}
-          <span className="text-[#9aab8a] font-normal ml-1">{t('form.optional')}</span>
+          <span className="text-[#66755a] font-normal ml-1">{t('form.optional')}</span>
         </label>
         <button
           type="button"
           onClick={() => onChange(allSelected ? new Set() : new Set(allPlantIds))}
-          className="text-[10px] text-[#639922] hover:text-[#2d4a1e] transition-colors"
+          className="text-[10px] text-[#4d7a1b] hover:text-[#2d4a1e] transition-colors"
         >
           {allSelected ? t('selector.none') : t('selector.wholeField')}
         </button>
@@ -1017,13 +1017,13 @@ export function HarvestSelector({ title, targets, selected, onChange, mapToggles
                   className="flex-1 flex items-center gap-1.5 text-left min-w-0"
                 >
                   {expanded
-                    ? <ChevronDown size={11} className="text-[#9aab8a] shrink-0" />
-                    : <ChevronRight size={11} className="text-[#9aab8a] shrink-0" />}
+                    ? <ChevronDown size={11} className="text-[#66755a] shrink-0" />
+                    : <ChevronRight size={11} className="text-[#66755a] shrink-0" />}
                   <span className="text-xs text-[#2d4a1e] truncate">
                     {t('selector.rowLabel', { num: index + 1 })} · {crop?.emoji ?? '🌱'} {localName(crop, row.primaryCropTypeId)}
                   </span>
                   <span className={`text-[10px] shrink-0 ml-auto ${
-                    some ? 'text-[#639922] font-medium' : 'text-[#9aab8a]'
+                    some ? 'text-[#4d7a1b] font-medium' : 'text-[#66755a]'
                   }`}>
                     {selCount}/{row.plants.length}
                   </span>
@@ -1034,7 +1034,7 @@ export function HarvestSelector({ title, targets, selected, onChange, mapToggles
               {expanded && (
                 <div className="px-3 pb-2 pl-8 flex flex-col gap-1.5 bg-[#fafcf8]">
                   <div className="flex items-center gap-1.5 pt-1">
-                    <span className="text-[10px] text-[#7a8a6a]">{t('selector.firstN')}</span>
+                    <span className="text-[10px] text-[#5a6a4a]">{t('selector.firstN')}</span>
                     <input
                       type="number"
                       min={0}
@@ -1046,7 +1046,7 @@ export function HarvestSelector({ title, targets, selected, onChange, mapToggles
                       )}
                       className="w-14 px-1.5 py-0.5 rounded border border-[#d0dcc0] text-[10px] text-[#2d4a1e] focus:outline-none focus:border-[#639922]"
                     />
-                    <span className="text-[10px] text-[#7a8a6a]">
+                    <span className="text-[10px] text-[#5a6a4a]">
                       {t('selector.ofPlants', { count: row.plants.length })}
                     </span>
                   </div>
@@ -1075,7 +1075,7 @@ export function HarvestSelector({ title, targets, selected, onChange, mapToggles
         {/* Free-standing plants */}
         {targets.freePlants.length > 0 && (
           <div className="px-3 py-2">
-            <p className="text-[10px] font-medium text-[#7a8a6a] mb-1">{t('selector.freePlants')}</p>
+            <p className="text-[10px] font-medium text-[#5a6a4a] mb-1">{t('selector.freePlants')}</p>
             <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
               {targets.freePlants.map((plant, i) => {
                 const crop = getCropById(plant.cropTypeId)
@@ -1099,7 +1099,7 @@ export function HarvestSelector({ title, targets, selected, onChange, mapToggles
         )}
       </div>
 
-      <p className="text-[10px] text-[#9aab8a]">
+      <p className="text-[10px] text-[#66755a]">
         {selected.size > 0
           ? t('selector.selectedSummary', { count: selected.size, total: allPlantIds.length })
           : t('selector.hint')}

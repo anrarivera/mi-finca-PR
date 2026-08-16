@@ -55,21 +55,21 @@ export default function OperationsCalendar({ fields }: { fields: PlacedField[] }
     <section className="bg-white rounded-2xl border border-[#e0e8d8] overflow-hidden">
       <div className="flex items-center justify-between px-5 py-4 border-b border-[#e0e8d8]">
         <div className="flex items-center gap-2">
-          <CalendarDays size={16} className="text-[#639922]" />
+          <CalendarDays size={16} className="text-[#4d7a1b]" />
           <h2 className="text-sm font-semibold text-[#2d4a1e]">{t('calendar.title')}</h2>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={handleExportICS}
             title={t('calendar.exportTitle')}
-            className="flex items-center gap-1 px-2 py-1.5 text-[10px] text-[#639922] border border-[#c8dca8] rounded-lg hover:bg-[#eaf3de] transition-colors"
+            className="flex items-center gap-1 px-2 py-1.5 text-[10px] text-[#4d7a1b] border border-[#c8dca8] rounded-lg hover:bg-[#eaf3de] transition-colors"
           >
             <Download size={11} /> {t('calendar.export')}
           </button>
           <button
             onClick={() => shiftMonth(-1)}
             aria-label={t('calendar.prevMonth')}
-            className="w-7 h-7 pointer-coarse:w-10 pointer-coarse:h-10 flex items-center justify-center rounded-lg text-[#9aab8a] hover:bg-[#f0f5e8] hover:text-[#2d4a1e] transition-colors"
+            className="w-7 h-7 pointer-coarse:w-10 pointer-coarse:h-10 flex items-center justify-center rounded-lg text-[#66755a] hover:bg-[#f0f5e8] hover:text-[#2d4a1e] transition-colors"
           >
             <ChevronLeft size={15} />
           </button>
@@ -80,7 +80,7 @@ export default function OperationsCalendar({ fields }: { fields: PlacedField[] }
           <button
             onClick={() => shiftMonth(1)}
             aria-label={t('calendar.nextMonth')}
-            className="w-7 h-7 pointer-coarse:w-10 pointer-coarse:h-10 flex items-center justify-center rounded-lg text-[#9aab8a] hover:bg-[#f0f5e8] hover:text-[#2d4a1e] transition-colors"
+            className="w-7 h-7 pointer-coarse:w-10 pointer-coarse:h-10 flex items-center justify-center rounded-lg text-[#66755a] hover:bg-[#f0f5e8] hover:text-[#2d4a1e] transition-colors"
           >
             <ChevronRight size={15} />
           </button>
@@ -91,7 +91,7 @@ export default function OperationsCalendar({ fields }: { fields: PlacedField[] }
         {/* Weekday headers */}
         <div className="grid grid-cols-7 mb-1">
           {WEEKDAY_KEYS.map(d => (
-            <div key={d} className="text-center text-[10px] font-semibold text-[#9aab8a] uppercase py-1">
+            <div key={d} className="text-center text-[10px] font-semibold text-[#66755a] uppercase py-1">
               {t(`calendar.weekdays.${d}`)}
             </div>
           ))}
@@ -136,7 +136,7 @@ export default function OperationsCalendar({ fields }: { fields: PlacedField[] }
                   )
                 })()}
                 {pending.length > 0 && (
-                  <span className={`text-[9px] leading-none font-bold ${overdue ? 'text-red-500' : 'text-[#639922]'}`}>
+                  <span className={`text-[9px] leading-none font-bold ${overdue ? 'text-red-600' : 'text-[#4d7a1b]'}`}>
                     {pending.length}
                   </span>
                 )}
@@ -154,19 +154,19 @@ export default function OperationsCalendar({ fields }: { fields: PlacedField[] }
               return (
                 <div key={op.id} className="flex items-center gap-2 text-xs">
                   <span aria-hidden>{crop?.emoji ?? '🌱'}</span>
-                  <span className={done ? 'text-[#9aab8a] line-through' : 'text-[#2d4a1e] font-medium'}>
+                  <span className={done ? 'text-[#66755a] line-through' : 'text-[#2d4a1e] font-medium'}>
                     {localOpLabel(op.labelEs)}
                   </span>
-                  <span className="text-[#9aab8a]">· {fieldName}</span>
+                  <span className="text-[#66755a]">· {fieldName}</span>
                   {op.status === 'completed' ? (
-                    <CheckCircle2 size={12} className="text-[#639922] ml-auto shrink-0" />
+                    <CheckCircle2 size={12} className="text-[#4d7a1b] ml-auto shrink-0" />
                   ) : !done && (
                     <a
                       href={googleCalendarEventUrl({ op, fieldName, cropTypeId })}
                       target="_blank"
                       rel="noopener noreferrer"
                       title={t('calendar.addToGoogle')}
-                      className="ml-auto shrink-0 flex items-center gap-1 text-[10px] text-[#9aab8a] hover:text-[#639922] transition-colors"
+                      className="ml-auto shrink-0 flex items-center gap-1 text-[10px] text-[#66755a] hover:text-[#4d7a1b] transition-colors"
                     >
                       <ExternalLink size={11} /> Google
                     </a>

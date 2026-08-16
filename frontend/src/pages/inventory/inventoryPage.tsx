@@ -43,9 +43,9 @@ type SortKey = 'crop' | 'field' | 'plants' | 'planted' | 'nextOp' | 'harvest'
 type SortDir = 'asc' | 'desc'
 
 const STATUS_META: Record<InventoryStatus, { labelKey: string; classes: string }> = {
-  overdue: { labelKey: 'inventory.status.overdue', classes: 'bg-red-50 text-red-600' },
+  overdue: { labelKey: 'inventory.status.overdue', classes: 'bg-red-50 text-red-700' },
   dueSoon: { labelKey: 'inventory.status.dueSoon', classes: 'bg-amber-50 text-amber-600' },
-  ok: { labelKey: 'inventory.status.ok', classes: 'bg-[#eaf3de] text-[#639922]' },
+  ok: { labelKey: 'inventory.status.ok', classes: 'bg-[#eaf3de] text-[#3f6414]' },
   done: { labelKey: 'inventory.status.done', classes: 'bg-gray-100 text-gray-500' },
 }
 
@@ -118,7 +118,7 @@ export default function InventoryPage() {
     <div className="max-w-6xl mx-auto flex flex-col gap-6">
       <div>
         <h1 className="text-2xl font-bold text-[#2d4a1e]">{t('inventory.title')}</h1>
-        <p className="text-sm text-[#9aab8a] mt-1">
+        <p className="text-sm text-[#66755a] mt-1">
           {t('inventory.subtitle')}
         </p>
       </div>
@@ -132,7 +132,7 @@ export default function InventoryPage() {
             className={`flex items-center gap-1.5 px-4 py-2.5 text-xs border-b-2 -mb-px transition-colors ${
               tab === tabDef.id
                 ? 'text-[#2d4a1e] border-[#639922] font-semibold'
-                : 'text-[#9aab8a] border-transparent hover:text-[#5a6a4a]'
+                : 'text-[#66755a] border-transparent hover:text-[#5a6a4a]'
             }`}
           >
             {tabDef.icon} {t(tabDef.labelKey)}
@@ -164,7 +164,7 @@ export default function InventoryPage() {
           <h2 className="text-base font-semibold text-[#2d4a1e] mb-1">
             {t('inventory.empty.title')}
           </h2>
-          <p className="text-sm text-[#9aab8a] mb-4">
+          <p className="text-sm text-[#66755a] mb-4">
             {t('inventory.empty.description')}
           </p>
           <Link
@@ -188,6 +188,7 @@ export default function InventoryPage() {
           {/* ── Filters ────────────────────────────────────────────── */}
           <div className="flex flex-wrap items-center gap-2">
             <select
+              aria-label={t('inventory.filters.allFarms')}
               value={farmFilter}
               onChange={e => setFarmFilter(e.target.value)}
               className="px-3 py-2 text-xs text-[#2d4a1e] bg-white border border-[#c8dca8] rounded-lg focus:outline-none focus:border-[#639922]"
@@ -196,6 +197,7 @@ export default function InventoryPage() {
               {farms.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
             </select>
             <select
+              aria-label={t('inventory.filters.allCrops')}
               value={cropFilter}
               onChange={e => setCropFilter(e.target.value)}
               className="px-3 py-2 text-xs text-[#2d4a1e] bg-white border border-[#c8dca8] rounded-lg focus:outline-none focus:border-[#639922]"
@@ -208,6 +210,7 @@ export default function InventoryPage() {
               ))}
             </select>
             <select
+              aria-label={t('inventory.filters.allStatuses')}
               value={statusFilter}
               onChange={e => setStatusFilter(e.target.value as 'all' | InventoryStatus)}
               className="px-3 py-2 text-xs text-[#2d4a1e] bg-white border border-[#c8dca8] rounded-lg focus:outline-none focus:border-[#639922]"
@@ -218,7 +221,7 @@ export default function InventoryPage() {
               <option value="ok">{t('inventory.filters.ok')}</option>
               <option value="done">{t('inventory.filters.done')}</option>
             </select>
-            <span className="ml-auto text-[11px] text-[#9aab8a]">
+            <span className="ml-auto text-[11px] text-[#66755a]">
               {t('inventory.shownCount', { shown: rows.length, count: allRows.length })}
             </span>
           </div>
@@ -264,7 +267,7 @@ export default function InventoryPage() {
               </table>
             </div>
             {rows.length === 0 && (
-              <p className="px-5 py-8 text-center text-xs text-[#9aab8a]">
+              <p className="px-5 py-8 text-center text-xs text-[#66755a]">
                 {t('inventory.noMatch')}
               </p>
             )}
@@ -313,7 +316,7 @@ function InventoryRowView({ row, expanded, onToggle }: {
         onClick={onToggle}
         className="cursor-pointer hover:bg-[#fafcf8] transition-colors"
       >
-        <td className="pl-3 text-[#9aab8a]">
+        <td className="pl-3 text-[#66755a]">
           {expanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
         </td>
         <td className="px-3 py-3">
@@ -324,7 +327,7 @@ function InventoryRowView({ row, expanded, onToggle }: {
         </td>
         <td className="px-3 py-3 text-[#5a6a4a]">
           <span className="block truncate max-w-40">{row.farmName}</span>
-          <span className="block text-[10px] text-[#9aab8a] truncate max-w-40">{row.fieldName}</span>
+          <span className="block text-[10px] text-[#66755a] truncate max-w-40">{row.fieldName}</span>
         </td>
         <td className="px-3 py-3">
           <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-[#f5f8f0] rounded text-[10px] text-[#5a6a4a]">
@@ -335,7 +338,7 @@ function InventoryRowView({ row, expanded, onToggle }: {
         <td className="px-3 py-3 font-medium text-[#2d4a1e]">{fmtNumber(row.plantCount)}</td>
         <td className="px-3 py-3 text-[#5a6a4a]">
           {formatDateEs(row.plantingDate)}
-          <span className="block text-[10px] text-[#9aab8a]">{t('inventory.ageDays', { count: row.ageDays })}</span>
+          <span className="block text-[10px] text-[#66755a]">{t('inventory.ageDays', { count: row.ageDays })}</span>
         </td>
         <td className="px-3 py-3">
           <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold ${status.classes}`}>
@@ -346,26 +349,26 @@ function InventoryRowView({ row, expanded, onToggle }: {
           {row.nextOp ? (
             <>
               <span className="block text-[#2d4a1e] truncate max-w-44">{localOpLabel(row.nextOp.labelEs)}</span>
-              <span className={`block text-[10px] ${row.nextOp.daysFromToday < 0 ? 'text-red-500 font-semibold' : 'text-[#9aab8a]'}`}>
+              <span className={`block text-[10px] ${row.nextOp.daysFromToday < 0 ? 'text-red-600 font-semibold' : 'text-[#66755a]'}`}>
                 {row.nextOp.daysFromToday < 0 ? `${t('inventory.overduePrefix')} ` : ''}
                 {formatRelativeDays(row.nextOp.daysFromToday)}
                 {row.pendingOpsCount > 1 && ` · ${t('inventory.pendingCount', { count: row.pendingOpsCount })}`}
               </span>
             </>
           ) : (
-            <span className="text-[10px] text-[#9aab8a]">{t('inventory.noPending')}</span>
+            <span className="text-[10px] text-[#66755a]">{t('inventory.noPending')}</span>
           )}
         </td>
         <td className="px-3 py-3 text-[#5a6a4a]">
           {row.harvestWindow ? (
             <>
               {formatDateEs(row.harvestWindow.start)}
-              <span className="block text-[10px] text-[#9aab8a]">
+              <span className="block text-[10px] text-[#66755a]">
                 {t('inventory.until', { date: formatDateEs(row.harvestWindow.end) })}
               </span>
             </>
           ) : (
-            <span className="text-[10px] text-[#9aab8a]">—</span>
+            <span className="text-[10px] text-[#66755a]">—</span>
           )}
         </td>
       </tr>
@@ -389,7 +392,7 @@ function SiembraOperationsList({ operations }: {
   const { t } = useTranslation('pages')
   if (operations.length === 0) {
     return (
-      <p className="text-[11px] text-[#9aab8a]">
+      <p className="text-[11px] text-[#66755a]">
         {t('inventory.noOperations')}
       </p>
     )
@@ -405,16 +408,16 @@ function SiembraOperationsList({ operations }: {
         return (
           <div key={op.id} className="flex items-center gap-2 text-[11px]">
             {done ? (
-              <CheckCircle2 size={12} className="text-[#639922] shrink-0" />
+              <CheckCircle2 size={12} className="text-[#4d7a1b] shrink-0" />
             ) : overdue ? (
-              <AlertCircle size={12} className="text-red-500 shrink-0" />
+              <AlertCircle size={12} className="text-red-600 shrink-0" />
             ) : (
               <Clock size={12} className="text-amber-500 shrink-0" />
             )}
-            <span className={done ? 'text-[#9aab8a] line-through' : 'text-[#2d4a1e]'}>
+            <span className={done ? 'text-[#66755a] line-through' : 'text-[#2d4a1e]'}>
               {localOpLabel(op.labelEs)}
             </span>
-            <span className="text-[#9aab8a]">
+            <span className="text-[#66755a]">
               · {formatDateEs(op.date)}
               {!done && ` (${formatRelativeDays(op.daysFromToday)})`}
               {op.status === 'skipped' && ` (${t('inventory.skipped')})`}
@@ -457,11 +460,11 @@ function InventoryCardView({ row, expanded, onToggle }: {
           {t(status.labelKey)}
         </span>
         {expanded
-          ? <ChevronDown size={13} className="text-[#9aab8a] shrink-0" />
-          : <ChevronRight size={13} className="text-[#9aab8a] shrink-0" />}
+          ? <ChevronDown size={13} className="text-[#66755a] shrink-0" />
+          : <ChevronRight size={13} className="text-[#66755a] shrink-0" />}
       </div>
 
-      <p className="text-[11px] text-[#9aab8a] mt-0.5 truncate">
+      <p className="text-[11px] text-[#66755a] mt-0.5 truncate">
         {row.farmName} · {row.fieldName}
       </p>
 
@@ -477,17 +480,17 @@ function InventoryCardView({ row, expanded, onToggle }: {
         {row.nextOp ? (
           <span>
             <span className="text-[#2d4a1e]">{localOpLabel(row.nextOp.labelEs)}</span>{' '}
-            <span className={row.nextOp.daysFromToday < 0 ? 'text-red-500 font-semibold' : 'text-[#9aab8a]'}>
+            <span className={row.nextOp.daysFromToday < 0 ? 'text-red-600 font-semibold' : 'text-[#66755a]'}>
               · {row.nextOp.daysFromToday < 0 ? `${t('inventory.overduePrefix')} ` : ''}
               {formatRelativeDays(row.nextOp.daysFromToday)}
               {row.pendingOpsCount > 1 && ` · ${t('inventory.pendingCount', { count: row.pendingOpsCount })}`}
             </span>
           </span>
         ) : (
-          <span className="text-[#9aab8a]">{t('inventory.noPendingOps')}</span>
+          <span className="text-[#66755a]">{t('inventory.noPendingOps')}</span>
         )}
         {row.harvestWindow && (
-          <span className="block text-[10px] text-[#9aab8a] mt-0.5">
+          <span className="block text-[10px] text-[#66755a] mt-0.5">
             {t('inventory.harvestRange', {
               start: formatDateEs(row.harvestWindow.start),
               end: formatDateEs(row.harvestWindow.end),
@@ -514,7 +517,7 @@ function StatTile({ icon, label, value, alert }: {
   return (
     <div className="bg-white rounded-2xl border border-[#e0e8d8] px-4 py-3 flex items-center gap-3">
       <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-        alert ? 'bg-red-50 text-red-500' : 'bg-[#eaf3de] text-[#639922]'
+        alert ? 'bg-red-50 text-red-700' : 'bg-[#eaf3de] text-[#3f6414]'
       }`}>
         {icon}
       </div>
@@ -522,7 +525,7 @@ function StatTile({ icon, label, value, alert }: {
         <p className={`text-lg font-bold leading-tight ${alert ? 'text-red-600' : 'text-[#2d4a1e]'}`}>
           {value}
         </p>
-        <p className="text-[10px] text-[#9aab8a] truncate">{label}</p>
+        <p className="text-[10px] text-[#66755a] truncate">{label}</p>
       </div>
     </div>
   )

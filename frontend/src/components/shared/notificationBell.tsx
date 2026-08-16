@@ -18,9 +18,9 @@ import { getCropById } from '@/features/field/data/cropLibrary'
 // ──────────────────────────────────────────────────────────────────────────
 
 const KIND_ICON = {
-  overdue: <AlertCircle size={13} className="text-red-500 shrink-0" />,
+  overdue: <AlertCircle size={13} className="text-red-600 shrink-0" />,
   dueSoon: <Clock size={13} className="text-amber-500 shrink-0" />,
-  harvest: <Wheat size={13} className="text-[#639922] shrink-0" />,
+  harvest: <Wheat size={13} className="text-[#4d7a1b] shrink-0" />,
 } as const
 
 export default function NotificationBell() {
@@ -87,7 +87,7 @@ export default function NotificationBell() {
             {unreadCount > 0 && (
               <button
                 onClick={handleMarkAllSeen}
-                className="flex items-center gap-1 text-[11px] text-[#639922] hover:text-[#2d4a1e] transition-colors"
+                className="flex items-center gap-1 text-[11px] text-[#4d7a1b] hover:text-[#2d4a1e] transition-colors"
               >
                 <CheckCheck size={12} /> {t('notificationBell.markRead')}
               </button>
@@ -95,11 +95,11 @@ export default function NotificationBell() {
           </div>
 
           {!prefs.enabled ? (
-            <p className="px-4 py-6 text-xs text-[#9aab8a] text-center">
+            <p className="px-4 py-6 text-xs text-[#66755a] text-center">
               {t('notificationBell.disabled')}
             </p>
           ) : notifications.length === 0 ? (
-            <p className="px-4 py-6 text-xs text-[#9aab8a] text-center">
+            <p className="px-4 py-6 text-xs text-[#66755a] text-center">
               {t('notificationBell.empty')}
             </p>
           ) : (
@@ -132,9 +132,9 @@ function NotificationRow({ item, unread }: { item: FarmNotification; unread: boo
         <p className="text-xs text-[#2d4a1e] font-medium truncate">
           {crop?.emoji ? `${crop.emoji} ` : ''}{localOpLabel(item.labelEs)}
         </p>
-        <p className="text-[10px] text-[#9aab8a] mt-0.5">
+        <p className="text-[10px] text-[#66755a] mt-0.5">
           {item.fieldName} ·{' '}
-          <span className={item.daysFromToday < 0 ? 'text-red-500 font-semibold' : ''}>
+          <span className={item.daysFromToday < 0 ? 'text-red-600 font-semibold' : ''}>
             {item.daysFromToday < 0 && item.kind !== 'harvest' ? `${t('notificationBell.overduePrefix')} ` : ''}
             {formatRelativeDays(item.daysFromToday)}
           </span>

@@ -240,6 +240,8 @@ Public farm map with pins, product listings for crops and animal products, resta
 
 - **CI** (`.github/workflows/ci.yml`) — every push runs the frontend build, ESLint, and the Vitest unit suite (115 tests, heavy on the field-geometry invariants), plus a strict backend typecheck and the 104-test Jest + Supertest API suite against a throwaway Postgres service container.
 - **QA checklist** ([docs/QA-CHECKLIST.md](./docs/QA-CHECKLIST.md)) — three tiers: a 15-minute pre-deploy smoke pass, a full per-feature regression sweep, and an adversarial annex (interruption, concurrency, hostile input, scale). Bugs found get fixed and promoted to permanent checklist lines.
+- **Accessibility** — `eslint-plugin-jsx-a11y` runs as errors in the lint step (CI-enforced), and `qa/21-a11y.mjs` sweeps the key screens with axe-core (WCAG 2.1 A/AA): zero violations as of the last audit, including a computed-contrast pass over the whole text palette.
+- **Dependency auditing** — `npm audit` (high/critical, production deps) gates both CI jobs; Dependabot opens weekly update PRs.
 - **Playwright harness** ([qa/](./qa/)) — scripts that drive the *running* app through every major flow with a real browser: onboarding, boundary drawing, row fill, check-offs, findings, harvests, invite codes and role limits, two-tab concurrency, backup/restore round-trips, a phone viewport, and persona walks. See `qa/README.md` for the hard-won conventions.
 
 ---

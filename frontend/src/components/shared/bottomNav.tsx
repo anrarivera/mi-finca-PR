@@ -30,7 +30,7 @@ export default function BottomNav() {
             aria-label={label}
             aria-current={active ? 'page' : undefined}
             className={`flex-1 flex flex-col items-center gap-0.5 pt-2 pb-1.5 transition-colors ${
-              active ? 'text-[#2d4a1e]' : 'text-[#7a8a6a]'
+              active ? 'text-[#2d4a1e]' : 'text-[#5a6a4a]'
             }`}
           >
             <Icon size={20} strokeWidth={active ? 2.4 : 2} />

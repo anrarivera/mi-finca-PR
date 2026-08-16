@@ -201,7 +201,7 @@ export default function RowFillPanel({ boundary, onPreview, onConfirm, onCancel 
           {t('fill.title')}
         </p>
         <button onClick={onCancel}
-          className="w-5 h-5 pointer-coarse:w-10 pointer-coarse:h-10 flex items-center justify-center text-[#9aab8a] hover:text-red-400 transition-colors"
+          className="w-5 h-5 pointer-coarse:w-10 pointer-coarse:h-10 flex items-center justify-center text-[#66755a] hover:text-red-400 transition-colors"
         >
           <X size={13} />
         </button>
@@ -211,7 +211,7 @@ export default function RowFillPanel({ boundary, onPreview, onConfirm, onCancel 
 
         {/* Field size hint */}
         <div className="px-3 py-2 bg-[#f5f8f0] rounded-lg">
-          <p className="text-[10px] text-[#9aab8a]">
+          <p className="text-[10px] text-[#66755a]">
             {t('fill.fieldLabel')} <span className="text-[#5a6a4a] font-medium">{dims.longFt} × {dims.shortFt} ft</span>
           </p>
         </div>
@@ -229,7 +229,7 @@ export default function RowFillPanel({ boundary, onPreview, onConfirm, onCancel 
         {/* Companion crop */}
         <div className="flex flex-col gap-1.5">
           <label className="text-xs font-medium text-[#5a6a4a]">
-            {t('common.companionCrop')} <span className="text-[#9aab8a] font-normal">{t('common.optional')}</span>
+            {t('common.companionCrop')} <span className="text-[#66755a] font-normal">{t('common.optional')}</span>
           </label>
           <CropSelector value={companionCropId} onChange={setCompanionCropId} placeholder={t('common.noCompanion')} allowClear />
         </div>
@@ -247,11 +247,11 @@ export default function RowFillPanel({ boundary, onPreview, onConfirm, onCancel 
                 className={`flex flex-col items-center gap-0.5 py-2.5 rounded-lg border text-[11px] font-medium transition-colors ${
                   pattern === o.key
                     ? 'bg-[#eaf3de] border-[#639922] text-[#2d4a1e]'
-                    : 'border-[#e0e8d8] text-[#7a8a6a] hover:bg-[#f5f8f0]'
+                    : 'border-[#e0e8d8] text-[#5a6a4a] hover:bg-[#f5f8f0]'
                 }`}
               >
                 {o.label}
-                <span className="text-[9px] text-[#9aab8a] font-normal">{o.hint}</span>
+                <span className="text-[9px] text-[#66755a] font-normal">{o.hint}</span>
               </button>
             ))}
           </div>
@@ -280,11 +280,11 @@ export default function RowFillPanel({ boundary, onPreview, onConfirm, onCancel 
                 className={`flex flex-col items-center gap-0.5 py-2.5 rounded-lg border text-[11px] font-medium transition-colors ${
                   orientation === o.key
                     ? 'bg-[#eaf3de] border-[#639922] text-[#2d4a1e]'
-                    : 'border-[#e0e8d8] text-[#7a8a6a] hover:bg-[#f5f8f0]'
+                    : 'border-[#e0e8d8] text-[#5a6a4a] hover:bg-[#f5f8f0]'
                 }`}
               >
                 {o.label}
-                <span className="text-[9px] text-[#9aab8a] font-normal">{o.hint}</span>
+                <span className="text-[9px] text-[#66755a] font-normal">{o.hint}</span>
               </button>
             ))}
           </div>
@@ -293,14 +293,14 @@ export default function RowFillPanel({ boundary, onPreview, onConfirm, onCancel 
         {/* Number of rows — capped to what fits (Added by Claude) */}
         <div className="flex flex-col gap-1.5">
           <label className="text-xs font-medium text-[#5a6a4a]">
-            {t('fill.rowCount')} <span className="text-[#9aab8a] font-normal">{t('fill.maxRows', { max: maxRows })}</span>
+            {t('fill.rowCount')} <span className="text-[#66755a] font-normal">{t('fill.maxRows', { max: maxRows })}</span>
           </label>
           <div className="flex items-center gap-2">
             <input type="number" min={1} max={maxRows} value={count}
               onChange={e => setCount(Math.max(1, Math.min(maxRows, Number(e.target.value) || 1)))}
               className="w-24 px-2 py-1.5 rounded-lg border border-[#d0dcc0] text-sm text-[#2d4a1e] focus:outline-none focus:border-[#639922] transition-colors"
             />
-            <span className="text-xs text-[#9aab8a]">{t('fill.rowsUnit')}</span>
+            <span className="text-xs text-[#66755a]">{t('fill.rowsUnit')}</span>
           </div>
         </div>
 
@@ -311,7 +311,7 @@ export default function RowFillPanel({ boundary, onPreview, onConfirm, onCancel 
             className={`flex items-center justify-between px-3 py-2 rounded-lg border text-xs transition-colors ${
               maxLength
                 ? 'bg-[#eaf3de] border-[#639922] text-[#2d4a1e]'
-                : 'border-[#d0dcc0] text-[#7a8a6a] hover:bg-[#f5f8f0]'
+                : 'border-[#d0dcc0] text-[#5a6a4a] hover:bg-[#f5f8f0]'
             }`}
           >
             <span>{t('fill.maxLengthOption')}</span>
@@ -327,7 +327,7 @@ export default function RowFillPanel({ boundary, onPreview, onConfirm, onCancel 
                 onChange={e => setRowLengthFt(Math.max(1, Number(e.target.value)))}
                 className="w-24 px-2 py-1.5 rounded-lg border border-[#d0dcc0] text-sm text-[#2d4a1e] focus:outline-none focus:border-[#639922] transition-colors"
               />
-              <span className="text-xs text-[#9aab8a]">{t('fill.ftLong')}</span>
+              <span className="text-xs text-[#66755a]">{t('fill.ftLong')}</span>
             </div>
           )}
         </div>
@@ -367,7 +367,7 @@ export default function RowFillPanel({ boundary, onPreview, onConfirm, onCancel 
                   onChange={e => setMoveStepFt(Math.max(1, Number(e.target.value) || 1))}
                   className="w-14 px-1.5 py-1 rounded-lg border border-[#d0dcc0] text-xs text-[#2d4a1e] focus:outline-none focus:border-[#639922] transition-colors"
                 />
-                <span className="text-[10px] text-[#9aab8a]">{t('fill.ftPerStep')}</span>
+                <span className="text-[10px] text-[#66755a]">{t('fill.ftPerStep')}</span>
               </div>
               {/* Rotation */}
               <div className="flex items-center gap-1.5">
@@ -383,7 +383,7 @@ export default function RowFillPanel({ boundary, onPreview, onConfirm, onCancel 
                   title={t('fill.rotateRight')} className={PAD_BTN}>
                   <RotateCw size={13} />
                 </button>
-                <span className="text-[10px] text-[#9aab8a]">{t('fill.degrees')}</span>
+                <span className="text-[10px] text-[#66755a]">{t('fill.degrees')}</span>
               </div>
             </div>
           </div>
@@ -391,13 +391,13 @@ export default function RowFillPanel({ boundary, onPreview, onConfirm, onCancel 
           {hasTransform && (
             <button
               onClick={() => { setOffsetAlongFt(0); setOffsetAcrossFt(0); setRotateDeg(0) }}
-              className="flex items-center justify-center gap-1.5 py-1.5 text-[10px] text-[#9aab8a] border border-[#e0e8d8] rounded-lg hover:text-[#2d4a1e] hover:bg-[#f5f8f0] transition-colors"
+              className="flex items-center justify-center gap-1.5 py-1.5 text-[10px] text-[#66755a] border border-[#e0e8d8] rounded-lg hover:text-[#2d4a1e] hover:bg-[#f5f8f0] transition-colors"
             >
               <Undo2 size={11} /> {t('fill.resetPosition')}
             </button>
           )}
 
-          <p className="text-[10px] text-[#9aab8a]">
+          <p className="text-[10px] text-[#66755a]">
             {t('fill.arrowsHelp')}
           </p>
         </div>
@@ -411,7 +411,7 @@ export default function RowFillPanel({ boundary, onPreview, onConfirm, onCancel 
               onChange={e => setRowSpacingFt(Math.max(1, Number(e.target.value)))}
               className="w-20 px-2 py-1.5 rounded-lg border border-[#d0dcc0] text-sm text-[#2d4a1e] focus:outline-none focus:border-[#639922] transition-colors"
             />
-            <span className="text-xs text-[#9aab8a]">{t('common.feet')}</span>
+            <span className="text-xs text-[#66755a]">{t('common.feet')}</span>
           </div>
         </div>
 
@@ -423,7 +423,7 @@ export default function RowFillPanel({ boundary, onPreview, onConfirm, onCancel 
               onChange={e => setMarginFt(Math.max(0, Number(e.target.value)))}
               className="w-20 px-2 py-1.5 rounded-lg border border-[#d0dcc0] text-sm text-[#2d4a1e] focus:outline-none focus:border-[#639922] transition-colors"
             />
-            <span className="text-xs text-[#9aab8a]">{t('fill.ftEnds')}</span>
+            <span className="text-xs text-[#66755a]">{t('fill.ftEnds')}</span>
           </div>
         </div>
 
@@ -435,7 +435,7 @@ export default function RowFillPanel({ boundary, onPreview, onConfirm, onCancel 
               onChange={e => setSpacingFt(Math.max(1, Number(e.target.value)))}
               className="w-20 px-2 py-1.5 rounded-lg border border-[#d0dcc0] text-sm text-[#2d4a1e] focus:outline-none focus:border-[#639922] transition-colors"
             />
-            <span className="text-xs text-[#9aab8a]">{t('common.feet')}</span>
+            <span className="text-xs text-[#66755a]">{t('common.feet')}</span>
           </div>
         </div>
 
@@ -458,7 +458,7 @@ export default function RowFillPanel({ boundary, onPreview, onConfirm, onCancel 
             </span>
           </div>
           {clipped && (
-            <span className="text-[10px] text-[#9aab8a]">
+            <span className="text-[10px] text-[#66755a]">
               {t('fill.dontFit', { count: count - drawnCount })}
             </span>
           )}
@@ -473,7 +473,7 @@ export default function RowFillPanel({ boundary, onPreview, onConfirm, onCancel 
           <Check size={13} /> {t('fill.create', { count: drawnCount })}
         </button>
         <button onClick={onCancel}
-          className="w-full py-2 text-xs text-[#9aab8a] hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+          className="w-full py-2 text-xs text-[#66755a] hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
         >
           {t('common.cancel')}
         </button>

@@ -84,12 +84,12 @@ export default function CropSelector({
         {allowClear && selectedCrop ? (
           <button
             onClick={(e) => { e.stopPropagation(); onChange('') }}
-            className="text-[#9aab8a] hover:text-red-400 transition-colors"
+            className="text-[#66755a] hover:text-red-400 transition-colors"
           >
             <X size={12} />
           </button>
         ) : (
-          <ChevronDown size={14} className="text-[#9aab8a] shrink-0" />
+          <ChevronDown size={14} className="text-[#66755a] shrink-0" />
         )}
       </button>
 
@@ -99,7 +99,7 @@ export default function CropSelector({
 
           {/* Search input */}
           <div className="flex items-center gap-2 px-3 py-2 border-b border-[#f0f5e8]">
-            <Search size={13} className="text-[#9aab8a] shrink-0" />
+            <Search size={13} className="text-[#66755a] shrink-0" />
             <input
               ref={inputRef}
               type="text"
@@ -113,13 +113,13 @@ export default function CropSelector({
           {/* Results */}
           <div className="max-h-52 overflow-y-auto">
             {Object.keys(grouped).length === 0 ? (
-              <div className="px-3 py-4 text-xs text-[#9aab8a] text-center">
+              <div className="px-3 py-4 text-xs text-[#66755a] text-center">
                 {t('selector.noResults')}
               </div>
             ) : (
               Object.entries(grouped).map(([category, crops]) => (
                 <div key={category}>
-                  <div className="px-3 py-1.5 text-[9px] font-semibold text-[#9aab8a] uppercase tracking-wider bg-[#fafcf8] border-b border-[#f0f5e8]">
+                  <div className="px-3 py-1.5 text-[9px] font-semibold text-[#66755a] uppercase tracking-wider bg-[#fafcf8] border-b border-[#f0f5e8]">
                     {localCategory(category)}
                   </div>
                   {crops.map(crop => (

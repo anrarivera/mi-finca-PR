@@ -94,13 +94,13 @@ export default function SettingsPage() {
     <div className="max-w-2xl mx-auto flex flex-col gap-6">
       <div>
         <h1 className="text-2xl font-bold text-[#2d4a1e]">{t('settings.title')}</h1>
-        <p className="text-sm text-[#9aab8a] mt-1">{t('settings.subtitle')}</p>
+        <p className="text-sm text-[#66755a] mt-1">{t('settings.subtitle')}</p>
       </div>
 
       {/* ── Data section ─────────────────────────────────────────── */}
       <section className="bg-white rounded-2xl border border-[#e0e8d8] overflow-hidden">
         <div className="flex items-center gap-2 px-5 py-4 border-b border-[#e0e8d8]">
-          <Database size={16} className="text-[#639922]" />
+          <Database size={16} className="text-[#4d7a1b]" />
           <h2 className="text-sm font-semibold text-[#2d4a1e]">{t('settings.data.sectionTitle')}</h2>
         </div>
 
@@ -167,13 +167,13 @@ export default function SettingsPage() {
       {/* ── About section ────────────────────────────────────────── */}
       <section className="bg-white rounded-2xl border border-[#e0e8d8] overflow-hidden">
         <div className="flex items-center gap-2 px-5 py-4 border-b border-[#e0e8d8]">
-          <Info size={16} className="text-[#639922]" />
+          <Info size={16} className="text-[#4d7a1b]" />
           <h2 className="text-sm font-semibold text-[#2d4a1e]">{t('settings.about.sectionTitle')}</h2>
         </div>
         <div className="px-5 py-4 text-xs text-[#5a6a4a] flex flex-col gap-1.5">
           <p><span className="font-semibold text-[#2d4a1e]">Mi Finca PR</span> — {t('settings.about.phase')}</p>
           <p>{t('settings.about.localData')}</p>
-          <p className="text-[#9aab8a]">
+          <p className="text-[#66755a]">
             {t('settings.about.disclaimer')}
           </p>
         </div>
@@ -191,7 +191,7 @@ function LanguageSettings() {
   return (
     <section className="bg-white rounded-2xl border border-[#e0e8d8] overflow-hidden">
       <div className="flex items-center gap-2 px-5 py-4 border-b border-[#e0e8d8]">
-        <Globe size={16} className="text-[#639922]" />
+        <Globe size={16} className="text-[#4d7a1b]" />
         <h2 className="text-sm font-semibold text-[#2d4a1e]">{t('language.sectionTitle')}</h2>
       </div>
       <SettingsRow
@@ -199,6 +199,7 @@ function LanguageSettings() {
         description={t('language.rowDescription')}
         action={
           <select
+            aria-label={t('language.sectionTitle')}
             value={i18n.language?.startsWith('en') ? 'en' : 'es'}
             onChange={e => {
               i18n.changeLanguage(e.target.value)
@@ -251,7 +252,7 @@ function AccountSettings() {
         action={
           <button
             onClick={() => { setPassword(''); setConfirming(true) }}
-            className="px-3 py-2 text-xs text-red-500 border border-red-200 rounded-lg hover:bg-red-50 transition-colors"
+            className="px-3 py-2 text-xs text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition-colors"
           >
             {t('account.deleteButton')}
           </button>
@@ -317,7 +318,7 @@ function SettingsRow({ title, description, action }: {
     <div className="flex items-center justify-between gap-4 px-5 py-4">
       <div className="min-w-0">
         <p className="text-sm font-medium text-[#2d4a1e]">{title}</p>
-        <p className="text-[11px] text-[#9aab8a] mt-0.5">{description}</p>
+        <p className="text-[11px] text-[#66755a] mt-0.5">{description}</p>
       </div>
       {action}
     </div>
@@ -343,7 +344,7 @@ function NotificationSettings() {
   return (
     <section className="bg-white rounded-2xl border border-[#e0e8d8] overflow-hidden">
       <div className="flex items-center gap-2 px-5 py-4 border-b border-[#e0e8d8]">
-        <Bell size={16} className="text-[#639922]" />
+        <Bell size={16} className="text-[#4d7a1b]" />
         <h2 className="text-sm font-semibold text-[#2d4a1e]">{t('settings.notifications.sectionTitle')}</h2>
       </div>
 
@@ -353,6 +354,7 @@ function NotificationSettings() {
           description={t('settings.notifications.inApp.description')}
           action={
             <ToggleSwitch
+              label={t('settings.notifications.inApp.title')}
               checked={prefs.enabled}
               onChange={v => update({ enabled: v })}
             />
@@ -363,6 +365,7 @@ function NotificationSettings() {
           description={t('settings.notifications.emailDigest.description')}
           action={
             <ToggleSwitch
+              label={t('settings.notifications.emailDigest.title')}
               checked={prefs.emailDigest}
               disabled={!prefs.enabled}
               onChange={v => update({ emailDigest: v })}
@@ -374,6 +377,7 @@ function NotificationSettings() {
           description={t('settings.notifications.emailFrequency.description')}
           action={
             <select
+              aria-label={t('settings.notifications.emailFrequency.title')}
               value={prefs.emailFrequency}
               disabled={!prefs.enabled || !prefs.emailDigest}
               onChange={e => update({ emailFrequency: e.target.value as 'novedades' | 'semanal' })}
@@ -389,6 +393,7 @@ function NotificationSettings() {
           description={t('settings.notifications.overdue.description')}
           action={
             <ToggleSwitch
+              label={t('settings.notifications.overdue.title')}
               checked={prefs.notifyOverdue}
               disabled={!prefs.enabled}
               onChange={v => update({ notifyOverdue: v })}
@@ -400,6 +405,7 @@ function NotificationSettings() {
           description={t('settings.notifications.dueSoon.description')}
           action={
             <ToggleSwitch
+              label={t('settings.notifications.dueSoon.title')}
               checked={prefs.notifyDueSoon}
               disabled={!prefs.enabled}
               onChange={v => update({ notifyDueSoon: v })}
@@ -411,6 +417,7 @@ function NotificationSettings() {
           description={t('settings.notifications.harvest.description')}
           action={
             <ToggleSwitch
+              label={t('settings.notifications.harvest.title')}
               checked={prefs.notifyHarvest}
               disabled={!prefs.enabled}
               onChange={v => update({ notifyHarvest: v })}
@@ -425,6 +432,7 @@ function NotificationSettings() {
               type="number"
               min={1}
               max={60}
+              aria-label={t('settings.notifications.leadDays.title')}
               value={prefs.dueSoonLeadDays}
               disabled={!prefs.enabled}
               onChange={e => {
@@ -439,22 +447,25 @@ function NotificationSettings() {
         />
       </div>
 
-      <p className="px-5 py-3 text-[10px] text-[#9aab8a] bg-[#fafcf8] border-t border-[#f0f5e8]">
+      <p className="px-5 py-3 text-[10px] text-[#66755a] bg-[#fafcf8] border-t border-[#f0f5e8]">
         {t('settings.notifications.footer')}
       </p>
     </section>
   )
 }
 
-function ToggleSwitch({ checked, onChange, disabled }: {
+function ToggleSwitch({ checked, onChange, disabled, label }: {
   checked: boolean
   onChange: (v: boolean) => void
   disabled?: boolean
+  /** Accessible name — switches have no visible text of their own. */
+  label: string
 }) {
   return (
     <button
       role="switch"
       aria-checked={checked}
+      aria-label={label}
       disabled={disabled}
       onClick={() => onChange(!checked)}
       className={`relative w-9 h-5 pointer-coarse:w-12 pointer-coarse:h-6 rounded-full transition-colors shrink-0 ${

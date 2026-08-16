@@ -57,6 +57,14 @@ export const SEVERITY_COLORS: Record<number, string> = {
   3: '#dc2626',
 }
 
+// Badge text per severity — white fails contrast on the yellow/amber
+// fills (1.6:1 / 2.2:1); dark ink passes on both, white passes on red.
+export const SEVERITY_TEXT_COLORS: Record<number, string> = {
+  1: '#422006',
+  2: '#422006',
+  3: '#ffffff',
+}
+
 export const FINDING_STATUS_LABELS: Record<FindingStatus, string> = {
   open: 'Abierto',
   treated: 'Tratado',

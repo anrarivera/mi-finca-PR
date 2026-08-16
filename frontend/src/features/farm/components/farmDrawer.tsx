@@ -132,8 +132,8 @@ export default function FarmDrawer({
         }}
       >
         {isOpen
-          ? <ChevronLeft size={14} className="text-[#639922]" />
-          : <ChevronRight size={14} className="text-[#639922]" />
+          ? <ChevronLeft size={14} className="text-[#4d7a1b]" />
+          : <ChevronRight size={14} className="text-[#4d7a1b]" />
         }
         <span
           className="text-[9px] font-semibold text-[#5a6a4a] uppercase tracking-wide"
@@ -245,12 +245,13 @@ function FarmList({
           <p className="text-xs font-semibold text-[#2d4a1e] uppercase tracking-wide">
             {t('drawer.myFarms')}
           </p>
-          <p className="text-[10px] text-[#9aab8a] mt-0.5">
+          <p className="text-[10px] text-[#66755a] mt-0.5">
             {t('drawer.farmCount', { count: farms.length })}
           </p>
         </div>
         <button onClick={onClose}
-          className="w-6 h-6 pointer-coarse:w-11 pointer-coarse:h-11 flex items-center justify-center rounded-md text-[#9aab8a] hover:bg-[#e8f0e0] transition-colors"
+          aria-label={t('common:actions.close')}
+          className="w-6 h-6 pointer-coarse:w-11 pointer-coarse:h-11 flex items-center justify-center rounded-md text-[#66755a] hover:bg-[#e8f0e0] transition-colors"
         >
           <ChevronLeft size={14} />
         </button>
@@ -261,7 +262,7 @@ function FarmList({
         {farms.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-40 gap-2 px-4 text-center">
             <MapPin size={24} className="text-[#c0d8a0]" strokeWidth={1.5} />
-            <p className="text-xs text-[#9aab8a]">
+            <p className="text-xs text-[#66755a]">
               {t('drawer.noFarmsYet')}
             </p>
           </div>
@@ -296,18 +297,18 @@ function FarmList({
                           </span>
                         </div>
                         <div className="flex items-center gap-1.5 mb-2">
-                          <MapPin size={10} className="text-[#9aab8a] shrink-0" />
-                          <span className="text-[10px] text-[#9aab8a] truncate">
+                          <MapPin size={10} className="text-[#66755a] shrink-0" />
+                          <span className="text-[10px] text-[#66755a] truncate">
                             {farm.location}
                           </span>
                         </div>
                         <div className="flex items-center gap-3">
-                          <span className="text-[10px] text-[#7a8a6a]">
+                          <span className="text-[10px] text-[#5a6a4a]">
                             <Layers size={9} className="inline mr-1" />
                             {t('drawer.fieldCount', { count: farmFields.length })}
                           </span>
                           {farm.boundary?.length > 0 && (
-                            <span className="text-[10px] text-[#7a8a6a]">
+                            <span className="text-[10px] text-[#5a6a4a]">
                               {farm.totalAreaAcres > 0 ? t('acresShort', { value: fmtNumber(farm.totalAreaAcres) }) : ''}
                             </span>
                           )}
@@ -318,7 +319,7 @@ function FarmList({
                       <div className="flex flex-col items-end gap-1 shrink-0">
                         {totalOverdue > 0 && (
                           <div className="flex items-center gap-1 px-1.5 py-0.5 bg-red-50 rounded-full">
-                            <AlertCircle size={9} className="text-red-500" />
+                            <AlertCircle size={9} className="text-red-600" />
                             <span className="text-[9px] text-red-600 font-bold">{totalOverdue}</span>
                           </div>
                         )}
@@ -328,7 +329,7 @@ function FarmList({
                             <span className="text-[9px] text-amber-600 font-bold">{totalDueSoon}</span>
                           </div>
                         )}
-                        <ChevronRight size={14} className="text-[#c0d0b0] mt-1" />
+                        <ChevronRight size={14} className="text-[#66755a] mt-1" />
                       </div>
                     </div>
                   </button>
@@ -341,7 +342,7 @@ function FarmList({
                       className={`flex items-center gap-1 px-2 py-1 pointer-coarse:px-3 pointer-coarse:py-2 rounded text-[10px] transition-colors ${
                         isFavorite
                           ? 'text-amber-500 bg-amber-50'
-                          : 'text-[#9aab8a] hover:text-amber-500 hover:bg-amber-50'
+                          : 'text-[#66755a] hover:text-amber-500 hover:bg-amber-50'
                       }`}
                       title={isFavorite ? t('drawer.favoriteTitle') : t('drawer.markFavoriteTitle')}
                     >
@@ -350,7 +351,7 @@ function FarmList({
                     </button>
                     <button
                       onClick={(e) => { e.stopPropagation(); onTeam(farm) }}
-                      className="flex items-center gap-1 px-2 py-1 pointer-coarse:px-3 pointer-coarse:py-2 rounded text-[10px] text-[#9aab8a] hover:text-[#2d4a1e] hover:bg-[#f0f5e8] transition-colors"
+                      className="flex items-center gap-1 px-2 py-1 pointer-coarse:px-3 pointer-coarse:py-2 rounded text-[10px] text-[#66755a] hover:text-[#2d4a1e] hover:bg-[#f0f5e8] transition-colors"
                       title={t('drawer.teamTitle')}
                     >
                       <Users size={10} /> {t('drawer.team')}
@@ -359,7 +360,7 @@ function FarmList({
                     {isFarmOwner(farm) && (
                     <button
                       onClick={(e) => { e.stopPropagation(); onDelete(farm) }}
-                      className="flex items-center gap-1 px-2 py-1 pointer-coarse:px-3 pointer-coarse:py-2 rounded text-[10px] text-[#9aab8a] hover:text-red-500 hover:bg-red-50 transition-colors"
+                      className="flex items-center gap-1 px-2 py-1 pointer-coarse:px-3 pointer-coarse:py-2 rounded text-[10px] text-[#66755a] hover:text-red-600 hover:bg-red-50 transition-colors"
                     >
                       <Trash2 size={10} /> {t('drawer.delete')}
                     </button>
@@ -382,7 +383,7 @@ function FarmList({
         </button>
         <button
           onClick={onJoin}
-          className="w-full py-1.5 pointer-coarse:py-2.5 text-[10px] text-[#7a8a6a] hover:text-[#2d4a1e] transition-colors"
+          className="w-full py-1.5 pointer-coarse:py-2.5 text-[10px] text-[#5a6a4a] hover:text-[#2d4a1e] transition-colors"
         >
           {t('drawer.joinPrompt')}
         </button>
@@ -447,7 +448,8 @@ function FieldList({
           <div className="flex items-center gap-2 min-w-0">
             {showBackButton && (
               <button onClick={onBack}
-                className="pointer-coarse:p-2.5 text-[#9aab8a] hover:text-[#2d4a1e] transition-colors shrink-0"
+                aria-label={t('drawer.myFarms')}
+                className="pointer-coarse:p-2.5 text-[#66755a] hover:text-[#2d4a1e] transition-colors shrink-0"
               >
                 <ChevronLeft size={16} />
               </button>
@@ -455,12 +457,12 @@ function FieldList({
             <div className="min-w-0">
               <p className="text-xs font-semibold text-[#2d4a1e] truncate">{farm.name}</p>
               <div className="flex items-center gap-2 mt-0.5">
-                <p className="text-[10px] text-[#9aab8a]">
+                <p className="text-[10px] text-[#66755a]">
                   {t('drawer.fieldCount', { count: fields.length })}
                 </p>
                 {totalOverdue > 0 && (
                   <div className="flex items-center gap-0.5 px-1.5 py-0.5 bg-red-50 rounded-full">
-                    <AlertCircle size={8} className="text-red-500" />
+                    <AlertCircle size={8} className="text-red-600" />
                     <span className="text-[9px] text-red-600 font-bold">{t('drawer.overdueBadge', { count: totalOverdue })}</span>
                   </div>
                 )}
@@ -476,12 +478,13 @@ function FieldList({
           <div className="flex items-center gap-1 shrink-0">
             <button onClick={onTeam}
               title={t('drawer.teamTitle')}
-              className="w-6 h-6 pointer-coarse:w-11 pointer-coarse:h-11 flex items-center justify-center rounded-md text-[#9aab8a] hover:bg-[#e8f0e0] transition-colors"
+              className="w-6 h-6 pointer-coarse:w-11 pointer-coarse:h-11 flex items-center justify-center rounded-md text-[#66755a] hover:bg-[#e8f0e0] transition-colors"
             >
               <Users size={13} />
             </button>
             <button onClick={onClose}
-              className="w-6 h-6 pointer-coarse:w-11 pointer-coarse:h-11 flex items-center justify-center rounded-md text-[#9aab8a] hover:bg-[#e8f0e0] transition-colors"
+              aria-label={t('common:actions.close')}
+              className="w-6 h-6 pointer-coarse:w-11 pointer-coarse:h-11 flex items-center justify-center rounded-md text-[#66755a] hover:bg-[#e8f0e0] transition-colors"
             >
               <ChevronLeft size={14} />
             </button>
@@ -494,7 +497,7 @@ function FieldList({
         {fields.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-40 gap-2 px-4 text-center">
             <Layers size={24} className="text-[#c0d8a0]" strokeWidth={1.5} />
-            <p className="text-xs text-[#9aab8a]">
+            <p className="text-xs text-[#66755a]">
               {t('drawer.noFieldsYet')}
             </p>
           </div>

@@ -78,7 +78,7 @@ export default function LivestockUnitRow({
         <p className={`font-medium text-[#2d4a1e] truncate ${dense ? 'text-[11px]' : 'text-sm'}`}>
           {unit.name}
         </p>
-        <p className={`text-[#9aab8a] truncate ${dense ? 'text-[10px]' : 'text-[11px]'}`}>
+        <p className={`text-[#66755a] truncate ${dense ? 'text-[10px]' : 'text-[11px]'}`}>
           {unit.currentCount} {animal ? (unit.currentCount === 1 ? localSingular(animal) : localName(animal).toLowerCase()) : t('livestock.animalsFallback')}
           {showFarm && farm ? ` · ${farm.name}` : ''}
           {showCorral && corral ? ` · 🏠 ${corral.name}` : ''}
@@ -89,7 +89,7 @@ export default function LivestockUnitRow({
       <button
         onClick={() => setProducing(true)}
         title={t('production.title', { name: unit.name })}
-        className={`flex items-center gap-1 font-medium text-[#639922] border border-[#c8dca8] rounded-lg hover:bg-[#eaf3de] transition-colors shrink-0 ${
+        className={`flex items-center gap-1 font-medium text-[#4d7a1b] border border-[#c8dca8] rounded-lg hover:bg-[#eaf3de] transition-colors shrink-0 ${
           dense ? 'px-1.5 py-1 pointer-coarse:px-2.5 pointer-coarse:py-2 text-[9px]' : 'px-2 py-1.5 pointer-coarse:px-3 pointer-coarse:py-2.5 text-[10px]'
         }`}
       >
@@ -98,14 +98,14 @@ export default function LivestockUnitRow({
       <button
         onClick={() => setEditing(true)}
         aria-label={t('livestock.editAria', { name: unit.name })}
-        className={`${dense ? 'w-6 h-6' : 'w-7 h-7'} pointer-coarse:w-10 pointer-coarse:h-10 flex items-center justify-center rounded-lg text-[#9aab8a] hover:text-[#2d4a1e] hover:bg-[#f0f5e8] transition-colors shrink-0`}
+        className={`${dense ? 'w-6 h-6' : 'w-7 h-7'} pointer-coarse:w-10 pointer-coarse:h-10 flex items-center justify-center rounded-lg text-[#66755a] hover:text-[#2d4a1e] hover:bg-[#f0f5e8] transition-colors shrink-0`}
       >
         <Pencil size={dense ? 11 : 13} />
       </button>
       <button
         onClick={handleDelete}
         aria-label={t('livestock.deleteAria', { name: unit.name })}
-        className={`${dense ? 'w-6 h-6' : 'w-7 h-7'} pointer-coarse:w-10 pointer-coarse:h-10 flex items-center justify-center rounded-lg text-[#9aab8a] hover:text-red-500 hover:bg-red-50 transition-colors shrink-0`}
+        className={`${dense ? 'w-6 h-6' : 'w-7 h-7'} pointer-coarse:w-10 pointer-coarse:h-10 flex items-center justify-center rounded-lg text-[#66755a] hover:text-red-600 hover:bg-red-50 transition-colors shrink-0`}
       >
         <Trash2 size={dense ? 11 : 13} />
       </button>

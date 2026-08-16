@@ -39,13 +39,13 @@ export default function CreateFarmModal({ onClose, onSubmit }: Props) {
           <div className="flex items-center justify-between px-6 py-4 border-b border-[#e0e8d8]">
             <div>
               <h2 className="text-[#2d4a1e] font-semibold text-base">{t('create.title')}</h2>
-              <p className="text-[#9aab8a] text-xs mt-0.5">
+              <p className="text-[#66755a] text-xs mt-0.5">
                 {t('create.subtitle')}
               </p>
             </div>
             <button
               onClick={onClose}
-              className="w-7 h-7 pointer-coarse:w-10 pointer-coarse:h-10 flex items-center justify-center rounded-lg text-[#9aab8a] hover:bg-[#f0f5e8] hover:text-[#2d4a1e] transition-colors"
+              className="w-7 h-7 pointer-coarse:w-10 pointer-coarse:h-10 flex items-center justify-center rounded-lg text-[#66755a] hover:bg-[#f0f5e8] hover:text-[#2d4a1e] transition-colors"
             >
               <X size={15} />
             </button>
