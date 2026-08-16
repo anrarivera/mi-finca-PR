@@ -38,21 +38,24 @@ export default function SettingsPage() {
   }
 
   async function handleImportFile(file: File) {
-    let raw: any
+    let raw: unknown
     try {
       raw = JSON.parse(await file.text())
     } catch {
       toast.error(t('settings.toasts.invalidJson'))
       return
     }
-    if (raw?.app !== 'mi-finca-pr' || !Array.isArray(raw?.farms)) {
+    // Shallow shape check for fast local feedback — the server validates
+    // fully (version, structure) before touching anything.
+    const backup = raw as { app?: unknown; farms?: unknown } | null
+    if (backup?.app !== 'mi-finca-pr' || !Array.isArray(backup.farms)) {
       toast.error(t('settings.toasts.invalidBackup'))
       return
     }
 
     const ok = await confirm({
       title: t('settings.restoreConfirm.title'),
-      message: t('settings.restoreConfirm.message', { count: raw.farms.length }),
+      message: t('settings.restoreConfirm.message', { count: backup.farms.length }),
       confirmLabel: t('settings.restoreConfirm.confirm'),
       danger: true,
     })
