@@ -83,6 +83,18 @@
       "harvestWindow": "Ventana de cosecha"
     },
     "noMatch": "Ninguna siembra coincide con los filtros.",
+    "exportCsv": "Exportar CSV",
+    "nothingToExport": "No hay siembras que exportar",
+    "exportCols": {
+      "farm": "Finca",
+      "field": "Campo",
+      "rowCount": "Hileras",
+      "ageDays": "Edad (días)",
+      "nextOpDate": "Fecha próxima operación",
+      "pendingOps": "Operaciones pendientes",
+      "harvestStart": "Inicio de cosecha",
+      "harvestEnd": "Fin de cosecha"
+    },
     "ageDays_one": "{{count}} día",
     "ageDays_other": "{{count}} días",
     "overduePrefix": "vencida",

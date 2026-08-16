@@ -83,6 +83,18 @@
       "harvestWindow": "Harvest window"
     },
     "noMatch": "No plantings match the filters.",
+    "exportCsv": "Export CSV",
+    "nothingToExport": "No plantings to export",
+    "exportCols": {
+      "farm": "Farm",
+      "field": "Field",
+      "rowCount": "Rows",
+      "ageDays": "Age (days)",
+      "nextOpDate": "Next operation date",
+      "pendingOps": "Pending operations",
+      "harvestStart": "Harvest start",
+      "harvestEnd": "Harvest end"
+    },
     "ageDays_one": "{{count}} day",
     "ageDays_other": "{{count}} days",
     "overduePrefix": "overdue",

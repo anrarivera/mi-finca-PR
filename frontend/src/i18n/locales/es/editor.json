@@ -195,7 +195,18 @@
     "notes": "Notas",
     "notesPlaceholder": "Ej. Ponedoras Rhode Island Red",
     "saveChanges": "Guardar cambios",
-    "addButton": "Añadir"
+    "addButton": "Añadir",
+    "exportCsv": "Exportar CSV",
+    "nothingToExport": "No hay animales que exportar",
+    "exportCols": {
+      "type": "Tipo",
+      "name": "Nombre",
+      "count": "Cantidad",
+      "farm": "Finca",
+      "corral": "Corral",
+      "acquired": "Fecha de adquisición",
+      "notes": "Notas"
+    }
   },
   "corral": {
     "badge": "Corral",

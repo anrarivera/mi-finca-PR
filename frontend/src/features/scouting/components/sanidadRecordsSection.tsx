@@ -72,16 +72,16 @@ export default function SanidadRecordsSection() {
           {t('records.findingCount', { count: stats.all.length })}
           {activeFarm ? ` · ${activeFarm.name}` : ''}
         </span>
-        {stats.all.length > 0 && (
-          <button
-            onClick={() => exportCsv.mutate()}
-            disabled={exportCsv.isPending}
-            title={t('records.exportTitle')}
-            className="ml-auto flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] text-[#4d7a1b] border border-[#c8dca8] rounded-lg hover:bg-[#eaf3de] transition-colors disabled:opacity-50"
-          >
-            <Download size={10} /> {t('records.exportCsv')}
-          </button>
-        )}
+        {/* Always rendered, disabled when empty — every Cuaderno tab
+            keeps its export visible, greyed without data. */}
+        <button
+          onClick={() => exportCsv.mutate()}
+          disabled={stats.all.length === 0 || exportCsv.isPending}
+          title={stats.all.length === 0 ? t('records.nothingToExport') : t('records.exportTitle')}
+          className="ml-auto flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] text-[#4d7a1b] border border-[#c8dca8] rounded-lg hover:bg-[#eaf3de] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <Download size={10} /> {t('records.exportCsv')}
+        </button>
       </div>
 
       {stats.all.length === 0 ? (

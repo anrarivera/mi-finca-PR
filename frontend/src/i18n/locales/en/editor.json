@@ -195,7 +195,18 @@
     "notes": "Notes",
     "notesPlaceholder": "E.g. Rhode Island Red layers",
     "saveChanges": "Save changes",
-    "addButton": "Add"
+    "addButton": "Add",
+    "exportCsv": "Export CSV",
+    "nothingToExport": "No animals to export",
+    "exportCols": {
+      "type": "Type",
+      "name": "Name",
+      "count": "Count",
+      "farm": "Farm",
+      "corral": "Pen",
+      "acquired": "Acquisition date",
+      "notes": "Notes"
+    }
   },
   "corral": {
     "badge": "Corral",

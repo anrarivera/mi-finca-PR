@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import {
   Package, Sprout, AlertCircle, Clock, CheckCircle2, ClipboardList,
   ChevronDown, ChevronRight, ArrowUpDown, Wheat, Rows3, TreeDeciduous,
-  CalendarDays, Bug, PawPrint,
+  CalendarDays, Bug, PawPrint, Download,
 } from 'lucide-react'
 import { useFarmStore } from '@/store/useFarmStore'
 import { useFieldStore } from '@/store/useFieldStore'
@@ -14,6 +14,7 @@ import {
   type InventoryRow, type InventoryStatus,
 } from '@/features/inventory/inventoryBuilder'
 import { dateLocale, fmtNumber, formatRelativeDays, localName, localOpLabel } from '@/i18n'
+import { downloadCsv } from '@/lib/csv'
 import OperationsLogSection from '@/features/field/components/operationsLogSection'
 import OperationsCalendar from '@/features/field/components/operationsCalendar'
 import HarvestLogSection from '@/features/field/components/harvestLogSection'
@@ -114,6 +115,34 @@ export default function InventoryPage() {
     else { setSortKey(key); setSortDir('asc') }
   }
 
+  // The grid is derived client-side (inventoryBuilder), so the CSV is
+  // built here too — every siembra, filters ignored, like the other
+  // tabs' whole-history exports.
+  function exportSiembrasCsv() {
+    downloadCsv(
+      `mi-finca-siembras-${new Date().toISOString().slice(0, 10)}.csv`,
+      [
+        t('inventory.columns.crop'), t('inventory.exportCols.farm'), t('inventory.exportCols.field'),
+        t('inventory.columns.source'), t('inventory.exportCols.rowCount'), t('inventory.columns.plants'),
+        t('inventory.columns.planted'), t('inventory.exportCols.ageDays'), t('inventory.columns.status'),
+        t('inventory.columns.nextOp'), t('inventory.exportCols.nextOpDate'), t('inventory.exportCols.pendingOps'),
+        t('inventory.exportCols.harvestStart'), t('inventory.exportCols.harvestEnd'),
+      ],
+      allRows.map(r => [
+        localName(getCropById(r.cropTypeId), r.cropTypeId),
+        r.farmName, r.fieldName,
+        t(SOURCE_META[r.source].labelKey),
+        r.rowCount, r.plantCount,
+        r.plantingDate, r.ageDays,
+        t(STATUS_META[r.status].labelKey),
+        r.nextOp ? localOpLabel(r.nextOp.labelEs) : '',
+        r.nextOp?.date ?? '',
+        r.pendingOpsCount,
+        r.harvestWindow?.start ?? '', r.harvestWindow?.end ?? '',
+      ])
+    )
+  }
+
   return (
     <div className="max-w-6xl mx-auto flex flex-col gap-6">
       <div>
@@ -158,7 +187,13 @@ export default function InventoryPage() {
       {tab === 'animales' && <LivestockSection />}
 
       {/* ── Siembras: the inventory data grid ─────────────────────── */}
+      {/* The CSV button renders in both branches (disabled when empty) —
+          all Cuaderno tabs keep their export visible, greyed without data. */}
       {tab === 'siembras' && (allRows.length === 0 ? (
+        <>
+        <div className="flex justify-end">
+          <SiembrasExportButton disabled onClick={exportSiembrasCsv} />
+        </div>
         <div className="bg-white rounded-2xl border border-[#e0e8d8] px-6 py-12 text-center">
           <p className="text-4xl mb-3">📦</p>
           <h2 className="text-base font-semibold text-[#2d4a1e] mb-1">
@@ -174,6 +209,7 @@ export default function InventoryPage() {
             {t('inventory.empty.goToMap')}
           </Link>
         </div>
+        </>
       ) : (
         <>
           {/* ── Roll-up tiles ──────────────────────────────────────── */}
@@ -224,6 +260,7 @@ export default function InventoryPage() {
             <span className="ml-auto text-[11px] text-[#66755a]">
               {t('inventory.shownCount', { shown: rows.length, count: allRows.length })}
             </span>
+            <SiembrasExportButton onClick={exportSiembrasCsv} />
           </div>
 
           {/* ── Data grid (cards below sm — a 9-column table is unusable
@@ -275,6 +312,23 @@ export default function InventoryPage() {
         </>
       ))}
     </div>
+  )
+}
+
+function SiembrasExportButton({ onClick, disabled }: {
+  onClick: () => void
+  disabled?: boolean
+}) {
+  const { t } = useTranslation('pages')
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      title={disabled ? t('inventory.nothingToExport') : t('inventory.exportCsv')}
+      className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-[#2d4a1e] border border-[#d0dcc0] rounded-lg hover:bg-[#f0f5e8] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+    >
+      <Download size={12} /> {t('inventory.exportCsv')}
+    </button>
   )
 }
 

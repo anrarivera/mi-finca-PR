@@ -86,6 +86,7 @@
     "fieldCount_other": "{{count}} fields",
     "exportTitle": "Download the complete health log (one row per observation)",
     "exportCsv": "Export CSV",
+    "nothingToExport": "No findings to export",
     "empty": "No findings recorded yet. Use the 🐛 button on the field cards on the map to note pests or diseases.",
     "recurrenceTooltip": "{{findings}} in {{fields}}",
     "timesLast": "× {{times}} · last {{date}}",

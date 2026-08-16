@@ -1,12 +1,16 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Plus, PawPrint } from 'lucide-react'
+import { Plus, PawPrint, Download } from 'lucide-react'
 import { useLivestockStore } from '@/store/useLivestockStore'
 import { useCreateLivestock } from '../hooks/useLivestockApi'
 import { useFarmStore } from '@/store/useFarmStore'
+import { useFieldStore } from '@/store/useFieldStore'
 import LivestockFormModal from './livestockFormModal'
 import LivestockUnitRow from './livestockUnitRow'
 import { toast } from '@/store/useToastStore'
+import { downloadCsv } from '@/lib/csv'
+import { getAnimalById } from '../data/animalLibrary'
+import { localName } from '@/i18n'
 
 // ──────────────────────────────────────────────────────────────────────────
 // Livestock management — rendered as a Dashboard section. Units belong to a
@@ -18,11 +22,34 @@ export default function LivestockSection() {
   const { t } = useTranslation('editor')
   const units = useLivestockStore(s => s.units)
   const farms = useFarmStore(s => s.farms)
+  const fields = useFieldStore(s => s.fields)
   const [adding, setAdding] = useState(false)
 
   // Row actions (edit/move/delete/producción) live in LivestockUnitRow —
   // the same rows the corral card in the farm drawer renders.
   const createLivestock = useCreateLivestock()
+
+  // The herd list mirrors the store, so the CSV is built client-side —
+  // same shape as the rows on screen, plus corral and notes.
+  function exportUnitsCsv() {
+    downloadCsv(
+      `mi-finca-animales-${new Date().toISOString().slice(0, 10)}.csv`,
+      [
+        t('livestock.exportCols.type'), t('livestock.exportCols.name'),
+        t('livestock.exportCols.count'), t('livestock.exportCols.farm'),
+        t('livestock.exportCols.corral'), t('livestock.exportCols.acquired'),
+        t('livestock.exportCols.notes'),
+      ],
+      units.map(u => [
+        localName(getAnimalById(u.animalType), u.animalType),
+        u.name, u.currentCount,
+        farms.find(f => f.id === u.farmId)?.name ?? '',
+        u.fieldId ? (fields.find(f => f.id === u.fieldId)?.name ?? '') : '',
+        u.acquisitionDate,
+        u.notes ?? '',
+      ])
+    )
+  }
 
   return (
     <section className="bg-white rounded-2xl border border-[#e0e8d8] overflow-hidden">
@@ -36,14 +63,24 @@ export default function LivestockSection() {
             </span>
           )}
         </div>
-        <button
-          onClick={() => setAdding(true)}
-          disabled={farms.length === 0}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-[#2d4a1e] text-[#d4e8b0] rounded-lg hover:bg-[#3d6128] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-          title={farms.length === 0 ? t('livestock.createFarmFirst') : undefined}
-        >
-          <Plus size={12} /> {t('livestock.add')}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={exportUnitsCsv}
+            disabled={units.length === 0}
+            title={units.length === 0 ? t('livestock.nothingToExport') : t('livestock.exportCsv')}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-[#2d4a1e] border border-[#d0dcc0] rounded-lg hover:bg-[#f0f5e8] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <Download size={12} /> {t('livestock.exportCsv')}
+          </button>
+          <button
+            onClick={() => setAdding(true)}
+            disabled={farms.length === 0}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-[#2d4a1e] text-[#d4e8b0] rounded-lg hover:bg-[#3d6128] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            title={farms.length === 0 ? t('livestock.createFarmFirst') : undefined}
+          >
+            <Plus size={12} /> {t('livestock.add')}
+          </button>
+        </div>
       </div>
 
       {units.length === 0 ? (
