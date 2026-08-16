@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next'
-import { ArrowUpDown } from 'lucide-react'
+import { ArrowUpDown, ChevronDown, ChevronRight } from 'lucide-react'
 import type { DateRange } from '@/lib/dateRange'
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -34,6 +34,27 @@ export function SortableTh({ label, active, dir, onClick }: {
         {active && <span className="text-[9px]">{dir === 'asc' ? '↑' : '↓'}</span>}
       </button>
     </th>
+  )
+}
+
+/** Section-header collapse chevron — pair with the useCollapsed hook.
+    Same open/closed chevrons the Siembras grid rows use. */
+export function CollapseToggle({ collapsed, onToggle }: {
+  collapsed: boolean
+  onToggle: () => void
+}) {
+  const { t } = useTranslation('common')
+  const label = collapsed ? t('sections.expand') : t('sections.collapse')
+  return (
+    <button
+      onClick={onToggle}
+      aria-expanded={!collapsed}
+      aria-label={label}
+      title={label}
+      className="w-7 h-7 pointer-coarse:w-10 pointer-coarse:h-10 flex items-center justify-center rounded-lg text-[#66755a] hover:text-[#2d4a1e] hover:bg-[#f0f5e8] transition-colors shrink-0"
+    >
+      {collapsed ? <ChevronRight size={15} /> : <ChevronDown size={15} />}
+    </button>
   )
 }
 

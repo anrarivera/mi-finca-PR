@@ -41,6 +41,10 @@
     "next": "Next",
     "pageOf": "Page {{page}} of {{count}}"
   },
+  "sections": {
+    "collapse": "Collapse section",
+    "expand": "Expand section"
+  },
   "relative": {
     "today": "today",
     "tomorrow": "tomorrow",

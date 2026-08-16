@@ -7,8 +7,9 @@ import {
 import { useFarmStore } from '@/store/useFarmStore'
 import { useFieldStore } from '@/store/useFieldStore'
 import { useLivestockStore } from '@/store/useLivestockStore'
-import { DateRangeSelect, filterSelectClass, Pager } from '@/components/shared/logFilters'
+import { CollapseToggle, DateRangeSelect, filterSelectClass, Pager } from '@/components/shared/logFilters'
 import { minDateFor, type DateRange } from '@/lib/dateRange'
+import { useCollapsed } from '@/hooks/useCollapsed'
 import { useConfirm } from '@/components/shared/confirmDialog'
 import { toast } from '@/store/useToastStore'
 import { dateLocale, fmtNumber } from '@/i18n'
@@ -76,6 +77,8 @@ export default function OperationsLogSection() {
   const deleteOp = useDeleteOperation()
   const { confirm, confirmDialog } = useConfirm()
   const [editing, setEditing] = useState<FarmOperation | null>(null)
+  // Collapsible body — the header (count + export) always stays visible.
+  const [collapsed, toggleCollapsed] = useCollapsed('mi-finca-collapse-labores-log')
 
   // Resolve fieldId / livestockUnitId to display names from the stores.
   const getField = useFieldStore(s => s.getField)
@@ -148,8 +151,8 @@ export default function OperationsLogSection() {
   return (
     <section className="bg-white rounded-2xl border border-[#e0e8d8] overflow-hidden">
 
-      {/* Header — count + CSV export */}
-      <div className="flex items-center gap-2 px-5 py-4 border-b border-[#e0e8d8]">
+      {/* Header — count + CSV export; always visible, body collapses */}
+      <div className={`flex items-center gap-2 px-5 py-4 ${collapsed ? '' : 'border-b border-[#e0e8d8]'}`}>
         <ClipboardList size={16} className="text-[#4d7a1b]" />
         <h2 className="text-sm font-semibold text-[#2d4a1e]">{t('log.title')}</h2>
         {total > 0 && (
@@ -170,8 +173,10 @@ export default function OperationsLogSection() {
             : <Download size={12} />}
           {t('log.exportCsv')}
         </button>
+        <CollapseToggle collapsed={collapsed} onToggle={toggleCollapsed} />
       </div>
 
+      {!collapsed && (<>
       {/* Filters — farm (when there are several), field, type, dates */}
       {total > 0 && (
         <div className="flex flex-wrap items-center gap-2 px-5 py-3 border-b border-[#f0f5e8]">
@@ -267,6 +272,7 @@ export default function OperationsLogSection() {
           <Pager page={currentPage} pageCount={pageCount} onPage={setPage} />
         </>
       )}
+      </>)}
 
       {/* Edit modal */}
       {editing && (

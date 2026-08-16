@@ -10,6 +10,8 @@ import { buildOperationsICS, googleCalendarEventUrl } from '../utils/icsExport'
 import { getCropById } from '../data/cropLibrary'
 import { todayISO } from '../types'
 import type { PlacedField } from '../types'
+import { CollapseToggle } from '@/components/shared/logFilters'
+import { useCollapsed } from '@/hooks/useCollapsed'
 
 // ──────────────────────────────────────────────────────────────────────────
 // Month-view calendar of labores across every field. Days show up to three
@@ -24,6 +26,8 @@ export default function OperationsCalendar({ fields }: { fields: PlacedField[] }
   const [year, setYear] = useState(() => Number(today.slice(0, 4)))
   const [monthIndex, setMonthIndex] = useState(() => Number(today.slice(5, 7)) - 1)
   const [selectedDay, setSelectedDay] = useState<string | null>(null)
+  // Collapsible body — the header (title + export + month nav) stays.
+  const [collapsed, toggleCollapsed] = useCollapsed('mi-finca-collapse-labores-calendar')
 
   const opsByDate = useMemo(() => collectOpsByDate(fields), [fields])
   const weeks = useMemo(() => getMonthGrid(year, monthIndex), [year, monthIndex])
@@ -53,7 +57,7 @@ export default function OperationsCalendar({ fields }: { fields: PlacedField[] }
 
   return (
     <section className="bg-white rounded-2xl border border-[#e0e8d8] overflow-hidden">
-      <div className="flex items-center justify-between px-5 py-4 border-b border-[#e0e8d8]">
+      <div className={`flex items-center justify-between px-5 py-4 ${collapsed ? '' : 'border-b border-[#e0e8d8]'}`}>
         <div className="flex items-center gap-2">
           <CalendarDays size={16} className="text-[#4d7a1b]" />
           <h2 className="text-sm font-semibold text-[#2d4a1e]">{t('calendar.title')}</h2>
@@ -66,27 +70,31 @@ export default function OperationsCalendar({ fields }: { fields: PlacedField[] }
           >
             <Download size={11} /> {t('calendar.export')}
           </button>
-          <button
-            onClick={() => shiftMonth(-1)}
-            aria-label={t('calendar.prevMonth')}
-            className="w-7 h-7 pointer-coarse:w-10 pointer-coarse:h-10 flex items-center justify-center rounded-lg text-[#66755a] hover:bg-[#f0f5e8] hover:text-[#2d4a1e] transition-colors"
-          >
-            <ChevronLeft size={15} />
-          </button>
-          <span className="text-xs font-semibold text-[#2d4a1e] w-32 text-center capitalize">
-            {new Date(Date.UTC(year, monthIndex, 1))
-              .toLocaleDateString(dateLocale(), { month: 'long', timeZone: 'UTC' })} {year}
-          </span>
-          <button
-            onClick={() => shiftMonth(1)}
-            aria-label={t('calendar.nextMonth')}
-            className="w-7 h-7 pointer-coarse:w-10 pointer-coarse:h-10 flex items-center justify-center rounded-lg text-[#66755a] hover:bg-[#f0f5e8] hover:text-[#2d4a1e] transition-colors"
-          >
-            <ChevronRight size={15} />
-          </button>
+          {!collapsed && (<>
+            <button
+              onClick={() => shiftMonth(-1)}
+              aria-label={t('calendar.prevMonth')}
+              className="w-7 h-7 pointer-coarse:w-10 pointer-coarse:h-10 flex items-center justify-center rounded-lg text-[#66755a] hover:bg-[#f0f5e8] hover:text-[#2d4a1e] transition-colors"
+            >
+              <ChevronLeft size={15} />
+            </button>
+            <span className="text-xs font-semibold text-[#2d4a1e] w-32 text-center capitalize">
+              {new Date(Date.UTC(year, monthIndex, 1))
+                .toLocaleDateString(dateLocale(), { month: 'long', timeZone: 'UTC' })} {year}
+            </span>
+            <button
+              onClick={() => shiftMonth(1)}
+              aria-label={t('calendar.nextMonth')}
+              className="w-7 h-7 pointer-coarse:w-10 pointer-coarse:h-10 flex items-center justify-center rounded-lg text-[#66755a] hover:bg-[#f0f5e8] hover:text-[#2d4a1e] transition-colors"
+            >
+              <ChevronRight size={15} />
+            </button>
+          </>)}
+          <CollapseToggle collapsed={collapsed} onToggle={toggleCollapsed} />
         </div>
       </div>
 
+      {!collapsed && (
       <div className="p-4">
         {/* Weekday headers */}
         <div className="grid grid-cols-7 mb-1">
@@ -177,6 +185,7 @@ export default function OperationsCalendar({ fields }: { fields: PlacedField[] }
           </div>
         )}
       </div>
+      )}
     </section>
   )
 }
