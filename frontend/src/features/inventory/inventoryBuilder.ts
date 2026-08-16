@@ -32,6 +32,8 @@ export type InventoryRow = {
   /** Planted in rows, as individual plants, or both. */
   source: 'rows' | 'plants' | 'mixed'
   rowCount: number
+  /** Individual (free-placed) plants — plantCount minus the row plants. */
+  freePlantCount: number
   plantCount: number
   plantingDate: string
   ageDays: number
@@ -125,6 +127,7 @@ export function buildInventoryRows(
         cropTypeId: event.cropTypeId,
         source,
         rowCount,
+        freePlantCount: freeCount,
         plantCount: event.plantCount,
         plantingDate: event.plantingDate,
         ageDays: daysBetween(event.plantingDate, todayIso),

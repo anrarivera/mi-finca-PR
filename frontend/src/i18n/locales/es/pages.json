@@ -45,9 +45,7 @@
       "done": "Completado"
     },
     "source": {
-      "rows": "Hileras",
-      "plants": "Plantas",
-      "mixed": "Mixto"
+      "rows": "Hileras"
     },
     "empty": {
       "title": "El inventario está vacío",
@@ -75,8 +73,8 @@
     "columns": {
       "crop": "Cultivo",
       "farmField": "Finca / Campo",
-      "source": "Origen",
       "plants": "Plantas",
+      "plantsRows": "Plantas / Hileras",
       "planted": "Sembrado",
       "status": "Estado",
       "nextOp": "Próxima operación",

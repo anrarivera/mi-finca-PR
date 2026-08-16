@@ -70,7 +70,6 @@
     "activeCount_one": "{{count}} active finding",
     "activeCount_other": "{{count}} active findings",
     "stripHealthy": "Healthy",
-    "stripEmpty": "Not planted",
     "emptyAll": "No findings recorded. Use the 🐛 button on the field cards on the map to note pests or diseases.",
     "emptyActive": "No active findings — the full history is in the field notebook. 🎉",
     "extentOfField": "≈{{pct}}% of the field",

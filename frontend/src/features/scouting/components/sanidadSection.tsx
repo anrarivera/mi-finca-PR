@@ -41,8 +41,10 @@ export default function SanidadSection() {
   const stats = useMemo(() => {
     const all = findings ?? []
 
-    // Traffic-light strip — one bucket per field, from the shared logic.
-    const strip = { sev3: 0, sev2: 0, sev1: 0, healthy: 0, empty: 0 }
+    // Traffic-light strip — one bucket per planted field, from the shared
+    // logic. Bare fields are skipped: nothing planted means nothing to
+    // find, so they say nothing about sanidad.
+    const strip = { sev3: 0, sev2: 0, sev1: 0, healthy: 0 }
     for (const field of fields) {
       const h = fieldHealth(
         { id: field.id, rows: field.rows ?? [], freePlants: field.freePlants ?? [] },
@@ -53,7 +55,6 @@ export default function SanidadSection() {
         else if (h.severity === 2) strip.sev2++
         else strip.sev1++
       } else if (h.status === 'healthy') strip.healthy++
-      else strip.empty++
     }
 
     // Active findings — unresolved, worst first, newest as tiebreak.
@@ -93,12 +94,11 @@ export default function SanidadSection() {
       </div>
 
       {/* Traffic-light strip — fields by health, matching the map colors */}
-      <div className="grid grid-cols-5 divide-x divide-[#f0f5e8] border-b border-[#f0f5e8]">
+      <div className="grid grid-cols-4 divide-x divide-[#f0f5e8] border-b border-[#f0f5e8]">
         <StripCell color={SEVERITY_COLORS[3]} count={stats.strip.sev3} label={t('severity.3')} />
         <StripCell color={SEVERITY_COLORS[2]} count={stats.strip.sev2} label={t('severity.2')} />
         <StripCell color={SEVERITY_COLORS[1]} count={stats.strip.sev1} label={t('severity.1')} />
         <StripCell color={FIELD_HEALTH_COLORS.healthy} count={stats.strip.healthy} label={t('dashboard.stripHealthy')} />
-        <StripCell color={FIELD_HEALTH_COLORS.empty} count={stats.strip.empty} label={t('dashboard.stripEmpty')} />
       </div>
 
       {stats.all.length === 0 ? (

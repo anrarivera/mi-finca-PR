@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
   Package, Sprout, AlertCircle, Clock, CheckCircle2, ClipboardList,
-  ChevronDown, ChevronRight, ArrowUpDown, Wheat, Rows3, TreeDeciduous,
+  ChevronDown, ChevronRight, ArrowUpDown, Wheat,
   CalendarDays, Bug, PawPrint, Download,
 } from 'lucide-react'
 import { useFarmStore } from '@/store/useFarmStore'
@@ -49,12 +49,6 @@ const STATUS_META: Record<InventoryStatus, { labelKey: string; classes: string }
   ok: { labelKey: 'inventory.status.ok', classes: 'bg-[#eaf3de] text-[#3f6414]' },
   done: { labelKey: 'inventory.status.done', classes: 'bg-gray-100 text-gray-500' },
 }
-
-const SOURCE_META = {
-  rows: { labelKey: 'inventory.source.rows', icon: <Rows3 size={11} /> },
-  plants: { labelKey: 'inventory.source.plants', icon: <TreeDeciduous size={11} /> },
-  mixed: { labelKey: 'inventory.source.mixed', icon: <Sprout size={11} /> },
-} as const
 
 function formatDateEs(iso: string): string {
   const [y, m, d] = iso.split('-').map(Number)
@@ -123,7 +117,7 @@ export default function InventoryPage() {
       `mi-finca-siembras-${new Date().toISOString().slice(0, 10)}.csv`,
       [
         t('inventory.columns.crop'), t('inventory.exportCols.farm'), t('inventory.exportCols.field'),
-        t('inventory.columns.source'), t('inventory.exportCols.rowCount'), t('inventory.columns.plants'),
+        t('inventory.columns.plants'), t('inventory.exportCols.rowCount'),
         t('inventory.columns.planted'), t('inventory.exportCols.ageDays'), t('inventory.columns.status'),
         t('inventory.columns.nextOp'), t('inventory.exportCols.nextOpDate'), t('inventory.exportCols.pendingOps'),
         t('inventory.exportCols.harvestStart'), t('inventory.exportCols.harvestEnd'),
@@ -131,8 +125,12 @@ export default function InventoryPage() {
       allRows.map(r => [
         localName(getCropById(r.cropTypeId), r.cropTypeId),
         r.farmName, r.fieldName,
-        t(SOURCE_META[r.source].labelKey),
-        r.rowCount, r.plantCount,
+        r.plantCount,
+        // Mirrors the grid: "3" (rows), "3 + 4" (rows + individual
+        // plants), empty when the siembra is individual plants only.
+        r.rowCount > 0
+          ? `${r.rowCount}${r.freePlantCount > 0 ? ` + ${r.freePlantCount}` : ''}`
+          : '',
         r.plantingDate, r.ageDays,
         t(STATUS_META[r.status].labelKey),
         r.nextOp ? localOpLabel(r.nextOp.labelEs) : '',
@@ -283,8 +281,7 @@ export default function InventoryPage() {
                     <th className="w-8" />
                     <SortableTh label={t('inventory.columns.crop')} active={sortKey === 'crop'} dir={sortDir} onClick={() => toggleSort('crop')} />
                     <SortableTh label={t('inventory.columns.farmField')} active={sortKey === 'field'} dir={sortDir} onClick={() => toggleSort('field')} />
-                    <th className="px-3 py-3 font-semibold text-[#5a6a4a]">{t('inventory.columns.source')}</th>
-                    <SortableTh label={t('inventory.columns.plants')} active={sortKey === 'plants'} dir={sortDir} onClick={() => toggleSort('plants')} />
+                    <SortableTh label={t('inventory.columns.plantsRows')} active={sortKey === 'plants'} dir={sortDir} onClick={() => toggleSort('plants')} />
                     <SortableTh label={t('inventory.columns.planted')} active={sortKey === 'planted'} dir={sortDir} onClick={() => toggleSort('planted')} />
                     <th className="px-3 py-3 font-semibold text-[#5a6a4a]">{t('inventory.columns.status')}</th>
                     <SortableTh label={t('inventory.columns.nextOp')} active={sortKey === 'nextOp'} dir={sortDir} onClick={() => toggleSort('nextOp')} />
@@ -362,7 +359,6 @@ function InventoryRowView({ row, expanded, onToggle }: {
   const { t } = useTranslation('pages')
   const crop = getCropById(row.cropTypeId)
   const status = STATUS_META[row.status]
-  const source = SOURCE_META[row.source]
 
   return (
     <>
@@ -383,13 +379,18 @@ function InventoryRowView({ row, expanded, onToggle }: {
           <span className="block truncate max-w-40">{row.farmName}</span>
           <span className="block text-[10px] text-[#66755a] truncate max-w-40">{row.fieldName}</span>
         </td>
+        {/* Plantas / Hileras — total on top; below, the breakdown when the
+            planting has rows: "Hileras (3)" or "Hileras (3) + 4" with the
+            individual plants added. Bare number for plants-only siembras. */}
         <td className="px-3 py-3">
-          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-[#f5f8f0] rounded text-[10px] text-[#5a6a4a]">
-            {source.icon} {t(source.labelKey)}
-            {row.rowCount > 0 && ` (${row.rowCount})`}
-          </span>
+          <span className="block font-medium text-[#2d4a1e]">{fmtNumber(row.plantCount)}</span>
+          {row.rowCount > 0 && (
+            <span className="block text-[10px] text-[#66755a]">
+              {t('inventory.source.rows')} ({row.rowCount})
+              {row.freePlantCount > 0 && ` + ${row.freePlantCount}`}
+            </span>
+          )}
         </td>
-        <td className="px-3 py-3 font-medium text-[#2d4a1e]">{fmtNumber(row.plantCount)}</td>
         <td className="px-3 py-3 text-[#5a6a4a]">
           {formatDateEs(row.plantingDate)}
           <span className="block text-[10px] text-[#66755a]">{t('inventory.ageDays', { count: row.ageDays })}</span>
@@ -429,7 +430,7 @@ function InventoryRowView({ row, expanded, onToggle }: {
 
       {expanded && (
         <tr>
-          <td colSpan={9} className="px-6 py-3 bg-[#fafcf8]">
+          <td colSpan={8} className="px-6 py-3 bg-[#fafcf8]">
             <SiembraOperationsList operations={row.operations} />
           </td>
         </tr>
@@ -493,7 +494,6 @@ function InventoryCardView({ row, expanded, onToggle }: {
   const { t } = useTranslation('pages')
   const crop = getCropById(row.cropTypeId)
   const status = STATUS_META[row.status]
-  const source = SOURCE_META[row.source]
 
   return (
     <div
@@ -523,10 +523,15 @@ function InventoryCardView({ row, expanded, onToggle }: {
       </p>
 
       <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-[11px] text-[#5a6a4a]">
-        <span>{source.icon} {t(source.labelKey)}{row.rowCount > 0 && ` (${row.rowCount})`}</span>
         <span className="font-medium text-[#2d4a1e]">
           {t('inventory.plantsCount', { count: row.plantCount })}
         </span>
+        {row.rowCount > 0 && (
+          <span>
+            {t('inventory.source.rows')} ({row.rowCount})
+            {row.freePlantCount > 0 && ` + ${row.freePlantCount}`}
+          </span>
+        )}
         <span>{formatDateEs(row.plantingDate)} · {t('inventory.ageDays', { count: row.ageDays })}</span>
       </div>
 

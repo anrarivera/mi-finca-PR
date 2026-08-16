@@ -45,9 +45,7 @@
       "done": "Completed"
     },
     "source": {
-      "rows": "Rows",
-      "plants": "Plants",
-      "mixed": "Mixed"
+      "rows": "Rows"
     },
     "empty": {
       "title": "The inventory is empty",
@@ -75,8 +73,8 @@
     "columns": {
       "crop": "Crop",
       "farmField": "Farm / Field",
-      "source": "Source",
       "plants": "Plants",
+      "plantsRows": "Plants / Rows",
       "planted": "Planted",
       "status": "Status",
       "nextOp": "Next operation",

@@ -70,7 +70,6 @@
     "activeCount_one": "{{count}} hallazgo activo",
     "activeCount_other": "{{count}} hallazgos activos",
     "stripHealthy": "Sanos",
-    "stripEmpty": "Sin sembrar",
     "emptyAll": "Sin hallazgos registrados. Usa el botón 🐛 en las tarjetas de campo del mapa para anotar plagas o enfermedades.",
     "emptyActive": "Sin hallazgos activos — el historial completo está en el cuaderno de campo. 🎉",
     "extentOfField": "≈{{pct}}% del campo",
