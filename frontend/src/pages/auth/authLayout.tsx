@@ -35,7 +35,7 @@ export default function AuthLayout({ title, subtitle, children }: {
       <button
         onClick={() => demoLogin.mutate()}
         disabled={demoLogin.isPending}
-        className="mt-5 text-xs text-[#5a6a4a] hover:text-[#2d4a1e] transition-colors disabled:opacity-60"
+        className="mt-5 text-xs text-[#5a6a4a] underline underline-offset-2 hover:text-[#2d4a1e] transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-wait"
       >
         {demoLogin.isPending ? t('layout.demoLoading') : t('layout.tryDemo')}
       </button>

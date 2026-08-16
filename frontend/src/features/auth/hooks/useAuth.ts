@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { api } from '@/lib/api'
 import { useAuthStore } from '@/store/useAuthStore'
+import { clearAccountData } from '@/store/farmActions'
 
 type User = {
   id: string
@@ -115,12 +116,14 @@ export function useLogout() {
     },
     onSuccess: () => {
       clearAuth()
+      clearAccountData()
       queryClient.clear()
       navigate('/login')
     },
     onError: () => {
       // Clear auth even if logout API fails
       clearAuth()
+      clearAccountData()
       queryClient.clear()
       navigate('/login')
     },
