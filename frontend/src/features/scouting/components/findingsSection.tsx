@@ -302,7 +302,7 @@ export default function FindingsSection({
       {/* "Crear labor" date dialog — spraying rarely happens today */}
       {laborFor && createPortal(
         <>
-          <div className="fixed inset-0 bg-black/40 z-[2400] backdrop-blur-sm"
+          <div aria-hidden="true" className="fixed inset-0 bg-black/40 z-[2400] backdrop-blur-sm"
             onClick={() => setLaborFor(null)} />
           <div className="fixed inset-0 z-[2410] flex items-end sm:items-center justify-center sm:p-4 pointer-events-none">
             <div className="bg-white shadow-xl w-full overflow-hidden pointer-events-auto rounded-t-2xl sm:max-w-sm sm:rounded-2xl">

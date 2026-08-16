@@ -53,6 +53,7 @@ function ConfirmDialog({ active }: { active: ActiveConfirm }) {
   return createPortal(
     <>
       <div
+        aria-hidden="true"
         className="fixed inset-0 bg-black/30 z-[2400] backdrop-blur-sm"
         onClick={() => resolve(false)}
       />

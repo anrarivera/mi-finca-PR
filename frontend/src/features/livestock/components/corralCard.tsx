@@ -96,7 +96,12 @@ export default function CorralCard({
   return (
     <div
       ref={cardRef}
+      role="button"
+      tabIndex={0}
       onClick={handleCardClick}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleCardClick() }
+      }}
       onDoubleClick={handleCardDoubleClick}
       className={`px-4 py-3 hover:bg-[#fafcf8] transition-colors cursor-pointer ${
         focused ? 'bg-[#f5f8f0] border-l-2 border-l-[#639922]' : ''
@@ -182,7 +187,7 @@ export default function CorralCard({
 
       {/* Portaled, but React portals bubble events through the REACT tree —
           fence them off so modal clicks don't select the card. */}
-      <div onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
+      <div role="presentation" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
         {addingAnimals && (
           <LivestockFormModal
             unit={null}

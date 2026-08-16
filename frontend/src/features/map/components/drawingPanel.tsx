@@ -138,6 +138,7 @@ export default function DrawingPanel({
           no", the FAB, or starting to draw). */}
       {menuOpen && (
         <div
+          aria-hidden="true"
           className="absolute inset-0 z-[999]"
           onClick={() => setMenuOpen(false)}
         />

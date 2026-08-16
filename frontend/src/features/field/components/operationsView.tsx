@@ -686,6 +686,7 @@ export function CheckOffModal({
           transparent to clicks so clicking rows/plants there toggles them
           in the selector (cancel via the button instead) */}
       <div
+        aria-hidden="true"
         className={`fixed inset-0 z-[2200] ${
           clickThrough ? 'bg-black/10 pointer-events-none'
           : showScopeSelector ? 'bg-black/10'

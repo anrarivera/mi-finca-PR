@@ -90,7 +90,7 @@ export default function ProductionModal({
 
   return createPortal(
     <>
-      <div className="fixed inset-0 z-[2200] bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div aria-hidden="true" className="fixed inset-0 z-[2200] bg-black/40 backdrop-blur-sm" onClick={onClose} />
       <div className="fixed inset-0 z-[2300] flex items-end sm:items-center justify-center sm:p-4 pointer-events-none">
         <form
           onSubmit={handleSubmit}
@@ -136,6 +136,9 @@ export default function ProductionModal({
                   value={quantity}
                   onChange={e => setQuantity(e.target.value)}
                   placeholder="0"
+                  // Initial focus inside a just-opened dialog IS correct focus
+                  // management (the rule targets page-load autofocus).
+                  // eslint-disable-next-line jsx-a11y/no-autofocus
                   autoFocus
                   className={inputClass}
                 />

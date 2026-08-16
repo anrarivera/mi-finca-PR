@@ -26,6 +26,7 @@ export default function CreateFarmModal({ onClose, onSubmit }: Props) {
     <>
       {/* Backdrop */}
       <div
+        aria-hidden="true"
         className="fixed inset-0 bg-black/30 z-[2200] backdrop-blur-sm"
         onClick={onClose}
       />

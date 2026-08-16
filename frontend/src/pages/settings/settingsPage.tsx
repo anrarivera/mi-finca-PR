@@ -260,7 +260,7 @@ function AccountSettings() {
 
       {confirming && createPortal(
         <>
-          <div className="fixed inset-0 bg-black/40 z-[2400] backdrop-blur-sm"
+          <div aria-hidden="true" className="fixed inset-0 bg-black/40 z-[2400] backdrop-blur-sm"
             onClick={() => !deleting && setConfirming(false)} />
           <div className="fixed inset-0 z-[2410] flex items-end sm:items-center justify-center sm:p-4 pointer-events-none">
             <div className="bg-white shadow-xl w-full overflow-hidden pointer-events-auto rounded-t-2xl sm:max-w-sm sm:rounded-2xl">
@@ -275,6 +275,9 @@ function AccountSettings() {
                     type="password"
                     value={password}
                     onChange={e => setPassword(e.target.value)}
+                    // Initial focus inside a just-opened dialog IS correct
+                    // focus management (the rule targets page-load autofocus).
+                    // eslint-disable-next-line jsx-a11y/no-autofocus
                     autoFocus
                     className="w-full px-3 py-2.5 rounded-lg border border-[#d0dcc0] text-sm text-[#2d4a1e] focus:outline-none focus:border-red-400 transition-colors"
                   />

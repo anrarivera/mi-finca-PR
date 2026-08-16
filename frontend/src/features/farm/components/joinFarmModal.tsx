@@ -25,7 +25,7 @@ export default function JoinFarmModal({ onClose }: { onClose: () => void }) {
 
   return createPortal(
     <>
-      <div className="fixed inset-0 z-[2200] bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div aria-hidden="true" className="fixed inset-0 z-[2200] bg-black/40 backdrop-blur-sm" onClick={onClose} />
       <div className="fixed inset-0 z-[2300] flex items-end sm:items-center justify-center sm:p-4 pointer-events-none">
         <form
           onSubmit={handleSubmit}
@@ -50,6 +50,9 @@ export default function JoinFarmModal({ onClose }: { onClose: () => void }) {
               value={code}
               onChange={e => setCode(e.target.value)}
               placeholder="7K3M-9QPX"
+              // Initial focus inside a just-opened dialog IS correct focus
+              // management (the rule targets page-load autofocus).
+              // eslint-disable-next-line jsx-a11y/no-autofocus
               autoFocus
               className="w-full px-3 py-2.5 rounded-lg border border-[#d0dcc0] text-center text-base font-mono tracking-widest uppercase text-[#2d4a1e] focus:outline-none focus:border-[#639922] transition-colors"
             />

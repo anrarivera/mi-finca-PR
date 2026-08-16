@@ -77,7 +77,7 @@ export default function TeamModal({ farm, onClose }: {
 
   return createPortal(
     <>
-      <div className="fixed inset-0 z-[2200] bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div aria-hidden="true" className="fixed inset-0 z-[2200] bg-black/40 backdrop-blur-sm" onClick={onClose} />
       <div className="fixed inset-0 z-[2300] flex items-end sm:items-center justify-center sm:p-4 pointer-events-none">
         <div className="bg-white shadow-xl overflow-hidden pointer-events-auto w-full rounded-t-2xl max-h-[85dvh] overflow-y-auto sm:max-w-md sm:rounded-2xl">
 

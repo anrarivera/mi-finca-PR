@@ -184,7 +184,12 @@ export default function FieldSummaryCard({
   return (
     <div
       ref={cardRef}
+      role="button"
+      tabIndex={0}
       onClick={handleCardClick}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleCardClick() }
+      }}
       onDoubleClick={handleCardDoubleClick}
       className={`px-4 py-3 hover:bg-[#fafcf8] transition-colors cursor-pointer ${
         focused ? 'bg-[#f5f8f0] border-l-2 border-l-[#639922]' : ''
@@ -402,7 +407,9 @@ export default function FieldSummaryCard({
           so they don't bubble into the card's select/double-click actions
           (which would select fields on the map or open the editor). */}
       <div
+        role="presentation"
         onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
         onDoubleClick={(e) => e.stopPropagation()}
       >
         {/* Full operations UI — same screen as everywhere else */}

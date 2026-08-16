@@ -65,7 +65,9 @@ export default function LivestockUnitRow({
     <div
       // Hosts include clickable cards (corral card selects its field on
       // click) — the row's own interactions must never bubble into them.
+      role="presentation"
       onClick={(e) => e.stopPropagation()}
+      onKeyDown={(e) => e.stopPropagation()}
       onDoubleClick={(e) => e.stopPropagation()}
       className={`flex items-center ${dense ? 'gap-2 px-2 py-2 bg-[#f5f8f0] rounded-lg' : 'gap-3 px-5 py-3'} min-w-0`}
     >

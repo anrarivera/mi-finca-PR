@@ -440,7 +440,12 @@ function InventoryCardView({ row, expanded, onToggle }: {
 
   return (
     <div
+      role="button"
+      tabIndex={0}
       onClick={onToggle}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggle() }
+      }}
       className="px-4 py-3 cursor-pointer hover:bg-[#fafcf8] transition-colors"
     >
       <div className="flex items-center gap-2">

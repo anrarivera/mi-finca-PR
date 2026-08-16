@@ -110,6 +110,7 @@ export default function CustomCropModal({ onClose, onCreated }: Props) {
 
   return (
     <div
+      role="presentation"
       className="fixed inset-0 z-[1300] bg-black/40 flex items-center justify-center p-4"
       onMouseDown={e => { if (e.target === e.currentTarget) onClose() }}
     >
@@ -136,6 +137,9 @@ export default function CustomCropModal({ onClose, onCreated }: Props) {
                 value={nameEs}
                 onChange={e => setNameEs(e.target.value)}
                 placeholder={t('customCrop.namePlaceholder')}
+                // Initial focus inside a just-opened dialog IS correct focus
+                // management (the rule targets page-load autofocus).
+                // eslint-disable-next-line jsx-a11y/no-autofocus
                 autoFocus
                 className="px-3 py-2 text-sm text-[#2d4a1e] border border-[#c8dca8] rounded-lg focus:outline-none focus:border-[#639922]"
               />
@@ -168,6 +172,9 @@ export default function CustomCropModal({ onClose, onCreated }: Props) {
               type="checkbox"
               checked={withRecipe}
               onChange={e => setWithRecipe(e.target.checked)}
+              // The visible text sits two levels deep (div > p) — name the
+              // control directly so screen readers announce it.
+              aria-label={t('customCrop.addRecipe')}
               className="accent-[#639922] w-4 h-4 pointer-coarse:w-5 pointer-coarse:h-5"
             />
             <div>

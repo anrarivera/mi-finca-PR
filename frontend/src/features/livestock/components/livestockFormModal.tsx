@@ -62,7 +62,7 @@ export default function LivestockFormModal({
 
   return createPortal(
     <>
-      <div className="fixed inset-0 bg-black/30 z-[2200] backdrop-blur-sm" onClick={onClose} />
+      <div aria-hidden="true" className="fixed inset-0 bg-black/30 z-[2200] backdrop-blur-sm" onClick={onClose} />
       <div className="fixed inset-0 z-[2300] flex items-end sm:items-center justify-center sm:p-4 pointer-events-none">
         <div className="bg-white shadow-xl w-full overflow-hidden max-h-[85dvh] overflow-y-auto pointer-events-auto rounded-t-2xl sm:max-w-md sm:rounded-2xl">
 

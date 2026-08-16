@@ -129,6 +129,7 @@ export default function FindingModal({
       {/* Backdrop — light and click-through over the map, like the
           check-off modal's scope-selection state */}
       <div
+        aria-hidden="true"
         className={`fixed inset-0 z-[2200] ${
           clickThrough ? 'bg-black/10 pointer-events-none' : 'bg-black/40 backdrop-blur-sm'
         }`}
