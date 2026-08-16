@@ -21,21 +21,14 @@ type AuthResponse = {
 }
 
 // ── Silent refresh on app load ────────────────────────────────────────
+// Uses api.refreshSession() (not api.post) so a missing/expired cookie
+// answers quietly — the toasting client turned every logged-out visit
+// (and the post-logout refetch) into an "Unauthorized" error alert.
 export function useInitAuth() {
-  const { setAuth } = useAuthStore()
-
   return useQuery({
     queryKey: ['auth', 'refresh'],
-    queryFn: async () => {
-      try {
-        const data = await api.post<AuthResponse>('/api/v1/auth/refresh')
-        setAuth(data.accessToken, data.user)
-        return data
-      } catch {
-        // No valid refresh token — user needs to log in
-        return null
-      }
-    },
+    // refreshSession() stores the token itself; no valid cookie → false.
+    queryFn: () => api.refreshSession(),
     retry: false,
     staleTime: Infinity,
     refetchOnWindowFocus: false,

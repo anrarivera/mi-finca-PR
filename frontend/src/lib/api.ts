@@ -110,6 +110,14 @@ class ApiClient {
     return { blob: await res.blob(), filename: match?.[1] ?? null }
   }
 
+  // Session probe for app load — same single-flight refresh the 401
+  // retry uses, minus the error toast: "you aren't logged in" is a
+  // normal answer there, not an error to alert on. Stores the new
+  // access token on success; returns whether a session exists.
+  async refreshSession(): Promise<boolean> {
+    return this.tryRefresh()
+  }
+
   private getHeaders(extra?: Record<string, string>): Record<string, string> {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
