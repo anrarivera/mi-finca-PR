@@ -3,8 +3,10 @@ import { useTranslation } from 'react-i18next'
 import { Pencil, Trash2, Locate, Plus } from 'lucide-react'
 import { useIsCoarsePointer } from '@/hooks/useViewport'
 import { useFarmStore, canManageStructure } from '@/store/useFarmStore'
+import { useFieldStore } from '@/store/useFieldStore'
 import { useLivestockStore } from '@/store/useLivestockStore'
-import { useCreateLivestock } from '../hooks/useLivestockApi'
+import { useCreateLivestock, useUpdateLivestock } from '../hooks/useLivestockApi'
+import { getAnimalById } from '../data/animalLibrary'
 import LivestockFormModal from './livestockFormModal'
 import LivestockUnitRow from './livestockUnitRow'
 import { toast } from '@/store/useToastStore'
@@ -80,18 +82,32 @@ export default function CorralCard({
     if (focused) {
       cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focused, focusNonce])
   // Añadir animales — the same herd form the Cuaderno uses, locked to
   // this farm + corral
   const [addingAnimals, setAddingAnimals] = useState(false)
   const createLivestock = useCreateLivestock()
+  const updateLivestock = useUpdateLivestock()
 
-  const herds = useLivestockStore(s => s.units)
-    .filter(u => u.fieldId === field.id)
+  const units = useLivestockStore(s => s.units)
+  const allFields = useFieldStore(s => s.fields)
+  const herds = units.filter(u => u.fieldId === field.id)
+  // Herds of this farm living elsewhere (unassigned or another corral) —
+  // assignable from right here, so a herd created in the Cuaderno never
+  // needs a round trip back there to land in this corral.
+  const assignable = units.filter(u => u.farmId === field.farmId && u.fieldId !== field.id)
 
   const cardFarm = useFarmStore(s => s.farms.find(f => f.id === field.farmId))
   const canManage = canManageStructure(cardFarm)
+
+  function assignHerd(unitId: string) {
+    const unit = assignable.find(u => u.id === unitId)
+    if (!unit) return
+    updateLivestock.mutate(
+      { id: unit.id, farmId: unit.farmId, updates: { fieldId: field.id } },
+      { onSuccess: () => toast.success(t('corral.assigned', { name: unit.name, corral: field.name })) }
+    )
+  }
 
   return (
     // Card body: pointer conveniences only (click select, dblclick zoom).
@@ -150,6 +166,32 @@ export default function CorralCard({
         >
           <Plus size={10} /> {t('corral.addAnimals')}
         </button>
+      )}
+
+      {/* Move an existing herd here — placeholder-select, resets after
+          each assignment so it reads as an action, not a value. */}
+      {canManage && assignable.length > 0 && (
+        <select
+          value=""
+          aria-label={t('corral.assignExisting')}
+          onClick={(e) => e.stopPropagation()}
+          onDoubleClick={(e) => e.stopPropagation()}
+          onChange={(e) => assignHerd(e.target.value)}
+          disabled={updateLivestock.isPending}
+          className="w-full mb-2.5 py-1.5 pointer-coarse:py-2.5 px-2 text-[10px] font-medium text-[#8B7355] bg-white border border-[#e0d8c8] rounded-lg hover:bg-[#f5efe5] transition-colors cursor-pointer disabled:opacity-50"
+        >
+          <option value="">{t('corral.assignExisting')}</option>
+          {assignable.map(u => {
+            const from = u.fieldId
+              ? (allFields.find(f => f.id === u.fieldId)?.name ?? '')
+              : t('corral.noneOption')
+            return (
+              <option key={u.id} value={u.id}>
+                {getAnimalById(u.animalType)?.emoji ?? '🐾'} {u.name} ({u.currentCount}) · {from}
+              </option>
+            )
+          })}
+        </select>
       )}
 
       {/* Actions — same styles as FieldSummaryCard's action row */}

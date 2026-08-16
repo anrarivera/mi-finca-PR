@@ -222,6 +222,8 @@
     "select": "Corral",
     "noneOption": "No corral",
     "addAnimals": "Add animals",
+    "assignExisting": "Assign existing animals…",
+    "assigned": "\"{{name}}\" assigned to {{corral}}",
     "saveFirst": "Save the corral first to add animals."
   },
   "production": {
