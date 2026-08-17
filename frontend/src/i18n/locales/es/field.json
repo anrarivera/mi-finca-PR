@@ -109,7 +109,21 @@
     "allFarms": "Todas las fincas",
     "allProducts": "Todos los productos",
     "allOrigins": "Todos los orígenes",
-    "noMatch": "Ningún registro coincide con los filtros."
+    "noMatch": "Ningún registro coincide con los filtros.",
+    "kindCrop": "Cultivo",
+    "kindAnimal": "Animal",
+    "exportCols": {
+      "date": "Fecha",
+      "kind": "Tipo",
+      "product": "Producto",
+      "farm": "Finca",
+      "field": "Campo",
+      "livestockUnit": "Animales",
+      "quantity": "Cantidad",
+      "unit": "Unidad",
+      "revenue": "Ingresos ($)",
+      "notes": "Notas"
+    }
   },
   "selector": {
     "harvestTitle": "¿Qué cosechaste?",
@@ -161,7 +175,22 @@
     "allFields": "Todos los campos",
     "allTypes": "Todas las labores",
     "shownCount": "Mostrando {{shown}} de {{count}}",
-    "noMatch": "Ninguna operación coincide con los filtros."
+    "noMatch": "Ninguna operación coincide con los filtros.",
+    "exportCols": {
+      "date": "Fecha",
+      "type": "Labor",
+      "farm": "Finca",
+      "field": "Campo",
+      "livestockUnit": "Animales",
+      "performedBy": "Realizada por",
+      "product": "Producto",
+      "quantity": "Cantidad",
+      "unit": "Unidad",
+      "qualityRating": "Calidad",
+      "rowsCovered": "Hileras cubiertas",
+      "plantsCovered": "Plantas cubiertas",
+      "notes": "Notas"
+    }
   },
   "opType": {
     "planting": "Siembra",

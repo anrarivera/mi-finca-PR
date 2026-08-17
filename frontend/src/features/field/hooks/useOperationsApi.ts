@@ -1,7 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { useFieldStore } from '@/store/useFieldStore'
-import { toast } from '@/store/useToastStore'
 
 // ──────────────────────────────────────────────────────────────────────────
 // Operations API hooks — the persistence layer for the check-off flow
@@ -383,21 +382,5 @@ export function useDeleteOperation() {
   })
 }
 
-// ── CSV export ────────────────────────────────────────────────────────
-// The export endpoint streams a file — api.download() carries the auth
-// header and the same silent token refresh as every JSON call.
-export function useExportOperations(farmId: string) {
-  return useMutation({
-    mutationFn: async () => {
-      const { api } = await import('@/lib/api')
-      const { blob, filename } =
-        await api.download(`/api/v1/farms/${farmId}/operations/export?format=csv`)
-      const a = document.createElement('a')
-      a.href = URL.createObjectURL(blob)
-      a.download = filename ?? 'operaciones.csv'
-      a.click()
-      URL.revokeObjectURL(a.href)
-    },
-    onError: () => toast.error('No se pudo exportar el registro de operaciones'),
-  })
-}
+// (The per-farm GET /operations/export CSV endpoint still exists server-
+// side; the Cuaderno now builds its filtered CSV client-side instead.)

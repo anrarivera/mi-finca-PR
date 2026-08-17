@@ -7,7 +7,8 @@ import {
   DateRangeSelect, filterSelectClass, SortableTh, type SortDir,
 } from '@/components/shared/logFilters'
 import { minDateFor, type DateRange } from '@/lib/dateRange'
-import { useFindingsLedger, useExportFindings } from '../hooks/useFindingsApi'
+import { useFindingsLedger } from '../hooks/useFindingsApi'
+import { downloadCsv } from '@/lib/csv'
 import { getPestById } from '../data/pestLibrary'
 import { SEVERITY_COLORS, SEVERITY_TEXT_COLORS, type Finding, type FindingStatus } from '../types'
 import { findingScopeSummary } from '../utils/findingScope'
@@ -32,7 +33,6 @@ const STATUSES: FindingStatus[] = ['open', 'treated', 'resolved']
 
 export default function SanidadRecordsSection() {
   const { t } = useTranslation('scouting')
-  const activeFarm = useFarmStore(s => s.activeFarm)
   const farms = useFarmStore(s => s.farms)
   const allFields = useFieldStore(s => s.fields)
 
@@ -44,10 +44,6 @@ export default function SanidadRecordsSection() {
   )
 
   const { data: findings } = useFindingsLedger(farmIds)
-  // The export endpoint is per farm: the selected farm when one is
-  // filtered, the active farm otherwise.
-  const exportFarmId = farmFilter !== 'all' ? farmFilter : activeFarm?.id ?? null
-  const exportCsv = useExportFindings(exportFarmId ?? '')
 
   // ── Filters + column sort ────────────────────────────────────────────
   const [statusFilter, setStatusFilter] = useState<'all' | FindingStatus>('all')
@@ -144,6 +140,44 @@ export default function SanidadRecordsSection() {
 
   const rowsFor = (f: Finding) => allFields.find(x => x.id === f.fieldId)?.rows ?? []
 
+  // The CSV is the current view: the filtered, sorted history, expanded to
+  // one row per observation (the certifier format the server export uses),
+  // plus farm — built client-side so filters and "Todas las fincas" apply.
+  function exportFindingsCsv() {
+    downloadCsv(
+      `mi-finca-sanidad-${new Date().toISOString().slice(0, 10)}.csv`,
+      [
+        t('records.exportCols.findingDate'), t('records.exportCols.observationDate'),
+        t('records.exportCols.farm'), t('records.exportCols.field'),
+        t('records.exportCols.pest'), t('records.exportCols.severity'), t('records.exportCols.status'),
+        t('records.exportCols.rowsAffected'), t('records.exportCols.plantsAffected'),
+        t('records.exportCols.hasTreatment'), t('records.exportCols.notes'),
+      ],
+      sorted.flatMap(f => {
+        const field = allFields.find(x => x.id === f.fieldId)
+        const farm = farms.find(x => x.id === field?.farmId)
+        // Findings normally carry their observation trail; fall back to
+        // the finding's own snapshot if it ever arrives without one.
+        const observations = f.observations?.length
+          ? f.observations
+          : [{ date: f.foundDate, severity: f.severity, rowIds: f.rowIds, plantIds: f.plantIds, notes: f.notes }]
+        return observations.map(obs => [
+          f.foundDate,
+          obs.date,
+          farm?.name ?? '',
+          field?.name ?? '',
+          localName(getPestById(f.pestId), f.pestId),
+          t(`severity.${obs.severity}`),
+          t(`status.${f.status}`),
+          obs.rowIds.length || '',
+          obs.plantIds.length || '',
+          f.treatmentRecommendedOperationId ? t('records.exportYes') : '',
+          obs.notes ?? '',
+        ])
+      })
+    )
+  }
+
   const fmtDate = (d: string) =>
     new Date(d + 'T12:00:00').toLocaleDateString(dateLocale(), { day: 'numeric', month: 'short', year: 'numeric' })
 
@@ -163,9 +197,9 @@ export default function SanidadRecordsSection() {
         {/* Always rendered, disabled when empty — every Cuaderno tab
             keeps its export visible, greyed without data. */}
         <button
-          onClick={() => exportCsv.mutate()}
-          disabled={all.length === 0 || !exportFarmId || exportCsv.isPending}
-          title={all.length === 0 ? t('records.nothingToExport') : t('records.exportTitle')}
+          onClick={exportFindingsCsv}
+          disabled={filtered.length === 0}
+          title={filtered.length === 0 ? t('records.nothingToExport') : t('records.exportTitle')}
           className="ml-auto flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] text-[#4d7a1b] border border-[#c8dca8] rounded-lg hover:bg-[#eaf3de] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Download size={10} /> {t('records.exportCsv')}

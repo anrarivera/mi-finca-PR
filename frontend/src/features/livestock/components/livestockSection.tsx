@@ -42,8 +42,8 @@ export default function LivestockSection() {
   // the same rows the corral card in the farm drawer renders.
   const createLivestock = useCreateLivestock()
 
-  // The herd list mirrors the store, so the CSV is built client-side —
-  // same shape as the rows on screen, plus corral and notes.
+  // The CSV is the current view: the filtered list. Clearing the filters
+  // exports every herd.
   function exportUnitsCsv() {
     downloadCsv(
       `mi-finca-animales-${new Date().toISOString().slice(0, 10)}.csv`,
@@ -53,7 +53,7 @@ export default function LivestockSection() {
         t('livestock.exportCols.corral'), t('livestock.exportCols.acquired'),
         t('livestock.exportCols.notes'),
       ],
-      units.map(u => [
+      shown.map(u => [
         localName(getAnimalById(u.animalType), u.animalType),
         u.name, u.currentCount,
         farms.find(f => f.id === u.farmId)?.name ?? '',
@@ -79,8 +79,8 @@ export default function LivestockSection() {
         <div className="flex items-center gap-2">
           <button
             onClick={exportUnitsCsv}
-            disabled={units.length === 0}
-            title={units.length === 0 ? t('livestock.nothingToExport') : t('livestock.exportCsv')}
+            disabled={shown.length === 0}
+            title={shown.length === 0 ? t('livestock.nothingToExport') : t('livestock.exportCsv')}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-[#2d4a1e] border border-[#d0dcc0] rounded-lg hover:bg-[#f0f5e8] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <Download size={12} /> {t('livestock.exportCsv')}

@@ -93,6 +93,20 @@
     "allFields": "Todos los campos",
     "noMatch": "Ningún hallazgo coincide con los filtros.",
     "shownCount": "Mostrando {{shown}} de {{count}}",
+    "exportYes": "Sí",
+    "exportCols": {
+      "findingDate": "Fecha del hallazgo",
+      "observationDate": "Fecha de observación",
+      "farm": "Finca",
+      "field": "Campo",
+      "pest": "Plaga",
+      "severity": "Severidad",
+      "status": "Estado",
+      "rowsAffected": "Hileras afectadas",
+      "plantsAffected": "Plantas afectadas",
+      "hasTreatment": "Labor de tratamiento",
+      "notes": "Notas"
+    },
     "columns": {
       "pest": "Plaga",
       "severity": "Severidad",

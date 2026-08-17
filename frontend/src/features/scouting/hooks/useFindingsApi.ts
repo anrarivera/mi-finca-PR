@@ -1,6 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import { toast } from '@/store/useToastStore'
 import type { Finding, FindingStatus } from '../types'
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -95,25 +94,8 @@ export function useDeleteFinding(farmId: string) {
   })
 }
 
-// ── CSV export — the sanitary record on paper ─────────────────────────
-// One row per observation (full re-inspection history). Streams a file,
-// so it bypasses the JSON ApiClient — same pattern as the operations
-// export: fetch with the Bearer token, hand the blob to the browser.
-export function useExportFindings(farmId: string) {
-  return useMutation({
-    mutationFn: async () => {
-      const { api } = await import('@/lib/api')
-      const { blob, filename } =
-        await api.download(`/api/v1/farms/${farmId}/findings/export?format=csv`)
-      const a = document.createElement('a')
-      a.href = URL.createObjectURL(blob)
-      a.download = filename ?? 'sanidad.csv'
-      a.click()
-      URL.revokeObjectURL(a.href)
-    },
-    onError: () => toast.error('No se pudo exportar el registro sanitario'),
-  })
-}
+// (The per-farm GET /findings/export CSV endpoint still exists server-
+// side; the Cuaderno now builds its filtered CSV client-side instead.)
 
 // ── Re-inspection ("seguimiento") — the Parcial of findings ───────────
 // Appends a dated severity + scope observation; the server mirrors it onto

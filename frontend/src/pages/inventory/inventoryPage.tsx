@@ -109,9 +109,8 @@ export default function InventoryPage() {
     else { setSortKey(key); setSortDir('asc') }
   }
 
-  // The grid is derived client-side (inventoryBuilder), so the CSV is
-  // built here too — every siembra, filters ignored, like the other
-  // tabs' whole-history exports.
+  // The CSV is the current view: the filtered, sorted grid (all pages).
+  // Clearing the filters exports everything.
   function exportSiembrasCsv() {
     downloadCsv(
       `mi-finca-siembras-${new Date().toISOString().slice(0, 10)}.csv`,
@@ -122,7 +121,7 @@ export default function InventoryPage() {
         t('inventory.columns.nextOp'), t('inventory.exportCols.nextOpDate'), t('inventory.exportCols.pendingOps'),
         t('inventory.exportCols.harvestStart'), t('inventory.exportCols.harvestEnd'),
       ],
-      allRows.map(r => [
+      rows.map(r => [
         localName(getCropById(r.cropTypeId), r.cropTypeId),
         r.farmName, r.fieldName,
         r.plantCount,
@@ -262,7 +261,7 @@ export default function InventoryPage() {
             <span className="ml-auto text-[11px] text-[#66755a]">
               {t('inventory.shownCount', { shown: rows.length, count: allRows.length })}
             </span>
-            <SiembrasExportButton onClick={exportSiembrasCsv} />
+            <SiembrasExportButton onClick={exportSiembrasCsv} disabled={rows.length === 0} />
           </div>
 
           {/* ── Data grid (cards below sm — a 9-column table is unusable

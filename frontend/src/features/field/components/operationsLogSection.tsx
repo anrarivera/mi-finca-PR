@@ -14,10 +14,11 @@ import { useConfirm } from '@/components/shared/confirmDialog'
 import { toast } from '@/store/useToastStore'
 import { dateLocale, fmtNumber } from '@/i18n'
 import {
-  useOperationsLedger, useDueSoonSummary, useExportOperations,
+  useOperationsLedger, useDueSoonSummary,
   useUpdateOperation, useDeleteOperation,
   type FarmOperation,
 } from '../hooks/useOperationsApi'
+import { downloadCsv } from '@/lib/csv'
 
 // ──────────────────────────────────────────────────────────────────────────
 // Operations log — Dashboard section backed by the server API:
@@ -53,7 +54,6 @@ const PAGE_SIZE = 8 // rows per page
 
 export default function OperationsLogSection() {
   const { t } = useTranslation('field')
-  const activeFarm = useFarmStore(s => s.activeFarm)
   const farms = useFarmStore(s => s.farms)
 
   // Farm scope — "Todas las fincas" by default, like the Siembras grid.
@@ -65,10 +65,6 @@ export default function OperationsLogSection() {
 
   const { data: operations, isLoading } = useOperationsLedger(farmIds)
   const { data: dueSoon } = useDueSoonSummary(farmIds)
-  // The export endpoint is per farm: the selected farm when one is
-  // filtered, the active farm otherwise.
-  const exportFarmId = farmFilter !== 'all' ? farmFilter : activeFarm?.id ?? null
-  const exportCsv = useExportOperations(exportFarmId ?? '')
 
   // Every entry is correctable: edits/deletes propagate server-side to the
   // linked recommendation and harvest yield, so fixing "300 lb" to "30 lb"
@@ -124,6 +120,37 @@ export default function OperationsLogSection() {
 
   if (farms.length === 0) return null
 
+  // The CSV is the current view: the filtered log, all pages. Same column
+  // set as the server's /operations/export, plus farm (multi-farm scope),
+  // built client-side so filters and "Todas las fincas" apply.
+  function exportOperationsCsv() {
+    downloadCsv(
+      `mi-finca-labores-${new Date().toISOString().slice(0, 10)}.csv`,
+      [
+        t('log.exportCols.date'), t('log.exportCols.type'), t('log.exportCols.farm'),
+        t('log.exportCols.field'), t('log.exportCols.livestockUnit'), t('log.exportCols.performedBy'),
+        t('log.exportCols.product'), t('log.exportCols.quantity'), t('log.exportCols.unit'),
+        t('log.exportCols.qualityRating'), t('log.exportCols.rowsCovered'), t('log.exportCols.plantsCovered'),
+        t('log.exportCols.notes'),
+      ],
+      filtered.map(op => [
+        op.actualDate,
+        t((TYPE_META[op.type] ?? TYPE_META.other).labelKey),
+        farms.find(f => f.id === op.farmId)?.name ?? '',
+        op.fieldId ? getField(op.fieldId)?.name ?? '' : '',
+        unitName(op.livestockUnitId) ?? '',
+        op.performedBy?.fullName ?? '',
+        op.product ?? '',
+        op.quantity ?? '',
+        op.unit ?? '',
+        op.qualityRating ?? '',
+        op.rowIds.length || '',
+        op.plantIds.length || '',
+        op.notes ?? '',
+      ])
+    )
+  }
+
   async function handleDelete(op: FarmOperation) {
     const meta = TYPE_META[op.type] ?? TYPE_META.other
     const ok = await confirm({
@@ -163,14 +190,12 @@ export default function OperationsLogSection() {
         )}
         <div className="flex-1" />
         <button
-          onClick={() => exportCsv.mutate()}
-          disabled={total === 0 || !exportFarmId || exportCsv.isPending}
+          onClick={exportOperationsCsv}
+          disabled={filtered.length === 0}
           className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-[#2d4a1e] border border-[#d0dcc0] rounded-lg hover:bg-[#f0f5e8] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-          title={total === 0 ? t('log.nothingToExport') : t('log.downloadCsv')}
+          title={filtered.length === 0 ? t('log.nothingToExport') : t('log.downloadCsv')}
         >
-          {exportCsv.isPending
-            ? <Loader2 size={12} className="animate-spin" />
-            : <Download size={12} />}
+          <Download size={12} />
           {t('log.exportCsv')}
         </button>
         <CollapseToggle collapsed={collapsed} onToggle={toggleCollapsed} />

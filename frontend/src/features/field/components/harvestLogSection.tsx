@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { Check, Pencil, Download, Loader2 } from 'lucide-react'
+import { Check, Pencil, Download } from 'lucide-react'
 import { api } from '@/lib/api'
+import { downloadCsv } from '@/lib/csv'
 import { DateRangeSelect, filterSelectClass, Pager } from '@/components/shared/logFilters'
 import { minDateFor, type DateRange } from '@/lib/dateRange'
-import { toast } from '@/store/useToastStore'
 import { useFieldStore } from '@/store/useFieldStore'
 import { useFarmStore } from '@/store/useFarmStore'
 import { useLivestockStore } from '@/store/useLivestockStore'
@@ -78,7 +78,6 @@ export default function HarvestLogSection({ limit = 6 }: Props) {
   const livestockUnits = useLivestockStore(s => s.units)
   const entries = useHarvestLedger()
   const farms = useFarmStore(s => s.farms)
-  const activeFarm = useFarmStore(s => s.activeFarm)
 
   // ── Filters — farm, product/crop, origin (field or herd), dates.
   //    The ledger spans every farm, so the farm filter defaults to all. ─
@@ -115,22 +114,32 @@ export default function HarvestLogSection({ limit = 6 }: Props) {
   const currentPage = Math.min(page, pageCount)
   const pagedEntries = filtered.slice((currentPage - 1) * limit, currentPage * limit)
 
-  // CSV export — a farm's ledger from the server: the filtered farm when
-  // one is selected, the active farm otherwise (the endpoint is per farm).
-  const exportFarmId = farmFilter !== 'all' ? farmFilter : activeFarm?.id ?? null
-  const exportCsv = useMutation({
-    mutationFn: async () => {
-      if (!exportFarmId) return
-      const { blob, filename } =
-        await api.download(`/api/v1/farms/${exportFarmId}/harvests/export?format=csv`)
-      const a = document.createElement('a')
-      a.href = URL.createObjectURL(blob)
-      a.download = filename ?? 'produccion.csv'
-      a.click()
-      URL.revokeObjectURL(a.href)
-    },
-    onError: () => toast.error(t('harvestLog.exportError')),
-  })
+  // The CSV is the current view: the filtered ledger, all pages. Same
+  // column set as the server's /harvests/export, plus farm (the ledger
+  // spans every farm), built client-side so the filters apply.
+  function exportHarvestsCsv() {
+    downloadCsv(
+      `mi-finca-produccion-${new Date().toISOString().slice(0, 10)}.csv`,
+      [
+        t('harvestLog.exportCols.date'), t('harvestLog.exportCols.kind'), t('harvestLog.exportCols.product'),
+        t('harvestLog.exportCols.farm'), t('harvestLog.exportCols.field'), t('harvestLog.exportCols.livestockUnit'),
+        t('harvestLog.exportCols.quantity'), t('harvestLog.exportCols.unit'),
+        t('harvestLog.exportCols.revenue'), t('harvestLog.exportCols.notes'),
+      ],
+      filtered.map(row => [
+        row.harvestDate.slice(0, 10),
+        row.productId ? t('harvestLog.kindAnimal') : t('harvestLog.kindCrop'),
+        rowLabel(row),
+        farms.find(f => f.id === row.farmId)?.name ?? '',
+        row.fieldId ? fields.find(f => f.id === row.fieldId)?.name ?? '' : '',
+        row.livestockUnitId ? livestockUnits.find(u => u.id === row.livestockUnitId)?.name ?? '' : '',
+        row.quantity,
+        row.unit,
+        row.revenue ?? '',
+        row.notes ?? '',
+      ])
+    )
+  }
 
   // Inline revenue editing: one row at a time, draft = total dollars.
   const [editing, setEditing] = useState<{ id: string; draft: number | null } | null>(null)
@@ -212,14 +221,12 @@ export default function HarvestLogSection({ limit = 6 }: Props) {
         </span>
         <div className="flex-1" />
         <button
-          onClick={() => exportCsv.mutate()}
-          disabled={entries.length === 0 || !exportFarmId || exportCsv.isPending}
+          onClick={exportHarvestsCsv}
+          disabled={filtered.length === 0}
           className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-[#2d4a1e] border border-[#d0dcc0] rounded-lg hover:bg-[#f0f5e8] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-          title={entries.length === 0 ? t('log.nothingToExport') : t('log.downloadCsv')}
+          title={filtered.length === 0 ? t('log.nothingToExport') : t('log.downloadCsv')}
         >
-          {exportCsv.isPending
-            ? <Loader2 size={12} className="animate-spin" />
-            : <Download size={12} />}
+          <Download size={12} />
           {t('log.exportCsv')}
         </button>
       </div>

@@ -93,6 +93,20 @@
     "allFields": "All fields",
     "noMatch": "No findings match the filters.",
     "shownCount": "Showing {{shown}} of {{count}}",
+    "exportYes": "Yes",
+    "exportCols": {
+      "findingDate": "Finding date",
+      "observationDate": "Observation date",
+      "farm": "Farm",
+      "field": "Field",
+      "pest": "Pest",
+      "severity": "Severity",
+      "status": "Status",
+      "rowsAffected": "Rows affected",
+      "plantsAffected": "Plants affected",
+      "hasTreatment": "Treatment task",
+      "notes": "Notes"
+    },
     "columns": {
       "pest": "Pest",
       "severity": "Severity",

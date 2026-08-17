@@ -109,7 +109,21 @@
     "allFarms": "All farms",
     "allProducts": "All products",
     "allOrigins": "All origins",
-    "noMatch": "No entries match the filters."
+    "noMatch": "No entries match the filters.",
+    "kindCrop": "Crop",
+    "kindAnimal": "Animal",
+    "exportCols": {
+      "date": "Date",
+      "kind": "Kind",
+      "product": "Product",
+      "farm": "Farm",
+      "field": "Field",
+      "livestockUnit": "Animals",
+      "quantity": "Quantity",
+      "unit": "Unit",
+      "revenue": "Revenue ($)",
+      "notes": "Notes"
+    }
   },
   "selector": {
     "harvestTitle": "What did you harvest?",
@@ -161,7 +175,22 @@
     "allFields": "All fields",
     "allTypes": "All task types",
     "shownCount": "Showing {{shown}} of {{count}}",
-    "noMatch": "No operations match the filters."
+    "noMatch": "No operations match the filters.",
+    "exportCols": {
+      "date": "Date",
+      "type": "Task",
+      "farm": "Farm",
+      "field": "Field",
+      "livestockUnit": "Animals",
+      "performedBy": "Performed by",
+      "product": "Product",
+      "quantity": "Quantity",
+      "unit": "Unit",
+      "qualityRating": "Quality",
+      "rowsCovered": "Rows covered",
+      "plantsCovered": "Plants covered",
+      "notes": "Notes"
+    }
   },
   "opType": {
     "planting": "Planting",
