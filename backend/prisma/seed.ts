@@ -27,18 +27,27 @@ async function main() {
         category: crop.category,
         isBuiltIn: true,
         userId: null,
-        ...(schedule ? {
-          schedule: {
-            create: {
-              harvestWindowStartDays: schedule.harvestWindowStartDays,
-              harvestWindowEndDays: schedule.harvestWindowEndDays,
-              operations: schedule.operations,
-            },
-          },
-        } : {}),
       },
-      include: { schedule: true },
     })
+
+    // Sync the BASE schedule row (userId NULL) on both branches — earlier
+    // seeds only wrote it on create, so re-seeding never refreshed
+    // schedules. Per-user override rows are farmer data: never touched.
+    if (schedule) {
+      const data = {
+        harvestWindowStartDays: schedule.harvestWindowStartDays,
+        harvestWindowEndDays: schedule.harvestWindowEndDays,
+        operations: schedule.operations,
+      }
+      const existing = await prisma.cropSchedule.findFirst({
+        where: { cropTypeId: crop.id, userId: null },
+      })
+      if (existing) {
+        await prisma.cropSchedule.update({ where: { id: existing.id }, data })
+      } else {
+        await prisma.cropSchedule.create({ data: { cropTypeId: crop.id, userId: null, ...data } })
+      }
+    }
 
     console.log(`  ✓ ${crop.nameEs}${schedule ? ' (con calendario)' : ''}`)
   }

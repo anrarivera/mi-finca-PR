@@ -40,9 +40,20 @@ export async function buildExport(userId: string) {
     include: { observations: { orderBy: [{ date: 'asc' as const }] } },
   })
 
-  const customCrops = await prisma.cropType.findMany({
+  // Custom crops keep their recipe on the base schedule row (userId NULL);
+  // the backup carries it under the singular `schedule` key as before.
+  const customCropRows = await prisma.cropType.findMany({
     where: { userId },
-    include: { schedule: true },
+    include: { schedules: { where: { userId: null } } },
+  })
+  const customCrops = customCropRows.map(({ schedules, ...crop }) => ({
+    ...crop,
+    schedule: schedules[0] ?? null,
+  }))
+
+  // The user's recipe overrides on BUILT-IN crops are their data too.
+  const scheduleOverrides = await prisma.cropSchedule.findMany({
+    where: { userId, cropType: { isBuiltIn: true } },
   })
 
   return {
@@ -66,6 +77,12 @@ export async function buildExport(userId: string) {
       members: farm.members,
     })),
     customCrops,
+    scheduleOverrides: scheduleOverrides.map(o => ({
+      cropTypeId: o.cropTypeId,
+      harvestWindowStartDays: o.harvestWindowStartDays,
+      harvestWindowEndDays: o.harvestWindowEndDays,
+      operations: o.operations,
+    })),
   }
 }
 
@@ -74,6 +91,8 @@ export async function clearUserData(userId: string): Promise<void> {
   // their original ids, and soft-deleted ghosts would collide with them.
   await prisma.farm.deleteMany({ where: { userId } })
   await prisma.cropType.deleteMany({ where: { userId } })
+  // Overrides on built-in crops don't cascade from the line above.
+  await prisma.cropSchedule.deleteMany({ where: { userId } })
 }
 
 const num = (v: unknown) => (v === null || v === undefined ? null : Number(v))
@@ -97,9 +116,18 @@ export async function restoreFromBackup(userId: string, data: any): Promise<{ fa
   )
   const userOrNull = (v: unknown) => (v && existing.has(String(v)) ? String(v) : null)
 
+  // Recipe overrides reference built-in crops that may not exist on this
+  // install (edited backup, older seed) — resolve before the transaction,
+  // since a failed create inside it would abort the whole restore.
+  const overrideCropIds: string[] = [...new Set<string>((data.scheduleOverrides ?? []).map((o: any) => String(o.cropTypeId)))]
+  const knownCrops = new Set(
+    (await prisma.cropType.findMany({ where: { id: { in: overrideCropIds } }, select: { id: true } })).map(c => c.id)
+  )
+
   await prisma.$transaction(async tx => {
     await tx.farm.deleteMany({ where: { userId } })
     await tx.cropType.deleteMany({ where: { userId } })
+    await tx.cropSchedule.deleteMany({ where: { userId } })
 
     for (const crop of data.customCrops ?? []) {
       await tx.cropType.create({
@@ -109,7 +137,7 @@ export async function restoreFromBackup(userId: string, data: any): Promise<{ fa
           emoji: crop.emoji ?? '🌱', category: crop.category ?? 'Personalizados',
           isBuiltIn: false,
           ...(crop.schedule ? {
-            schedule: {
+            schedules: {
               create: {
                 harvestWindowStartDays: crop.schedule.harvestWindowStartDays,
                 harvestWindowEndDays: crop.schedule.harvestWindowEndDays,
@@ -117,6 +145,19 @@ export async function restoreFromBackup(userId: string, data: any): Promise<{ fa
               },
             },
           } : {}),
+        },
+      })
+    }
+
+    // Recipe overrides on built-ins (unknown crop ids skipped above).
+    for (const o of data.scheduleOverrides ?? []) {
+      if (!knownCrops.has(String(o.cropTypeId))) continue
+      await tx.cropSchedule.create({
+        data: {
+          cropTypeId: String(o.cropTypeId), userId,
+          harvestWindowStartDays: num(o.harvestWindowStartDays) ?? 0,
+          harvestWindowEndDays: num(o.harvestWindowEndDays) ?? 0,
+          operations: o.operations ?? [],
         },
       })
     }

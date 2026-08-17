@@ -129,5 +129,8 @@ export async function cleanDatabase() {
   // in action_tokens now — the old per-type token tables are gone.
   await prisma.actionToken.deleteMany()
   await prisma.signupCode.deleteMany()
+  // Crop rows: custom crops would cascade off users, but built-ins seeded
+  // by tests have no owner — wipe explicitly (schedules cascade).
+  await prisma.cropType.deleteMany()
   await prisma.user.deleteMany()
 }
