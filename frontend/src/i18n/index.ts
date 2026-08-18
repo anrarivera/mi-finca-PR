@@ -2,6 +2,7 @@ import i18n from 'i18next'
 import { initReactI18next } from 'react-i18next'
 import LanguageDetector from 'i18next-browser-languagedetector'
 import { CROP_SCHEDULES } from '@/features/field/data/cropSchedules'
+import { useRecipeStore } from '@/store/useRecipeStore'
 
 import esCommon from './locales/es/common.json'
 import esAuth from './locales/es/auth.json'
@@ -110,17 +111,29 @@ export function localCategory(category: string): string {
 }
 
 // Recommendation labels are STORED in Spanish (the templates' labelEs is
-// written onto each recommendation row at planting). The template set also
-// carries English labels, so known labels translate by reverse lookup —
-// custom-crop labels (typed by the user) pass through untouched.
+// written onto each recommendation row at planting). Templates that carry
+// an English label translate by reverse lookup — the static schedules
+// seed the map and resolved recipes layer on top (system recipes ship
+// both languages; farmer-typed labels have no English and pass through).
+// The map rebuilds when the recipe store loads new data.
 let opLabelEn: Map<string, string> | null = null
+let opLabelRevision = -1
 export function localOpLabel(labelEs: string): string {
   if (!isEnglish()) return labelEs
-  if (!opLabelEn) {
+  const recipeState = useRecipeStore.getState()
+  if (!opLabelEn || opLabelRevision !== recipeState.revision) {
     opLabelEn = new Map()
     for (const schedule of CROP_SCHEDULES) {
       for (const tpl of schedule.operations) opLabelEn.set(tpl.labelEs, tpl.label)
     }
+    for (const entries of Object.values(recipeState.byFarm)) {
+      for (const entry of entries) {
+        for (const tpl of entry.operations) {
+          if (tpl.label) opLabelEn.set(tpl.labelEs, tpl.label)
+        }
+      }
+    }
+    opLabelRevision = recipeState.revision
   }
   return opLabelEn.get(labelEs) ?? labelEs
 }

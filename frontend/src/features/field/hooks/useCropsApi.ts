@@ -2,6 +2,8 @@ import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { useCropStore } from '@/store/useCropStore'
 
+// Crops are IDENTITY only — practice (schedules, harvest windows) lives
+// on recipes, resolved per farm via useRecipesApi/useRecipeStore.
 export type ApiCrop = {
   id: string
   name: string
@@ -10,20 +12,6 @@ export type ApiCrop = {
   category: string
   isBuiltIn: boolean
   userId: string | null
-  schedule: {
-    harvestWindowStartDays: number
-    harvestWindowEndDays: number
-    operations: Array<{
-      id: string
-      type: string
-      label?: string
-      labelEs: string
-      offsetDays: number
-      notes?: string
-      notesEs?: string
-      product?: string
-    }>
-  } | null
 }
 
 const cropKeys = {

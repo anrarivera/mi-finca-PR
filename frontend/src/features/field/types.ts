@@ -66,6 +66,10 @@ export type PlantingEvent = {
   cropTypeId: string
   plantingDate: string
   plantCount: number
+  // Which recipe version this planting followed (Recetas de Cultivo R3).
+  // The stamped operations are a copy; this reference is for proof.
+  // Round-tripped on field saves like completedOperationId.
+  recipeVersionId?: string | null
   rowIds: string[]
   freePlantIds: string[]
   operations: RecommendedOperation[]

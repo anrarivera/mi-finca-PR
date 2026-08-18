@@ -1,11 +1,14 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vitest'
 import {
+  createPlantingEvent,
   processRowForEvents,
   processFreePlantsForEvents,
   rebuildPlantingEvents,
   refreshOperationStatuses,
 } from './plantingEventManager'
-import type { FieldRow, PlantInstance, PlantingEvent } from '../types'
+import { useRecipeStore, type ResolvedRecipeEntry } from '@/store/useRecipeStore'
+import { useFieldStore } from '@/store/useFieldStore'
+import type { FieldRow, PlacedField, PlantInstance, PlantingEvent } from '../types'
 
 function makePlant(id: string, cropTypeId: string, plantingDate: string): PlantInstance {
   return { id, cropTypeId, lat: 18.22, lng: -66.59, plantingDate }
@@ -25,6 +28,14 @@ function makeRow(id: string, cropTypeId: string, plantingDate: string, plantCoun
     ),
   }
 }
+
+// Tests that exercise the static-schedule fallback use field 'f1' (not in
+// the field store) so resolution finds no farm and falls back. The
+// recipe-aware tests further down use FARM/FIELD with store state.
+beforeEach(() => {
+  useRecipeStore.setState({ byFarm: {}, revision: 0 })
+  useFieldStore.setState({ fields: [] })
+})
 
 describe('processRowForEvents', () => {
   it('creates a planting event with the crop schedule for a new row', () => {
@@ -268,5 +279,137 @@ describe('refreshOperationStatuses', () => {
     for (const op of refreshed.operations.slice(1)) {
       expect(op.status).toBe('due')
     }
+  })
+})
+
+// ── Recipe stamping (Recetas de Cultivo R1/R3) ──────────────────────────
+// New plantings stamp a COPY of the governing recipe's operations plus a
+// reference to the exact version. Surviving plantings keep their stamp
+// through rebuilds even when the recipe has since changed; only replants
+// (history-only events regaining plants) re-stamp from the current recipe.
+
+const FARM = 'farm_1'
+const FIELD = 'field_1'
+
+function entry(overrides: Partial<ResolvedRecipeEntry>): ResolvedRecipeEntry {
+  return {
+    cropTypeId: 'aguacate',
+    fieldId: null,
+    recipeId: 'r1',
+    recipeName: 'Mi aguacate',
+    authorUserId: 'u1',
+    versionId: 'v1',
+    versionNumber: 1,
+    harvestWindowStartDays: 900,
+    harvestWindowEndDays: 1000,
+    operations: [
+      { id: 'tpl-a', type: 'fertilization', labelEs: 'Abono inicial', offsetDays: 30 },
+    ],
+    ...overrides,
+  }
+}
+
+function setUpRecipeFarm(entries: ResolvedRecipeEntry[]) {
+  useFieldStore.setState({ fields: [{ id: FIELD, farmId: FARM } as PlacedField] })
+  useRecipeStore.getState().setResolved(FARM, entries)
+}
+
+describe('createPlantingEvent (recipe stamping)', () => {
+  it('stamps operations from the resolved recipe with the version reference', () => {
+    setUpRecipeFarm([entry({})])
+    const event = createPlantingEvent(FIELD, 'aguacate', '2026-06-01', 5, [], [])
+    expect(event.recipeVersionId).toBe('v1')
+    expect(event.operations).toHaveLength(1)
+    expect(event.operations[0].labelEs).toBe('Abono inicial')
+    expect(event.operations[0].recommendedDate).toBe('2026-07-01')
+  })
+
+  it('a field-level entry beats the farm-level entry', () => {
+    setUpRecipeFarm([
+      entry({}),
+      entry({ fieldId: FIELD, recipeId: 'r2', versionId: 'v-field', operations: [
+        { id: 'tpl-b', type: 'irrigation', labelEs: 'Riego de ladera', offsetDays: 7 },
+      ] }),
+    ])
+    const event = createPlantingEvent(FIELD, 'aguacate', '2026-06-01', 5, [], [])
+    expect(event.recipeVersionId).toBe('v-field')
+    expect(event.operations[0].labelEs).toBe('Riego de ladera')
+  })
+
+  it('falls back to the static schedules without a version reference', () => {
+    const event = createPlantingEvent(FIELD, 'plantain', '2026-06-01', 5, [], [])
+    expect(event.recipeVersionId).toBeNull()
+    expect(event.operations.length).toBeGreaterThan(0)
+  })
+
+  it('stamps nothing for a crop with no recipe anywhere', () => {
+    const event = createPlantingEvent(FIELD, 'crop_sin_receta', '2026-06-01', 5, [], [])
+    expect(event.recipeVersionId).toBeNull()
+    expect(event.operations).toHaveLength(0)
+  })
+})
+
+describe('rebuildPlantingEvents (recipe honesty)', () => {
+  it('a surviving planting keeps its stamp even after the recipe changed', () => {
+    setUpRecipeFarm([entry({})])
+    const original = createPlantingEvent(FIELD, 'aguacate', '2026-06-01', 1, [], ['p1'])
+
+    // The recipe evolves to v2 with a different calendar.
+    useRecipeStore.getState().setResolved(FARM, [entry({
+      versionId: 'v2', versionNumber: 2,
+      operations: [{ id: 'tpl-new', type: 'spray', labelEs: 'Nueva práctica', offsetDays: 10 }],
+    })])
+
+    const rebuilt = rebuildPlantingEvents(
+      FIELD,
+      [],
+      [makePlant('p1', 'aguacate', '2026-06-01'), makePlant('p2', 'aguacate', '2026-06-01')],
+      [original]
+    )
+    expect(rebuilt).toHaveLength(1)
+    expect(rebuilt[0].id).toBe(original.id)
+    expect(rebuilt[0].recipeVersionId).toBe('v1')
+    expect(rebuilt[0].operations.map(o => o.templateId)).toEqual(['tpl-a'])
+    expect(rebuilt[0].plantCount).toBe(2)
+  })
+
+  it('a NEW planting group stamps from the current recipe', () => {
+    setUpRecipeFarm([entry({ versionId: 'v2', versionNumber: 2 })])
+    const rebuilt = rebuildPlantingEvents(
+      FIELD, [], [makePlant('p1', 'aguacate', '2026-08-01')], []
+    )
+    expect(rebuilt[0].recipeVersionId).toBe('v2')
+  })
+
+  it('a replanted history-only event heals from the current recipe', () => {
+    // A history event: only completed work survives (its plants were removed).
+    const history: PlantingEvent = {
+      id: 'pe_old', fieldId: FIELD, cropTypeId: 'aguacate',
+      plantingDate: '2026-06-01', plantCount: 3,
+      recipeVersionId: 'v1', rowIds: [], freePlantIds: [],
+      operations: [{
+        id: 'op_pe_old_tpl-a', plantingEventId: 'pe_old', templateId: 'tpl-a',
+        type: 'fertilization', labelEs: 'Abono inicial',
+        recommendedDate: '2026-07-01', status: 'completed', completedDate: '2026-07-02',
+      }],
+    }
+    setUpRecipeFarm([entry({
+      versionId: 'v2', versionNumber: 2,
+      operations: [
+        { id: 'tpl-a', type: 'fertilization', labelEs: 'Abono inicial', offsetDays: 30 },
+        { id: 'tpl-c', type: 'harvest', labelEs: 'Cosecha', offsetDays: 900 },
+      ],
+    })])
+
+    const rebuilt = rebuildPlantingEvents(
+      FIELD, [], [makePlant('p9', 'aguacate', '2026-06-01')], [history]
+    )
+    expect(rebuilt).toHaveLength(1)
+    // The completed record survives AND the missing calendar came back.
+    const templateIds = rebuilt[0].operations.map(o => o.templateId).sort()
+    expect(templateIds).toEqual(['tpl-a', 'tpl-c'])
+    expect(rebuilt[0].operations.find(o => o.templateId === 'tpl-a')!.status).toBe('completed')
+    // The replant follows the current recipe.
+    expect(rebuilt[0].recipeVersionId).toBe('v2')
   })
 })
