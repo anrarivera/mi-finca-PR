@@ -68,6 +68,22 @@ export const resolvedRecipesResponseSchema = z.object({
 
 export type ResolvedRecipesResponse = z.output<typeof resolvedRecipesResponseSchema>
 
+// The raw default pointers behind the ladder — what the management UI
+// renders as "mi predeterminada" and "se usa en esta finca".
+export const recipeDefaultsResponseSchema = z.object({
+  personal: z.array(z.object({
+    cropTypeId: z.string(),
+    recipeId: z.string(),
+  })),
+  farm: z.array(z.object({
+    cropTypeId: z.string(),
+    recipeId: z.string(),
+    fieldId: z.string().nullable(),
+  })),
+})
+
+export type RecipeDefaultsResponse = z.output<typeof recipeDefaultsResponseSchema>
+
 // ── Request bodies ──────────────────────────────────────────────────────
 
 export const opTemplateRequestSchema = z.object({

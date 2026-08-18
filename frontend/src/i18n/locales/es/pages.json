@@ -36,7 +36,8 @@
       "labores": "Labores",
       "cosechas": "Producción",
       "sanidad": "Sanidad",
-      "animales": "Animales"
+      "animales": "Animales",
+      "recetas": "Recetas"
     },
     "status": {
       "overdue": "Vencidas",

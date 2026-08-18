@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import {
   Package, Sprout, AlertCircle, Clock, CheckCircle2, ClipboardList,
   ChevronDown, ChevronRight, Wheat,
-  CalendarDays, Bug, PawPrint, Download,
+  CalendarDays, Bug, PawPrint, Download, BookOpen,
 } from 'lucide-react'
 import { useFarmStore } from '@/store/useFarmStore'
 import { useFieldStore } from '@/store/useFieldStore'
@@ -21,6 +21,7 @@ import OperationsCalendar from '@/features/field/components/operationsCalendar'
 import HarvestLogSection from '@/features/field/components/harvestLogSection'
 import SanidadRecordsSection from '@/features/scouting/components/sanidadRecordsSection'
 import LivestockSection from '@/features/livestock/components/livestockSection'
+import RecetasSection from '@/features/field/components/recetasSection'
 
 // ──────────────────────────────────────────────────────────────────────────
 // Cuaderno de campo — the farm's books: what you have and what has
@@ -30,7 +31,7 @@ import LivestockSection from '@/features/livestock/components/livestockSection'
 // "what's due today" view lives on the Panel de control.
 // ──────────────────────────────────────────────────────────────────────────
 
-type CuadernoTab = 'siembras' | 'labores' | 'cosechas' | 'sanidad' | 'animales'
+type CuadernoTab = 'siembras' | 'labores' | 'cosechas' | 'sanidad' | 'animales' | 'recetas'
 
 // labelKey resolves in the 'pages' namespace (inventory.tabs.*).
 const TABS: Array<{ id: CuadernoTab; labelKey: string; icon: React.ReactNode }> = [
@@ -39,6 +40,7 @@ const TABS: Array<{ id: CuadernoTab; labelKey: string; icon: React.ReactNode }> 
   { id: 'cosechas', labelKey: 'inventory.tabs.cosechas', icon: <Wheat size={13} /> },
   { id: 'sanidad', labelKey: 'inventory.tabs.sanidad', icon: <Bug size={13} /> },
   { id: 'animales', labelKey: 'inventory.tabs.animales', icon: <PawPrint size={13} /> },
+  { id: 'recetas', labelKey: 'inventory.tabs.recetas', icon: <BookOpen size={13} /> },
 ]
 
 type SortKey = 'crop' | 'field' | 'plants' | 'planted' | 'nextOp' | 'harvest'
@@ -182,6 +184,9 @@ export default function InventoryPage() {
 
       {/* ── Animales ──────────────────────────────────────────────── */}
       {tab === 'animales' && <LivestockSection />}
+
+      {/* ── Recetas: the farmer's cookbook (Recetas de Cultivo) ───── */}
+      {tab === 'recetas' && <RecetasSection />}
 
       {/* ── Siembras: the inventory data grid ─────────────────────── */}
       {/* The CSV button renders in both branches (disabled when empty) —

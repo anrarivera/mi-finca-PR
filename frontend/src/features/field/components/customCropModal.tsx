@@ -1,32 +1,28 @@
-import { useState } from 'react'
-import { localCategory } from '@/i18n'
+import { useMemo, useState } from 'react'
+import { localCategory, localName } from '@/i18n'
 import { useTranslation } from 'react-i18next'
-import { X, Plus, Trash2, Sprout } from 'lucide-react'
+import { X, Sprout } from 'lucide-react'
 import { useCropStore } from '@/store/useCropStore'
 import { toast } from '@/store/useToastStore'
-import type { CropType } from '../data/cropLibrary'
-import type {
-  CropSchedule, RecommendedOperationTemplate, RecommendedOperationType,
-} from '../data/cropSchedules'
+import { CROP_LIBRARY } from '../data/cropLibrary'
+import { useCreateCrop } from '../hooks/useCropsApi'
+import { useCreateRecipe, useSetRecipeDefault } from '../hooks/useRecipesApi'
+import RecipeScheduleForm, {
+  emptyScheduleDraft, validateScheduleDraft, type ScheduleDraft,
+} from './recipeScheduleForm'
 
 // ──────────────────────────────────────────────────────────────────────────
-// Create a custom crop with an optional operations recipe (issue #1).
-// The crop becomes selectable everywhere built-ins are; if a recipe is
-// defined, planting it generates the same operations calendar built-in
-// schedules do.
+// Create a custom crop — IDENTITY (name/emoji/category) via the crops API,
+// with an optional first recipe that becomes the author's personal
+// default so planting it stamps a calendar. Crop ids become shared
+// vocabulary once recipes are comparable, so the name search nudges hard
+// toward reusing an existing crop before minting a duplicate.
 // ──────────────────────────────────────────────────────────────────────────
-
-// Display labels live in the i18n dictionaries under editor:customCrop.opTypes.<value>.
-const OP_TYPES: RecommendedOperationType[] = [
-  'fertilization', 'spray', 'cultivation', 'irrigation', 'monitoring', 'harvest',
-]
 
 const CATEGORIES = [
   'Musáceas', 'Cítricos', 'Frutas Tropicales', 'Viandas',
   'Árboles', 'Vegetales', 'Compañeras', 'Personalizados',
 ]
-
-type OpDraft = { type: RecommendedOperationType; labelEs: string; offsetDays: string }
 
 type Props = {
   onClose: () => void
@@ -35,77 +31,69 @@ type Props = {
 
 export default function CustomCropModal({ onClose, onCreated }: Props) {
   const { t } = useTranslation('editor')
-  const addCustomCrop = useCropStore(s => s.addCustomCrop)
+  const storeCrops = useCropStore(s => s.crops)
+  const createCrop = useCreateCrop()
+  const createRecipe = useCreateRecipe()
+  const setDefault = useSetRecipeDefault()
 
   const [nameEs, setNameEs] = useState('')
   const [emoji, setEmoji] = useState('🌱')
   const [category, setCategory] = useState('Personalizados')
   const [withRecipe, setWithRecipe] = useState(false)
-  const [windowStart, setWindowStart] = useState('90')
-  const [windowEnd, setWindowEnd] = useState('120')
-  const [ops, setOps] = useState<OpDraft[]>(() => [
-    { type: 'fertilization', labelEs: t('customCrop.defaultOpLabel'), offsetDays: '14' },
-  ])
+  const [draft, setDraft] = useState<ScheduleDraft>(() =>
+    emptyScheduleDraft(t('customCrop.defaultOpLabel'))
+  )
 
-  function updateOp(index: number, patch: Partial<OpDraft>) {
-    setOps(prev => prev.map((o, i) => (i === index ? { ...o, ...patch } : o)))
-  }
+  // Dedup nudge: as the farmer types, surface existing crops so a second
+  // "Guanábana" reuses the first — fragmented ids poison comparison.
+  const knownCrops = storeCrops.length > 0 ? storeCrops : CROP_LIBRARY
+  const similar = useMemo(() => {
+    const q = nameEs.trim().toLowerCase()
+    if (q.length < 2) return []
+    return knownCrops
+      .filter(c =>
+        c.nameEs.toLowerCase().includes(q) ||
+        (c.name ?? '').toLowerCase().includes(q)
+      )
+      .slice(0, 4)
+  }, [knownCrops, nameEs])
 
-  function handleSave() {
+  const saving = createCrop.isPending || createRecipe.isPending || setDefault.isPending
+
+  async function handleSave() {
     const trimmed = nameEs.trim()
     if (!trimmed) {
       toast.error(t('customCrop.needsName'))
       return
     }
-
-    const cropId = `custom-${crypto.randomUUID()}`
-    const crop: CropType = {
-      id: cropId,
-      name: trimmed,
-      nameEs: trimmed,
-      emoji: emoji.trim() || '🌱',
-      category: category.trim() || 'Personalizados',
-    }
-
-    let schedule: CropSchedule | null = null
+    let schedule = null
     if (withRecipe) {
-      const start = Math.round(Number(windowStart))
-      const end = Math.round(Number(windowEnd))
-      if (!Number.isFinite(start) || !Number.isFinite(end) || start < 0 || end < start) {
-        toast.error(t('customCrop.badWindow'))
-        return
-      }
-      const templates: RecommendedOperationTemplate[] = []
-      for (const [i, draft] of ops.entries()) {
-        const label = draft.labelEs.trim()
-        const offset = Math.round(Number(draft.offsetDays))
-        if (!label) {
-          toast.error(t('customCrop.opNeedsDescription', { number: i + 1 }))
-          return
-        }
-        if (!Number.isFinite(offset) || offset < 0) {
-          toast.error(t('customCrop.opNeedsDays', { number: i + 1 }))
-          return
-        }
-        templates.push({
-          id: `${cropId}-op-${i}`,
-          type: draft.type,
-          label,
-          labelEs: label,
-          offsetDays: offset,
-        })
-      }
-      schedule = {
-        cropTypeId: cropId,
-        harvestWindowStartDays: start,
-        harvestWindowEndDays: end,
-        operations: templates,
-      }
+      const result = validateScheduleDraft(draft, t)
+      if ('error' in result) { toast.error(result.error); return }
+      schedule = result.schedule
     }
 
-    addCustomCrop({ crop, schedule })
-    toast.success(t('customCrop.created', { name: trimmed }))
-    onCreated(cropId)
+    try {
+      const crop = await createCrop.mutateAsync({
+        nameEs: trimmed,
+        emoji: emoji.trim() || '🌱',
+        category: category.trim() || 'Personalizados',
+      })
+      if (schedule) {
+        const recipe = await createRecipe.mutateAsync({
+          cropTypeId: crop.id,
+          name: t('recipes.defaultName', { crop: trimmed }),
+          schedule,
+        })
+        // Without a personal default the new recipe would never stamp.
+        await setDefault.mutateAsync({ cropTypeId: crop.id, recipeId: recipe.id, scope: 'user' })
+      }
+      toast.success(t('customCrop.created', { name: trimmed }))
+      onCreated(crop.id)
+    } catch {
+      // The api client toasts server errors; keep the modal open so the
+      // farmer's input survives.
+    }
   }
 
   return (
@@ -155,6 +143,25 @@ export default function CustomCropModal({ onClose, onCreated }: Props) {
             </label>
           </div>
 
+          {/* Dedup nudge */}
+          {similar.length > 0 && (
+            <div className="flex flex-col gap-1.5 p-3 bg-[#fffbeb] border border-amber-200 rounded-xl">
+              <p className="text-[11px] font-medium text-amber-800">{t('customCrop.similarTitle')}</p>
+              <div className="flex flex-wrap gap-1.5">
+                {similar.map(c => (
+                  <button
+                    key={c.id}
+                    onClick={() => onCreated(c.id)}
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] text-[#2d4a1e] bg-white border border-amber-200 rounded-lg hover:bg-amber-50 transition-colors"
+                  >
+                    <span>{c.emoji}</span> {localName(c)}
+                    <span className="text-[#66755a]">· {t('customCrop.useExisting')}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <label className="flex flex-col gap-1">
             <span className="text-[11px] font-medium text-[#5a6a4a]">{t('customCrop.category')}</span>
             <select
@@ -185,73 +192,7 @@ export default function CustomCropModal({ onClose, onCreated }: Props) {
             </div>
           </label>
 
-          {withRecipe && (
-            <div className="flex flex-col gap-3 p-3 bg-[#fafcf8] border border-[#e0e8d8] rounded-xl">
-
-              {/* Harvest window */}
-              <div className="grid grid-cols-2 gap-3">
-                <label className="flex flex-col gap-1">
-                  <span className="text-[11px] font-medium text-[#5a6a4a]">{t('customCrop.harvestFrom')}</span>
-                  <input
-                    type="number" min={0} value={windowStart}
-                    onChange={e => setWindowStart(e.target.value)}
-                    className="px-3 py-2 text-sm border border-[#c8dca8] rounded-lg focus:outline-none focus:border-[#639922]"
-                  />
-                </label>
-                <label className="flex flex-col gap-1">
-                  <span className="text-[11px] font-medium text-[#5a6a4a]">{t('customCrop.harvestTo')}</span>
-                  <input
-                    type="number" min={0} value={windowEnd}
-                    onChange={e => setWindowEnd(e.target.value)}
-                    className="px-3 py-2 text-sm border border-[#c8dca8] rounded-lg focus:outline-none focus:border-[#639922]"
-                  />
-                </label>
-              </div>
-
-              {/* Operation templates */}
-              <div className="flex flex-col gap-2">
-                <span className="text-[11px] font-medium text-[#5a6a4a]">
-                  {t('customCrop.opsLabel')}
-                </span>
-                {ops.map((o, i) => (
-                  <div key={i} className="flex items-center gap-2">
-                    <select
-                      value={o.type}
-                      onChange={e => updateOp(i, { type: e.target.value as RecommendedOperationType })}
-                      className="px-2 py-1.5 text-xs bg-white border border-[#c8dca8] rounded-lg focus:outline-none focus:border-[#639922] shrink-0"
-                    >
-                      {OP_TYPES.map(v => <option key={v} value={v}>{t(`customCrop.opTypes.${v}`)}</option>)}
-                    </select>
-                    <input
-                      value={o.labelEs}
-                      onChange={e => updateOp(i, { labelEs: e.target.value })}
-                      placeholder={t('customCrop.descriptionPlaceholder')}
-                      className="flex-1 min-w-0 px-2 py-1.5 text-xs border border-[#c8dca8] rounded-lg focus:outline-none focus:border-[#639922]"
-                    />
-                    <input
-                      type="number" min={0} value={o.offsetDays}
-                      onChange={e => updateOp(i, { offsetDays: e.target.value })}
-                      title={t('customCrop.daysAfterPlanting')}
-                      className="w-16 px-2 py-1.5 text-xs text-center border border-[#c8dca8] rounded-lg focus:outline-none focus:border-[#639922] shrink-0"
-                    />
-                    <button
-                      onClick={() => setOps(prev => prev.filter((_, j) => j !== i))}
-                      aria-label={t('customCrop.deleteOp')}
-                      className="text-[#66755a] hover:text-red-600 transition-colors shrink-0"
-                    >
-                      <Trash2 size={13} />
-                    </button>
-                  </div>
-                ))}
-                <button
-                  onClick={() => setOps(prev => [...prev, { type: 'monitoring', labelEs: '', offsetDays: '30' }])}
-                  className="flex items-center gap-1.5 self-start px-2.5 py-1.5 text-[11px] text-[#4d7a1b] border border-[#c8dca8] rounded-lg hover:bg-[#eaf3de] transition-colors"
-                >
-                  <Plus size={11} /> {t('customCrop.addOp')}
-                </button>
-              </div>
-            </div>
-          )}
+          {withRecipe && <RecipeScheduleForm draft={draft} onChange={setDraft} />}
         </div>
 
         {/* Footer */}
@@ -264,7 +205,8 @@ export default function CustomCropModal({ onClose, onCreated }: Props) {
           </button>
           <button
             onClick={handleSave}
-            className="px-4 py-2 text-xs bg-[#2d4a1e] text-[#d4e8b0] rounded-lg hover:bg-[#3d6128] transition-colors"
+            disabled={saving}
+            className="px-4 py-2 text-xs bg-[#2d4a1e] text-[#d4e8b0] rounded-lg hover:bg-[#3d6128] transition-colors disabled:opacity-50"
           >
             {t('customCrop.create')}
           </button>

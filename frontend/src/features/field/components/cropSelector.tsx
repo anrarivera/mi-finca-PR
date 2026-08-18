@@ -1,9 +1,11 @@
 import { useState, useRef, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Search, ChevronDown, X } from 'lucide-react'
+import { Search, ChevronDown, X, Plus } from 'lucide-react'
 import { CROP_LIBRARY } from '../data/cropLibrary'
 import type { CropType } from '../data/cropLibrary'
+import { useCropStore } from '@/store/useCropStore'
 import { localName, localCategory } from '@/i18n'
+import CustomCropModal from './customCropModal'
 
 type Props = {
   value: string | null
@@ -17,20 +19,25 @@ export default function CropSelector({
 }: Props) {
   const { t } = useTranslation('editor')
   const [isOpen, setIsOpen] = useState(false)
+  const [showCreate, setShowCreate] = useState(false)
   const [search, setSearch] = useState('')
   const containerRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  const selectedCrop = value ? CROP_LIBRARY.find(c => c.id === value) : null
+  // Server crops (built-ins + own custom crops) once loaded; the static
+  // library covers anonymous/offline states.
+  const storeCrops = useCropStore(s => s.crops)
+  const crops: CropType[] = storeCrops.length > 0 ? storeCrops : CROP_LIBRARY
+
+  const selectedCrop = value ? crops.find(c => c.id === value) ?? CROP_LIBRARY.find(c => c.id === value) : null
 
   const filtered = search.trim()
-    ? CROP_LIBRARY.filter(c =>
+    ? crops.filter(c =>
         c.nameEs.toLowerCase().includes(search.toLowerCase()) ||
-        c.name.toLowerCase().includes(search.toLowerCase()) ||
         c.name.toLowerCase().includes(search.toLowerCase()) ||
         c.category.toLowerCase().includes(search.toLowerCase())
       )
-    : CROP_LIBRARY
+    : crops
 
   // Group filtered results by category
   const grouped = filtered.reduce((acc, crop) => {
@@ -117,12 +124,12 @@ export default function CropSelector({
                 {t('selector.noResults')}
               </div>
             ) : (
-              Object.entries(grouped).map(([category, crops]) => (
+              Object.entries(grouped).map(([category, categoryCrops]) => (
                 <div key={category}>
                   <div className="px-3 py-1.5 text-[9px] font-semibold text-[#66755a] uppercase tracking-wider bg-[#fafcf8] border-b border-[#f0f5e8]">
                     {localCategory(category)}
                   </div>
-                  {crops.map(crop => (
+                  {categoryCrops.map(crop => (
                     <button
                       key={crop.id}
                       onClick={() => handleSelect(crop)}
@@ -143,7 +150,22 @@ export default function CropSelector({
             )}
           </div>
 
+          {/* New custom crop — the avocado gap's front door */}
+          <button
+            onClick={() => { setIsOpen(false); setSearch(''); setShowCreate(true) }}
+            className="w-full flex items-center gap-2 px-3 py-2.5 text-xs font-medium text-[#4d7a1b] border-t border-[#f0f5e8] hover:bg-[#f5f8f0] transition-colors"
+          >
+            <Plus size={13} /> {t('selector.newCrop')}
+          </button>
+
         </div>
+      )}
+
+      {showCreate && (
+        <CustomCropModal
+          onClose={() => setShowCreate(false)}
+          onCreated={(cropId) => { setShowCreate(false); onChange(cropId) }}
+        />
       )}
     </div>
   )

@@ -36,7 +36,8 @@
       "labores": "Tasks",
       "cosechas": "Production",
       "sanidad": "Health",
-      "animales": "Animals"
+      "animales": "Animals",
+      "recetas": "Recipes"
     },
     "status": {
       "overdue": "Overdue",

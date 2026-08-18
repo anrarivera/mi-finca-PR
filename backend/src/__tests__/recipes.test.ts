@@ -353,6 +353,38 @@ describe('defaults permissions (R4)', () => {
     expect(await prisma.recipeDefault.count({ where: { userId: user.userId } })).toBe(0)
   })
 
+  it('GET /defaults lists personal pointers, plus farm pointers with farmId', async () => {
+    const owner = await createTestUser()
+    const worker = await createTestUser()
+    const farm = await createTestFarm(owner.token)
+    await addFarmMember(farm.id, worker.userId, 'operator')
+    const recipe = await createRecipe(owner.token)
+
+    await request.put('/api/v1/recipes/defaults')
+      .set('Authorization', `Bearer ${owner.token}`)
+      .send({ cropTypeId: 'platano_test', recipeId: recipe.id, scope: 'user' })
+    await request.put('/api/v1/recipes/defaults')
+      .set('Authorization', `Bearer ${owner.token}`)
+      .send({ cropTypeId: 'platano_test', recipeId: recipe.id, scope: 'farm', farmId: farm.id })
+
+    const mine = await request.get(`/api/v1/recipes/defaults?farmId=${farm.id}`)
+      .set('Authorization', `Bearer ${owner.token}`)
+    expect(mine.body.data.personal).toEqual([{ cropTypeId: 'platano_test', recipeId: recipe.id }])
+    expect(mine.body.data.farm).toEqual([{ cropTypeId: 'platano_test', recipeId: recipe.id, fieldId: null }])
+
+    // The operator sees the farm's pointers but not the owner's personal ones.
+    const theirs = await request.get(`/api/v1/recipes/defaults?farmId=${farm.id}`)
+      .set('Authorization', `Bearer ${worker.token}`)
+    expect(theirs.body.data.personal).toEqual([])
+    expect(theirs.body.data.farm).toHaveLength(1)
+
+    // Outsiders are refused farm context.
+    const outsider = await createTestUser()
+    const refused = await request.get(`/api/v1/recipes/defaults?farmId=${farm.id}`)
+      .set('Authorization', `Bearer ${outsider.token}`)
+    expect(refused.status).toBe(404)
+  })
+
   it('field-scope defaults require the field to belong to the farm', async () => {
     const owner = await createTestUser()
     const farm = await createTestFarm(owner.token)

@@ -8,7 +8,8 @@ import { requireFarmRole } from '../lib/farmAccess'
 import { enforceContract } from '../contracts/enforce'
 import {
   createRecipeRequestSchema, updateRecipeRequestSchema, updateRecipeScheduleRequestSchema,
-  setRecipeDefaultRequestSchema, resolvedRecipesResponseSchema, ScheduleInput,
+  setRecipeDefaultRequestSchema, resolvedRecipesResponseSchema,
+  recipeDefaultsResponseSchema, ScheduleInput,
 } from '../contracts/recipeContract'
 import { serializeRecipe, currentVersionInclude, resolveFarmRecipes } from '../lib/recipes'
 
@@ -69,6 +70,32 @@ router.get('/resolved', requireAuth, async (req: Request, res: Response, next: N
     res.json({
       success: true,
       data: enforceContract(resolvedRecipesResponseSchema, { farmId, entries }, 'resolvedRecipes'),
+    })
+  } catch (err) { next(err) }
+})
+
+// ── GET /api/v1/recipes/defaults?farmId= — the raw default pointers ────
+// The caller's personal defaults, plus the farm's defaults when farmId is
+// given (member-visible — operators see what the farm plants by).
+router.get('/defaults', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user!.userId
+    const farmId = req.query.farmId ? String(req.query.farmId) : null
+    if (farmId) await requireFarmRole(userId, farmId, 'operator')
+
+    const rows = await prisma.recipeDefault.findMany({
+      where: farmId ? { OR: [{ userId }, { farmId }] } : { userId },
+    })
+    res.json({
+      success: true,
+      data: enforceContract(recipeDefaultsResponseSchema, {
+        personal: rows
+          .filter(r => r.userId === userId)
+          .map(r => ({ cropTypeId: r.cropTypeId, recipeId: r.recipeId })),
+        farm: rows
+          .filter(r => r.farmId !== null && r.farmId === farmId)
+          .map(r => ({ cropTypeId: r.cropTypeId, recipeId: r.recipeId, fieldId: r.fieldId })),
+      }, 'recipeDefaults'),
     })
   } catch (err) { next(err) }
 })
