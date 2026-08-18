@@ -26,10 +26,19 @@ type Props = {
   cropTypeId?: string
   /** Edit an existing recipe (own only); omit to create. */
   recipe?: ApiRecipe | null
+  /** Prefill for "guardar como receta" — a schedule lifted from a real planting. */
+  initialDraft?: ScheduleDraft
+  initialName?: string
+  /** Context line shown under the header (e.g. which planting this was lifted from). */
+  banner?: string
+  /** Awaited after a successful create, before the modal closes (e.g. link the source planting). */
+  onCreated?: (recipe: ApiRecipe) => void | Promise<void>
   onClose: () => void
 }
 
-export default function RecipeEditorModal({ cropTypeId, recipe, onClose }: Props) {
+export default function RecipeEditorModal({
+  cropTypeId, recipe, initialDraft, initialName, banner, onCreated, onClose,
+}: Props) {
   const { t } = useTranslation('editor')
   const createRecipe = useCreateRecipe()
   const updateRecipe = useUpdateRecipe()
@@ -44,13 +53,14 @@ export default function RecipeEditorModal({ cropTypeId, recipe, onClose }: Props
 
   const [name, setName] = useState(() =>
     editing?.name ??
+    initialName ??
     (crop ? t('recipes.defaultName', { crop: localName(crop) }) : '')
   )
-  const [nameTouched, setNameTouched] = useState(!!editing)
+  const [nameTouched, setNameTouched] = useState(!!editing || !!initialName)
   const [draft, setDraft] = useState<ScheduleDraft>(() =>
     editing?.currentVersion
       ? draftFromVersion(editing.currentVersion)
-      : emptyScheduleDraft(t('customCrop.defaultOpLabel'))
+      : initialDraft ?? emptyScheduleDraft(t('customCrop.defaultOpLabel'))
   )
   const [note, setNote] = useState('')
   const [makeDefault, setMakeDefault] = useState(!editing)
@@ -96,6 +106,7 @@ export default function RecipeEditorModal({ cropTypeId, recipe, onClose }: Props
             cropTypeId: selectedCropId, recipeId: created.id, scope: 'user',
           })
         }
+        await onCreated?.(created)
         toast.success(t('recipes.created', { name: trimmedName }))
       }
       onClose()
@@ -131,6 +142,12 @@ export default function RecipeEditorModal({ cropTypeId, recipe, onClose }: Props
         </div>
 
         <div className="p-5 flex flex-col gap-4">
+
+          {banner && (
+            <p className="text-[11px] text-[#5a6a4a] bg-[#f0f5e8] border border-[#e0e8d8] rounded-lg px-3 py-2">
+              {banner}
+            </p>
+          )}
 
           {/* Crop (create mode without a preset only) */}
           {!editing && !cropTypeId && (

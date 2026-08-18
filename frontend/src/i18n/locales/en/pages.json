@@ -39,6 +39,11 @@
       "animales": "Animals",
       "recetas": "Recipes"
     },
+    "saveAsRecipe": "Save as recipe",
+    "nothingToLift": "This planting has no tasks to turn into a recipe.",
+    "liftBanner": "Derived from the planting of {{date}} in {{field}} — with this season's real days.",
+    "liftName": "{{crop}} {{year}}",
+    "liftLinked": "The planting was linked as evidence for the recipe.",
     "status": {
       "overdue": "Overdue",
       "dueSoon": "Due soon",

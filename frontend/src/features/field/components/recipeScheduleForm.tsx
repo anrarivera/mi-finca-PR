@@ -20,6 +20,8 @@ export type OpDraft = {
   type: string
   labelEs: string
   offsetDays: string
+  /** Not editable in the form, but carried through (lifted plantings bring their products). */
+  product?: string
 }
 
 export type ScheduleDraft = {
@@ -45,6 +47,7 @@ export function draftFromVersion(version: ApiRecipeVersion): ScheduleDraft {
       type: op.type,
       labelEs: op.labelEs,
       offsetDays: String(op.offsetDays),
+      product: op.product,
     })),
   }
 }
@@ -67,7 +70,13 @@ export function validateScheduleDraft(
     if (!Number.isFinite(offset) || offset < 0) {
       return { error: t('customCrop.opNeedsDays', { number: i + 1 }) }
     }
-    operations.push({ ...(op.id ? { id: op.id } : {}), type: op.type, labelEs: label, offsetDays: offset })
+    operations.push({
+      ...(op.id ? { id: op.id } : {}),
+      ...(op.product ? { product: op.product } : {}),
+      type: op.type,
+      labelEs: label,
+      offsetDays: offset,
+    })
   }
   return {
     schedule: { harvestWindowStartDays: start, harvestWindowEndDays: end, operations },

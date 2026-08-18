@@ -39,6 +39,11 @@
       "animales": "Animales",
       "recetas": "Recetas"
     },
+    "saveAsRecipe": "Guardar como receta",
+    "nothingToLift": "Esta siembra no tiene labores que convertir en receta.",
+    "liftBanner": "Derivada de la siembra del {{date}} en {{field}} — con los días reales de esta temporada.",
+    "liftName": "{{crop}} {{year}}",
+    "liftLinked": "La siembra quedó vinculada como evidencia de la receta.",
     "status": {
       "overdue": "Vencidas",
       "dueSoon": "Próximas",

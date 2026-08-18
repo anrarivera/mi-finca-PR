@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import {
   Package, Sprout, AlertCircle, Clock, CheckCircle2, ClipboardList,
   ChevronDown, ChevronRight, Wheat,
-  CalendarDays, Bug, PawPrint, Download, BookOpen,
+  CalendarDays, Bug, PawPrint, Download, BookOpen, BookmarkPlus,
 } from 'lucide-react'
 import { useFarmStore } from '@/store/useFarmStore'
 import { useFieldStore } from '@/store/useFieldStore'
@@ -22,6 +22,11 @@ import HarvestLogSection from '@/features/field/components/harvestLogSection'
 import SanidadRecordsSection from '@/features/scouting/components/sanidadRecordsSection'
 import LivestockSection from '@/features/livestock/components/livestockSection'
 import RecetasSection from '@/features/field/components/recetasSection'
+import RecipeEditorModal from '@/features/field/components/recipeEditorModal'
+import { liftScheduleFromPlanting, linkPlantingToVersion } from '@/features/field/utils/recipeLift'
+import type { ScheduleDraft } from '@/features/field/components/recipeScheduleForm'
+import type { PlacedField, PlantingEvent } from '@/features/field/types'
+import { toast } from '@/store/useToastStore'
 
 // ──────────────────────────────────────────────────────────────────────────
 // Cuaderno de campo — the farm's books: what you have and what has
@@ -71,6 +76,14 @@ export default function InventoryPage() {
   const [sortKey, setSortKey] = useState<SortKey>('nextOp')
   const [sortDir, setSortDir] = useState<SortDir>('asc')
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  // "Guardar como receta" — a planting lifted into the recipe editor.
+  const [lift, setLift] = useState<null | {
+    row: InventoryRow
+    field: PlacedField
+    event: PlantingEvent
+    draft: ScheduleDraft
+    name: string
+  }>(null)
 
   const allRows = useMemo(() => buildInventoryRows(farms, fields), [farms, fields])
   const summary = useMemo(() => summarizeInventory(allRows), [allRows])
@@ -109,6 +122,28 @@ export default function InventoryPage() {
   function toggleSort(key: SortKey) {
     if (sortKey === key) setSortDir(d => (d === 'asc' ? 'desc' : 'asc'))
     else { setSortKey(key); setSortDir('asc') }
+  }
+
+  // Lift a planting's real calendar into a recipe draft (consent = the
+  // editor itself: the farmer reviews and names it before anything saves).
+  function startLift(row: InventoryRow) {
+    const field = fields.find(f => f.id === row.fieldId)
+    const event = field?.plantingEvents.find(e => e.id === row.id)
+    if (!field || !event) return
+    const lifted = liftScheduleFromPlanting(event)
+    if (!lifted) {
+      toast.error(t('inventory.nothingToLift'))
+      return
+    }
+    const crop = getCropById(row.cropTypeId)
+    setLift({
+      row, field, event,
+      draft: lifted.draft,
+      name: t('inventory.liftName', {
+        crop: localName(crop, row.cropTypeId),
+        year: row.plantingDate.slice(0, 4),
+      }),
+    })
   }
 
   // The CSV is the current view: the filtered, sorted grid (all pages).
@@ -279,6 +314,7 @@ export default function InventoryPage() {
                   row={row}
                   expanded={expandedId === row.id}
                   onToggle={() => setExpandedId(prev => (prev === row.id ? null : row.id))}
+                  onSaveAsRecipe={() => startLift(row)}
                 />
               ))}
             </div>
@@ -303,6 +339,7 @@ export default function InventoryPage() {
                       row={row}
                       expanded={expandedId === row.id}
                       onToggle={() => setExpandedId(prev => (prev === row.id ? null : row.id))}
+                      onSaveAsRecipe={() => startLift(row)}
                     />
                   ))}
                 </tbody>
@@ -316,6 +353,27 @@ export default function InventoryPage() {
           </section>
         </>
       ))}
+
+      {/* "Guardar como receta" — prefilled with the planting's real offsets;
+          on create, the source planting is linked as founding evidence. */}
+      {lift && (
+        <RecipeEditorModal
+          cropTypeId={lift.row.cropTypeId}
+          initialDraft={lift.draft}
+          initialName={lift.name}
+          banner={t('inventory.liftBanner', {
+            date: formatDateEs(lift.event.plantingDate),
+            field: lift.row.fieldName,
+          })}
+          onCreated={async (recipe) => {
+            if (recipe.currentVersion) {
+              await linkPlantingToVersion(lift.field, lift.event.id, recipe.currentVersion.id)
+              toast.success(t('inventory.liftLinked'))
+            }
+          }}
+          onClose={() => setLift(null)}
+        />
+      )}
     </div>
   )
 }
@@ -337,10 +395,11 @@ function SiembrasExportButton({ onClick, disabled }: {
   )
 }
 
-function InventoryRowView({ row, expanded, onToggle }: {
+function InventoryRowView({ row, expanded, onToggle, onSaveAsRecipe }: {
   row: InventoryRow
   expanded: boolean
   onToggle: () => void
+  onSaveAsRecipe: () => void
 }) {
   const { t } = useTranslation('pages')
   const crop = getCropById(row.cropTypeId)
@@ -418,10 +477,26 @@ function InventoryRowView({ row, expanded, onToggle }: {
         <tr>
           <td colSpan={8} className="px-6 py-3 bg-[#fafcf8]">
             <SiembraOperationsList operations={row.operations} />
+            {row.operations.length > 0 && (
+              <SaveAsRecipeButton onClick={onSaveAsRecipe} />
+            )}
           </td>
         </tr>
       )}
     </>
+  )
+}
+
+// The season-two on-ramp: this planting's real calendar becomes a recipe.
+function SaveAsRecipeButton({ onClick }: { onClick: () => void }) {
+  const { t } = useTranslation('pages')
+  return (
+    <button
+      onClick={(e) => { e.stopPropagation(); onClick() }}
+      className="mt-2 flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] text-[#4d7a1b] border border-[#c8dca8] rounded-lg hover:bg-[#eaf3de] transition-colors"
+    >
+      <BookmarkPlus size={12} /> {t('inventory.saveAsRecipe')}
+    </button>
   )
 }
 
@@ -472,10 +547,11 @@ function SiembraOperationsList({ operations }: {
 
 // Phone rendering of an inventory row: the same facts as the table row,
 // stacked into a tappable card.
-function InventoryCardView({ row, expanded, onToggle }: {
+function InventoryCardView({ row, expanded, onToggle, onSaveAsRecipe }: {
   row: InventoryRow
   expanded: boolean
   onToggle: () => void
+  onSaveAsRecipe: () => void
 }) {
   const { t } = useTranslation('pages')
   const crop = getCropById(row.cropTypeId)
@@ -547,6 +623,9 @@ function InventoryCardView({ row, expanded, onToggle }: {
       {expanded && (
         <div className="mt-2 pt-2 border-t border-[#f0f5e8]">
           <SiembraOperationsList operations={row.operations} />
+          {row.operations.length > 0 && (
+            <SaveAsRecipeButton onClick={onSaveAsRecipe} />
+          )}
         </div>
       )}
     </div>
