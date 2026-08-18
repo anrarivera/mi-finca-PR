@@ -25,7 +25,8 @@ model User {
   farms             Farm[]
   oauthAccounts     OAuthAccount[]
   cropTypes         CropType[]
-  cropSchedules     CropSchedule[]
+  recipes           Recipe[]
+  recipeDefaults    RecipeDefault[]
   actionTokens      ActionToken[]
   farmMemberships   FarmMember[]
   performedOperations   Operation[]          @relation("PerformedOperations")
@@ -70,6 +71,7 @@ model Farm {
   operations     Operation[]
   members        FarmMember[]
   invites        FarmInvite[]
+  recipeDefaults RecipeDefault[]
 
   @@map("farms")
 }
@@ -151,6 +153,7 @@ model Field {
   harvestYields  HarvestYield[]
   findings       Finding[]
   livestockUnits LivestockUnit[]
+  recipeDefaults RecipeDefault[]
 
   @@map("fields")
 }
@@ -196,17 +199,21 @@ model PlantInstance {
 }
 
 model PlantingEvent {
-  id           String    @id @default(uuid())
-  fieldId      String
-  cropTypeId   String
-  plantingDate DateTime  @db.Date
-  plantCount   Int
-  isSimulated  Boolean   @default(false)
-  createdAt    DateTime  @default(now())
-  field        Field     @relation(fields: [fieldId], references: [id], onDelete: Cascade)
-  plants       PlantInstance[]
-  operations   Operation[]
-  recommended  RecommendedOperation[]
+  id              String    @id @default(uuid())
+  fieldId         String
+  cropTypeId      String
+  plantingDate    DateTime  @db.Date
+  plantCount      Int
+  isSimulated     Boolean   @default(false)
+  // The honest link (R3): which recipe version this planting followed.
+  // The stamped operations are still a COPY — this reference is for proof.
+  recipeVersionId String?
+  createdAt       DateTime  @default(now())
+  field           Field     @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+  recipeVersion   RecipeVersion? @relation(fields: [recipeVersionId], references: [id], onDelete: SetNull)
+  plants          PlantInstance[]
+  operations      Operation[]
+  recommended     RecommendedOperation[]
 
   @@map("planting_events")
 }
@@ -399,31 +406,79 @@ model CropType {
   isBuiltIn Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  schedules CropSchedule[]
+  user           User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  recipes        Recipe[]
+  recipeDefaults RecipeDefault[]
 
   @@map("crop_types")
 }
 
-// One crop can carry several schedule rows: the base recipe (userId NULL —
-// seeded for built-ins, the owner's own recipe for custom crops) plus
-// per-user overrides of built-ins ("mi calendario para <crop>"). Readers
-// collapse to one: the caller's row wins over the base.
-model CropSchedule {
-  id                     String   @id @default(uuid())
-  cropTypeId             String
-  userId                 String?
+// ── Recipes: claims with evidence ──────────────────────────────────────
+// Crops are identity; recipes are practice. A recipe is authored by a
+// person (NULL author = seeded system recipe), applied to plantings via
+// versioned references, and its proof accrues per version. See the
+// Recetas de Cultivo design doc.
+
+model Recipe {
+  id           String    @id @default(uuid())
+  authorUserId String?
+  cropTypeId   String
+  name         String
+  description  String?
+  visibility   String    @default("private") // private | farm | public (future paid surface)
+  archivedAt   DateTime? // referenced recipes archive instead of deleting — evidence survives
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  author       User?     @relation(fields: [authorUserId], references: [id], onDelete: Cascade)
+  cropType     CropType  @relation(fields: [cropTypeId], references: [id], onDelete: Cascade)
+  versions     RecipeVersion[]
+  defaults     RecipeDefault[]
+
+  @@index([authorUserId, cropTypeId])
+  @@map("recipes")
+}
+
+// Immutable once referenced (R1): the first planting that stamps from a
+// version freezes it; edits mint the next number.
+model RecipeVersion {
+  id                     String    @id @default(uuid())
+  recipeId               String
+  number                 Int
   harvestWindowStartDays Int
   harvestWindowEndDays   Int
-  operations             Json     @default("[]")
-  cropType               CropType @relation(fields: [cropTypeId], references: [id], onDelete: Cascade)
-  user                   User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  operations             Json      @default("[]")
+  note                   String?
+  referencedAt           DateTime?
+  createdAt              DateTime  @default(now())
+  recipe                 Recipe    @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  plantingEvents         PlantingEvent[]
 
-  // NOTE: Postgres treats NULLs as distinct here, so this only guards the
-  // per-user rows; base rows (userId NULL) are kept unique by the code
-  // paths that write them (find-then-write, never blind create).
-  @@unique([cropTypeId, userId])
-  @@map("crop_schedules")
+  @@unique([recipeId, number])
+  @@map("recipe_versions")
+}
+
+// What stamps when someone plants — the R2 resolution ladder:
+// field (farmId+fieldId) → farm (farmId) → the farm OWNER's personal
+// default (userId) → seeded system recipe. Exactly one scope is set per
+// row. Postgres treats NULLs as distinct in the unique, so writes are
+// find-then-write, never blind create.
+model RecipeDefault {
+  id         String   @id @default(uuid())
+  cropTypeId String
+  recipeId   String
+  userId     String?
+  farmId     String?
+  fieldId    String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  cropType   CropType @relation(fields: [cropTypeId], references: [id], onDelete: Cascade)
+  recipe     Recipe   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  user       User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  farm       Farm?    @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  field      Field?   @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+
+  @@unique([cropTypeId, userId, farmId, fieldId])
+  @@map("recipe_defaults")
 }
 
 model ActionToken {

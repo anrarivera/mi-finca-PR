@@ -11,6 +11,7 @@ import {
   fieldResponseSchema, createFieldRequestSchema, updateFieldRequestSchema,
 } from '../contracts/fieldContract'
 import { enforceContract } from '../contracts/enforce'
+import { knownRecipeVersionIds, markVersionsReferenced } from '../lib/recipes'
 
 const router = Router({ mergeParams: true })
 
@@ -244,6 +245,12 @@ router.post('/', requireAuth, async (req: Request, res: Response, next: NextFunc
       (farm.boundary as Array<{ lat: number; lng: number }>) ?? []
     )
 
+    // Recipe references on plantings: keep only version ids that exist so
+    // a stale/foreign id degrades to "no reference" instead of an FK 500.
+    const knownVersions = await knownRecipeVersionIds(
+      plantingEvents.map((e: any) => e.recipeVersionId)
+    )
+
     // Step 1 — Create field with free plants and planting events
     const field = await prisma.field.create({
       data: {
@@ -275,6 +282,10 @@ router.post('/', requireAuth, async (req: Request, res: Response, next: NextFunc
             plantingDate: new Date(event.plantingDate),
             plantCount: event.plantCount,
             isSimulated: event.isSimulated ?? false,
+            recipeVersionId:
+              event.recipeVersionId && knownVersions.has(event.recipeVersionId)
+                ? event.recipeVersionId
+                : null,
             recommended: {
               create: (event.operations ?? []).map((op: any) => ({
                 id: op.id,
@@ -333,6 +344,11 @@ router.post('/', requireAuth, async (req: Request, res: Response, next: NextFunc
 
     // Step 3 — Link plants to their planting events (rows now exist)
     await linkPlantsToEvents(field.id, plantingEvents)
+
+    // R1: the first planting that stamps from a recipe version freezes it.
+    await markVersionsReferenced(
+      plantingEvents.map((e: any) => e.recipeVersionId).filter((v: any) => v && knownVersions.has(v))
+    )
 
     // Step 4 — Fetch and return complete field with all relations
     const created = await prisma.field.findFirst({
@@ -454,6 +470,10 @@ router.patch('/:id', requireAuth, async (req: Request, res: Response, next: Next
 
     // Replace planting events if provided
     if (plantingEvents !== undefined) {
+      // See POST: unknown recipe-version ids degrade to "no reference".
+      const knownVersions = await knownRecipeVersionIds(
+        plantingEvents.map((e: any) => e.recipeVersionId)
+      )
       await prisma.plantingEvent.deleteMany({ where: { fieldId: id } })
 
       for (const event of plantingEvents) {
@@ -465,6 +485,10 @@ router.patch('/:id', requireAuth, async (req: Request, res: Response, next: Next
             plantingDate: new Date(event.plantingDate),
             plantCount: event.plantCount,
             isSimulated: event.isSimulated ?? false,
+            recipeVersionId:
+              event.recipeVersionId && knownVersions.has(event.recipeVersionId)
+                ? event.recipeVersionId
+                : null,
             recommended: {
               create: (event.operations ?? []).map((op: any) => ({
                 id: op.id,
@@ -493,6 +517,8 @@ router.patch('/:id', requireAuth, async (req: Request, res: Response, next: Next
     // replaced above, and the replace path never sets plantingEventId.
     if (plantingEvents !== undefined) {
       await linkPlantsToEvents(id, plantingEvents)
+      // R1: freeze the recipe versions these plantings stamped from.
+      await markVersionsReferenced(plantingEvents.map((e: any) => e.recipeVersionId))
     }
 
     // Fetch and return updated field with all relations

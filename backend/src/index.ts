@@ -18,6 +18,7 @@ import harvestRoutes from './routes/harvests'
 import operationRoutes from './routes/operations'
 import recommendedOperationRoutes from './routes/recommendedOperations'
 import cropRoutes from './routes/crops'
+import recipeRoutes from './routes/recipes'
 import userRoutes from './routes/users'
 import clientErrorRoutes from './routes/clientErrors'
 import findingRoutes from './routes/findings'
@@ -152,6 +153,7 @@ app.use('/api/v1/farms/:farmId/findings', findingRoutes)
 // Farm team roster + membership management (roles phase 2)
 app.use('/api/v1/farms/:farmId/members', memberRoutes)
 app.use('/api/v1/crops', cropRoutes)
+app.use('/api/v1/recipes', recipeRoutes)
 app.use('/api/v1/users', userRoutes)
 app.use('/api/v1/client-errors', clientErrorRoutes)
 

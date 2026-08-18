@@ -30,22 +30,54 @@ async function main() {
       },
     })
 
-    // Sync the BASE schedule row (userId NULL) on both branches — earlier
-    // seeds only wrote it on create, so re-seeding never refreshed
-    // schedules. Per-user override rows are farmer data: never touched.
+    // Seeded schedules live as authorless SYSTEM recipes — one row per
+    // crop, refreshed on every seed run. R1 applies to the seed too: a
+    // referenced current version is frozen, so a changed crops.json mints
+    // the next version instead of rewriting anyone's evidence.
     if (schedule) {
+      let recipe = await prisma.recipe.findFirst({
+        where: { cropTypeId: crop.id, authorUserId: null },
+      })
+      if (!recipe) {
+        recipe = await prisma.recipe.create({
+          data: {
+            cropTypeId: crop.id,
+            authorUserId: null,
+            name: 'Calendario base',
+            visibility: 'public',
+          },
+        })
+      }
+
       const data = {
         harvestWindowStartDays: schedule.harvestWindowStartDays,
         harvestWindowEndDays: schedule.harvestWindowEndDays,
         operations: schedule.operations,
       }
-      const existing = await prisma.cropSchedule.findFirst({
-        where: { cropTypeId: crop.id, userId: null },
+      const current = await prisma.recipeVersion.findFirst({
+        where: { recipeId: recipe.id },
+        orderBy: { number: 'desc' },
       })
-      if (existing) {
-        await prisma.cropSchedule.update({ where: { id: existing.id }, data })
-      } else {
-        await prisma.cropSchedule.create({ data: { cropTypeId: crop.id, userId: null, ...data } })
+      const unchanged = current &&
+        current.harvestWindowStartDays === data.harvestWindowStartDays &&
+        current.harvestWindowEndDays === data.harvestWindowEndDays &&
+        JSON.stringify(current.operations) === JSON.stringify(data.operations)
+
+      if (!current) {
+        await prisma.recipeVersion.create({ data: { recipeId: recipe.id, number: 1, ...data } })
+      } else if (!unchanged) {
+        if (current.referencedAt) {
+          await prisma.recipeVersion.create({
+            data: {
+              recipeId: recipe.id,
+              number: current.number + 1,
+              note: 'Actualización del calendario base',
+              ...data,
+            },
+          })
+        } else {
+          await prisma.recipeVersion.update({ where: { id: current.id }, data })
+        }
       }
     }
 

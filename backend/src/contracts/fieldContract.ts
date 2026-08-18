@@ -68,6 +68,9 @@ export const plantingEventResponseSchema = z.object({
   cropTypeId: z.string(),
   plantingDate: z.string(),
   plantCount: z.number(),
+  // The recipe version this planting followed (Recetas de Cultivo R3) —
+  // the stamped operations below are a copy; this reference is for proof.
+  recipeVersionId: z.string().nullable(),
   rowIds: z.array(z.string()),
   freePlantIds: z.array(z.string()),
   operations: z.array(recommendedOperationResponseSchema),
@@ -151,6 +154,7 @@ const plantingEventRequest = z.looseObject({
   plantingDate: z.string().min(1),
   plantCount: z.number(),
   isSimulated: z.boolean().optional(),
+  recipeVersionId: z.string().nullish(),
   rowIds: z.array(z.string()).optional(),
   freePlantIds: z.array(z.string()).optional(),
   operations: z.array(eventOperationRequest).optional(),
