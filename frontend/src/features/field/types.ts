@@ -1,5 +1,9 @@
 import type { RecommendedOperationType } from './data/cropSchedules'
 
+// Re-exported: consumers of RecommendedOperation naturally want its type
+// union from the same module (plantingEventManager does).
+export type { RecommendedOperationType }
+
 export type FieldShape = 'rectangle' | 'polygon'
 
 // All boundary points are now geographic coordinates
