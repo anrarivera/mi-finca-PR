@@ -9,7 +9,7 @@ import { enforceContract } from '../contracts/enforce'
 import {
   createRecipeRequestSchema, updateRecipeRequestSchema, updateRecipeScheduleRequestSchema,
   setRecipeDefaultRequestSchema, resolvedRecipesResponseSchema,
-  recipeDefaultsResponseSchema, ScheduleInput,
+  recipeDefaultsResponseSchema, recipeEvidenceResponseSchema, ScheduleInput,
 } from '../contracts/recipeContract'
 import { serializeRecipe, currentVersionInclude, resolveFarmRecipes } from '../lib/recipes'
 
@@ -97,6 +97,128 @@ router.get('/defaults', requireAuth, async (req: Request, res: Response, next: N
           .map(r => ({ cropTypeId: r.cropTypeId, recipeId: r.recipeId, fieldId: r.fieldId })),
       }, 'recipeDefaults'),
     })
+  } catch (err) { next(err) }
+})
+
+// Adherence over a planting's stamped calendar rows: what separates
+// proof from anecdote (R5). pct counts only DECIDED ops — an in-season
+// planting's open ops aren't failures.
+function adherenceOf(recommended: Array<{ status: string; completedDate: Date | null; recommendedDate: Date }>) {
+  const completed = recommended.filter(op => op.status === 'completed')
+  const skipped = recommended.filter(op => op.status === 'skipped').length
+  const open = recommended.length - completed.length - skipped
+  const drifts = completed
+    .filter(op => op.completedDate)
+    .map(op => Math.round((op.completedDate!.getTime() - op.recommendedDate.getTime()) / 86_400_000))
+  const decided = completed.length + skipped
+  return {
+    total: recommended.length,
+    completed: completed.length,
+    skipped,
+    open,
+    pct: decided > 0 ? Math.round((completed.length / decided) * 100) : null,
+    avgDriftDays: drifts.length > 0 ? Math.round(drifts.reduce((a, b) => a + b, 0) / drifts.length) : null,
+  }
+}
+
+// ── GET /api/v1/recipes/:id/evidence — what each version produced ──────
+// Plantings that referenced the recipe's versions, scoped to farms the
+// caller owns or belongs to, with yield (via the harvest check-off's
+// operation link) and adherence. Versions come newest-first, so v(n)
+// sits directly above v(n−1) — the comparison is the layout.
+router.get('/:id/evidence', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user!.userId
+    const recipeId = String(req.params.id)
+    const recipe = await prisma.recipe.findFirst({
+      where: { id: recipeId, OR: [{ authorUserId: null }, { authorUserId: userId }] },
+    })
+    if (!recipe) throw Errors.notFound('Recipe')
+
+    const versions = await prisma.recipeVersion.findMany({
+      where: { recipeId },
+      orderBy: { number: 'desc' },
+    })
+    const events = await prisma.plantingEvent.findMany({
+      where: {
+        recipeVersionId: { in: versions.map(v => v.id) },
+        isSimulated: false,
+        field: {
+          deletedAt: { equals: null },
+          farm: {
+            deletedAt: { equals: null },
+            OR: [{ userId }, { members: { some: { userId } } }],
+          },
+        },
+      },
+      include: {
+        field: { select: { name: true, farm: { select: { name: true } } } },
+        recommended: { select: { status: true, completedDate: true, recommendedDate: true } },
+      },
+      orderBy: { plantingDate: 'desc' },
+    })
+    const yieldRows = events.length > 0
+      ? await prisma.harvestYield.findMany({
+          where: {
+            deletedAt: { equals: null },
+            operation: { plantingEventId: { in: events.map(e => e.id) } },
+          },
+          select: {
+            quantity: true, unit: true, revenue: true,
+            operation: { select: { plantingEventId: true } },
+          },
+        })
+      : []
+
+    const sumYields = (rows: typeof yieldRows) => {
+      const byUnit = new Map<string, number>()
+      let revenue: number | null = null
+      for (const y of rows) {
+        byUnit.set(y.unit, (byUnit.get(y.unit) ?? 0) + Number(y.quantity))
+        if (y.revenue !== null) revenue = (revenue ?? 0) + Number(y.revenue)
+      }
+      return {
+        yields: [...byUnit.entries()].map(([unit, quantity]) => ({ unit, quantity })),
+        revenue,
+      }
+    }
+
+    const data = {
+      recipeId,
+      versions: versions.map(v => {
+        const vEvents = events.filter(e => e.recipeVersionId === v.id)
+        const plantings = vEvents.map(e => {
+          const own = yieldRows.filter(y => y.operation?.plantingEventId === e.id)
+          return {
+            id: e.id,
+            farmName: e.field.farm.name,
+            fieldName: e.field.name,
+            plantingDate: e.plantingDate.toISOString().slice(0, 10),
+            plantCount: e.plantCount,
+            adherence: adherenceOf(e.recommended),
+            ...sumYields(own),
+          }
+        })
+        const allOps = vEvents.flatMap(e => e.recommended)
+        const allYields = yieldRows.filter(y =>
+          vEvents.some(e => e.id === y.operation?.plantingEventId)
+        )
+        return {
+          versionId: v.id,
+          number: v.number,
+          note: v.note,
+          createdAt: v.createdAt,
+          plantings,
+          totals: {
+            plantings: vEvents.length,
+            plants: vEvents.reduce((sum, e) => sum + e.plantCount, 0),
+            adherence: adherenceOf(allOps),
+            ...sumYields(allYields),
+          },
+        }
+      }),
+    }
+    res.json({ success: true, data: enforceContract(recipeEvidenceResponseSchema, data, 'recipeEvidence') })
   } catch (err) { next(err) }
 })
 

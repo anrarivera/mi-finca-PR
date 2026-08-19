@@ -402,6 +402,89 @@ describe('defaults permissions (R4)', () => {
   })
 })
 
+describe('GET /api/v1/recipes/:id/evidence', () => {
+  it('aggregates adherence, drift, and yield per version', async () => {
+    const user = await createTestUser()
+    const recipe = await createRecipe(user.token)
+    const vId = recipe.currentVersion.id
+    const farm = await createTestFarm(user.token)
+    const field = await createTestField(user.token, farm.id, {
+      plantingEvents: [{
+        id: 'pe_ev_1', cropTypeId: 'platano_test', plantingDate: '2026-01-01',
+        plantCount: 20, recipeVersionId: vId,
+        operations: [
+          // Done 5 days late, one skipped, one still open — pct counts
+          // only the decided ops: 1/(1+1) = 50%.
+          { id: 'op_ev_1', templateId: 't1', type: 'fertilization', labelEs: 'Abono', recommendedDate: '2026-01-31', status: 'completed', completedDate: '2026-02-05' },
+          { id: 'op_ev_2', templateId: 't2', type: 'spray', labelEs: 'Fumigación', recommendedDate: '2026-02-15', status: 'skipped' },
+          { id: 'op_ev_3', templateId: 't3', type: 'harvest', labelEs: 'Cosecha', recommendedDate: '2026-10-01', status: 'pending' },
+        ],
+      }],
+    })
+
+    // Yields attach through the harvest check-off's operation row.
+    const op = await prisma.operation.create({
+      data: {
+        farmId: farm.id, fieldId: field.id, plantingEventId: 'pe_ev_1',
+        type: 'harvest', actualDate: new Date('2026-10-05'),
+      },
+    })
+    await prisma.harvestYield.create({
+      data: {
+        farmId: farm.id, fieldId: field.id, operationId: op.id,
+        cropTypeId: 'platano_test', quantity: 250, unit: 'lb',
+        revenue: 100, harvestDate: new Date('2026-10-05'),
+      },
+    })
+    await prisma.harvestYield.create({
+      data: {
+        farmId: farm.id, fieldId: field.id, operationId: op.id,
+        cropTypeId: 'platano_test', quantity: 50, unit: 'lb',
+        harvestDate: new Date('2026-10-06'),
+      },
+    })
+
+    const res = await request.get(`/api/v1/recipes/${recipe.id}/evidence`)
+      .set('Authorization', `Bearer ${user.token}`)
+    expect(res.status).toBe(200)
+    const v1 = res.body.data.versions.find((v: any) => v.number === 1)
+    expect(v1.totals.plantings).toBe(1)
+    expect(v1.totals.plants).toBe(20)
+    expect(v1.totals.adherence).toMatchObject({
+      total: 3, completed: 1, skipped: 1, open: 1, pct: 50, avgDriftDays: 5,
+    })
+    expect(v1.totals.yields).toEqual([{ unit: 'lb', quantity: 300 }])
+    expect(v1.totals.revenue).toBe(100)
+    expect(v1.plantings[0]).toMatchObject({
+      plantingDate: '2026-01-01', plantCount: 20, revenue: 100,
+    })
+  })
+
+  it('scopes evidence to the caller’s farms and hides foreign recipes', async () => {
+    const ana = await createTestUser()
+    const luis = await createTestUser()
+
+    // Ana plants against the SYSTEM recipe — her evidence, not Luis's.
+    const farm = await createTestFarm(ana.token)
+    await plantWithVersion(ana.token, farm.id, systemVersionId)
+    const system = await prisma.recipe.findFirst({ where: { authorUserId: null } })
+
+    const anaView = await request.get(`/api/v1/recipes/${system!.id}/evidence`)
+      .set('Authorization', `Bearer ${ana.token}`)
+    expect(anaView.body.data.versions[0].totals.plantings).toBe(1)
+
+    const luisView = await request.get(`/api/v1/recipes/${system!.id}/evidence`)
+      .set('Authorization', `Bearer ${luis.token}`)
+    expect(luisView.body.data.versions[0].totals.plantings).toBe(0)
+
+    // A private recipe is invisible to anyone else entirely.
+    const anaRecipe = await createRecipe(ana.token)
+    const foreign = await request.get(`/api/v1/recipes/${anaRecipe.id}/evidence`)
+      .set('Authorization', `Bearer ${luis.token}`)
+    expect(foreign.status).toBe(404)
+  })
+})
+
 describe('backup roundtrip', () => {
   it('recipes, versions, defaults, and planting references survive export → clear → restore', async () => {
     const user = await createTestUser()

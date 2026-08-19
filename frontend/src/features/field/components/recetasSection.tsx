@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Plus, Sprout, Star, Tractor, Pencil, Trash2 } from 'lucide-react'
+import { Plus, Sprout, Star, Tractor, Pencil, Trash2, BarChart3 } from 'lucide-react'
 import { useFarmStore, canManageStructure } from '@/store/useFarmStore'
 import { toast } from '@/store/useToastStore'
 import { localName } from '@/i18n'
@@ -12,6 +12,7 @@ import {
 } from '../hooks/useRecipesApi'
 import RecipeEditorModal from './recipeEditorModal'
 import CustomCropModal from './customCropModal'
+import RecipeEvidencePanel from './recipeEvidencePanel'
 
 // ──────────────────────────────────────────────────────────────────────────
 // Cuaderno → Recetas: the farmer's cookbook. System recipes plus their
@@ -33,6 +34,7 @@ export default function RecetasSection() {
 
   const [editor, setEditor] = useState<null | { cropTypeId?: string; recipe?: ApiRecipe }>(null)
   const [showNewCrop, setShowNewCrop] = useState(false)
+  const [evidenceFor, setEvidenceFor] = useState<string | null>(null)
 
   const personalByCrop = useMemo(
     () => new Map((defaults?.personal ?? []).map(d => [d.cropTypeId, d.recipeId])),
@@ -140,9 +142,11 @@ export default function RecetasSection() {
                 const isSystem = recipe.authorUserId === null
                 const isMyDefault = personalByCrop.get(recipe.cropTypeId) === recipe.id
                 const isFarmDefault = farmByCrop.get(recipe.cropTypeId) === recipe.id
+                const showEvidence = evidenceFor === recipe.id
                 const v = recipe.currentVersion
                 return (
-                  <div key={recipe.id} className="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-4 py-3">
+                  <div key={recipe.id}>
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-4 py-3">
                     <div className="flex-1 min-w-48">
                       <div className="flex flex-wrap items-center gap-1.5">
                         <span className="text-sm font-medium text-[#2d4a1e]">{recipe.name}</span>
@@ -170,6 +174,17 @@ export default function RecetasSection() {
                     </div>
 
                     <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => setEvidenceFor(prev => (prev === recipe.id ? null : recipe.id))}
+                        title={t('recipes.evidenceToggle')}
+                        className={`p-1.5 rounded-lg border transition-colors ${
+                          showEvidence
+                            ? 'text-[#3f6414] border-[#c8dca8] bg-[#eaf3de]'
+                            : 'text-[#66755a] border-[#e0e8d8] hover:bg-[#f5f8f0]'
+                        }`}
+                      >
+                        <BarChart3 size={13} />
+                      </button>
                       <button
                         onClick={() => toggleDefault(recipe, 'user', isMyDefault)}
                         title={isMyDefault ? t('recipes.clearMyDefault') : t('recipes.setMyDefault')}
@@ -213,6 +228,8 @@ export default function RecetasSection() {
                         </>
                       )}
                     </div>
+                  </div>
+                  {showEvidence && <RecipeEvidencePanel recipeId={recipe.id} />}
                   </div>
                 )
               })}

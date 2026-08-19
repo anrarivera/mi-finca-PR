@@ -53,11 +53,51 @@ export type RecipeDefaults = {
   farm: Array<{ cropTypeId: string; recipeId: string; fieldId: string | null }>
 }
 
+export type EvidenceAdherence = {
+  total: number
+  completed: number
+  skipped: number
+  open: number
+  pct: number | null
+  avgDriftDays: number | null
+}
+
+export type EvidenceYield = { unit: string; quantity: number }
+
+export type EvidencePlanting = {
+  id: string
+  farmName: string
+  fieldName: string
+  plantingDate: string
+  plantCount: number
+  adherence: EvidenceAdherence
+  yields: EvidenceYield[]
+  revenue: number | null
+}
+
+export type EvidenceVersion = {
+  versionId: string
+  number: number
+  note: string | null
+  createdAt: string
+  plantings: EvidencePlanting[]
+  totals: {
+    plantings: number
+    plants: number
+    adherence: EvidenceAdherence
+    yields: EvidenceYield[]
+    revenue: number | null
+  }
+}
+
+export type RecipeEvidence = { recipeId: string; versions: EvidenceVersion[] }
+
 const recipeKeys = {
   all: () => ['recipes'] as const,
   list: () => ['recipes', 'list'] as const,
   resolved: (farmId: string) => ['recipes', 'resolved', farmId] as const,
   defaults: (farmId: string | null) => ['recipes', 'defaults', farmId ?? ''] as const,
+  evidence: (recipeId: string) => ['recipes', 'evidence', recipeId] as const,
 }
 
 type ResolvedResponse = { farmId: string; entries: ResolvedRecipeEntry[] }
@@ -96,6 +136,15 @@ export function useRecipeDefaults(farmId: string | null) {
         `/api/v1/recipes/defaults${farmId ? `?farmId=${farmId}` : ''}`
       ),
     staleTime: 5 * 60 * 1000,
+  })
+}
+
+export function useRecipeEvidence(recipeId: string | null) {
+  return useQuery({
+    queryKey: recipeKeys.evidence(recipeId ?? ''),
+    queryFn: () => api.get<RecipeEvidence>(`/api/v1/recipes/${recipeId}/evidence`),
+    enabled: !!recipeId,
+    staleTime: 60 * 1000,
   })
 }
 

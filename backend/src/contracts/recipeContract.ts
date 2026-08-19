@@ -84,6 +84,60 @@ export const recipeDefaultsResponseSchema = z.object({
 
 export type RecipeDefaultsResponse = z.output<typeof recipeDefaultsResponseSchema>
 
+// ── Evidence: what actually happened under each version ─────────────────
+// Yield joins harvestYields → check-off operation → planting → version;
+// adherence comes from the planting's stamped calendar (completed /
+// skipped / still open, with the mean drift of completed ops vs plan).
+
+export const evidenceAdherenceSchema = z.object({
+  total: z.number(),
+  completed: z.number(),
+  skipped: z.number(),
+  open: z.number(),
+  // completed ÷ (completed + skipped), 0–100; null while nothing is decided.
+  pct: z.number().nullable(),
+  // Mean (completedDate − recommendedDate) in days; negative = early.
+  avgDriftDays: z.number().nullable(),
+})
+
+export const evidenceYieldSchema = z.object({
+  unit: z.string(),
+  quantity: z.number(),
+})
+
+export const evidencePlantingSchema = z.object({
+  id: z.string(),
+  farmName: z.string(),
+  fieldName: z.string(),
+  plantingDate: z.string(),
+  plantCount: z.number(),
+  adherence: evidenceAdherenceSchema,
+  yields: z.array(evidenceYieldSchema),
+  revenue: z.number().nullable(),
+})
+
+export const evidenceVersionSchema = z.object({
+  versionId: z.string(),
+  number: z.number(),
+  note: z.string().nullable(),
+  createdAt: isoDate,
+  plantings: z.array(evidencePlantingSchema),
+  totals: z.object({
+    plantings: z.number(),
+    plants: z.number(),
+    adherence: evidenceAdherenceSchema,
+    yields: z.array(evidenceYieldSchema),
+    revenue: z.number().nullable(),
+  }),
+})
+
+export const recipeEvidenceResponseSchema = z.object({
+  recipeId: z.string(),
+  versions: z.array(evidenceVersionSchema),
+})
+
+export type RecipeEvidenceResponse = z.output<typeof recipeEvidenceResponseSchema>
+
 // ── Request bodies ──────────────────────────────────────────────────────
 
 export const opTemplateRequestSchema = z.object({
