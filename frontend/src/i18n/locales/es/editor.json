@@ -221,7 +221,23 @@
     "driftEarly_other": "{{count}} días temprano promedio",
     "openOps_one": "{{count}} pendiente",
     "openOps_other": "{{count}} pendientes",
-    "noProduction": "sin producción registrada"
+    "noProduction": "sin producción registrada",
+    "noOps": "Esta receta no tiene operaciones.",
+    "daysSuffix": "días",
+    "dayN_one": "día {{count}}",
+    "dayN_other": "día {{count}}",
+    "download": "Descargar receta (CSV)",
+    "csv": {
+      "recipe": "Receta",
+      "crop": "Cultivo",
+      "version": "Versión",
+      "operation": "Operación",
+      "type": "Tipo",
+      "days": "Días desde siembra",
+      "product": "Producto",
+      "harvestFrom": "Cosecha desde (días)",
+      "harvestTo": "Cosecha hasta (días)"
+    }
   },
   "selector": {
     "searchPlaceholder": "Buscar cultivo...",

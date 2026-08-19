@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Plus, Sprout, Star, Tractor, Pencil, Trash2, BarChart3 } from 'lucide-react'
+import { Plus, Star, Tractor, Pencil, Trash2, BarChart3, Download, ChevronDown, ChevronRight } from 'lucide-react'
 import { useFarmStore, canManageStructure } from '@/store/useFarmStore'
 import { toast } from '@/store/useToastStore'
-import { localName } from '@/i18n'
+import { localName, localOpLabel } from '@/i18n'
+import { downloadCsv } from '@/lib/csv'
 import { useConfirm } from '@/components/shared/confirmDialog'
 import { getCropById } from '../data/cropLibrary'
 import {
@@ -11,8 +12,8 @@ import {
   type ApiRecipe,
 } from '../hooks/useRecipesApi'
 import RecipeEditorModal from './recipeEditorModal'
-import CustomCropModal from './customCropModal'
 import RecipeEvidencePanel from './recipeEvidencePanel'
+import RecipeOpsPanel from './recipeOpsPanel'
 
 // ──────────────────────────────────────────────────────────────────────────
 // Cuaderno → Recetas: the farmer's cookbook. System recipes plus their
@@ -33,8 +34,8 @@ export default function RecetasSection() {
   const { confirm, confirmDialog } = useConfirm()
 
   const [editor, setEditor] = useState<null | { cropTypeId?: string; recipe?: ApiRecipe }>(null)
-  const [showNewCrop, setShowNewCrop] = useState(false)
   const [evidenceFor, setEvidenceFor] = useState<string | null>(null)
+  const [detailFor, setDetailFor] = useState<string | null>(null)
 
   const personalByCrop = useMemo(
     () => new Map((defaults?.personal ?? []).map(d => [d.cropTypeId, d.recipeId])),
@@ -80,6 +81,32 @@ export default function RecetasSection() {
     } catch { /* api client toasts */ }
   }
 
+  // The recipe as a file the farmer owns — one flat row per operation,
+  // Excel-friendly (CSV export free forever is the product promise).
+  function downloadRecipe(recipe: ApiRecipe) {
+    const v = recipe.currentVersion
+    if (!v) return
+    const crop = getCropById(recipe.cropTypeId)
+    const cropName = localName(crop, recipe.cropTypeId)
+    const slug = recipe.name.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+      .replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+    downloadCsv(
+      `mi-finca-receta-${slug || 'receta'}-v${v.number}.csv`,
+      [
+        t('recipes.csv.recipe'), t('recipes.csv.crop'), t('recipes.csv.version'),
+        t('recipes.csv.operation'), t('recipes.csv.type'), t('recipes.csv.days'),
+        t('recipes.csv.product'), t('recipes.csv.harvestFrom'), t('recipes.csv.harvestTo'),
+      ],
+      [...v.operations]
+        .sort((a, b) => a.offsetDays - b.offsetDays)
+        .map(op => [
+          recipe.name, cropName, `v${v.number}`,
+          localOpLabel(op.labelEs), t(`customCrop.opTypes.${op.type}`, op.type), op.offsetDays,
+          op.product ?? '', v.harvestWindowStartDays, v.harvestWindowEndDays,
+        ])
+    )
+  }
+
   async function handleDelete(recipe: ApiRecipe) {
     const ok = await confirm({
       title: t('recipes.deleteTitle', { name: recipe.name }),
@@ -99,15 +126,10 @@ export default function RecetasSection() {
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Toolbar */}
+      {/* Toolbar — one button: the editor's crop picker covers "new crop"
+          via its footer, so a separate button was redundant. */}
       <div className="flex flex-wrap items-center gap-2">
         <p className="text-xs text-[#66755a] flex-1 min-w-48">{t('recipes.sectionHint')}</p>
-        <button
-          onClick={() => setShowNewCrop(true)}
-          className="flex items-center gap-1.5 px-3 py-2 text-xs text-[#2d4a1e] border border-[#d0dcc0] rounded-lg hover:bg-[#f0f5e8] transition-colors"
-        >
-          <Sprout size={13} /> {t('selector.newCrop')}
-        </button>
         <button
           onClick={() => setEditor({})}
           className="flex items-center gap-1.5 px-3 py-2 text-xs bg-[#2d4a1e] text-[#d4e8b0] rounded-lg hover:bg-[#3d6128] transition-colors"
@@ -143,12 +165,20 @@ export default function RecetasSection() {
                 const isMyDefault = personalByCrop.get(recipe.cropTypeId) === recipe.id
                 const isFarmDefault = farmByCrop.get(recipe.cropTypeId) === recipe.id
                 const showEvidence = evidenceFor === recipe.id
+                const showDetail = detailFor === recipe.id
                 const v = recipe.currentVersion
                 return (
                   <div key={recipe.id}>
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-4 py-3">
-                    <div className="flex-1 min-w-48">
+                    <button
+                      onClick={() => setDetailFor(prev => (prev === recipe.id ? null : recipe.id))}
+                      className="flex-1 min-w-48 text-left"
+                      aria-expanded={showDetail}
+                    >
                       <div className="flex flex-wrap items-center gap-1.5">
+                        {showDetail
+                          ? <ChevronDown size={13} className="text-[#66755a] shrink-0" />
+                          : <ChevronRight size={13} className="text-[#66755a] shrink-0" />}
                         <span className="text-sm font-medium text-[#2d4a1e]">{recipe.name}</span>
                         <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-[#f0f5e8] text-[#5a6a4a]">
                           {isSystem ? t('recipes.systemChip') : `v${v?.number ?? 1}`}
@@ -165,15 +195,22 @@ export default function RecetasSection() {
                         )}
                       </div>
                       {v && (
-                        <p className="text-[11px] text-[#66755a] mt-0.5">
+                        <p className="text-[11px] text-[#66755a] mt-0.5 pl-[18px]">
                           {t('recipes.windowSummary', { start: v.harvestWindowStartDays, end: v.harvestWindowEndDays })}
                           {' · '}
                           {t('recipes.opsCount', { count: v.operations.length })}
                         </p>
                       )}
-                    </div>
+                    </button>
 
                     <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => downloadRecipe(recipe)}
+                        title={t('recipes.download')}
+                        className="p-1.5 rounded-lg border border-[#e0e8d8] text-[#66755a] hover:bg-[#f5f8f0] transition-colors"
+                      >
+                        <Download size={13} />
+                      </button>
                       <button
                         onClick={() => setEvidenceFor(prev => (prev === recipe.id ? null : recipe.id))}
                         title={t('recipes.evidenceToggle')}
@@ -229,6 +266,15 @@ export default function RecetasSection() {
                       )}
                     </div>
                   </div>
+                  {showDetail && (
+                    <RecipeOpsPanel
+                      // Keyed by version so a save (which may mint the next
+                      // version) resets the panel's local offsets.
+                      key={v?.id ?? 'no-version'}
+                      recipe={recipe}
+                      editable={!isSystem}
+                    />
+                  )}
                   {showEvidence && <RecipeEvidencePanel recipeId={recipe.id} />}
                   </div>
                 )
@@ -243,12 +289,6 @@ export default function RecetasSection() {
           cropTypeId={editor.cropTypeId}
           recipe={editor.recipe}
           onClose={() => setEditor(null)}
-        />
-      )}
-      {showNewCrop && (
-        <CustomCropModal
-          onClose={() => setShowNewCrop(false)}
-          onCreated={() => setShowNewCrop(false)}
         />
       )}
       {confirmDialog}

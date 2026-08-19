@@ -221,7 +221,23 @@
     "driftEarly_other": "{{count}} days early on average",
     "openOps_one": "{{count}} open",
     "openOps_other": "{{count}} open",
-    "noProduction": "no production recorded"
+    "noProduction": "no production recorded",
+    "noOps": "This recipe has no operations.",
+    "daysSuffix": "days",
+    "dayN_one": "day {{count}}",
+    "dayN_other": "day {{count}}",
+    "download": "Download recipe (CSV)",
+    "csv": {
+      "recipe": "Recipe",
+      "crop": "Crop",
+      "version": "Version",
+      "operation": "Operation",
+      "type": "Type",
+      "days": "Days after planting",
+      "product": "Product",
+      "harvestFrom": "Harvest from (days)",
+      "harvestTo": "Harvest until (days)"
+    }
   },
   "selector": {
     "searchPlaceholder": "Search crop...",
