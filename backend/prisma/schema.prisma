@@ -46,6 +46,7 @@ model OAuthAccount {
   user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
+  @@index([userId])
   @@map("oauth_accounts")
 }
 
@@ -73,6 +74,7 @@ model Farm {
   invites        FarmInvite[]
   recipeDefaults RecipeDefault[]
 
+  @@index([userId])
   @@map("farms")
 }
 
@@ -107,6 +109,7 @@ model FarmInvite {
   createdAt DateTime  @default(now())
   farm      Farm      @relation(fields: [farmId], references: [id], onDelete: Cascade)
 
+  @@index([farmId])
   @@map("farm_invites")
 }
 
@@ -123,6 +126,7 @@ model FarmMember {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([farmId, userId])
+  @@index([userId])
   @@map("farm_members")
 }
 
@@ -155,6 +159,7 @@ model Field {
   livestockUnits LivestockUnit[]
   recipeDefaults RecipeDefault[]
 
+  @@index([farmId])
   @@map("fields")
 }
 
@@ -179,6 +184,7 @@ model FieldRow {
   field               Field     @relation(fields: [fieldId], references: [id], onDelete: Cascade)
   plants              PlantInstance[]
 
+  @@index([fieldId])
   @@map("field_rows")
 }
 
@@ -195,6 +201,9 @@ model PlantInstance {
   row             FieldRow? @relation(fields: [rowId], references: [id])
   plantingEvent   PlantingEvent? @relation(fields: [plantingEventId], references: [id])
 
+  @@index([fieldId])
+  @@index([rowId])
+  @@index([plantingEventId])
   @@map("plant_instances")
 }
 
@@ -215,6 +224,8 @@ model PlantingEvent {
   operations      Operation[]
   recommended     RecommendedOperation[]
 
+  @@index([fieldId])
+  @@index([recipeVersionId])
   @@map("planting_events")
 }
 
@@ -240,6 +251,9 @@ model RecommendedOperation {
   completedOperation  Operation? @relation(fields: [completedOperationId], references: [id])
   treatedFindings     Finding[]
 
+  @@index([plantingEventId])
+  @@index([livestockUnitId])
+  @@index([completedOperationId])
   @@map("recommended_operations")
 }
 
@@ -270,6 +284,9 @@ model Finding {
   treatmentRecommendedOperation RecommendedOperation? @relation(fields: [treatmentRecommendedOperationId], references: [id], onDelete: SetNull)
   observations FindingObservation[]
 
+  @@index([fieldId])
+  @@index([treatmentRecommendedOperationId])
+  @@index([performedByUserId])
   @@map("findings")
 }
 
@@ -291,6 +308,8 @@ model FindingObservation {
   performedBy User?  @relation("PerformedObservations", fields: [performedByUserId], references: [id], onDelete: SetNull)
   finding   Finding  @relation(fields: [findingId], references: [id], onDelete: Cascade)
 
+  @@index([findingId])
+  @@index([performedByUserId])
   @@map("finding_observations")
 }
 
@@ -334,6 +353,11 @@ model Operation {
   recommendedOperations RecommendedOperation[]
   harvestYields         HarvestYield[]
 
+  @@index([farmId])
+  @@index([fieldId])
+  @@index([plantingEventId])
+  @@index([livestockUnitId])
+  @@index([performedByUserId])
   @@map("operations")
 }
 
@@ -367,6 +391,10 @@ model HarvestYield {
   operation   Operation? @relation(fields: [operationId], references: [id], onDelete: SetNull)
   livestockUnit LivestockUnit? @relation(fields: [livestockUnitId], references: [id], onDelete: SetNull)
 
+  @@index([farmId])
+  @@index([fieldId])
+  @@index([operationId])
+  @@index([livestockUnitId])
   @@map("harvest_yields")
 }
 
@@ -393,6 +421,8 @@ model LivestockUnit {
   recommended     RecommendedOperation[]
   harvestYields   HarvestYield[]
 
+  @@index([farmId])
+  @@index([fieldId])
   @@map("livestock_units")
 }
 
@@ -410,6 +440,7 @@ model CropType {
   recipes        Recipe[]
   recipeDefaults RecipeDefault[]
 
+  @@index([userId])
   @@map("crop_types")
 }
 
@@ -435,6 +466,7 @@ model Recipe {
   defaults     RecipeDefault[]
 
   @@index([authorUserId, cropTypeId])
+  @@index([cropTypeId])
   @@map("recipes")
 }
 
@@ -478,6 +510,10 @@ model RecipeDefault {
   field      Field?   @relation(fields: [fieldId], references: [id], onDelete: Cascade)
 
   @@unique([cropTypeId, userId, farmId, fieldId])
+  @@index([recipeId])
+  @@index([userId])
+  @@index([farmId])
+  @@index([fieldId])
   @@map("recipe_defaults")
 }
 
@@ -492,6 +528,7 @@ model ActionToken {
   createdAt DateTime  @default(now())
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId])
   @@map("action_tokens")
 }
 
@@ -508,6 +545,7 @@ model Sensor {
   farm       Farm      @relation(fields: [farmId], references: [id], onDelete: Cascade)
   readings   SensorReading[]
 
+  @@index([farmId])
   @@map("sensors")
 }
 
@@ -520,6 +558,7 @@ model SensorReading {
   createdAt   DateTime @default(now())
   sensor      Sensor   @relation(fields: [sensorId], references: [id], onDelete: Cascade)
 
+  @@index([sensorId])
   @@map("sensor_readings")
 }
 
@@ -536,6 +575,7 @@ model AutomationRule {
   createdAt          DateTime  @default(now())
   farm               Farm      @relation(fields: [farmId], references: [id], onDelete: Cascade)
 
+  @@index([farmId])
   @@map("automation_rules")
 }
 
@@ -546,5 +586,6 @@ model RefreshToken {
   expiresAt DateTime
   createdAt DateTime @default(now())
 
+  @@index([userId])
   @@map("refresh_tokens")
 }
