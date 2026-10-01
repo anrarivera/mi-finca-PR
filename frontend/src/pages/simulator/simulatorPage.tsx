@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Calculator, Sprout, TrendingUp, TrendingDown, DollarSign, Scale } from 'lucide-react'
 import { dateLocale, fmtNumber, localName } from '@/i18n'
-import { useFieldStore } from '@/store/useFieldStore'
+import { useFieldsInScope } from '@/store/farmScope'
 import { computeCropSummary } from '@/features/field/utils/rowCalculator'
 import { getCropById } from '@/features/field/data/cropLibrary'
 import { simulateFarm } from '@/features/simulator/engine'
@@ -21,7 +21,9 @@ function money(n: number): string {
 
 export default function SimulatorPage() {
   const { t } = useTranslation('pages')
-  const fields = useFieldStore(s => s.fields)
+  // "Mi finca actual" is the farmer's own planting — or the sample
+  // farm's alone while that is the one being explored.
+  const fields = useFieldsInScope()
   const [rows, setRows] = useState<SimCropInput[]>([])
   const [source, setSource] = useState<string | null>(null)
 

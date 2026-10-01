@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Pencil, Trash2, ClipboardList } from 'lucide-react'
-import { useFarmStore } from '@/store/useFarmStore'
+import { useFarmsInScope } from '@/store/farmScope'
 import { useFieldStore } from '@/store/useFieldStore'
 import { useUpdateLivestock, useDeleteLivestock } from '../hooks/useLivestockApi'
 import { getAnimalById } from '../data/animalLibrary'
@@ -36,7 +36,7 @@ export default function LivestockUnitRow({
   const [producing, setProducing] = useState(false)
   const { confirm, confirmDialog } = useConfirm()
 
-  const farms = useFarmStore(s => s.farms)
+  const farms = useFarmsInScope()
   const fields = useFieldStore(s => s.fields)
   const updateLivestock = useUpdateLivestock()
   const deleteLivestock = useDeleteLivestock()

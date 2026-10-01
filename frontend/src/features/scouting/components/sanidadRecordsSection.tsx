@@ -1,8 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Bug, Download } from 'lucide-react'
-import { useFarmStore } from '@/store/useFarmStore'
-import { useFieldStore } from '@/store/useFieldStore'
+import { useFarmsInScope, useFieldsInScope } from '@/store/farmScope'
 import {
   DateRangeSelect, filterSelectClass, SortableTh, type SortDir,
 } from '@/components/shared/logFilters'
@@ -34,8 +33,8 @@ const STATUSES: FindingStatus[] = ['open', 'treated', 'resolved']
 
 export default function SanidadRecordsSection() {
   const { t } = useTranslation('scouting')
-  const farms = useFarmStore(s => s.farms)
-  const allFields = useFieldStore(s => s.fields)
+  const farms = useFarmsInScope()
+  const allFields = useFieldsInScope()
 
   // Farm scope — "Todas las fincas" by default, like the Siembras grid.
   const [farmFilter, setFarmFilter] = useState('all')

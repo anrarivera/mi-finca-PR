@@ -1,3 +1,5 @@
+import { randomBytes } from 'crypto'
+import type { Prisma } from '@prisma/client'
 import { prisma } from './prisma'
 import { calculateAreaAcres } from './farmUtils'
 
@@ -7,6 +9,9 @@ import { calculateAreaAcres } from './farmUtils'
 // labor (the check-off hook), café with history, an open finding, a
 // gallinero with production, and revenue in the ledger. All dates are
 // relative to "now" so the demo never rots the way fixture dates do.
+//
+// The same seed is the sample farm inside a real account (lib/sampleFarm),
+// so every farm it creates is flagged isSample.
 // ──────────────────────────────────────────────────────────────────────────
 
 const day = 24 * 60 * 60 * 1000
@@ -31,8 +36,24 @@ function plantsAlong(rowId: string, start: Pt, end: Pt, count: number, cropTypeI
   return pts
 }
 
-export async function seedDemoFarm(userId: string): Promise<string> {
-  const uid = userId.slice(0, 8)
+export type SeedDemoFarmOptions = {
+  /** Seed inside the caller's transaction — a sample-farm reset deletes
+   *  the old farm and seeds the new one as one unit. */
+  tx?: Prisma.TransactionClient
+  /** Whether the farm becomes the account's favorite. Defaults to true:
+   *  a fresh demo account has no other farm to take it from. */
+  isFavorite?: boolean
+}
+
+export async function seedDemoFarm(
+  userId: string,
+  options: SeedDemoFarmOptions = {}
+): Promise<string> {
+  const db = options.tx ?? prisma
+  // Unique per SEED, not per user: ids derived from the user id collided
+  // with the leftovers of that user's previous seed, and with any other
+  // user sharing the same id prefix.
+  const uid = randomBytes(6).toString('hex')
 
   // Farm boundary — a ~50-acre finca in the hills outside Utuado.
   const boundary: Pt[] = [
@@ -42,7 +63,7 @@ export async function seedDemoFarm(userId: string): Promise<string> {
     { lat: 18.2580, lng: -66.7065 },
   ]
 
-  const farm = await prisma.farm.create({
+  const farm = await db.farm.create({
     data: {
       userId,
       name: 'Finca Demostración',
@@ -50,14 +71,15 @@ export async function seedDemoFarm(userId: string): Promise<string> {
       farmType: 'mixed',
       boundary: boundary as object[],
       totalAreaAcres: calculateAreaAcres(boundary),
-      isFavorite: true,
+      isFavorite: options.isFavorite ?? true,
+      isSample: true,
       description: 'Finca de ejemplo — explora sin miedo, nada aquí es permanente.',
     },
   })
 
   // ── Field 1: Los Plátanos (planted 3 weeks ago; one labor OVERDUE) ──
   const platanoPlanted = daysAgo(21)
-  const f1 = await prisma.field.create({
+  const f1 = await db.field.create({
     data: {
       farmId: farm.id,
       name: 'Los Plátanos',
@@ -76,7 +98,7 @@ export async function seedDemoFarm(userId: string): Promise<string> {
     },
   })
   const f1EventId = `pe_demo_${uid}_platano`
-  await prisma.plantingEvent.create({
+  await db.plantingEvent.create({
     data: {
       id: f1EventId,
       fieldId: f1.id,
@@ -108,7 +130,7 @@ export async function seedDemoFarm(userId: string): Promise<string> {
   for (let r = 0; r < 6; r++) {
     const lat = 18.2589 + r * 0.00028
     const rowId = `row_demo_${uid}_pl${r}`
-    await prisma.fieldRow.create({
+    await db.fieldRow.create({
       data: {
         id: rowId,
         fieldId: f1.id,
@@ -127,7 +149,7 @@ export async function seedDemoFarm(userId: string): Promise<string> {
 
   // The completed cultivación also exists in the operations log (history),
   // linked BOTH ways like a real check-off (routes/operations.ts).
-  const cultivacionLog = await prisma.operation.create({
+  const cultivacionLog = await db.operation.create({
     data: {
       farmId: farm.id,
       fieldId: f1.id,
@@ -139,14 +161,14 @@ export async function seedDemoFarm(userId: string): Promise<string> {
       performedByUserId: userId,
     },
   })
-  await prisma.recommendedOperation.update({
+  await db.recommendedOperation.update({
     where: { id: `ro_demo_${uid}_p1` },
     data: { completedOperationId: cultivacionLog.id },
   })
 
   // ── Field 2: Café de Altura (10 weeks in; has an open finding) ──────
   const cafePlanted = daysAgo(70)
-  const f2 = await prisma.field.create({
+  const f2 = await db.field.create({
     data: {
       farmId: farm.id,
       name: 'Café de Altura',
@@ -165,7 +187,7 @@ export async function seedDemoFarm(userId: string): Promise<string> {
     },
   })
   const f2EventId = `pe_demo_${uid}_cafe`
-  await prisma.plantingEvent.create({
+  await db.plantingEvent.create({
     data: {
       id: f2EventId,
       fieldId: f2.id,
@@ -190,7 +212,7 @@ export async function seedDemoFarm(userId: string): Promise<string> {
     const lat = 18.2611 + r * 0.00025
     const rowId = `row_demo_${uid}_cf${r}`
     cafeRowIds.push(rowId)
-    await prisma.fieldRow.create({
+    await db.fieldRow.create({
       data: {
         id: rowId,
         fieldId: f2.id,
@@ -208,7 +230,7 @@ export async function seedDemoFarm(userId: string): Promise<string> {
   }
 
   // Open finding on the café (the sanidad story: broca, moderada).
-  await prisma.finding.create({
+  await db.finding.create({
     data: {
       fieldId: f2.id,
       pestId: 'broca_cafe',
@@ -233,7 +255,7 @@ export async function seedDemoFarm(userId: string): Promise<string> {
   })
 
   // ── El Gallinero: corral + herd + production ────────────────────────
-  const corral = await prisma.field.create({
+  const corral = await db.field.create({
     data: {
       farmId: farm.id,
       name: 'El Gallinero',
@@ -251,7 +273,7 @@ export async function seedDemoFarm(userId: string): Promise<string> {
       displayMode: 'shape',
     },
   })
-  const herd = await prisma.livestockUnit.create({
+  const herd = await db.livestockUnit.create({
     data: {
       farmId: farm.id,
       fieldId: corral.id,
@@ -263,7 +285,7 @@ export async function seedDemoFarm(userId: string): Promise<string> {
   })
 
   // Production ledger: eggs (with revenue) and a plátano sale.
-  await prisma.harvestYield.createMany({
+  await db.harvestYield.createMany({
     data: [
       { farmId: farm.id, livestockUnitId: herd.id, productId: 'eggs',
         quantity: 24, unit: 'unidades', revenue: 12, harvestDate: daysAgo(2),

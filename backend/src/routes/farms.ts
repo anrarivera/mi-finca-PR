@@ -79,13 +79,20 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
       )
     }
 
-    // Check if this will be the user's first farm
-    // If so, automatically set it as favorite
+    // Check if this will be the user's first farm OF THEIR OWN — the
+    // sample farm does not count. If so, automatically set it as favorite,
+    // taking the favorite over from the sample farm if that was holding it.
     const existingCount = await prisma.farm.count({
       // POST / — count existing farms
-      where: { userId: req.user!.userId, deletedAt: { equals: null } } 
+      where: { userId: req.user!.userId, deletedAt: { equals: null }, isSample: false }
     })
     const shouldBeFavorite = existingCount === 0
+    if (shouldBeFavorite) {
+      await prisma.farm.updateMany({
+        where: { userId: req.user!.userId, isSample: true, isFavorite: true },
+        data: { isFavorite: false },
+      })
+    }
 
     const farm = await prisma.farm.create({
       data: {

@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import TopNav from './topNav'
 import DemoBanner from '@/features/demo/demoBanner'
+import SampleFarmBanner from '@/features/demo/sampleFarmBanner'
 import DemoTour from '@/features/demo/demoTour'
 import SideMenu from './sideMenu'
 import BottomNav from './bottomNav'
@@ -31,6 +32,7 @@ export default function Layout({ children }: Props) {
     <div className="flex flex-col h-dvh">
       <TopNav />
       <DemoBanner />
+      <SampleFarmBanner />
       <div className="flex flex-1 overflow-hidden">
         <SideMenu />
         <main className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-6 bg-[#f7f9f4]">

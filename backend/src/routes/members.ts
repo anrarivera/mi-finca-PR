@@ -24,6 +24,11 @@ router.use(requireAuth)
 const MEMBER_ROLES = ['admin', 'operator'] as const
 type MemberRole = (typeof MEMBER_ROLES)[number]
 
+// The sample farm (Farm.isSample) is a sandbox, not a workplace: nobody is
+// added to it and it hands out no join codes.
+const SAMPLE_FARM_HAS_NO_TEAM =
+  'La finca de ejemplo no admite equipo. Usa una de tus fincas para invitar a tu equipo.'
+
 // ─────────────────────────────────────────────────────────────────────
 // GET /api/v1/farms/:farmId/members
 // The team roster — any member can see who else works the farm.
@@ -82,6 +87,9 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
     }
 
     const { farm } = await requireFarmRole(req.user!.userId, farmId, 'admin')
+    // Refused before the email lookup, so the answer is the same for
+    // registered and unregistered addresses.
+    if (farm.isSample) throw Errors.forbidden(SAMPLE_FARM_HAS_NO_TEAM)
 
     const invitee = await prisma.user.findUnique({
       where: { email: String(email).toLowerCase() },
@@ -151,7 +159,8 @@ router.post('/invites', async (req: Request, res: Response, next: NextFunction) 
       throw Errors.validation(`role must be one of: ${MEMBER_ROLES.join(', ')}`)
     }
 
-    await requireFarmRole(req.user!.userId, farmId, 'admin')
+    const { farm } = await requireFarmRole(req.user!.userId, farmId, 'admin')
+    if (farm.isSample) throw Errors.forbidden(SAMPLE_FARM_HAS_NO_TEAM)
 
     const code = generateInviteCode()
     const expiresAt = new Date(Date.now() + INVITE_TTL_DAYS * 24 * 60 * 60 * 1000)

@@ -148,6 +148,9 @@ router.get('/:id/evidence', requireAuth, async (req: Request, res: Response, nex
           farm: {
             deletedAt: { equals: null },
             OR: [{ userId }, { members: { some: { userId } } }],
+            // A planting in the sample farm proves nothing about a recipe —
+            // except in a demo account, where that farm is all there is.
+            AND: [{ OR: [{ isSample: false }, { user: { isDemo: true } }] }],
           },
         },
       },

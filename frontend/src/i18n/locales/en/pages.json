@@ -313,8 +313,49 @@
       },
       "finish": {
         "title": "Explore!",
-        "body": "Check off the overdue fertilization, report a finding, log eggs from the coop… When you want your own farm, create your free account from the bar above."
+        "body": "Check off the overdue fertilization, report a finding, log eggs from the coop… When you want your own farm, create your free account from the bar above.",
+        "bodyOwnAccount": "Check off the overdue fertilization, report a finding, log eggs from the coop… To get back to your own farms, switch farms in the list on the map. You can turn the sample farm off any time in Settings."
       }
+    }
+  },
+  "sampleFarm": {
+    "sectionTitle": "Sample farm",
+    "toggle": {
+      "title": "Show the sample farm",
+      "description_one": "A farm with sample data, next to your own, to practice without touching your data. What you change in it goes back to the original data every day.",
+      "description_other": "A farm with sample data, next to your own, to practice without touching your data. What you change in it goes back to the original data every {{count}} days."
+    },
+    "reset": {
+      "title": "Next reset: {{date}}",
+      "titleNoDate": "Reset the sample farm",
+      "description": "Puts the sample farm back to its original data and discards what you changed in it.",
+      "button": "Reset now"
+    },
+    "tour": {
+      "title": "Guided tutorial",
+      "description": "A walk through the sample farm: the map, the tasks, and the field notebook.",
+      "button": "View tutorial"
+    },
+    "resetConfirm": {
+      "title": "Reset the sample farm?",
+      "message": "Everything you changed in the sample farm will be discarded and it will go back to its original data. Your own farms are not touched.",
+      "confirm": "Yes, reset"
+    },
+    "disableConfirm": {
+      "title": "Turn off the sample farm?",
+      "message": "The sample farm will be deleted from your account along with what you changed in it. Your own farms are not touched, and you can turn it back on any time in Settings.",
+      "confirm": "Yes, turn it off"
+    },
+    "toasts": {
+      "enabled": "Sample farm ready — you are in it now",
+      "disabled": "Sample farm turned off",
+      "reset": "Sample farm reset"
+    },
+    "banner": {
+      "text": "Sample farm — what you change here goes back to the original data on {{date}}.",
+      "textNoDate": "Sample farm — what you change here goes back to the original data every few days.",
+      "tour": "View tutorial",
+      "hide": "Turn off"
     }
   }
 }

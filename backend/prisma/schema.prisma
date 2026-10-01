@@ -64,6 +64,11 @@ model Farm {
   boundary       Json      @default("[]")
   totalAreaAcres Decimal   @default(0) @db.Decimal(10, 4)
   isFavorite     Boolean   @default(false)
+  // The sample farm ("finca de ejemplo") — seeded by lib/demoSeed, switched
+  // on and off from Settings inside a real account, and re-seeded every few
+  // days so whatever was changed in it expires. Never the farmer's records:
+  // no team, no digest emails, not in backups.
+  isSample       Boolean   @default(false)
   description    String?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
