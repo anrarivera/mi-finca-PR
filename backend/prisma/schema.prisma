@@ -559,3 +559,23 @@ model RefreshToken {
 
   @@map("refresh_tokens")
 }
+
+// Requests for access to the closed beta (the signup gate). A visitor
+// without a code — usually straight out of the public demo — leaves a name
+// and an email at POST /auth/access-requests; the app's owner answers with
+// a signup code (scripts/createSignupCode). Tied to no user: the person
+// has no account yet. handledAt = the owner answered
+// (scripts/listAccessRequests); only unhandled requests hold back a repeat.
+model AccessRequest {
+  id        String    @id @default(uuid())
+  fullName  String
+  email     String    // stored lowercase
+  location  String?   // municipio / where the farm is
+  message   String?
+  language  String    @default("es") // 'es' | 'en' — the UI language they wrote from
+  createdAt DateTime  @default(now())
+  handledAt DateTime?
+
+  @@index([email])
+  @@map("access_requests")
+}

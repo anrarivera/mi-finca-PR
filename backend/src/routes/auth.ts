@@ -17,6 +17,7 @@ import { sendMail } from '../lib/mailer'
 import { createActionToken, consumeActionToken } from '../lib/actionTokens'
 import { hashInviteCode } from '../lib/farmInvites'
 import { ownerCanAdmit, type AdmittedVia } from '../lib/betaAccess'
+import { notifyAccessRequest } from '../lib/accessRequests'
 
 const router = Router()
 
@@ -673,6 +674,86 @@ router.post('/change-email/confirm', authLimiter, async (req: Request, res: Resp
 
     res.json({ success: true, data: { message: 'Email updated. Please log in again.', email: record.newEmail } })
   } catch (err) { next(err) }
+})
+
+// ─────────────────────────────────────────────────────────────────────
+// POST /api/v1/auth/access-requests
+// Public. While the signup gate is up, a visitor without a code — usually
+// straight out of the demo — asks for one here. The request is stored and
+// the app's owner is told (lib/accessRequests), who answers with a signup
+// code. One answer for every well-formed request: it must not give away
+// whether the address has an account, or has already asked.
+// Rate-limited on its own: each call can create a row and send an email.
+// ─────────────────────────────────────────────────────────────────────
+const accessRequestLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: () => process.env.NODE_ENV === 'test',
+  handler: (_req, res) => {
+    res.status(429).json({
+      success: false,
+      error: { code: 'RATE_LIMITED', message: 'Too many attempts. Please try again later.' },
+    })
+  },
+})
+
+const accessRequestSchema = z.object({
+  fullName: z.string().trim()
+    .min(1, 'Full name is required')
+    .max(100, 'Full name must be at most 100 characters'),
+  email: z.email('Invalid email address')
+    .max(254, 'Email must be at most 254 characters'),
+  location: z.string().trim()
+    .max(120, 'Location must be at most 120 characters')
+    .optional(),
+  message: z.string().trim()
+    .max(1000, 'Message must be at most 1000 characters')
+    .optional(),
+  language: z.enum(['es', 'en']).optional(),
+})
+
+router.post('/access-requests', accessRequestLimiter, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const body = parseBody(accessRequestSchema, req.body)
+    const email = body.email.toLowerCase()
+
+    // Both lookups run every time, whatever the first one finds — the
+    // answer should not take longer for some addresses than for others.
+    const [account, waiting] = await Promise.all([
+      prisma.user.findUnique({ where: { email }, select: { id: true } }),
+      prisma.accessRequest.findFirst({
+        where: {
+          email,
+          handledAt: null,
+          createdAt: { gt: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+        },
+        select: { id: true },
+      }),
+    ])
+
+    // Already in, or asked within the last day and still waiting: nothing
+    // to store, no one to tell.
+    if (!account && !waiting) {
+      const saved = await prisma.accessRequest.create({
+        data: {
+          fullName: body.fullName,
+          email,
+          location: body.location || null,
+          message: body.message || null,
+          language: body.language ?? 'es',
+        },
+      })
+      // Not awaited: the request is stored, and a slow mail provider must
+      // not delay the answer — nor mark it as the one for a new address.
+      void notifyAccessRequest(saved)
+    }
+
+    res.json({ success: true, data: { received: true } })
+  } catch (err) {
+    next(err)
+  }
 })
 
 // ─────────────────────────────────────────────────────────────────────

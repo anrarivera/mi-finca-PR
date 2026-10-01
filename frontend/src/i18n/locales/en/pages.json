@@ -279,7 +279,8 @@
   "demoBanner": {
     "text": "Demo mode — exploring with sample data. This farm is deleted after a few days.",
     "tour": "View tutorial",
-    "register": "Create my account"
+    "register": "Create my account",
+    "requestAccess": "Request access"
   },
   "demoTour": {
     "back": "Back",

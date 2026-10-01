@@ -5,9 +5,8 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
-import { useQuery } from '@tanstack/react-query'
-import { api } from '@/lib/api'
 import { useRegister } from '@/features/auth/hooks/useAuth'
+import { useAuthConfig } from '@/features/auth/hooks/useAuthConfig'
 import { useJoinFarm } from '@/features/farm/hooks/useMembersApi'
 import { toast } from '@/store/useToastStore'
 import AuthLayout, { authInputClass, FieldError } from './authLayout'
@@ -36,12 +35,7 @@ export default function RegisterPage() {
 
   // The signup gate: while SIGNUP_MODE=invite on the server, the code
   // field is required and doubles as the access code.
-  const { data: authConfig } = useQuery({
-    queryKey: ['auth', 'config'],
-    queryFn: () => api.get<{ signupMode: 'open' | 'invite' }>('/api/v1/auth/config'),
-    staleTime: 5 * 60 * 1000,
-  })
-  const gated = authConfig?.signupMode === 'invite'
+  const { gated } = useAuthConfig()
 
   const { register, handleSubmit, formState: { errors, isSubmitting } } =
     useForm<RegisterForm>({ resolver: zodResolver(makeRegisterSchema(t)) })
@@ -176,6 +170,14 @@ export default function RegisterPage() {
           {gated && (
             <p className="text-[10px] text-[#66755a] leading-relaxed">
               {t('register.accessHint')}
+            </p>
+          )}
+          {gated && (
+            <p className="text-xs text-[#5a6a4a]">
+              {t('register.noCode')}{' '}
+              <Link to="/request-access" className="text-[#4d7a1b] font-medium hover:underline">
+                {t('register.requestAccess')}
+              </Link>
             </p>
           )}
         </div>

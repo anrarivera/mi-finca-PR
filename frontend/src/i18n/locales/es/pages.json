@@ -279,7 +279,8 @@
   "demoBanner": {
     "text": "Modo demostración — explora con datos de ejemplo. Esta finca se borra en unos días.",
     "tour": "Ver tutorial",
-    "register": "Crear mi cuenta"
+    "register": "Crear mi cuenta",
+    "requestAccess": "Solicitar acceso"
   },
   "demoTour": {
     "back": "Atrás",
