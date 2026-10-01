@@ -1,6 +1,7 @@
 import { useAuthStore } from '@/store/useAuthStore'
 import { toast } from '@/store/useToastStore'
 import i18n from '@/i18n'
+import { withRefreshLock } from './refreshLock'
 
 // Server fallback errors are English-only (the backend doesn't know the
 // UI language) — these codes get localized client-side. Specific
@@ -17,6 +18,8 @@ const LOCALIZED_ERROR_CODES = new Set([
 // first-party in both cases). VITE_API_URL still overrides for production.
 export const API_URL =
   import.meta.env.VITE_API_URL || `http://${window.location.hostname}:3001`
+
+const REFRESH_TIMEOUT_MS = 30_000
 
 type ApiResponse<T> = {
   success: true
@@ -46,13 +49,22 @@ class ApiClient {
   // Access tokens live 15 minutes by design; the 30-day cookie exists so
   // this client can renew them silently. Returns true when a new access
   // token was stored.
+  //
+  // Two levels of "one at a time": `refreshing` shares one round-trip
+  // between the concurrent 401s of this tab, and withRefreshLock queues
+  // this tab behind any other tab that is refreshing (see refreshLock.ts).
   private tryRefresh(): Promise<boolean> {
-    this.refreshing ??= (async () => {
+    this.refreshing ??= withRefreshLock(async () => {
+      // The lock is held for as long as this runs, and other tabs wait on
+      // it — a request that never answers must not hold them forever.
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), REFRESH_TIMEOUT_MS)
       try {
         const res = await fetch(`${this.baseUrl}/api/v1/auth/refresh`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
+          signal: controller.signal,
         })
         const json = await res.json()
         if (!res.ok || !json.success) return false
@@ -60,8 +72,10 @@ class ApiClient {
         return true
       } catch {
         return false
+      } finally {
+        clearTimeout(timeout)
       }
-    })().finally(() => { this.refreshing = null })
+    }).finally(() => { this.refreshing = null })
     return this.refreshing
   }
 
