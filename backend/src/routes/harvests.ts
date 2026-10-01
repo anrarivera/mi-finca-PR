@@ -4,6 +4,7 @@ import { requireAuth } from '../middleware/auth'
 import { Errors } from '../lib/errors'
 import { requireFields, requireValidId, requireRevenue, requireQuantity, parseBody } from '../lib/validate'
 import { requireFarmRole } from '../lib/farmAccess'
+import { csvCell } from '../lib/csv'
 
 import { enforceContract } from '../contracts/enforce'
 import {
@@ -76,12 +77,6 @@ router.get('/export', async (req: Request, res: Response, next: NextFunction) =>
       orderBy: { harvestDate: 'desc' },
     })
 
-    // Minimal CSV escaping: wrap in quotes, double any embedded quotes.
-    const esc = (v: unknown) => {
-      if (v === null || v === undefined) return ''
-      const s = String(v)
-      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
-    }
     const toDateStr = (d: Date) => d.toISOString().split('T')[0]
 
     const header = 'date,kind,crop_or_product,field,livestock_unit,quantity,unit,revenue,notes'
@@ -96,7 +91,7 @@ router.get('/export', async (req: Request, res: Response, next: NextFunction) =>
         e.unit,
         e.revenue !== null ? Number(e.revenue) : '',
         e.notes ?? '',
-      ].map(esc).join(',')
+      ].map(csvCell).join(',')
     )
 
     const filename = `produccion-${farm.name.replace(/[^\w\-]+/g, '_')}.csv`
