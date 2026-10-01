@@ -13,6 +13,7 @@ import {
   EMPTY_FINDING_MARKS, type FindingMarks,
 } from '@/features/scouting/utils/findingScope'
 import { SEVERITY_COLORS } from '@/features/scouting/types'
+import { fieldPinHtml } from '@/features/map/utils/pinIcons'
 import type { PlacedField as PlacedFieldType, FieldRow } from '../types'
 
 const EMPTY_MARKS: PlantMarks = { plantIds: new Set(), rowIds: new Set() }
@@ -69,19 +70,7 @@ function createPinIcon(color: string, name: string): L.DivIcon {
   return L.divIcon({
     className: '',
     iconAnchor: [12, 32],
-    html: `
-      <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
-        <div style="background:white;border:1.5px solid ${color};color:#2d4a1e;font-size:10px;
-          font-weight:600;padding:2px 6px;border-radius:4px;white-space:nowrap;
-          box-shadow:0 1px 4px rgba(0,0,0,0.15);font-family:system-ui,sans-serif;
-          max-width:120px;overflow:hidden;text-overflow:ellipsis;">${name}</div>
-        <svg width="24" height="32" viewBox="0 0 24 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M12 0C5.373 0 0 5.373 0 12c0 9 12 20 12 20S24 21 24 12C24 5.373 18.627 0 12 0z"
-            fill="${color}" stroke="white" stroke-width="1.5"/>
-          <circle cx="12" cy="12" r="4" fill="white"/>
-        </svg>
-      </div>
-    `,
+    html: fieldPinHtml(color, name),
   })
 }
 
