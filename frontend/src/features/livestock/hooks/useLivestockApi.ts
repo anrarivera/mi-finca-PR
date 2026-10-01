@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { useFarmStore } from '@/store/useFarmStore'
 import { useLivestockStore } from '@/store/useLivestockStore'
+import { invalidateLogViews } from '@/features/field/utils/logCache'
 import type { AnimalType, CountReason, LivestockUnit } from '../types'
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -157,8 +158,7 @@ export function useLogProduction() {
       queryClient.invalidateQueries({ queryKey: ['livestock'] })
       // The server also wrote an operations-log row and a production-ledger
       // (harvest_yields) row — refresh everything derived from them.
-      queryClient.invalidateQueries({ queryKey: ['harvests'] })
-      queryClient.invalidateQueries({ queryKey: ['operations', vars.farmId] })
+      invalidateLogViews(queryClient)
     },
   })
 }
