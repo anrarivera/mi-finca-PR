@@ -15,11 +15,12 @@ type ApiFarm = {
   fieldIds: string[]
   createdAt: string
   updatedAt: string
+  myRole?: 'owner' | 'admin' | 'operator'
 }
 
 // ── Fetch all farms ───────────────────────────────────────────────────
 export function useFarms() {
-  const { farms, addFarm, setActiveFarm, favoriteFarmId } = useFarmStore()
+  const { addFarm, setActiveFarm } = useFarmStore()
 
   return useQuery({
     queryKey: ['farms'],
@@ -27,7 +28,7 @@ export function useFarms() {
       const data = await api.get<ApiFarm[]>('/api/v1/farms')
       console.log('Farms from API:', data)
       // Sync API response into Zustand store
-      const { clearFarms } = useFarmStore.getState()
+      const { clearFarms, activeFarmId: prevActiveId } = useFarmStore.getState()
       clearFarms();
 
        data.forEach(apiFarm => {
@@ -42,14 +43,20 @@ export function useFarms() {
             description: apiFarm.description ?? undefined,
             fieldIds: apiFarm.fieldIds,
             createdAt: apiFarm.createdAt,
+            myRole: apiFarm.myRole ?? 'owner',
           })
       })
 
-      // Set active farm to favorite or first
+      // Re-activate the farm that was selected before the refetch — an
+      // invalidation (create/update/join) must not steal the selection.
+      // Fall back to favorite or first (initial load).
       if (data.length > 0) {
-        const fav = data.find(f => f.isFavorite) ?? data[0]
-        const farmInStore = useFarmStore.getState().farms.find(f => f.id === fav.id)
-        if (farmInStore) setActiveFarm(farmInStore)
+        const farmsInStore = useFarmStore.getState().farms
+        const favId = (data.find(f => f.isFavorite) ?? data[0]).id
+        const target =
+          farmsInStore.find(f => f.id === prevActiveId) ??
+          farmsInStore.find(f => f.id === favId)
+        if (target) setActiveFarm(target)
       }
 
       return data
@@ -84,6 +91,7 @@ export function useCreateFarm() {
         description: apiFarm.description ?? undefined,
         fieldIds: apiFarm.fieldIds,
         createdAt: apiFarm.createdAt,
+        myRole: 'owner', // the creator owns the farm
       }
       addFarm(farm)
       setActiveFarm(farm)

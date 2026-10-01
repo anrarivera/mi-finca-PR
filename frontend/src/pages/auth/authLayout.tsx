@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
+import { useDemoLogin } from '@/features/auth/hooks/useAuth'
 
 // Shared centered-card shell for the login/register pages.
 export default function AuthLayout({ title, subtitle, children }: {
@@ -7,30 +9,36 @@ export default function AuthLayout({ title, subtitle, children }: {
   subtitle: string
   children: ReactNode
 }) {
+  const { t } = useTranslation('auth')
+  const demoLogin = useDemoLogin()
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-[#f7f9f4] px-4 py-8">
+    <div className="min-h-dvh flex flex-col items-center justify-center bg-[#f7f9f4] px-4 py-8">
       <Link to="/" className="flex items-center gap-2 mb-6">
         <span className="text-3xl">🌱</span>
         <span className="font-serif text-[#2d4a1e] text-xl font-bold tracking-wide">
           Mi Finca{' '}
-          <span className="text-[#639922] text-xs font-normal tracking-widest uppercase">PR</span>
+          <span className="text-[#4d7a1b] text-xs font-normal tracking-widest uppercase">PR</span>
         </span>
       </Link>
 
       <div className="bg-white rounded-2xl shadow-xl border border-[#e0e8d8] w-full max-w-md overflow-hidden">
         <div className="px-8 pt-7 pb-2">
           <h1 className="text-lg font-semibold text-[#2d4a1e]">{title}</h1>
-          <p className="text-xs text-[#9aab8a] mt-1">{subtitle}</p>
+          <p className="text-xs text-[#66755a] mt-1">{subtitle}</p>
         </div>
         {children}
       </div>
 
-      <Link
-        to="/"
-        className="mt-5 text-xs text-[#7a8a6a] hover:text-[#2d4a1e] transition-colors"
+      {/* Try-before-signup: creates an ephemeral demo account seeded
+          with a sample farm (replaces the pre-backend localStorage mode,
+          whose link had been silently bouncing back to /login). */}
+      <button
+        onClick={() => demoLogin.mutate()}
+        disabled={demoLogin.isPending}
+        className="mt-5 text-xs text-[#5a6a4a] underline underline-offset-2 hover:text-[#2d4a1e] transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-wait"
       >
-        ← Continuar sin cuenta (los datos se guardan en este dispositivo)
-      </Link>
+        {demoLogin.isPending ? t('layout.demoLoading') : t('layout.tryDemo')}
+      </button>
     </div>
   )
 }
@@ -40,5 +48,5 @@ export const authInputClass =
 
 export function FieldError({ message }: { message?: string }) {
   if (!message) return null
-  return <p className="text-[11px] text-red-500">{message}</p>
+  return <p className="text-[11px] text-red-600">{message}</p>
 }

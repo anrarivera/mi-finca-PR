@@ -1,0 +1,256 @@
+import { useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { Pencil, Trash2, Locate, Plus } from 'lucide-react'
+import { useIsCoarsePointer } from '@/hooks/useViewport'
+import { useFarmStore, canManageStructure } from '@/store/useFarmStore'
+import { useFieldStore } from '@/store/useFieldStore'
+import { useLivestockStore } from '@/store/useLivestockStore'
+import { useCreateLivestock, useUpdateLivestock } from '../hooks/useLivestockApi'
+import { getAnimalById } from '../data/animalLibrary'
+import LivestockFormModal from './livestockFormModal'
+import LivestockUnitRow from './livestockUnitRow'
+import { toast } from '@/store/useToastStore'
+import type { PlacedField } from '@/features/field/types'
+
+// ──────────────────────────────────────────────────────────────────────────
+// Corral card — the livestock counterpart of FieldSummaryCard in the farm
+// drawer's field list. Compact: no crop rows, no operations calendar; it
+// shows the herds assigned to this corral and a per-herd Producción
+// shortcut. Same visual language as FieldSummaryCard (dot + name header,
+// Locate button, Editar/Eliminar action row with in-card confirmation).
+// ──────────────────────────────────────────────────────────────────────────
+
+// Fixed corral tint — matches the map fill for livestock fields.
+export const CORRAL_COLOR = '#8B7355'
+
+type Props = {
+  field: PlacedField
+  /** Highlight + scroll into view (map selection — same as field cards). */
+  focused?: boolean
+  /** Re-triggers the scroll when the same corral is focused again. */
+  focusNonce?: number
+  /** Single click on the card — select the field on the map. */
+  onSelect: () => void
+  /** Locate button AND card double-click — zoom the map to the corral. */
+  onZoomToField: () => void
+  /** Editar — open the field editor for this corral. */
+  onOpenEditor: () => void
+  /** Called after the in-card confirmation — host performs the delete. */
+  onDelete: () => void
+}
+
+export default function CorralCard({
+  field, focused = false, focusNonce = 0,
+  onSelect, onZoomToField, onOpenEditor, onDelete,
+}: Props) {
+  const { t } = useTranslation('editor')
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const cardRef = useRef<HTMLDivElement | null>(null)
+  const isCoarsePointer = useIsCoarsePointer()
+
+  // Mirror FieldSummaryCard's click semantics: single click selects,
+  // double click zooms. The select is deferred so the two clicks of a
+  // dblclick don't toggle it first; touch taps skip the wait (the Locate
+  // button is the zoom path there).
+  const clickTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => () => {
+    if (clickTimer.current) clearTimeout(clickTimer.current)
+  }, [])
+
+  function handleCardClick() {
+    if (isCoarsePointer) {
+      onSelect()
+      return
+    }
+    if (clickTimer.current) clearTimeout(clickTimer.current)
+    clickTimer.current = setTimeout(() => {
+      clickTimer.current = null
+      onSelect()
+    }, 250)
+  }
+
+  function handleCardDoubleClick() {
+    if (clickTimer.current) {
+      clearTimeout(clickTimer.current)
+      clickTimer.current = null
+    }
+    onZoomToField()
+  }
+
+  // Scroll into view when focused from the map (nonce re-triggers)
+  useEffect(() => {
+    if (focused) {
+      cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    }
+  }, [focused, focusNonce])
+  // Añadir animales — the same herd form the Cuaderno uses, locked to
+  // this farm + corral
+  const [addingAnimals, setAddingAnimals] = useState(false)
+  const createLivestock = useCreateLivestock()
+  const updateLivestock = useUpdateLivestock()
+
+  const units = useLivestockStore(s => s.units)
+  const allFields = useFieldStore(s => s.fields)
+  const herds = units.filter(u => u.fieldId === field.id)
+  // Herds of this farm living elsewhere (unassigned or another corral) —
+  // assignable from right here, so a herd created in the Cuaderno never
+  // needs a round trip back there to land in this corral.
+  const assignable = units.filter(u => u.farmId === field.farmId && u.fieldId !== field.id)
+
+  const cardFarm = useFarmStore(s => s.farms.find(f => f.id === field.farmId))
+  const canManage = canManageStructure(cardFarm)
+
+  function assignHerd(unitId: string) {
+    const unit = assignable.find(u => u.id === unitId)
+    if (!unit) return
+    updateLivestock.mutate(
+      { id: unit.id, farmId: unit.farmId, updates: { fieldId: field.id } },
+      { onSuccess: () => toast.success(t('corral.assigned', { name: unit.name, corral: field.name })) }
+    )
+  }
+
+  return (
+    // Card body: pointer conveniences only (click select, dblclick zoom).
+    // The KEYBOARD path is the field-name button below — a role="button"
+    // card would nest interactive elements (axe: nested-interactive).
+    // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
+    <div
+      ref={cardRef}
+      onClick={handleCardClick}
+      onDoubleClick={handleCardDoubleClick}
+      className={`px-4 py-3 hover:bg-[#fafcf8] transition-colors cursor-pointer ${
+        focused ? 'bg-[#f5f8f0] border-l-2 border-l-[#639922]' : ''
+      }`}
+    >
+      {/* Header — dot + name + Corral badge + locate */}
+      <div className="flex items-center gap-2 mb-2 min-w-0">
+        <div className="w-3 h-3 rounded-full shrink-0"
+          style={{ backgroundColor: CORRAL_COLOR }}
+        />
+        <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); handleCardClick() }}
+            className="text-sm font-medium text-[#2d4a1e] truncate text-left hover:underline decoration-[#c0dd97] underline-offset-2"
+          >
+            {field.name}
+          </button>
+        <span className="shrink-0 px-1.5 py-0.5 rounded-full bg-[#f0ebe2] text-[9px] font-semibold text-[#8B7355] uppercase tracking-wide">
+          {t('corral.badge')}
+        </span>
+        <button
+          onClick={(e) => { e.stopPropagation(); onZoomToField() }}
+          onDoubleClick={(e) => e.stopPropagation()}
+          title={t('corral.viewOnMap')}
+          className="shrink-0 p-1 pointer-coarse:p-2 rounded text-[#66755a] hover:text-[#4d7a1b] hover:bg-[#eaf3de] transition-colors"
+        >
+          <Locate size={12} />
+        </button>
+      </div>
+
+      {/* Herds assigned to this corral */}
+      {herds.length === 0 ? (
+        <p className="text-[10px] text-[#66755a] mb-2.5">{t('corral.empty')}</p>
+      ) : (
+        <div className="flex flex-col gap-1 mb-2.5">
+          {herds.map(unit => (
+            <LivestockUnitRow key={unit.id} unit={unit} dense showFarm={false} showCorral={false} />
+          ))}
+        </div>
+      )}
+
+      {/* Add animals right here — no trip to the Cuaderno needed */}
+      {canManage && (
+        <button
+          onClick={(e) => { e.stopPropagation(); setAddingAnimals(true) }}
+          className="w-full flex items-center justify-center gap-1.5 py-1.5 pointer-coarse:py-2.5 mb-2.5 text-[10px] font-medium text-[#8B7355] border border-[#e0d8c8] rounded-lg hover:bg-[#f5efe5] transition-colors"
+        >
+          <Plus size={10} /> {t('corral.addAnimals')}
+        </button>
+      )}
+
+      {/* Move an existing herd here — placeholder-select, resets after
+          each assignment so it reads as an action, not a value. */}
+      {canManage && assignable.length > 0 && (
+        <select
+          value=""
+          aria-label={t('corral.assignExisting')}
+          onClick={(e) => e.stopPropagation()}
+          onDoubleClick={(e) => e.stopPropagation()}
+          onChange={(e) => assignHerd(e.target.value)}
+          disabled={updateLivestock.isPending}
+          className="w-full mb-2.5 py-1.5 pointer-coarse:py-2.5 px-2 text-[10px] font-medium text-[#8B7355] bg-white border border-[#e0d8c8] rounded-lg hover:bg-[#f5efe5] transition-colors cursor-pointer disabled:opacity-50"
+        >
+          <option value="">{t('corral.assignExisting')}</option>
+          {assignable.map(u => {
+            const from = u.fieldId
+              ? (allFields.find(f => f.id === u.fieldId)?.name ?? '')
+              : t('corral.noneOption')
+            return (
+              <option key={u.id} value={u.id}>
+                {getAnimalById(u.animalType)?.emoji ?? '🐾'} {u.name} ({u.currentCount}) · {from}
+              </option>
+            )
+          })}
+        </select>
+      )}
+
+      {/* Actions — same styles as FieldSummaryCard's action row */}
+      {canManage && (!confirmDelete ? (
+        <div className="flex items-center gap-2">
+          <button
+            onClick={(e) => { e.stopPropagation(); onOpenEditor() }}
+            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 pointer-coarse:py-2.5 text-[10px] text-[#4d7a1b] border border-[#c8dca8] rounded-lg hover:bg-[#eaf3de] transition-colors"
+          >
+            <Pencil size={10} /> {t('corral.edit')}
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); setConfirmDelete(true) }}
+            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 pointer-coarse:py-2.5 text-[10px] text-[#66755a] border border-[#e0e8d8] rounded-lg hover:text-red-600 hover:border-red-200 hover:bg-red-50 transition-colors"
+          >
+            <Trash2 size={10} /> {t('corral.delete')}
+          </button>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-1.5">
+          <p className="text-[10px] text-red-600 text-center">
+            {t('corral.confirmDelete', { name: field.name })}
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={(e) => { e.stopPropagation(); onDelete() }}
+              className="flex-1 py-1.5 pointer-coarse:py-2.5 text-[10px] text-white bg-red-500 rounded-lg hover:bg-red-600 transition-colors"
+            >
+              {t('corral.confirmDeleteYes')}
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); setConfirmDelete(false) }}
+              className="flex-1 py-1.5 pointer-coarse:py-2.5 text-[10px] text-[#5a6a4a] border border-[#e0e8d8] rounded-lg hover:bg-[#f5f8f0] transition-colors"
+            >
+              {t('common.cancel')}
+            </button>
+          </div>
+        </div>
+      ))}
+
+      {/* Portaled, but React portals bubble events through the REACT tree —
+          fence them off so modal clicks don't select the card. */}
+      <div role="presentation" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
+        {addingAnimals && (
+          <LivestockFormModal
+            unit={null}
+            farms={[]}
+            fixedFarmId={field.farmId}
+            fixedFieldId={field.id}
+            onClose={() => setAddingAnimals(false)}
+            onSave={(data) => {
+              createLivestock.mutate(data, {
+                onSuccess: () => toast.success(t('livestock.added', { name: data.name })),
+              })
+              setAddingAnimals(false)
+            }}
+          />
+        )}
+      </div>
+    </div>
+  )
+}

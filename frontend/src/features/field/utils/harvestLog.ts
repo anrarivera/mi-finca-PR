@@ -15,6 +15,9 @@ export type HarvestEntry = {
   quantity?: number
   unit?: string
   notes?: string
+  /** Animal production rows (unified ledger): product instead of a crop. */
+  productId?: string
+  livestockUnitId?: string
 }
 
 export type HarvestCropTotal = {
@@ -36,9 +39,10 @@ export function collectHarvestEntries(fields: PlacedField[]): HarvestEntry[] {
           fieldName: field.name,
           cropTypeId: event.cropTypeId,
           date: op.completedDate ?? op.recommendedDate,
-          quantity: op.quantity,
-          unit: op.unit,
-          notes: op.notes,
+          // Wire nulls → local undefined (HarvestEntry uses optionals).
+          quantity: op.quantity ?? undefined,
+          unit: op.unit ?? undefined,
+          notes: op.notes ?? undefined,
         })
       }
     }

@@ -1,0 +1,320 @@
+{
+  "dashboard": {
+    "title": "Dashboard",
+    "subtitle_one": "What's happening today on your farm",
+    "subtitle_other": "What's happening today on your farms",
+    "empty": {
+      "title": "You don't have any farms yet",
+      "description": "Create your first farm on the map to see statistics here.",
+      "goToMap": "Go to the map"
+    },
+    "tiles": {
+      "farms_one": "Farm",
+      "farms_other": "Farms",
+      "fields_one": "Field",
+      "fields_other": "Fields",
+      "totalArea": "Total area",
+      "plants": "Plants",
+      "animals": "Animals"
+    },
+    "recommendations": {
+      "title": "Recommendations",
+      "empty": "All caught up — no recommendations for now. 🎉"
+    },
+    "severity": {
+      "urgent": "Urgent",
+      "warning": "Attention",
+      "info": "Info",
+      "tip": "Tip"
+    }
+  },
+  "inventory": {
+    "title": "Field notebook",
+    "subtitle": "Your farm's records: plantings, tasks, harvests, and health",
+    "tabs": {
+      "siembras": "Plantings",
+      "labores": "Tasks",
+      "cosechas": "Production",
+      "sanidad": "Health",
+      "animales": "Animals",
+      "recetas": "Recipes"
+    },
+    "saveAsRecipe": "Save as recipe",
+    "nothingToLift": "This planting has no tasks to turn into a recipe.",
+    "liftBanner": "Derived from the planting of {{date}} in {{field}} — with this season's real days.",
+    "liftName": "{{crop}} {{year}}",
+    "liftLinked": "The planting was linked as evidence for the recipe.",
+    "status": {
+      "overdue": "Overdue",
+      "dueSoon": "Due soon",
+      "ok": "On track",
+      "done": "Completed"
+    },
+    "source": {
+      "rows": "Rows"
+    },
+    "empty": {
+      "title": "The inventory is empty",
+      "description": "Plant crops in your fields from the map and they will appear here with their operations and projections.",
+      "goToMap": "Go to the map"
+    },
+    "tiles": {
+      "plantings": "Plantings",
+      "plants": "Plants",
+      "crops": "Crops",
+      "overdueOps": "Overdue ops",
+      "pendingOps": "Pending ops"
+    },
+    "filters": {
+      "allFarms": "All farms",
+      "allCrops": "All crops",
+      "allStatuses": "All statuses",
+      "withOverdue": "With overdue operations",
+      "withDueSoon": "With upcoming operations",
+      "ok": "On track",
+      "done": "Completed"
+    },
+    "shownCount_one": "{{shown}} of {{count}} planting",
+    "shownCount_other": "{{shown}} of {{count}} plantings",
+    "columns": {
+      "crop": "Crop",
+      "farmField": "Farm / Field",
+      "plants": "Plants",
+      "plantsRows": "Plants / Rows",
+      "planted": "Planted",
+      "status": "Status",
+      "nextOp": "Next operation",
+      "harvestWindow": "Harvest window"
+    },
+    "noMatch": "No plantings match the filters.",
+    "exportCsv": "Export CSV",
+    "nothingToExport": "No plantings to export",
+    "exportCols": {
+      "farm": "Farm",
+      "field": "Field",
+      "rowCount": "Rows",
+      "ageDays": "Age (days)",
+      "nextOpDate": "Next operation date",
+      "pendingOps": "Pending operations",
+      "harvestStart": "Harvest start",
+      "harvestEnd": "Harvest end"
+    },
+    "ageDays_one": "{{count}} day",
+    "ageDays_other": "{{count}} days",
+    "overduePrefix": "overdue",
+    "pendingCount_one": "{{count}} pending",
+    "pendingCount_other": "{{count}} pending",
+    "noPending": "No pending ops",
+    "until": "until {{date}}",
+    "operationsTitle": "Operations for this planting",
+    "noOperations": "This planting has no scheduled operations.",
+    "skipped": "skipped",
+    "plantsCount_one": "{{count}} plant",
+    "plantsCount_other": "{{count}} plants",
+    "noPendingOps": "No pending operations",
+    "harvestRange": "Harvest: {{start}} – {{end}}"
+  },
+  "simulator": {
+    "title": "Viability simulator",
+    "subtitle": "Project annual production, revenue, and costs. The numbers are rough estimates — adjust them to your reality.",
+    "startWith": "Start with…",
+    "myFarm": "My current farm",
+    "noCropsPlanted": "You haven't planted any crops yet",
+    "plantedCount_one": "{{count}} plant planted in your fields",
+    "plantedCount_other": "{{count}} plants planted in your fields",
+    "totals": {
+      "production": "Annual production",
+      "revenue": "Revenue",
+      "costs": "Costs",
+      "net": "Annual net"
+    },
+    "perCrop": {
+      "title": "Assumptions per crop",
+      "subtitle": "Edit any number — the projection recalculates instantly."
+    },
+    "columns": {
+      "crop": "Crop",
+      "plants": "Plants",
+      "lbsPerPlant": "lbs/plant",
+      "pricePerLb": "$/lb",
+      "harvestsPerYear": "Harvests/yr",
+      "costPerPlant": "Cost/plant",
+      "annualNet": "Annual net"
+    },
+    "aria": {
+      "plantsOf": "Plants of {{name}}",
+      "lbsPerPlant": "Pounds per plant",
+      "pricePerLb": "Price per pound",
+      "cyclesPerYear": "Harvests per year",
+      "costPerPlantYear": "Cost per plant per year"
+    },
+    "adjusted": "adjusted",
+    "disclaimer": "⚠️ Rough projections based on general averages — actual results vary with terrain, weather, and the market. Consult a licensed agronomist before making investment decisions."
+  },
+  "home": {
+    "farmCreated": "Farm created",
+    "createFarmError": "Error creating the farm. Please try again."
+  },
+  "settings": {
+    "title": "Settings",
+    "subtitle": "App data and preferences",
+    "data": {
+      "sectionTitle": "My data",
+      "export": {
+        "title": "Download backup",
+        "description": "Download ALL of your account data as a JSON file: farms, fields, tasks, production, plant health, team, and custom crops.",
+        "button": "Export"
+      },
+      "import": {
+        "title": "Restore backup",
+        "description": "Replace your account data with a previously exported backup. This substitutes everything current.",
+        "button": "Import"
+      },
+      "clear": {
+        "title": "Delete all data",
+        "description": "Deletes all your farms and records from your account. This cannot be undone.",
+        "button": "Delete all"
+      }
+    },
+    "toasts": {
+      "backupDownloaded": "Backup downloaded",
+      "invalidJson": "The file is not valid JSON.",
+      "invalidBackup": "The file does not appear to be a valid Mi Finca PR backup.",
+      "newerVersion": "This backup is from a newer version of the app.",
+      "backupRestored": "Backup restored",
+      "dataCleared": "Data deleted"
+    },
+    "restoreConfirm": {
+      "title": "Restore this backup?",
+      "message_one": "The backup contains {{count}} farm. All current app data will be replaced.",
+      "message_other": "The backup contains {{count}} farms. All current app data will be replaced.",
+      "confirm": "Yes, restore",
+      "message": "ALL current account data will be replaced with the {{count}} farm(s) in the backup. Current records not in the file will be lost."
+    },
+    "clearConfirm": {
+      "title": "Delete all data?",
+      "message": "All your farms, fields, tasks, production, and health records will be deleted from your account. This cannot be undone.",
+      "confirm": "Yes, delete everything"
+    },
+    "about": {
+      "sectionTitle": "About",
+      "phase": "Phase 1: Farm management tool",
+      "localData": "Your data is stored locally in this browser. Download backups often.",
+      "disclaimer": "Agronomic recommendations are guidance only and do not replace the advice of a licensed agronomist."
+    },
+    "notifications": {
+      "sectionTitle": "Notifications",
+      "inApp": {
+        "title": "In-app notifications",
+        "description": "Show operation alerts in the bell on the top bar."
+      },
+      "emailDigest": {
+        "title": "Email reminders",
+        "description": "We email you when a task enters your anticipation window, is due today, or becomes overdue. No news, no email."
+      },
+      "overdue": {
+        "title": "Overdue operations",
+        "description": "Alerts when an operation passed its recommended date without being completed."
+      },
+      "dueSoon": {
+        "title": "Upcoming operations",
+        "description": "Alerts about operations due within the lead-time days."
+      },
+      "harvest": {
+        "title": "Harvest windows",
+        "description": "Alerts when a crop's harvest window is approaching or opens."
+      },
+      "leadDays": {
+        "title": "Lead-time days",
+        "description": "How many days before the recommended date the alert starts (1–60). Also sets when the email reminder arrives."
+      },
+      "footer": "Email and text message alerts will arrive in a future version.",
+      "emailFrequency": {
+        "title": "Email frequency",
+        "description": "Novedades: only when something crosses a line (at most one per day). Weekly: a Monday summary of everything pending.",
+        "novedades": "On changes",
+        "semanal": "Weekly (Mondays)"
+      }
+    }
+  },
+  "topNav": {
+    "userMenu": "User menu",
+    "settings": "Settings",
+    "logout": "Log out",
+    "login": "Log in",
+    "register": "Create account"
+  },
+  "notificationBell": {
+    "bellAria": "Notifications",
+    "bellAriaUnread": "Notifications ({{count}} unread)",
+    "title": "Notifications",
+    "markRead": "Mark as read",
+    "disabled": "Notifications are turned off.",
+    "empty": "All caught up — no pending operations coming up. 🌱",
+    "configure": "Notification settings",
+    "overduePrefix": "overdue"
+  },
+  "errorBoundary": {
+    "title": "Something went wrong",
+    "description": "An unexpected error occurred in the app. Your saved data has not been lost. Reload the page to continue.",
+    "reload": "Reload page",
+    "details": "Technical details"
+  },
+  "confirmDialog": {
+    "confirm": "Confirm",
+    "cancel": "Cancel"
+  },
+  "account": {
+    "sectionTitle": "Account",
+    "deleteTitle": "Delete account",
+    "deleteDescription": "Permanently deletes your account, your farms, and all their data. Members of your farms lose access; records you made on other farms remain without your name.",
+    "deleteButton": "Delete…",
+    "confirmTitle": "Permanently delete your account?",
+    "confirmWarning": "This cannot be undone. Your farms, fields, corrals, animals, tasks, findings, and production will be deleted. Consider exporting your data (CSV) first.",
+    "passwordLabel": "Confirm your password",
+    "confirmButton": "Delete permanently",
+    "deleting": "Deleting…",
+    "deleted": "Account deleted. Take care."
+  },
+  "demoBanner": {
+    "text": "Demo mode — exploring with sample data. This farm is deleted after a few days.",
+    "tour": "View tutorial",
+    "register": "Create my account"
+  },
+  "demoTour": {
+    "back": "Back",
+    "next": "Next",
+    "skip": "Skip the tutorial",
+    "finish": "Start exploring!",
+    "steps": {
+      "welcome": {
+        "title": "Welcome!",
+        "body": "This is a demo farm with sample data. Everything really works: tap around, check off tasks, and explore freely — nothing here is permanent."
+      },
+      "map": {
+        "title": "Your farm map",
+        "body": "The green boundary is your land over satellite imagery. Inside are your fields: Los Plátanos, Café de Altura, and El Gallinero."
+      },
+      "drawer": {
+        "title": "Your fields",
+        "body": "This tab opens the field list. Each field shows its plants and the tasks that are due, ready to check off with Complete · Partial · Skip. There is an overdue fertilization waiting for you!"
+      },
+      "boundary": {
+        "title": "Boundary and new fields",
+        "body": "This button edits the farm boundary and creates new fields: draw the area on the map and fill it with rows of your crop."
+      },
+      "panel": {
+        "title": "The dashboard",
+        "body": "What is happening today: overdue and upcoming tasks (crops AND animals), recommendations, and health alerts — all checkable from here."
+      },
+      "cuaderno": {
+        "title": "The field notebook",
+        "body": "Everything is recorded: plantings, tasks, production, and plant health. Exportable to CSV — the record agricultural certifications ask for."
+      },
+      "finish": {
+        "title": "Explore!",
+        "body": "Check off the overdue fertilization, report a finding, log eggs from the coop… When you want your own farm, create your free account from the bar above."
+      }
+    }
+  }
+}

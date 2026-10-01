@@ -4,6 +4,9 @@
   "scripts": {
     "frontend": "cd frontend && npm run dev",
     "backend": "cd backend && npm run dev",
-    "dev": "npm run frontend"
+    "dev": "npm run frontend",
+    "build": "npm --prefix frontend ci && npm --prefix frontend run build && npm run collect:static && npm --prefix backend ci && npm --prefix backend run build",
+    "collect:static": "node -e \"const fs=require('fs');fs.rmSync('backend/public',{recursive:true,force:true});fs.cpSync('frontend/dist','backend/public',{recursive:true})\"",
+    "start": "npm --prefix backend run start:prod"
   }
 }

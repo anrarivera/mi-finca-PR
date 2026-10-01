@@ -1,197 +1,41 @@
-import { useRef } from 'react'
-import { z } from 'zod'
-import { Download, Upload, Trash2, Database, Info, Bell } from 'lucide-react'
-import { useFarmStore } from '@/store/useFarmStore'
-import { useFieldStore } from '@/store/useFieldStore'
-import { useLivestockStore } from '@/store/useLivestockStore'
+import { api } from '@/lib/api'
+import { useRef, useState } from 'react'
+import { Download, Upload, Trash2, Database, Info, Bell, Globe } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
+import { useNavigate } from 'react-router-dom'
+import { createPortal } from 'react-dom'
+import { useAuthStore } from '@/store/useAuthStore'
 import { useSettingsStore } from '@/store/useSettingsStore'
-import { useCropStore } from '@/store/useCropStore'
 import { useConfirm } from '@/components/shared/confirmDialog'
 import { toast } from '@/store/useToastStore'
-import type { Farm } from '@/store/useFarmStore'
-import type { CustomCrop } from '@/store/useCropStore'
-import type { PlacedField } from '@/features/field/types'
-import type { LivestockUnit } from '@/features/livestock/types'
+import { todayISO } from '@/features/field/types'
 
 // ──────────────────────────────────────────────────────────────────────────
-// Settings — data backup/restore while the app runs offline-first. The
-// export file contains every persisted store, so a farmer can move their
-// finca to another device or keep a respaldo before experimenting.
+// Settings — backup/restore/clear are SERVER-side (v2): export downloads
+// the account's full data straight from the API; restore transactionally
+// replaces it; clear deletes it. The old v1 flow only wrote local stores,
+// which the next refetch silently clobbered — and its file never contained
+// the operations log, harvests, or findings.
 // ──────────────────────────────────────────────────────────────────────────
-
-const BACKUP_VERSION = 1
-
-type BackupFile = {
-  app: 'mi-finca-pr'
-  version: number
-  exportedAt: string
-  farms: unknown
-  activeFarmId: unknown
-  favoriteFarmId: unknown
-  fields: unknown
-  livestock: unknown
-  customCrops: unknown
-}
-
-// ── Backup validation ─────────────────────────────────────────────────
-// The stores are replaced wholesale on import, so this validates the FULL
-// depth of what the app dereferences (rows, plants, planting events,
-// operations…). All-or-nothing on purpose: any structural problem rejects
-// the import BEFORE anything is overwritten — never a partial restore, and
-// never an array-level fallback that could silently wipe a whole store.
-// Unknown extra keys pass through (loose objects) for forward compat;
-// versions newer than ours are rejected with a clear message.
-
-const latLngSchema = z.looseObject({ lat: z.number(), lng: z.number() })
-
-const backupPlantSchema = z.looseObject({
-  id: z.string(),
-  cropTypeId: z.string(),
-  lat: z.number(),
-  lng: z.number(),
-  plantingDate: z.string(),
-})
-
-const backupRowSchema = z.looseObject({
-  id: z.string(),
-  startLat: z.number(),
-  startLng: z.number(),
-  endLat: z.number(),
-  endLng: z.number(),
-  spacingFt: z.number(),
-  primaryCropTypeId: z.string(),
-  companionCropTypeId: z.string().nullable().catch(null),
-  plantingDate: z.string(),
-  plants: z.array(backupPlantSchema),
-  path: z.array(latLngSchema).optional(),
-  pathClosed: z.boolean().optional(),
-})
-
-const backupOperationSchema = z.looseObject({
-  id: z.string(),
-  plantingEventId: z.string().catch(''),
-  templateId: z.string(),
-  type: z.string(),
-  labelEs: z.string(),
-  recommendedDate: z.string(),
-  status: z.enum(['pending', 'due', 'completed', 'skipped']).catch('pending'),
-  completedDate: z.string().optional(),
-  notes: z.string().optional(),
-  product: z.string().optional(),
-  quantity: z.number().optional(),
-  unit: z.string().optional(),
-})
-
-const backupEventSchema = z.looseObject({
-  id: z.string(),
-  fieldId: z.string(),
-  cropTypeId: z.string(),
-  plantingDate: z.string(),
-  plantCount: z.number().catch(0),
-  rowIds: z.array(z.string()).catch([]),
-  freePlantIds: z.array(z.string()).catch([]),
-  operations: z.array(backupOperationSchema),
-})
-
-const backupFarmSchema = z.looseObject({
-  id: z.string(),
-  name: z.string(),
-  location: z.string().catch(''),
-  totalAreaAcres: z.number().catch(0),
-  createdAt: z.string().catch(''),
-  boundary: z.array(latLngSchema),
-  fieldIds: z.array(z.string()),
-})
-
-const backupFieldSchema = z.looseObject({
-  id: z.string(),
-  farmId: z.string(),
-  name: z.string(),
-  color: z.string().catch('#8fba4e'),
-  shape: z.enum(['rectangle', 'polygon']).catch('rectangle'),
-  widthFt: z.number().catch(100),
-  heightFt: z.number().catch(100),
-  farmLat: z.number(),
-  farmLng: z.number(),
-  rotation: z.number().catch(0),
-  isPositioning: z.boolean().catch(false),
-  displayMode: z.enum(['shape', 'pin']).catch('shape'),
-  boundary: z.array(latLngSchema).optional(),
-  rows: z.array(backupRowSchema).optional(),
-  freePlants: z.array(backupPlantSchema).optional(),
-  plantingEvents: z.array(backupEventSchema).optional(),
-})
-
-const backupLivestockSchema = z.looseObject({
-  id: z.string(),
-  farmId: z.string(),
-  name: z.string(),
-  animalType: z.string(),
-  currentCount: z.number().catch(0),
-  acquisitionDate: z.string(),
-  notes: z.string().optional(),
-})
-
-const backupCustomCropSchema = z.looseObject({
-  crop: z.looseObject({
-    id: z.string(),
-    name: z.string(),
-    nameEs: z.string(),
-    emoji: z.string().catch('🌱'),
-    category: z.string().catch('Personalizados'),
-  }),
-  schedule: z.looseObject({
-    cropTypeId: z.string(),
-    harvestWindowStartDays: z.number(),
-    harvestWindowEndDays: z.number(),
-    operations: z.array(z.looseObject({
-      id: z.string(),
-      type: z.string(),
-      labelEs: z.string(),
-      offsetDays: z.number(),
-    })),
-  }).nullable(),
-})
-
-const backupSchema = z.looseObject({
-  app: z.literal('mi-finca-pr'),
-  version: z.number(),
-  farms: z.array(backupFarmSchema),
-  fields: z.array(backupFieldSchema),
-  // No array-level .catch here: one bad record must reject the whole
-  // import with an error, not silently erase every animal.
-  livestock: z.array(backupLivestockSchema),
-  // Optional (not caught) for backups made before custom crops existed.
-  customCrops: z.array(backupCustomCropSchema).optional(),
-  activeFarmId: z.string().nullable().catch(null),
-  favoriteFarmId: z.string().nullable().catch(null),
-})
 
 export default function SettingsPage() {
+  const { t } = useTranslation('pages')
   const { confirm, confirmDialog } = useConfirm()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  function handleExport() {
-    const farmState = useFarmStore.getState()
-    const backup: BackupFile = {
-      app: 'mi-finca-pr',
-      version: BACKUP_VERSION,
-      exportedAt: new Date().toISOString(),
-      farms: farmState.farms,
-      activeFarmId: farmState.activeFarmId,
-      favoriteFarmId: farmState.favoriteFarmId,
-      fields: useFieldStore.getState().fields,
-      livestock: useLivestockStore.getState().units,
-      customCrops: useCropStore.getState().customCrops,
+  async function handleExport() {
+    try {
+      const { blob, filename } = await api.download('/api/v1/users/me/export')
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = filename ?? `mi-finca-respaldo-${todayISO()}.json`
+      a.click()
+      URL.revokeObjectURL(url)
+      toast.success(t('settings.toasts.backupDownloaded'))
+    } catch {
+      /* the api client already toasted the reason */
     }
-    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `mi-finca-respaldo-${new Date().toISOString().slice(0, 10)}.json`
-    a.click()
-    URL.revokeObjectURL(url)
-    toast.success('Respaldo descargado')
   }
 
   async function handleImportFile(file: File) {
@@ -199,88 +43,84 @@ export default function SettingsPage() {
     try {
       raw = JSON.parse(await file.text())
     } catch {
-      toast.error('El archivo no es un JSON válido.')
+      toast.error(t('settings.toasts.invalidJson'))
+      return
+    }
+    // Shallow shape check for fast local feedback — the server validates
+    // fully (version, structure) before touching anything.
+    const backup = raw as { app?: unknown; farms?: unknown } | null
+    if (backup?.app !== 'mi-finca-pr' || !Array.isArray(backup.farms)) {
+      toast.error(t('settings.toasts.invalidBackup'))
       return
     }
 
-    const parsed = backupSchema.safeParse(raw)
-    if (!parsed.success) {
-      toast.error('El archivo no parece ser un respaldo válido de Mi Finca PR.')
-      return
-    }
-    const data = parsed.data
-    if (data.version > BACKUP_VERSION) {
-      toast.error('Este respaldo es de una versión más nueva de la aplicación.')
-      return
-    }
-
-    const farmCount = data.farms.length
     const ok = await confirm({
-      title: '¿Restaurar respaldo?',
-      message: `El respaldo contiene ${farmCount} ${farmCount === 1 ? 'finca' : 'fincas'}. Se reemplazarán todos los datos actuales de la aplicación.`,
-      confirmLabel: 'Restaurar',
+      title: t('settings.restoreConfirm.title'),
+      message: t('settings.restoreConfirm.message', { count: backup.farms.length }),
+      confirmLabel: t('settings.restoreConfirm.confirm'),
       danger: true,
     })
     if (!ok) return
 
-    // Only restore ids that actually resolve to a farm in the backup.
-    const farmIds = new Set(data.farms.map(f => f.id))
-    useFarmStore.setState({
-      farms: data.farms as Farm[],
-      activeFarmId: data.activeFarmId && farmIds.has(data.activeFarmId) ? data.activeFarmId : null,
-      favoriteFarmId: data.favoriteFarmId && farmIds.has(data.favoriteFarmId) ? data.favoriteFarmId : null,
-    })
-    useFieldStore.setState({ fields: data.fields as unknown as PlacedField[] })
-    useLivestockStore.setState({ units: data.livestock as unknown as LivestockUnit[] })
-    useCropStore.setState({ customCrops: (data.customCrops ?? []) as unknown as CustomCrop[] })
-    toast.success('Respaldo restaurado')
+    try {
+      // The server validates the version and shape, replaces the account's
+      // data transactionally, and rejects v1 files with a clear message.
+      await api.post('/api/v1/users/me/restore', raw)
+      toast.success(t('settings.toasts.backupRestored'))
+      // Every cache and store is stale now — restart the app cleanly.
+      setTimeout(() => window.location.assign('/'), 800)
+    } catch {
+      /* the api client already toasted the reason */
+    }
   }
 
   async function handleClearAll() {
     const ok = await confirm({
-      title: '¿Borrar todos los datos?',
-      message: 'Se eliminarán todas las fincas, campos, animales y calendarios guardados en este dispositivo. Considera descargar un respaldo primero.',
-      confirmLabel: 'Borrar todo',
+      title: t('settings.clearConfirm.title'),
+      message: t('settings.clearConfirm.message'),
+      confirmLabel: t('settings.clearConfirm.confirm'),
       danger: true,
     })
     if (!ok) return
-    useFarmStore.setState({ farms: [], activeFarmId: null, favoriteFarmId: null })
-    useFieldStore.setState({ fields: [] })
-    useLivestockStore.setState({ units: [] })
-    useCropStore.setState({ customCrops: [] })
-    toast.success('Datos eliminados')
+    try {
+      await api.post('/api/v1/users/me/clear-data')
+      toast.success(t('settings.toasts.dataCleared'))
+      setTimeout(() => window.location.assign('/'), 800)
+    } catch {
+      /* the api client already toasted the reason */
+    }
   }
 
   return (
     <div className="max-w-2xl mx-auto flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-bold text-[#2d4a1e]">Configuración</h1>
-        <p className="text-sm text-[#9aab8a] mt-1">Datos y preferencias de la aplicación</p>
+        <h1 className="text-2xl font-bold text-[#2d4a1e]">{t('settings.title')}</h1>
+        <p className="text-sm text-[#66755a] mt-1">{t('settings.subtitle')}</p>
       </div>
 
       {/* ── Data section ─────────────────────────────────────────── */}
       <section className="bg-white rounded-2xl border border-[#e0e8d8] overflow-hidden">
         <div className="flex items-center gap-2 px-5 py-4 border-b border-[#e0e8d8]">
-          <Database size={16} className="text-[#639922]" />
-          <h2 className="text-sm font-semibold text-[#2d4a1e]">Mis datos</h2>
+          <Database size={16} className="text-[#4d7a1b]" />
+          <h2 className="text-sm font-semibold text-[#2d4a1e]">{t('settings.data.sectionTitle')}</h2>
         </div>
 
         <div className="divide-y divide-[#f0f5e8]">
           <SettingsRow
-            title="Descargar respaldo"
-            description="Guarda todas tus fincas, campos, animales y calendarios en un archivo JSON."
+            title={t('settings.data.export.title')}
+            description={t('settings.data.export.description')}
             action={
               <button
                 onClick={handleExport}
                 className="flex items-center gap-1.5 px-3 py-2 text-xs bg-[#2d4a1e] text-[#d4e8b0] rounded-lg hover:bg-[#3d6128] transition-colors shrink-0"
               >
-                <Download size={12} /> Exportar
+                <Download size={12} /> {t('settings.data.export.button')}
               </button>
             }
           />
           <SettingsRow
-            title="Restaurar respaldo"
-            description="Reemplaza los datos actuales con un archivo de respaldo exportado antes."
+            title={t('settings.data.import.title')}
+            description={t('settings.data.import.description')}
             action={
               <>
                 <input
@@ -298,20 +138,20 @@ export default function SettingsPage() {
                   onClick={() => fileInputRef.current?.click()}
                   className="flex items-center gap-1.5 px-3 py-2 text-xs text-[#2d4a1e] border border-[#c8dca8] rounded-lg hover:bg-[#eaf3de] transition-colors shrink-0"
                 >
-                  <Upload size={12} /> Importar
+                  <Upload size={12} /> {t('settings.data.import.button')}
                 </button>
               </>
             }
           />
           <SettingsRow
-            title="Borrar todos los datos"
-            description="Elimina todo lo guardado en este dispositivo. Esta acción no se puede deshacer."
+            title={t('settings.data.clear.title')}
+            description={t('settings.data.clear.description')}
             action={
               <button
                 onClick={handleClearAll}
                 className="flex items-center gap-1.5 px-3 py-2 text-xs text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition-colors shrink-0"
               >
-                <Trash2 size={12} /> Borrar todo
+                <Trash2 size={12} /> {t('settings.data.clear.button')}
               </button>
             }
           />
@@ -319,25 +159,154 @@ export default function SettingsPage() {
       </section>
 
       {/* ── Notifications section (issue #14) ────────────────────── */}
+      <LanguageSettings />
+
       <NotificationSettings />
+
+      <AccountSettings />
 
       {/* ── About section ────────────────────────────────────────── */}
       <section className="bg-white rounded-2xl border border-[#e0e8d8] overflow-hidden">
         <div className="flex items-center gap-2 px-5 py-4 border-b border-[#e0e8d8]">
-          <Info size={16} className="text-[#639922]" />
-          <h2 className="text-sm font-semibold text-[#2d4a1e]">Acerca de</h2>
+          <Info size={16} className="text-[#4d7a1b]" />
+          <h2 className="text-sm font-semibold text-[#2d4a1e]">{t('settings.about.sectionTitle')}</h2>
         </div>
         <div className="px-5 py-4 text-xs text-[#5a6a4a] flex flex-col gap-1.5">
-          <p><span className="font-semibold text-[#2d4a1e]">Mi Finca PR</span> — Fase 1: Herramienta de manejo de fincas</p>
-          <p>Tus datos se guardan localmente en este navegador. Descarga respaldos con frecuencia.</p>
-          <p className="text-[#9aab8a]">
-            Las recomendaciones agronómicas son orientativas y no sustituyen el consejo de un agrónomo licenciado.
+          <p><span className="font-semibold text-[#2d4a1e]">Mi Finca PR</span> — {t('settings.about.phase')}</p>
+          <p>{t('settings.about.localData')}</p>
+          <p className="text-[#66755a]">
+            {t('settings.about.disclaimer')}
           </p>
         </div>
       </section>
 
       {confirmDialog}
     </div>
+  )
+}
+
+// ── Language (i18n) ───────────────────────────────────────────────────
+function LanguageSettings() {
+  const { t, i18n } = useTranslation()
+
+  return (
+    <section className="bg-white rounded-2xl border border-[#e0e8d8] overflow-hidden">
+      <div className="flex items-center gap-2 px-5 py-4 border-b border-[#e0e8d8]">
+        <Globe size={16} className="text-[#4d7a1b]" />
+        <h2 className="text-sm font-semibold text-[#2d4a1e]">{t('language.sectionTitle')}</h2>
+      </div>
+      <SettingsRow
+        title={t('language.rowTitle')}
+        description={t('language.rowDescription')}
+        action={
+          <select
+            aria-label={t('language.sectionTitle')}
+            value={i18n.language?.startsWith('en') ? 'en' : 'es'}
+            onChange={e => {
+              i18n.changeLanguage(e.target.value)
+              // The daily digest email follows User.language — best-effort sync
+              api.patch('/api/v1/users/me', { language: e.target.value }).catch(() => {})
+            }}
+            className="text-xs text-[#5a6a4a] bg-white border border-[#d0dcc0] rounded-lg px-2 py-2 focus:outline-none focus:border-[#639922]"
+          >
+            <option value="es">{t('language.es')}</option>
+            <option value="en">{t('language.en')}</option>
+          </select>
+        }
+      />
+    </section>
+  )
+}
+
+// ── Cuenta — the erasure right (privacy policy). Password-confirmed. ──
+function AccountSettings() {
+  const { t } = useTranslation('pages')
+  const navigate = useNavigate()
+  const clearAuth = useAuthStore(s => s.clearAuth)
+  const [confirming, setConfirming] = useState(false)
+  const [password, setPassword] = useState('')
+  const [deleting, setDeleting] = useState(false)
+
+  async function handleDelete() {
+    if (!password || deleting) return
+    setDeleting(true)
+    try {
+      await api.delete('/api/v1/users/me', { password })
+      clearAuth()
+      toast.success(t('account.deleted'))
+      navigate('/login')
+    } catch {
+      // handleResponse already toasted the server error (e.g. bad password)
+      setDeleting(false)
+    }
+  }
+
+  return (
+    <section className="bg-white rounded-2xl border border-red-100 overflow-hidden">
+      <div className="flex items-center gap-2 px-5 py-4 border-b border-[#e0e8d8]">
+        <Trash2 size={16} className="text-red-400" />
+        <h2 className="text-sm font-semibold text-[#2d4a1e]">{t('account.sectionTitle')}</h2>
+      </div>
+      <SettingsRow
+        title={t('account.deleteTitle')}
+        description={t('account.deleteDescription')}
+        action={
+          <button
+            onClick={() => { setPassword(''); setConfirming(true) }}
+            className="px-3 py-2 text-xs text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition-colors"
+          >
+            {t('account.deleteButton')}
+          </button>
+        }
+      />
+
+      {confirming && createPortal(
+        <>
+          <div aria-hidden="true" className="fixed inset-0 bg-black/40 z-[2400] backdrop-blur-sm"
+            onClick={() => !deleting && setConfirming(false)} />
+          <div className="fixed inset-0 z-[2410] flex items-end sm:items-center justify-center sm:p-4 pointer-events-none">
+            <div className="bg-white shadow-xl w-full overflow-hidden pointer-events-auto rounded-t-2xl sm:max-w-sm sm:rounded-2xl">
+              <div className="px-6 py-4 border-b border-[#e0e8d8]">
+                <h2 className="text-base font-semibold text-red-600">{t('account.confirmTitle')}</h2>
+              </div>
+              <div className="px-6 py-4 flex flex-col gap-3">
+                <p className="text-xs text-[#5a6a4a] leading-relaxed">{t('account.confirmWarning')}</p>
+                <label className="flex flex-col gap-1.5">
+                  <span className="text-xs font-medium text-[#5a6a4a]">{t('account.passwordLabel')}</span>
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    // Initial focus inside a just-opened dialog IS correct
+                    // focus management (the rule targets page-load autofocus).
+                    // eslint-disable-next-line jsx-a11y/no-autofocus
+                    autoFocus
+                    className="w-full px-3 py-2.5 rounded-lg border border-[#d0dcc0] text-sm text-[#2d4a1e] focus:outline-none focus:border-red-400 transition-colors"
+                  />
+                </label>
+              </div>
+              <div className="px-6 py-4 border-t border-[#e0e8d8] flex justify-end gap-2">
+                <button
+                  onClick={() => setConfirming(false)}
+                  disabled={deleting}
+                  className="px-4 py-2 text-sm text-[#5a6a4a] hover:bg-[#f0f5e8] rounded-lg transition-colors"
+                >
+                  {t('confirmDialog.cancel')}
+                </button>
+                <button
+                  onClick={handleDelete}
+                  disabled={!password || deleting}
+                  className="px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  {deleting ? t('account.deleting') : t('account.confirmButton')}
+                </button>
+              </div>
+            </div>
+          </div>
+        </>,
+        document.body
+      )}
+    </section>
   )
 }
 
@@ -350,7 +319,7 @@ function SettingsRow({ title, description, action }: {
     <div className="flex items-center justify-between gap-4 px-5 py-4">
       <div className="min-w-0">
         <p className="text-sm font-medium text-[#2d4a1e]">{title}</p>
-        <p className="text-[11px] text-[#9aab8a] mt-0.5">{description}</p>
+        <p className="text-[11px] text-[#66755a] mt-0.5">{description}</p>
       </div>
       {action}
     </div>
@@ -362,32 +331,70 @@ function SettingsRow({ title, description, action }: {
 // (issue #11) and will plug into these same preferences.
 
 function NotificationSettings() {
+  const { t } = useTranslation('pages')
   const prefs = useSettingsStore(s => s.notificationPrefs)
-  const update = useSettingsStore(s => s.updateNotificationPrefs)
+  const updateLocal = useSettingsStore(s => s.updateNotificationPrefs)
+
+  // The email digest runs on the server, so preference changes must reach
+  // it — every update syncs (best-effort) in addition to localStorage.
+  function update(patch: Parameters<typeof updateLocal>[0]) {
+    updateLocal(patch)
+    api.put('/api/v1/users/me/notification-prefs', patch).catch(() => {})
+  }
 
   return (
     <section className="bg-white rounded-2xl border border-[#e0e8d8] overflow-hidden">
       <div className="flex items-center gap-2 px-5 py-4 border-b border-[#e0e8d8]">
-        <Bell size={16} className="text-[#639922]" />
-        <h2 className="text-sm font-semibold text-[#2d4a1e]">Notificaciones</h2>
+        <Bell size={16} className="text-[#4d7a1b]" />
+        <h2 className="text-sm font-semibold text-[#2d4a1e]">{t('settings.notifications.sectionTitle')}</h2>
       </div>
 
       <div className="divide-y divide-[#f0f5e8]">
         <SettingsRow
-          title="Notificaciones en la aplicación"
-          description="Muestra alertas de operaciones en la campana de la barra superior."
+          title={t('settings.notifications.inApp.title')}
+          description={t('settings.notifications.inApp.description')}
           action={
             <ToggleSwitch
+              label={t('settings.notifications.inApp.title')}
               checked={prefs.enabled}
               onChange={v => update({ enabled: v })}
             />
           }
         />
         <SettingsRow
-          title="Operaciones vencidas"
-          description="Avisa cuando una operación pasó de su fecha recomendada sin completarse."
+          title={t('settings.notifications.emailDigest.title')}
+          description={t('settings.notifications.emailDigest.description')}
           action={
             <ToggleSwitch
+              label={t('settings.notifications.emailDigest.title')}
+              checked={prefs.emailDigest}
+              disabled={!prefs.enabled}
+              onChange={v => update({ emailDigest: v })}
+            />
+          }
+        />
+        <SettingsRow
+          title={t('settings.notifications.emailFrequency.title')}
+          description={t('settings.notifications.emailFrequency.description')}
+          action={
+            <select
+              aria-label={t('settings.notifications.emailFrequency.title')}
+              value={prefs.emailFrequency}
+              disabled={!prefs.enabled || !prefs.emailDigest}
+              onChange={e => update({ emailFrequency: e.target.value as 'novedades' | 'semanal' })}
+              className="text-xs text-[#5a6a4a] bg-white border border-[#d0dcc0] rounded-lg px-2 py-2 focus:outline-none focus:border-[#639922] disabled:opacity-50"
+            >
+              <option value="novedades">{t('settings.notifications.emailFrequency.novedades')}</option>
+              <option value="semanal">{t('settings.notifications.emailFrequency.semanal')}</option>
+            </select>
+          }
+        />
+        <SettingsRow
+          title={t('settings.notifications.overdue.title')}
+          description={t('settings.notifications.overdue.description')}
+          action={
+            <ToggleSwitch
+              label={t('settings.notifications.overdue.title')}
               checked={prefs.notifyOverdue}
               disabled={!prefs.enabled}
               onChange={v => update({ notifyOverdue: v })}
@@ -395,10 +402,11 @@ function NotificationSettings() {
           }
         />
         <SettingsRow
-          title="Operaciones próximas"
-          description="Avisa sobre operaciones que vencen dentro de los días de anticipación."
+          title={t('settings.notifications.dueSoon.title')}
+          description={t('settings.notifications.dueSoon.description')}
           action={
             <ToggleSwitch
+              label={t('settings.notifications.dueSoon.title')}
               checked={prefs.notifyDueSoon}
               disabled={!prefs.enabled}
               onChange={v => update({ notifyDueSoon: v })}
@@ -406,10 +414,11 @@ function NotificationSettings() {
           }
         />
         <SettingsRow
-          title="Ventanas de cosecha"
-          description="Avisa cuando se acerca o abre la ventana de cosecha de un cultivo."
+          title={t('settings.notifications.harvest.title')}
+          description={t('settings.notifications.harvest.description')}
           action={
             <ToggleSwitch
+              label={t('settings.notifications.harvest.title')}
               checked={prefs.notifyHarvest}
               disabled={!prefs.enabled}
               onChange={v => update({ notifyHarvest: v })}
@@ -417,13 +426,14 @@ function NotificationSettings() {
           }
         />
         <SettingsRow
-          title="Días de anticipación"
-          description="Cuántos días antes de la fecha recomendada empieza el aviso (1–60)."
+          title={t('settings.notifications.leadDays.title')}
+          description={t('settings.notifications.leadDays.description')}
           action={
             <input
               type="number"
               min={1}
               max={60}
+              aria-label={t('settings.notifications.leadDays.title')}
               value={prefs.dueSoonLeadDays}
               disabled={!prefs.enabled}
               onChange={e => {
@@ -438,32 +448,34 @@ function NotificationSettings() {
         />
       </div>
 
-      <p className="px-5 py-3 text-[10px] text-[#9aab8a] bg-[#fafcf8] border-t border-[#f0f5e8]">
-        Los avisos por correo electrónico y mensajes de texto llegarán en una
-        versión futura.
+      <p className="px-5 py-3 text-[10px] text-[#66755a] bg-[#fafcf8] border-t border-[#f0f5e8]">
+        {t('settings.notifications.footer')}
       </p>
     </section>
   )
 }
 
-function ToggleSwitch({ checked, onChange, disabled }: {
+function ToggleSwitch({ checked, onChange, disabled, label }: {
   checked: boolean
   onChange: (v: boolean) => void
   disabled?: boolean
+  /** Accessible name — switches have no visible text of their own. */
+  label: string
 }) {
   return (
     <button
       role="switch"
       aria-checked={checked}
+      aria-label={label}
       disabled={disabled}
       onClick={() => onChange(!checked)}
-      className={`relative w-9 h-5 rounded-full transition-colors shrink-0 ${
+      className={`relative w-9 h-5 pointer-coarse:w-12 pointer-coarse:h-6 rounded-full transition-colors shrink-0 ${
         checked ? 'bg-[#639922]' : 'bg-[#d5ddc8]'
       } ${disabled ? 'opacity-40 cursor-not-allowed' : ''}`}
     >
       <span
-        className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
-          checked ? 'translate-x-4' : ''
+        className={`absolute top-0.5 left-0.5 w-4 h-4 pointer-coarse:w-5 pointer-coarse:h-5 bg-white rounded-full shadow transition-transform ${
+          checked ? 'translate-x-4 pointer-coarse:translate-x-6' : ''
         }`}
       />
     </button>

@@ -10,6 +10,9 @@ datasource db {
 model User {
   id                String    @id @default(uuid())
   email             String    @unique
+  // Ephemeral try-before-signup accounts ("Probar la demo") — seeded with
+  // a sample farm, excluded from digests, purged by cron after a few days.
+  isDemo            Boolean   @default(false)
   passwordHash      String?
   fullName          String
   profilePhotoUrl   String?
@@ -22,7 +25,13 @@ model User {
   farms             Farm[]
   oauthAccounts     OAuthAccount[]
   cropTypes         CropType[]
+  recipes           Recipe[]
+  recipeDefaults    RecipeDefault[]
   actionTokens      ActionToken[]
+  farmMemberships   FarmMember[]
+  performedOperations   Operation[]          @relation("PerformedOperations")
+  performedFindings     Finding[]            @relation("PerformedFindings")
+  performedObservations FindingObservation[] @relation("PerformedObservations")
 
   @@map("users")
 }
@@ -60,14 +69,70 @@ model Farm {
   sensors        Sensor[]
   automationRules AutomationRule[]
   operations     Operation[]
+  members        FarmMember[]
+  invites        FarmInvite[]
+  recipeDefaults RecipeDefault[]
 
   @@map("farms")
+}
+
+// Beta/signup access codes (the signup gate). While SIGNUP_MODE=invite,
+// registration requires one of these (or a valid farm invite code, which
+// doubles as app access for invited workers). Hash-only storage, optional
+// use cap, expiring, revocable. Generated via scripts/createSignupCode.
+model SignupCode {
+  id        String    @id @default(uuid())
+  codeHash  String    @unique
+  note      String?
+  maxUses   Int?
+  usedCount Int       @default(0)
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@map("signup_codes")
+}
+
+// Join codes (roles: self-serve onboarding). Multi-use until expiry or
+// revocation so one code can onboard a whole crew; only a SHA-256 hash is
+// stored — the plain code is shown once at generation.
+model FarmInvite {
+  id        String    @id @default(uuid())
+  farmId    String
+  role      String    // 'admin' | 'operator' — baked into the code
+  codeHash  String    @unique
+  createdBy String
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+  farm      Farm      @relation(fields: [farmId], references: [id], onDelete: Cascade)
+
+  @@map("farm_invites")
+}
+
+// Per-farm membership. The owner is Farm.userId (never a row here);
+// members carry 'admin' (everything but farm deletion) or 'operator'
+// (log work — labores, hallazgos, cosechas — but no farm/field structure).
+model FarmMember {
+  id        String   @id @default(uuid())
+  farmId    String
+  userId    String
+  role      String   // 'admin' | 'operator'
+  createdAt DateTime @default(now())
+  farm      Farm     @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([farmId, userId])
+  @@map("farm_members")
 }
 
 model Field {
   id             String    @id @default(uuid())
   farmId         String
   name           String
+  // 'crops' (rows/plants) or 'livestock' (a corral — herds are assigned
+  // to it and rendered on the map with head counts).
+  kind           String    @default("crops")
   color          String
   shape          String
   boundary       Json      @default("[]")
@@ -86,6 +151,9 @@ model Field {
   plantingEvents PlantingEvent[]
   operations     Operation[]
   harvestYields  HarvestYield[]
+  findings       Finding[]
+  livestockUnits LivestockUnit[]
+  recipeDefaults RecipeDefault[]
 
   @@map("fields")
 }
@@ -101,6 +169,12 @@ model FieldRow {
   primaryCropTypeId   String
   companionCropTypeId String?
   plantingDate        DateTime  @db.Date
+  // Contour rows: the drawn ring/arc as [{lat,lng},…] and whether it
+  // closes. Straight rows leave these null (start/end suffice). Added
+  // because the client always sent them and the server silently dropped
+  // them — contour rings reloaded as straight lines.
+  path                Json?
+  pathClosed          Boolean?
   createdAt           DateTime  @default(now())
   field               Field     @relation(fields: [fieldId], references: [id], onDelete: Cascade)
   plants              PlantInstance[]
@@ -125,17 +199,21 @@ model PlantInstance {
 }
 
 model PlantingEvent {
-  id           String    @id @default(uuid())
-  fieldId      String
-  cropTypeId   String
-  plantingDate DateTime  @db.Date
-  plantCount   Int
-  isSimulated  Boolean   @default(false)
-  createdAt    DateTime  @default(now())
-  field        Field     @relation(fields: [fieldId], references: [id], onDelete: Cascade)
-  plants       PlantInstance[]
-  operations   Operation[]
-  recommended  RecommendedOperation[]
+  id              String    @id @default(uuid())
+  fieldId         String
+  cropTypeId      String
+  plantingDate    DateTime  @db.Date
+  plantCount      Int
+  isSimulated     Boolean   @default(false)
+  // The honest link (R3): which recipe version this planting followed.
+  // The stamped operations are still a COPY — this reference is for proof.
+  recipeVersionId String?
+  createdAt       DateTime  @default(now())
+  field           Field     @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+  recipeVersion   RecipeVersion? @relation(fields: [recipeVersionId], references: [id], onDelete: SetNull)
+  plants          PlantInstance[]
+  operations      Operation[]
+  recommended     RecommendedOperation[]
 
   @@map("planting_events")
 }
@@ -160,8 +238,60 @@ model RecommendedOperation {
   plantingEvent       PlantingEvent? @relation(fields: [plantingEventId], references: [id], onDelete: Cascade)
   livestockUnit       LivestockUnit? @relation(fields: [livestockUnitId], references: [id])
   completedOperation  Operation? @relation(fields: [completedOperationId], references: [id])
+  treatedFindings     Finding[]
 
   @@map("recommended_operations")
+}
+
+// A scouting finding — a pest/disease observation (SDD: scouting feature).
+// Separate entity from the operations log: findings are what the farmer SAW,
+// operations are what the farmer DID. Linked to a treatment labor only by id
+// reference, never merged. Scope reuses the tri-level model of operations:
+// rowIds = fully affected rows, plantIds = individual plants outside those
+// rows, both empty = field-level observation (sample-based scouting).
+model Finding {
+  id        String   @id @default(uuid())
+  fieldId   String
+  pestId    String
+  severity  Int      @default(1) // 1 leve · 2 moderada · 3 severa
+  status    String   @default("open") // open | treated | resolved
+  foundDate DateTime @db.Date
+  notes     String?
+  rowIds    Json     @default("[]")
+  plantIds  Json     @default("[]")
+  // The treatment labor "Crear labor" generated from this finding — cleared
+  // if that recommendation is ever deleted, so a new one can be created.
+  treatmentRecommendedOperationId String?
+  performedByUserId String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  performedBy User?  @relation("PerformedFindings", fields: [performedByUserId], references: [id], onDelete: SetNull)
+  field     Field    @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+  treatmentRecommendedOperation RecommendedOperation? @relation(fields: [treatmentRecommendedOperationId], references: [id], onDelete: SetNull)
+  observations FindingObservation[]
+
+  @@map("findings")
+}
+
+// One scouting visit to a finding — the re-inspection trail ("seguimiento",
+// the Parcial of findings). The finding's own severity/scope mirror the
+// LATEST observation so map paint and field health read the current state;
+// the history here answers whether the treatment worked. Every finding has
+// at least one observation (created with it).
+model FindingObservation {
+  id        String   @id @default(uuid())
+  findingId String
+  date      DateTime @db.Date
+  severity  Int
+  rowIds    Json     @default("[]")
+  plantIds  Json     @default("[]")
+  notes     String?
+  performedByUserId String?
+  createdAt DateTime @default(now())
+  performedBy User?  @relation("PerformedObservations", fields: [performedByUserId], references: [id], onDelete: SetNull)
+  finding   Finding  @relation(fields: [findingId], references: [id], onDelete: Cascade)
+
+  @@map("finding_observations")
 }
 
 model Operation {
@@ -179,13 +309,30 @@ model Operation {
   unit                  String?
   qualityRating         Int?
   photoUrls             Json      @default("[]")
+  // Which field rows this operation covered (array of field_rows ids).
+  // Lets a harvest record "rows 1–3 today, rows 4–6 tomorrow". Empty array
+  // means the whole field / not row-specific.
+  rowIds                Json      @default("[]")
+  // Individually covered plants (array of plant_instances ids) — for
+  // selections finer than whole rows: "row 1 plus the first 5 plants of
+  // row 2", or scattered single plants. rowIds = fully covered rows,
+  // plantIds = extra individual plants outside those rows.
+  plantIds              Json      @default("[]")
+  // Herd-count change carried by this operation (negative = animals left
+  // the herd: slaughtered/sold/died) and why — the livestock ledger.
+  countDelta            Int?
+  countReason           String?
+  // Who logged the work — stamped at creation, kept if the member leaves.
+  performedByUserId     String?
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
+  performedBy           User?     @relation("PerformedOperations", fields: [performedByUserId], references: [id], onDelete: SetNull)
   farm                  Farm      @relation(fields: [farmId], references: [id], onDelete: Cascade)
   field                 Field?    @relation(fields: [fieldId], references: [id])
   plantingEvent         PlantingEvent? @relation(fields: [plantingEventId], references: [id])
   livestockUnit         LivestockUnit? @relation(fields: [livestockUnitId], references: [id])
   recommendedOperations RecommendedOperation[]
+  harvestYields         HarvestYield[]
 
   @@map("operations")
 }
@@ -194,17 +341,31 @@ model HarvestYield {
   id          String    @id @default(uuid())
   farmId      String
   fieldId     String?
-  cropTypeId  String
+  // Link back to the operations-log entry that produced this yield, so
+  // editing/deleting the log entry keeps the yield in sync. Null for yields
+  // created directly through the harvests API.
+  operationId String?
+  // Crop harvests carry cropTypeId; animal production carries
+  // livestockUnitId + productId (milk/eggs/meat/honey). One table = the
+  // farm's unified production ledger.
+  cropTypeId  String?
+  livestockUnitId String?
+  productId   String?
   quantity    Decimal   @db.Decimal(10, 2)
   unit        String
+  // Total sale revenue for this entry (optional — much production is
+  // eaten, given away, or unsold). Unit price is derived, never stored.
+  revenue     Decimal?  @db.Decimal(10, 2)
   harvestDate DateTime  @db.Date
   notes       String?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   deletedAt   DateTime?
 
-  farm        Farm    @relation(fields: [farmId], references: [id], onDelete: Cascade)
-  field       Field?  @relation(fields: [fieldId], references: [id], onDelete: SetNull)
+  farm        Farm       @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  field       Field?     @relation(fields: [fieldId], references: [id], onDelete: SetNull)
+  operation   Operation? @relation(fields: [operationId], references: [id], onDelete: SetNull)
+  livestockUnit LivestockUnit? @relation(fields: [livestockUnitId], references: [id], onDelete: SetNull)
 
   @@map("harvest_yields")
 }
@@ -212,6 +373,10 @@ model HarvestYield {
 model LivestockUnit {
   id              String    @id @default(uuid())
   farmId          String
+  // The corral this herd lives in (a Field with kind 'livestock').
+  // Nullable: herds can exist unassigned; moving herds between corrales
+  // is pasture rotation.
+  fieldId         String?
   name            String
   animalType      String
   currentCount    Int
@@ -223,8 +388,10 @@ model LivestockUnit {
   updatedAt       DateTime  @updatedAt
   deletedAt       DateTime?
   farm            Farm      @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  field           Field?    @relation(fields: [fieldId], references: [id], onDelete: SetNull)
   operations      Operation[]
   recommended     RecommendedOperation[]
+  harvestYields   HarvestYield[]
 
   @@map("livestock_units")
 }
@@ -239,21 +406,79 @@ model CropType {
   isBuiltIn Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  schedule  CropSchedule?
+  user           User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  recipes        Recipe[]
+  recipeDefaults RecipeDefault[]
 
   @@map("crop_types")
 }
 
-model CropSchedule {
-  id                     String   @id @default(uuid())
-  cropTypeId             String   @unique
+// ── Recipes: claims with evidence ──────────────────────────────────────
+// Crops are identity; recipes are practice. A recipe is authored by a
+// person (NULL author = seeded system recipe), applied to plantings via
+// versioned references, and its proof accrues per version. See the
+// Recetas de Cultivo design doc.
+
+model Recipe {
+  id           String    @id @default(uuid())
+  authorUserId String?
+  cropTypeId   String
+  name         String
+  description  String?
+  visibility   String    @default("private") // private | farm | public (future paid surface)
+  archivedAt   DateTime? // referenced recipes archive instead of deleting — evidence survives
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  author       User?     @relation(fields: [authorUserId], references: [id], onDelete: Cascade)
+  cropType     CropType  @relation(fields: [cropTypeId], references: [id], onDelete: Cascade)
+  versions     RecipeVersion[]
+  defaults     RecipeDefault[]
+
+  @@index([authorUserId, cropTypeId])
+  @@map("recipes")
+}
+
+// Immutable once referenced (R1): the first planting that stamps from a
+// version freezes it; edits mint the next number.
+model RecipeVersion {
+  id                     String    @id @default(uuid())
+  recipeId               String
+  number                 Int
   harvestWindowStartDays Int
   harvestWindowEndDays   Int
-  operations             Json     @default("[]")
-  cropType               CropType @relation(fields: [cropTypeId], references: [id], onDelete: Cascade)
+  operations             Json      @default("[]")
+  note                   String?
+  referencedAt           DateTime?
+  createdAt              DateTime  @default(now())
+  recipe                 Recipe    @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  plantingEvents         PlantingEvent[]
 
-  @@map("crop_schedules")
+  @@unique([recipeId, number])
+  @@map("recipe_versions")
+}
+
+// What stamps when someone plants — the R2 resolution ladder:
+// field (farmId+fieldId) → farm (farmId) → the farm OWNER's personal
+// default (userId) → seeded system recipe. Exactly one scope is set per
+// row. Postgres treats NULLs as distinct in the unique, so writes are
+// find-then-write, never blind create.
+model RecipeDefault {
+  id         String   @id @default(uuid())
+  cropTypeId String
+  recipeId   String
+  userId     String?
+  farmId     String?
+  fieldId    String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  cropType   CropType @relation(fields: [cropTypeId], references: [id], onDelete: Cascade)
+  recipe     Recipe   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  user       User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  farm       Farm?    @relation(fields: [farmId], references: [id], onDelete: Cascade)
+  field      Field?   @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+
+  @@unique([cropTypeId, userId, farmId, fieldId])
+  @@map("recipe_defaults")
 }
 
 model ActionToken {

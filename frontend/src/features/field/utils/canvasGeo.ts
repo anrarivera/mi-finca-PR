@@ -10,11 +10,27 @@ export type BBox = {
   north: number
 }
 
-// Geographic constants for Puerto Rico's latitude
-// ── Added by Claude — exported so the row-fill helpers below (and callers)
-// can share the same ft⇄degree conversion instead of duplicating magic numbers.
-export const FT_PER_LAT = 364000
-export const FT_PER_LNG = 298000
+// ── Feet per degree ───────────────────────────────────────────────────
+// A degree of latitude is the same length everywhere, but a degree of
+// longitude shrinks with cos(latitude) — so the east-west factor has to
+// come from the latitude being measured, not from a constant. The fixed
+// FT_PER_LNG this replaces (298,000) is the value for ~35°N; at Puerto
+// Rico's ~18°N a degree of longitude is ~347,000 ft, which made every
+// east-west distance, row length, plant count and field acreage in the
+// editor come out ~14% short.
+//
+// Both factors use the same spherical earth as lib/geo.ts (the farm's
+// geodesic acreage), so a field drawn over a whole farm measures the same
+// area as the farm itself.
+const EARTH_RADIUS_M = 6378137
+const FT_PER_M = 1 / 0.3048
+const DEG = Math.PI / 180
+
+export const FT_PER_LAT = EARTH_RADIUS_M * DEG * FT_PER_M // ≈ 365,221
+
+export function ftPerLng(latDeg: number): number {
+  return FT_PER_LAT * Math.cos(latDeg * DEG)
+}
 
 // ── BBox from farm boundary ───────────────────────────────────────────
 
@@ -55,8 +71,11 @@ function adjustBboxToAspectRatio(bbox: BBox, targetRatio: number): BBox {
   const lngRange = bbox.east - bbox.west
   const latRange = bbox.north - bbox.south
 
-  // Normalize lng to lat-equivalent degrees at PR latitude
-  const lngNorm = lngRange * (FT_PER_LNG / FT_PER_LAT)
+  // Normalize lng to lat-equivalent degrees at the box's own latitude.
+  // Both branches below pad symmetrically, so the mid-latitude — and with
+  // it this factor — is the same for the box that comes out.
+  const lngToLat = ftPerLng((bbox.north + bbox.south) / 2) / FT_PER_LAT
+  const lngNorm = lngRange * lngToLat
   const currentRatio = lngNorm / latRange
 
   if (currentRatio > targetRatio) {
@@ -67,7 +86,7 @@ function adjustBboxToAspectRatio(bbox: BBox, targetRatio: number): BBox {
   } else {
     // Too tall — expand longitude
     const targetLngNorm = latRange * targetRatio
-    const targetLngRange = targetLngNorm * (FT_PER_LAT / FT_PER_LNG)
+    const targetLngRange = targetLngNorm / lngToLat
     const pad = (targetLngRange - lngRange) / 2
     return { ...bbox, west: bbox.west - pad, east: bbox.east + pad }
   }
@@ -98,7 +117,7 @@ export type CanvasScale = {
 }
 
 export function getCanvasScale(bbox: BBox): CanvasScale {
-  const totalWidthFt = (bbox.east - bbox.west) * FT_PER_LNG
+  const totalWidthFt = (bbox.east - bbox.west) * ftPerLng((bbox.north + bbox.south) / 2)
   const totalHeightFt = (bbox.north - bbox.south) * FT_PER_LAT
   const ftPerPixelX = totalWidthFt / CANVAS_W
   const ftPerPixelY = totalHeightFt / CANVAS_H
@@ -179,7 +198,7 @@ export function calculateRowPlantPositions(
   const dLat = endLat - startLat
   const dLng = endLng - startLng
   const lengthFt = Math.sqrt(
-    (dLat * FT_PER_LAT) ** 2 + (dLng * FT_PER_LNG) ** 2
+    (dLat * FT_PER_LAT) ** 2 + (dLng * ftPerLng((startLat + endLat) / 2)) ** 2
   )
   if (lengthFt <= 0 || spacingFt <= 0) return []
   const count = Math.max(2, Math.floor(lengthFt / spacingFt) + 1)
@@ -194,7 +213,7 @@ export function distanceFt(
   lat2: number, lng2: number
 ): number {
   const dLat = (lat2 - lat1) * FT_PER_LAT
-  const dLng = (lng2 - lng1) * FT_PER_LNG
+  const dLng = (lng2 - lng1) * ftPerLng((lat1 + lat2) / 2)
   return Math.sqrt(dLat * dLat + dLng * dLng)
 }
 
@@ -403,17 +422,20 @@ export function pointInPolygon(
 
 // ── Field-relative orientation ────────────────────────────────────────
 // Rows must follow the field's own orientation, not the compass. We work in a
-// flat "feet" plane (lng→x·FT_PER_LNG, lat→y·FT_PER_LAT relative to a corner),
+// flat "feet" plane (lng→x·ftPerLng(lat0), lat→y·FT_PER_LAT relative to a corner),
 // find the field's minimum-area bounding rectangle, and lay rows out along its
 // axes. That way a field drawn at any angle gets rows parallel to its sides.
 
 type FtPoint = { x: number; y: number }
 
+// Both directions scale longitude by the SAME reference latitude (the
+// plane's origin), so a point survives the round trip exactly. Across a
+// field the true factor drifts by less than 0.01%.
 function toFt(p: { lat: number; lng: number }, lat0: number, lng0: number): FtPoint {
-  return { x: (p.lng - lng0) * FT_PER_LNG, y: (p.lat - lat0) * FT_PER_LAT }
+  return { x: (p.lng - lng0) * ftPerLng(lat0), y: (p.lat - lat0) * FT_PER_LAT }
 }
 function ftToLatLng(pt: FtPoint, lat0: number, lng0: number): { lat: number; lng: number } {
-  return { lat: lat0 + pt.y / FT_PER_LAT, lng: lng0 + pt.x / FT_PER_LNG }
+  return { lat: lat0 + pt.y / FT_PER_LAT, lng: lng0 + pt.x / ftPerLng(lat0) }
 }
 
 // Andrew's monotone-chain convex hull (counter-clockwise).
@@ -529,6 +551,99 @@ export function maxRowsThatFit(
   const stackFt = (orientation === 'long' ? shortLen : longLen) - 2 * Math.max(0, marginFt)
   if (stackFt < 0) return 1
   return Math.max(1, Math.floor(stackFt / Math.max(1, rowSpacingFt)) + 1)
+}
+
+// ── Move / rotate the generated rows ──────────────────────────────────
+// Takes the bare row lines from generateFillRows, applies a group rotation
+// (around the field's oriented-rect centre) plus an offset expressed in the
+// ROWS' OWN FRAME — `offsetAlongFt` slides the group along the rows'
+// direction, `offsetAcrossFt` moves it perpendicular, across the stack.
+// The frame comes from the same oriented-rect axes that generated the rows
+// (so it matches the 'a lo largo' / 'a lo ancho' choice), sign-normalized
+// so +along points east-ish and +across north-ish, and it follows the
+// rotation: after turning the rows, "along" still means along the rows.
+// `rotateDeg` is clockwise on the map.
+//
+// Returns each row's surviving plant positions. Each row is a FIXED
+// segment: its plants sit at exact `spacingFt` offsets from the segment
+// centre and move with it. A plant survives only while inside the field
+// AND at least `marginFt` from the boundary — dragging or rotating a row
+// past the field limit (or into the walkway margin) clips those plants
+// off, and nothing is ever added on the opposite side. That's deliberate:
+// shifting a full-width row half a field over leaves a half-length row on
+// that side (e.g. plantains east / oranges west layouts), instead of the
+// row regrowing to full length wherever the line re-enters the field.
+export type RowTransform = {
+  /** Clockwise degrees on the map. */
+  rotateDeg: number
+  /** Slide along the rows' current direction (+ ≈ east/right). */
+  offsetAlongFt: number
+  /** Move across the row stack (+ ≈ north/up). */
+  offsetAcrossFt: number
+}
+
+export function transformFillRows(
+  lines: Array<{ startLat: number; startLng: number; endLat: number; endLng: number }>,
+  boundary: Array<{ lat: number; lng: number }>,
+  opts: RowTransform & {
+    orientation: 'long' | 'short'
+    spacingFt: number
+    marginFt: number
+  }
+): Array<Array<{ lat: number; lng: number }>> {
+  if (boundary.length < 3 || lines.length === 0) return lines.map(() => [])
+  const lat0 = boundary[0].lat, lng0 = boundary[0].lng
+  const polyFt = boundary.map(p => toFt(p, lat0, lng0))
+  const rect = minAreaRect(convexHull(polyFt))
+  const pivot = rect.center
+
+  // UI degrees are clockwise; the ft-plane (x east, y north) rotates CCW
+  // for positive angles, so negate.
+  const theta = (-opts.rotateDeg * Math.PI) / 180
+  const cos = Math.cos(theta), sin = Math.sin(theta)
+  const rotVec = (v: FtPoint): FtPoint =>
+    ({ x: v.x * cos - v.y * sin, y: v.x * sin + v.y * cos })
+
+  // The rows' frame — same axis pick as generateFillRows, sign-normalized
+  // for screen intuition, then rotated with the rows.
+  const wAxis: FtPoint = { x: Math.cos(rect.angle), y: Math.sin(rect.angle) }
+  const hAxis: FtPoint = { x: -Math.sin(rect.angle), y: Math.cos(rect.angle) }
+  const widthIsLong = rect.width >= rect.height
+  const alongIsWidth = opts.orientation === 'long' ? widthIsLong : !widthIsLong
+  let along = alongIsWidth ? wAxis : hAxis
+  let across = alongIsWidth ? hAxis : wAxis
+  if (along.x < 0 || (Math.abs(along.x) < 1e-9 && along.y < 0)) along = { x: -along.x, y: -along.y }
+  if (across.y < 0 || (Math.abs(across.y) < 1e-9 && across.x < 0)) across = { x: -across.x, y: -across.y }
+  along = rotVec(along)
+  across = rotVec(across)
+  const dx = along.x * opts.offsetAlongFt + across.x * opts.offsetAcrossFt
+  const dy = along.y * opts.offsetAlongFt + across.y * opts.offsetAcrossFt
+
+  const margin = Math.max(0, opts.marginFt)
+  const spacing = Math.max(1, opts.spacingFt)
+
+  const transform = (p: FtPoint): FtPoint => ({
+    x: pivot.x + (p.x - pivot.x) * cos - (p.y - pivot.y) * sin + dx,
+    y: pivot.y + (p.x - pivot.x) * sin + (p.y - pivot.y) * cos + dy,
+  })
+  const keep = (p: FtPoint) =>
+    pointInPolyFt(p, polyFt) && distToPolyFt(p, polyFt) >= margin - 0.01
+
+  return lines.map(line => {
+    const s = transform(toFt({ lat: line.startLat, lng: line.startLng }, lat0, lng0))
+    const e = transform(toFt({ lat: line.endLat, lng: line.endLng }, lat0, lng0))
+    const len = Math.hypot(e.x - s.x, e.y - s.y)
+    if (len < 1e-6) return []
+    const dir = { x: (e.x - s.x) / len, y: (e.y - s.y) / len }
+    const center = { x: (s.x + e.x) / 2, y: (s.y + e.y) / 2 }
+    const kMax = Math.floor(len / 2 / spacing + 1e-6)
+    const out: Array<{ lat: number; lng: number }> = []
+    for (let k = -kMax; k <= kMax; k++) {
+      const p = { x: center.x + dir.x * k * spacing, y: center.y + dir.y * k * spacing }
+      if (keep(p)) out.push(ftToLatLng(p, lat0, lng0))
+    }
+    return out
+  })
 }
 
 export type FillRowsOptions = {

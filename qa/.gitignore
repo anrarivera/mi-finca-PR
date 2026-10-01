@@ -1,0 +1,6 @@
+node_modules/
+package-lock.json
+shots/
+account.json
+state.json
+invite.json

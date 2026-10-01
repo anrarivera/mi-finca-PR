@@ -24,3 +24,6 @@ dist-ssr
 *.sw?
 backend/src/env.ts
 backend/src/lib/env.ts
+
+# Built frontend copied next to the API at deploy time (root `npm run build`)
+backend/public

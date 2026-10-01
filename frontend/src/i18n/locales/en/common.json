@@ -1,0 +1,68 @@
+{
+  "nav": {
+    "map": "Map",
+    "dashboard": "Dashboard",
+    "dashboardLong": "Dashboard",
+    "notebook": "Log",
+    "notebookLong": "Field log",
+    "simulator": "Simulator",
+    "settings": "Settings",
+    "settingsLong": "Settings",
+    "logout": "Log out",
+    "login": "Log in",
+    "register": "Create account",
+    "unsavedLeaveConfirm": "You have unsaved changes. Leave and discard them?"
+  },
+  "errors": {
+    "INTERNAL_ERROR": "Something went wrong on the server. Please try again.",
+    "RATE_LIMITED": "Too many attempts. Wait a few minutes and try again.",
+    "PAYLOAD_TOO_LARGE": "The data is too large to save at once.",
+    "GENERIC": "An error occurred ({{status}}). Please try again."
+  },
+  "actions": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "close": "Close",
+    "add": "Add",
+    "confirm": "Confirm",
+    "loading": "Loading…"
+  },
+  "filters": {
+    "dateRange": "Date range",
+    "allDates": "All dates",
+    "last30": "Last 30 days",
+    "last90": "Last 90 days",
+    "thisYear": "This year"
+  },
+  "pager": {
+    "prev": "Previous",
+    "next": "Next",
+    "pageOf": "Page {{page}} of {{count}}"
+  },
+  "sections": {
+    "collapse": "Collapse section",
+    "expand": "Expand section"
+  },
+  "relative": {
+    "today": "today",
+    "tomorrow": "tomorrow",
+    "yesterday": "yesterday",
+    "past_one": "{{count}} day ago",
+    "past_other": "{{count}} days ago",
+    "future_one": "in {{count}} day",
+    "future_other": "in {{count}} days"
+  },
+  "language": {
+    "sectionTitle": "Language",
+    "rowTitle": "App language",
+    "rowDescription": "Changes the interface language. Names you type yourself (farms, fields) are not translated.",
+    "es": "Español",
+    "en": "English"
+  },
+  "legal": {
+    "termsLink": "Terms of Service",
+    "privacyLink": "Privacy Policy"
+  }
+}

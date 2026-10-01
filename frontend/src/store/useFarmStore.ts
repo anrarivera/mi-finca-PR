@@ -1,5 +1,6 @@
 import { create } from 'zustand'
-import type { PlacedField } from '@/features/field/types'
+
+export type FarmRole = 'owner' | 'admin' | 'operator'
 
 export type Farm = {
   id: string
@@ -11,8 +12,18 @@ export type Farm = {
   boundary: Array<{ lat: number; lng: number }>
   fieldIds: string[]
   isFavorite: boolean
-  description?: string
+  // The wire carries explicit null (see backend farm contract).
+  description?: string | null
+  /** The requesting user's role on this farm (roles phase 3). */
+  myRole?: FarmRole
 }
+
+// Role gates for hiding UI the server would reject anyway. Farms loaded
+// before roles existed have no myRole — treat them as owned.
+export const canManageStructure = (farm?: Farm | null) =>
+  (farm?.myRole ?? 'owner') !== 'operator'
+export const isFarmOwner = (farm?: Farm | null) =>
+  (farm?.myRole ?? 'owner') === 'owner'
 
 type FarmStore = {
   farms: Farm[]
@@ -30,7 +41,7 @@ type FarmStore = {
   removeFieldIdFromFarm: (farmId: string, fieldId: string) => void
 }
 
-export const useFarmStore = create<FarmStore>((set, get) => ({
+export const useFarmStore = create<FarmStore>((set) => ({
   farms: [],
   activeFarmId: null,
   activeFarm: null,

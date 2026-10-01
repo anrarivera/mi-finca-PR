@@ -1,9 +1,9 @@
 import { Router, Request, Response, NextFunction } from 'express'
 import bcrypt from 'bcryptjs'
 import rateLimit from 'express-rate-limit'
+import { seedDemoFarm } from '../lib/demoSeed'
 import { z } from 'zod'
 import { prisma } from '../lib/prisma'
-import env from '../lib/env'
 import {
   signAccessToken,
   signRefreshToken,
@@ -14,8 +14,15 @@ import { parseBody } from '../lib/validate'
 import { requireAuth } from '../middleware/auth'
 import { sendMail } from '../lib/mailer'
 import { createActionToken, consumeActionToken } from '../lib/actionTokens'
+import { hashInviteCode } from '../lib/farmInvites'
 
 const router = Router()
+
+// Public origin used in email links (verify / reset / change-email). In
+// production this is the deployed app's URL — same origin as the API.
+function appUrl(): string {
+  return process.env.FRONTEND_URL || 'http://localhost:5173'
+}
 
 // ── Rate limiting — slow down credential stuffing / brute force ───────
 const authLimiter = rateLimit({
@@ -23,6 +30,8 @@ const authLimiter = rateLimit({
   limit: 20, // 20 attempts per IP per window on sensitive endpoints
   standardHeaders: true,
   legacyHeaders: false,
+  // The test suite registers/logs in dozens of times from one IP.
+  skip: () => process.env.NODE_ENV === 'test',
   handler: (_req, res) => {
     res.status(429).json({
       success: false,
@@ -75,12 +84,73 @@ async function saveRefreshToken(userId: string, token: string) {
   })
 }
 
+// ── The signup gate ───────────────────────────────────────────────────
+// While SIGNUP_MODE=invite, registration requires an access code: either
+// a beta signup code (scripts/createSignupCode) or a valid farm invite
+// code — an invited worker's join code doubles as app access. Flip the
+// env var to open the doors; no code changes needed.
+function signupGated(): boolean {
+  return process.env.SIGNUP_MODE === 'invite'
+}
+
+type AccessKind = 'signup' | 'farmInvite'
+
+// Validates without consuming; returns the kind (and the signup-code id
+// so its use can be counted after the account actually exists).
+async function checkAccessCode(raw: string): Promise<
+  { kind: AccessKind; signupCodeId?: string } | null
+> {
+  const codeHash = hashInviteCode(raw)
+  const now = new Date()
+
+  const signup = await prisma.signupCode.findUnique({ where: { codeHash } })
+  if (signup && signup.revokedAt === null && signup.expiresAt > now &&
+      (signup.maxUses === null || signup.usedCount < signup.maxUses)) {
+    return { kind: 'signup', signupCodeId: signup.id }
+  }
+
+  const farmInvite = await prisma.farmInvite.findUnique({
+    where: { codeHash },
+    include: { farm: { select: { deletedAt: true } } },
+  })
+  if (farmInvite && farmInvite.revokedAt === null && farmInvite.expiresAt > now &&
+      farmInvite.farm.deletedAt === null) {
+    return { kind: 'farmInvite' }
+  }
+
+  return null
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// GET /api/v1/auth/config — public; tells the register page whether the
+// signup gate is up so it can require the access-code field.
+// ─────────────────────────────────────────────────────────────────────
+router.get('/config', (_req: Request, res: Response) => {
+  res.json({
+    success: true,
+    data: { signupMode: signupGated() ? 'invite' : 'open' },
+  })
+})
+
 // ─────────────────────────────────────────────────────────────────────
 // POST /api/v1/auth/register
 // ─────────────────────────────────────────────────────────────────────
 router.post('/register', authLimiter, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { email, password, fullName } = parseBody(registerSchema, req.body)
+
+    // The signup gate — a valid access code admits, nothing else does.
+    let access: { kind: AccessKind; signupCodeId?: string } | null = null
+    if (signupGated()) {
+      const accessCode = typeof req.body?.accessCode === 'string' ? req.body.accessCode.trim() : ''
+      if (!accessCode) {
+        throw Errors.validation('Se necesita un código de acceso para crear una cuenta')
+      }
+      access = await checkAccessCode(accessCode)
+      if (!access) {
+        throw Errors.validation('Código de acceso inválido o vencido')
+      }
+    }
 
     // Check if email already exists
     const existing = await prisma.user.findUnique({
@@ -113,7 +183,79 @@ router.post('/register', authLimiter, async (req: Request, res: Response, next: 
     // Save refresh token to DB
     await saveRefreshToken(user.id, refreshToken)
 
+    // Count the signup-code use now that the account actually exists.
+    // Farm invite codes are multi-use and consumed by /farms/join instead.
+    if (access?.signupCodeId) {
+      await prisma.signupCode.update({
+        where: { id: access.signupCodeId },
+        data: { usedCount: { increment: 1 } },
+      })
+    }
+
     // Set refresh token as HttpOnly cookie
+    setRefreshCookie(res, refreshToken)
+
+    res.status(201).json({
+      success: true,
+      data: {
+        accessToken,
+        // Lets the register page reuse a farm-invite access code for the
+        // actual farm join right after signup.
+        accessKind: access?.kind ?? null,
+        user: {
+          id: user.id,
+          email: user.email,
+          fullName: user.fullName,
+          language: user.language,
+          unitSystem: user.unitSystem,
+          emailVerified: user.emailVerified,
+          isDemo: user.isDemo,
+        }
+      }
+    })
+  } catch (err) {
+    next(err)
+  }
+})
+
+// ─────────────────────────────────────────────────────────────────────
+// POST /api/v1/auth/demo
+// "Probar la demo": creates an EPHEMERAL account seeded with a sample
+// farm (see lib/demoSeed) and signs the visitor straight in. No password
+// (passwordHash null — login/reset flows reject it), unverified email on
+// a reserved domain (digests skip unverified), purged by cron after
+// DEMO_TTL_DAYS. Rate-limited: each call creates DB rows.
+// ─────────────────────────────────────────────────────────────────────
+const demoLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: () => process.env.NODE_ENV === 'test',
+  handler: (_req, res) => {
+    res.status(429).json({
+      success: false,
+      error: { code: 'RATE_LIMITED', message: 'Too many attempts. Please try again later.' },
+    })
+  },
+})
+
+router.post('/demo', demoLimiter, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const user = await prisma.user.create({
+      data: {
+        email: `demo-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}@demo.mifinca.local`,
+        passwordHash: null,
+        fullName: 'Visitante de Demostración',
+        isDemo: true,
+      },
+    })
+    await seedDemoFarm(user.id)
+
+    const payload = { userId: user.id, email: user.email }
+    const accessToken = signAccessToken(payload)
+    const refreshToken = signRefreshToken(payload)
+    await saveRefreshToken(user.id, refreshToken)
     setRefreshCookie(res, refreshToken)
 
     res.status(201).json({
@@ -127,8 +269,9 @@ router.post('/register', authLimiter, async (req: Request, res: Response, next: 
           language: user.language,
           unitSystem: user.unitSystem,
           emailVerified: user.emailVerified,
-        }
-      }
+          isDemo: user.isDemo,
+        },
+      },
     })
   } catch (err) {
     next(err)
@@ -180,6 +323,7 @@ router.post('/login', authLimiter, async (req: Request, res: Response, next: Nex
           language: user.language,
           unitSystem: user.unitSystem,
           emailVerified: user.emailVerified,
+          isDemo: user.isDemo,
         }
       }
     })
@@ -249,6 +393,7 @@ router.post('/refresh', async (req: Request, res: Response, next: NextFunction) 
           language: user.language,
           unitSystem: user.unitSystem,
           emailVerified: user.emailVerified,
+          isDemo: user.isDemo,
         }
       }
     })
@@ -321,7 +466,7 @@ router.post('/verify-email/request', authLimiter, requireAuth, async (req: Reque
       text:
         `Hola ${user.fullName},\n\n` +
         `Verifica tu correo abriendo este enlace:\n` +
-        `${env.FRONTEND_URL}/verify-email?token=${token}\n\n` +
+        `${appUrl()}/verify-email?token=${token}\n\n` +
         `El enlace vence en 48 horas. Si no creaste esta cuenta, ignora este mensaje.`,
     })
     res.json({ success: true, data: { message: 'Verification email sent' } })
@@ -362,7 +507,7 @@ router.post('/forgot-password', authLimiter, async (req: Request, res: Response,
         text:
           `Hola ${user.fullName},\n\n` +
           `Restablece tu contraseña abriendo este enlace:\n` +
-          `${env.FRONTEND_URL}/reset-password?token=${token}\n\n` +
+          `${appUrl()}/reset-password?token=${token}\n\n` +
           `El enlace vence en 2 horas. Si no pediste este cambio, ignora este mensaje.`,
       })
     }
@@ -422,7 +567,7 @@ router.post('/change-email/request', authLimiter, requireAuth, async (req: Reque
       text:
         `Hola ${user.fullName},\n\n` +
         `Confirma tu nuevo correo abriendo este enlace:\n` +
-        `${env.FRONTEND_URL}/change-email?token=${token}\n\n` +
+        `${appUrl()}/change-email?token=${token}\n\n` +
         `El enlace vence en 48 horas. Si no pediste este cambio, ignora este mensaje.`,
     })
     res.json({ success: true, data: { message: 'Confirmation email sent to the new address' } })
@@ -473,6 +618,7 @@ router.get('/me', requireAuth, async (req: Request, res: Response, next: NextFun
         language: user.language,
         unitSystem: user.unitSystem,
         emailVerified: user.emailVerified,
+        isDemo: user.isDemo,
         createdAt: user.createdAt,
       }
     })

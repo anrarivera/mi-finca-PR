@@ -1,0 +1,493 @@
+import { useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import {
+  MapPin, Layers, Pencil, Trash2, Locate,
+  ToggleLeft, ToggleRight, AlertCircle, Clock, CalendarDays, Bug,
+} from 'lucide-react'
+import { useIsCoarsePointer } from '@/hooks/useViewport'
+import { useFarmStore, canManageStructure } from '@/store/useFarmStore'
+import FindingModal from '@/features/scouting/components/findingModal'
+import { useFindings } from '@/features/scouting/hooks/useFindingsApi'
+import { fieldHealth } from '@/features/scouting/utils/fieldHealth'
+import { SEVERITY_COLORS } from '@/features/scouting/types'
+import { computeCropSummary } from '../utils/rowCalculator'
+import { getFieldOperationHealth } from '../utils/operationStatus'
+import { getCropById } from '../data/cropLibrary'
+import {
+  areaFt2, ft2ToAcres, getCanvasScale, latlngToCanvas, farmBoundaryToBBox,
+} from '../utils/canvasGeo'
+import { CheckOffModal, harvestTargetsForOperation } from './operationsView'
+import FieldOperationsContainer from './fieldOperationsContainer'
+import {
+  useCompleteRecommendedOp, useSkipRecommendedOp, useLogPartialRecommendedOp,
+} from '../hooks/useOperationsApi'
+import { toast } from '@/store/useToastStore'
+import { dateLocale, fmtNumber, localName, localOpLabel } from '@/i18n'
+import type { PlacedField, PlantingEvent, RecommendedOperation } from '../types'
+
+// ──────────────────────────────────────────────────────────────────────────
+// Field summary card — the ONE card used everywhere fields are listed (farm
+// drawer on the map, field editor's left panel). Self-contained: it owns
+// its check-off modal, the full operations UI, and the delete confirmation,
+// so hosts only provide selection/editor callbacks.
+// Interactions: single click selects, double click opens the field editor
+// for this field, and the action row offers Operaciones / Editar / Eliminar.
+// ──────────────────────────────────────────────────────────────────────────
+
+// The most urgent open calendar item for a field: overdue first (oldest
+// first), then upcoming (soonest first). Drives the check-off shortcut.
+export function nextOperation(field: PlacedField): {
+  op: RecommendedOperation
+  event: PlantingEvent
+} | null {
+  const open = (field.plantingEvents ?? []).flatMap(event =>
+    event.operations
+      .filter(op => op.status === 'due' || op.status === 'pending')
+      .map(op => ({ op, event }))
+  )
+  if (open.length === 0) return null
+  open.sort((a, b) => {
+    if (a.op.status !== b.op.status) return a.op.status === 'due' ? -1 : 1
+    return a.op.recommendedDate.localeCompare(b.op.recommendedDate)
+  })
+  return open[0]
+}
+
+type Props = {
+  field: PlacedField
+  /** Highlight + scroll into view (map selection / editor selection). */
+  focused?: boolean
+  /** Re-triggers the scroll when the same field is focused again. */
+  focusNonce?: number
+  /** Single click on the card. */
+  onSelect?: () => void
+  /** The "Editar" button — and the card double click unless overridden. */
+  onOpenEditor: () => void
+  /** Overrides the card double click (e.g. the farm drawer zooms to the
+      field instead of opening the editor). */
+  onCardDoubleClick?: () => void
+  /** Called after the in-card confirmation — host performs the delete. */
+  onDelete: () => void
+  /** Pin/shape toggle — map context only; omit to hide the toggle. */
+  onToggleDisplay?: () => void
+}
+
+export default function FieldSummaryCard({
+  field, focused = false, focusNonce = 0,
+  onSelect, onOpenEditor, onCardDoubleClick, onDelete, onToggleDisplay,
+}: Props) {
+  const { t } = useTranslation('field')
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  // Self-contained flows: quick check-off/partial modal + full ops screen
+  const [checking, setChecking] = useState<{
+    mode: 'complete' | 'partial'
+    op: RecommendedOperation
+    event: PlantingEvent
+  } | null>(null)
+  const [showOps, setShowOps] = useState(false)
+  // "Registrar hallazgo" — scouting capture for this field
+  const [reportingFinding, setReportingFinding] = useState(false)
+
+  // The card's overlays are mutually exclusive. The check-off modal's
+  // click-through backdrop (needed so map taps select rows) leaves the
+  // drawer clickable behind it — without this, opening Operaciones would
+  // stack a second check-off dialog on top of the first.
+  function openChecking(next: {
+    mode: 'complete' | 'partial'
+    op: RecommendedOperation
+    event: PlantingEvent
+  }) {
+    setShowOps(false)
+    setReportingFinding(false)
+    setChecking(next)
+  }
+  function openOps() {
+    setChecking(null)
+    setReportingFinding(false)
+    setShowOps(true)
+  }
+  function openFinding() {
+    setChecking(null)
+    setReportingFinding(true)
+  }
+  const completeOp = useCompleteRecommendedOp(field.farmId)
+  const skipOp = useSkipRecommendedOp(field.farmId)
+  const partialOp = useLogPartialRecommendedOp(field.farmId)
+  const cardRef = useRef<HTMLDivElement | null>(null)
+  const isCoarsePointer = useIsCoarsePointer()
+  // Operators log work but don't restructure fields — hide what the
+  // server would reject anyway (roles phase 3).
+  const cardFarm = useFarmStore(s => s.farms.find(f => f.id === field.farmId))
+  const canManage = canManageStructure(cardFarm)
+
+  // Defer the single-click action so a double click can cancel it —
+  // otherwise the two clicks of a dblclick toggle the selection off
+  // before the double-click handler runs (mirrors PlacedField on the map).
+  const clickTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => () => {
+    if (clickTimer.current) clearTimeout(clickTimer.current)
+  }, [])
+
+  function handleCardClick() {
+    if (!onSelect) return
+    // Touch has explicit buttons for the double-click actions, so taps
+    // select immediately instead of waiting out the dblclick window.
+    if (isCoarsePointer) {
+      onSelect()
+      return
+    }
+    if (clickTimer.current) clearTimeout(clickTimer.current)
+    clickTimer.current = setTimeout(() => {
+      clickTimer.current = null
+      onSelect()
+    }, 250)
+  }
+
+  function handleCardDoubleClick() {
+    if (clickTimer.current) {
+      clearTimeout(clickTimer.current)
+      clickTimer.current = null
+    }
+    ;(onCardDoubleClick ?? onOpenEditor)()
+  }
+
+  const summary = computeCropSummary(field.rows ?? [], field.freePlants ?? [], getCropById)
+  const health = getFieldOperationHealth(field.plantingEvents ?? [])
+
+  // Scouting traffic light: the dot shows derived health (gray/green/
+  // amber→red) instead of the stored identity color; the badge counts
+  // unresolved findings even when they're below the field-tint threshold.
+  const { data: farmFindings } = useFindings(field.farmId)
+  const scoutHealth = fieldHealth(
+    { id: field.id, rows: field.rows ?? [], freePlants: field.freePlants ?? [] },
+    farmFindings ?? []
+  )
+  const findingBadgeColor = SEVERITY_COLORS[scoutHealth.maxUnresolvedSeverity ?? 1]
+
+  // Most urgent open calendar item — checkable right from the card
+  const next = nextOperation(field)
+  const nextCrop = next ? getCropById(next.event.cropTypeId) : null
+  const nextIsDue = next?.op.status === 'due'
+  const nextDate = next
+    ? new Date(next.op.recommendedDate + 'T12:00:00')
+        .toLocaleDateString(dateLocale(), { day: 'numeric', month: 'short' })
+    : null
+
+  // Scroll into view when focused (nonce re-triggers on repeat focus)
+  useEffect(() => {
+    if (focused) {
+      cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focused, focusNonce])
+
+  return (
+    // Card body: pointer conveniences only (click select, dblclick zoom).
+    // The KEYBOARD path is the field-name button below — a role="button"
+    // card would nest interactive elements (axe: nested-interactive).
+    // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
+    <div
+      ref={cardRef}
+      onClick={handleCardClick}
+      onDoubleClick={handleCardDoubleClick}
+      className={`px-4 py-3 hover:bg-[#fafcf8] transition-colors cursor-pointer ${
+        focused ? 'bg-[#f5f8f0] border-l-2 border-l-[#639922]' : ''
+      }`}
+    >
+
+      {/* Field name + color + operation badges */}
+      <div className="flex items-center justify-between mb-1">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="w-3 h-3 rounded-full shrink-0"
+            style={{ backgroundColor: scoutHealth.color }}
+          />
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); handleCardClick() }}
+            className="text-sm font-medium text-[#2d4a1e] truncate text-left hover:underline decoration-[#c0dd97] underline-offset-2"
+          >
+            {field.name}
+          </button>
+          {/* Visible path to the double-click zoom — the only one on touch */}
+          {onCardDoubleClick && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onCardDoubleClick() }}
+              onDoubleClick={(e) => e.stopPropagation()}
+              title={t('card.viewOnMap')}
+              className="shrink-0 p-1 pointer-coarse:p-2 rounded text-[#66755a] hover:text-[#4d7a1b] hover:bg-[#eaf3de] transition-colors"
+            >
+              <Locate size={12} />
+            </button>
+          )}
+        </div>
+        <div className="flex items-center gap-1 shrink-0">
+          {scoutHealth.unresolvedCount > 0 && (
+            <div
+              className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full"
+              style={{ backgroundColor: `${findingBadgeColor}1f` }}
+              title={t('card.unresolvedFindings')}
+            >
+              <Bug size={8} style={{ color: findingBadgeColor }} />
+              <span className="text-[9px] font-bold" style={{ color: findingBadgeColor }}>
+                {scoutHealth.unresolvedCount}
+              </span>
+            </div>
+          )}
+          {health.overdue > 0 && (
+            <div className="flex items-center gap-0.5 px-1.5 py-0.5 bg-red-50 rounded-full">
+              <AlertCircle size={8} className="text-red-600" />
+              <span className="text-[9px] text-red-600 font-bold">{health.overdue}</span>
+            </div>
+          )}
+          {health.dueSoon > 0 && (
+            <div className="flex items-center gap-0.5 px-1.5 py-0.5 bg-amber-50 rounded-full">
+              <Clock size={8} className="text-amber-500" />
+              <span className="text-[9px] text-amber-600 font-bold">{health.dueSoon}</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Area */}
+      {field.boundary && field.boundary.length >= 3 && (() => {
+        const bbox = farmBoundaryToBBox(field.boundary)
+        const scale = getCanvasScale(bbox)
+        const pts = field.boundary.map(p => latlngToCanvas(p.lat, p.lng, bbox))
+        const acres = ft2ToAcres(areaFt2(pts, scale))
+        return (
+          <p className="text-[10px] text-[#66755a] mb-1.5">
+            {fmtNumber(acres)} ac
+          </p>
+        )
+      })()}
+
+      {/* Crop summary */}
+      {summary.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 mb-2.5">
+          {summary.map(c => (
+            <div key={c.cropTypeId}
+              className="flex items-center gap-1 px-1.5 py-0.5 bg-[#f5f8f0] rounded"
+            >
+              <span className="text-xs">{c.emoji}</span>
+              <span className="text-[10px] text-[#5a6a4a] font-medium">{c.count}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Current operation — check it off without leaving the card */}
+      {next && (
+        <div
+          onDoubleClick={(e) => { e.stopPropagation(); openOps() }}
+          title={t('card.dblClickAllOps')}
+          className={`flex items-center gap-2 mb-2.5 px-2 py-1.5 rounded-lg ${
+            nextIsDue ? 'bg-red-50/70' : 'bg-[#f5f8f0]'
+          }`}
+        >
+          <div className="flex-1 min-w-0">
+            <p className="text-[10px] font-medium text-[#2d4a1e] truncate">
+              {nextCrop?.emoji ?? '🌱'} {localOpLabel(next.op.labelEs)}
+            </p>
+            <p className={`text-[9px] ${nextIsDue ? 'text-red-600 font-medium' : 'text-[#66755a]'}`}>
+              {nextIsDue ? t('status.overduePrefix') : ''}{nextDate}
+              {nextCrop ? ` · ${localName(nextCrop)}` : ''}
+            </p>
+          </div>
+          {/* Same actions as the operations-screen rows */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              openChecking({ mode: 'complete', op: next.op, event: next.event })
+            }}
+            title={t('actions.completeTitle')}
+            className="pointer-coarse:p-2 text-[10px] shrink-0 text-[#2d4a1e] font-semibold hover:text-[#4d7a1b] transition-colors"
+          >
+            {t('actions.complete')}
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              openChecking({ mode: 'partial', op: next.op, event: next.event })
+            }}
+            title={t('actions.partialTitle')}
+            className="pointer-coarse:p-2 text-[10px] shrink-0 text-[#4d7a1b] hover:text-[#2d4a1e] font-medium transition-colors"
+          >
+            {t('actions.partial')}
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              skipOp.mutate(
+                { fieldId: field.id, eventId: next.event.id, operationId: next.op.id },
+                { onSuccess: () => toast.success(t('toast.opSkipped')) }
+              )
+            }}
+            className="pointer-coarse:p-2 text-[10px] shrink-0 text-[#66755a] hover:text-[#66755a] transition-colors"
+          >
+            {t('actions.skip')}
+          </button>
+        </div>
+      )}
+
+      {/* Pin / shape toggle — map context only */}
+      {onToggleDisplay && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onToggleDisplay() }}
+          className="flex items-center gap-1.5 mb-2.5 text-[10px] text-[#5a6a4a] hover:text-[#2d4a1e] transition-colors w-full"
+        >
+          {field.displayMode === 'pin' ? (
+            <>
+              <MapPin size={10} className="text-[#4d7a1b]" />
+              <span>{t('card.showAsPin')}</span>
+              <ToggleLeft size={13} className="text-[#66755a] ml-auto" />
+            </>
+          ) : (
+            <>
+              <Layers size={10} className="text-[#4d7a1b]" />
+              <span>{t('card.showAsShape')}</span>
+              <ToggleRight size={13} className="text-[#4d7a1b] ml-auto" />
+            </>
+          )}
+        </button>
+      )}
+
+      {/* Actions */}
+      {!confirmDelete ? (
+        <div className="flex items-center gap-2">
+          <button
+            onClick={(e) => { e.stopPropagation(); openOps() }}
+            title={t('card.opsButtonTitle')}
+            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 pointer-coarse:py-2.5 text-[10px] text-[#2d4a1e] border border-[#c8dca8] bg-[#eaf3de] rounded-lg hover:bg-[#d9ecc4] transition-colors"
+          >
+            <CalendarDays size={10} /> {t('card.operations')}
+          </button>
+          {canManage && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onOpenEditor() }}
+            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 pointer-coarse:py-2.5 text-[10px] text-[#4d7a1b] border border-[#c8dca8] rounded-lg hover:bg-[#eaf3de] transition-colors"
+          >
+            <Pencil size={10} /> {t('actions.edit')}
+          </button>
+          )}
+          {canManage && (
+          <button
+            onClick={(e) => { e.stopPropagation(); setConfirmDelete(true) }}
+            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 pointer-coarse:py-2.5 text-[10px] text-[#66755a] border border-[#e0e8d8] rounded-lg hover:text-red-600 hover:border-red-200 hover:bg-red-50 transition-colors"
+          >
+            <Trash2 size={10} /> {t('actions.delete')}
+          </button>
+          )}
+          {/* Scouting: register a pest/disease finding on this field */}
+          <button
+            onClick={(e) => { e.stopPropagation(); openFinding() }}
+            title={t('card.reportFindingTitle')}
+            className="shrink-0 flex items-center justify-center px-2 py-1.5 pointer-coarse:p-2.5 text-[#b8860b] border border-[#e8dcc0] rounded-lg hover:bg-amber-50 hover:border-amber-200 transition-colors"
+          >
+            <Bug size={11} />
+          </button>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-1.5">
+          <p className="text-[10px] text-red-600 text-center">
+            {t('card.confirmDelete', { name: field.name })}
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={(e) => { e.stopPropagation(); onDelete() }}
+              className="flex-1 py-1.5 pointer-coarse:py-2.5 text-[10px] text-white bg-red-500 rounded-lg hover:bg-red-600 transition-colors"
+            >
+              {t('card.confirmDeleteYes')}
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); setConfirmDelete(false) }}
+              className="flex-1 py-1.5 pointer-coarse:py-2.5 text-[10px] text-[#5a6a4a] border border-[#e0e8d8] rounded-lg hover:bg-[#f5f8f0] transition-colors"
+            >
+              {t('actions.cancel')}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Modals render inside this clickable card — fence their clicks off
+          so they don't bubble into the card's select/double-click actions
+          (which would select fields on the map or open the editor). */}
+      <div
+        role="presentation"
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
+        onDoubleClick={(e) => e.stopPropagation()}
+      >
+        {/* Full operations UI — same screen as everywhere else */}
+        {showOps && (
+          <FieldOperationsContainer
+            farmId={field.farmId}
+            fieldId={field.id}
+            onClose={() => setShowOps(false)}
+          />
+        )}
+
+        {/* Scouting capture — pest + severity + where (map taps work) */}
+        {reportingFinding && (
+          <FindingModal
+            farmId={field.farmId}
+            fieldId={field.id}
+            fieldRows={field.rows ?? []}
+            freePlants={field.freePlants ?? []}
+            onClose={() => setReportingFinding(false)}
+          />
+        )}
+
+        {/* Quick check-off / partial modal — flexible selection included */}
+        {checking && (
+          <CheckOffModal
+            mode={checking.mode}
+            operation={checking.op}
+            harvestTargets={harvestTargetsForOperation(
+              checking.op,
+              field.plantingEvents ?? [],
+              { rows: field.rows ?? [], freePlants: field.freePlants ?? [] }
+            )}
+            // The card lives over the farm map — rows/plants can be toggled
+            // by clicking them right on the imagery.
+            mapInteractive
+            fieldId={field.id}
+            onConfirm={async (data) => {
+              // Close only on success — a failed save keeps the modal (and
+              // the entered data) open; the API client toasts the reason.
+              try {
+                if (checking.mode === 'partial') {
+                  await partialOp.mutateAsync({
+                    operationId: checking.op.id,
+                    data: {
+                      date: data.completedDate,
+                      product: data.product,
+                      quantity: data.quantity,
+                      unit: data.unit,
+                      revenue: data.revenue,
+                      notes: data.notes,
+                      rowIds: data.rowIds,
+                      plantIds: data.plantIds,
+                    },
+                  })
+                  toast.success(t('toast.partialLogged'))
+                } else {
+                  await completeOp.mutateAsync({
+                    fieldId: field.id,
+                    eventId: checking.event.id,
+                    operationId: checking.op.id,
+                    data,
+                  })
+                  toast.success(t('toast.opLogged'))
+                }
+                setChecking(null)
+              } catch {
+                /* modal stays open */
+              }
+            }}
+            onCancel={() => setChecking(null)}
+          />
+        )}
+      </div>
+    </div>
+  )
+}

@@ -124,7 +124,7 @@ export class RuleBasedRecommendationService implements RecommendationService {
     return recs
   }
 
-  private farmSetupGaps({ farms, fields }: RecommendationInput): Recommendation[] {
+  private farmSetupGaps({ farms, fields, livestock }: RecommendationInput): Recommendation[] {
     const recs: Recommendation[] = []
     for (const farm of farms) {
       if (!farm.boundary || farm.boundary.length < 3) {
@@ -149,7 +149,10 @@ export class RuleBasedRecommendationService implements RecommendationService {
           farmId: farm.id,
         })
       } else {
+        // Corrales hold herds, not rows/plants — "empty" means something
+        // different for each kind.
         const empty = farmFields.filter(f =>
+          f.kind !== 'livestock' &&
           (f.rows ?? []).length === 0 && (f.freePlants ?? []).length === 0
         )
         for (const f of empty) {
@@ -159,6 +162,20 @@ export class RuleBasedRecommendationService implements RecommendationService {
             category: 'campos',
             titleEs: `El campo "${f.name}" está vacío`,
             detailEs: 'Añade hileras de cultivo o plantas individuales para generar su calendario de labores.',
+            farmId: farm.id,
+            fieldId: f.id,
+          })
+        }
+        const emptyCorrales = farmFields.filter(f =>
+          f.kind === 'livestock' && !livestock.some(u => u.fieldId === f.id)
+        )
+        for (const f of emptyCorrales) {
+          recs.push({
+            id: `emptycorral_${f.id}`,
+            severity: 'tip',
+            category: 'animales',
+            titleEs: `El corral "${f.name}" no tiene animales`,
+            detailEs: 'Asigna un grupo de animales al corral para llevar su producción y cuidados.',
             farmId: farm.id,
             fieldId: f.id,
           })

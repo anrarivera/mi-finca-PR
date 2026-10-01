@@ -1,7 +1,6 @@
 import type { PlacedField, RecommendedOperation } from '../field/types'
 import { todayISO } from '../field/types'
-import { getScheduleForCrop } from '../field/data/cropSchedules'
-import type { CropSchedule } from '../field/data/cropSchedules'
+import { resolveHarvestWindow } from '../field/utils/recipeResolver'
 
 // ──────────────────────────────────────────────────────────────────────────
 // Inventory grid (issue #15). One row per planting event — the unit the
@@ -32,6 +31,8 @@ export type InventoryRow = {
   /** Planted in rows, as individual plants, or both. */
   source: 'rows' | 'plants' | 'mixed'
   rowCount: number
+  /** Individual (free-placed) plants — plantCount minus the row plants. */
+  freePlantCount: number
   plantCount: number
   plantingDate: string
   ageDays: number
@@ -69,7 +70,13 @@ export function buildInventoryRows(
   farms: Array<{ id: string; name: string }>,
   fields: PlacedField[],
   todayIso: string = todayISO(),
-  getSchedule: (cropTypeId: string) => CropSchedule | undefined = getScheduleForCrop,
+  // Resolves through the farm's governing recipe (field entry wins), then
+  // the static schedules for farms whose recipes aren't loaded.
+  getSchedule: (
+    cropTypeId: string,
+    farmId?: string,
+    fieldId?: string
+  ) => { harvestWindowStartDays: number; harvestWindowEndDays: number } | undefined = resolveHarvestWindow,
 ): InventoryRow[] {
   const farmNames = new Map(farms.map(f => [f.id, f.name]))
   const rows: InventoryRow[] = []
@@ -103,7 +110,7 @@ export function buildInventoryRows(
         .slice()
         .sort((a, b) => a.daysFromToday - b.daysFromToday)[0] ?? null
 
-      const schedule = getSchedule(event.cropTypeId)
+      const schedule = getSchedule(event.cropTypeId, field.farmId, field.id)
       const harvestWindow = schedule
         ? {
             start: addDays(event.plantingDate, schedule.harvestWindowStartDays),
@@ -125,6 +132,7 @@ export function buildInventoryRows(
         cropTypeId: event.cropTypeId,
         source,
         rowCount,
+        freePlantCount: freeCount,
         plantCount: event.plantCount,
         plantingDate: event.plantingDate,
         ageDays: daysBetween(event.plantingDate, todayIso),

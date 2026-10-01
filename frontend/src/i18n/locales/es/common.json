@@ -1,0 +1,68 @@
+{
+  "nav": {
+    "map": "Mapa",
+    "dashboard": "Panel",
+    "dashboardLong": "Panel de control",
+    "notebook": "Cuaderno",
+    "notebookLong": "Cuaderno de campo",
+    "simulator": "Simulador",
+    "settings": "Ajustes",
+    "settingsLong": "Configuración",
+    "logout": "Cerrar sesión",
+    "login": "Iniciar sesión",
+    "register": "Crear cuenta",
+    "unsavedLeaveConfirm": "Tienes cambios sin guardar. ¿Salir y descartarlos?"
+  },
+  "errors": {
+    "INTERNAL_ERROR": "Algo salió mal en el servidor. Intenta de nuevo.",
+    "RATE_LIMITED": "Demasiados intentos. Espera unos minutos y vuelve a intentar.",
+    "PAYLOAD_TOO_LARGE": "Los datos son demasiado grandes para guardarlos de una vez.",
+    "GENERIC": "Ocurrió un error ({{status}}). Intenta de nuevo."
+  },
+  "actions": {
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "close": "Cerrar",
+    "add": "Añadir",
+    "confirm": "Confirmar",
+    "loading": "Cargando…"
+  },
+  "filters": {
+    "dateRange": "Rango de fechas",
+    "allDates": "Todas las fechas",
+    "last30": "Últimos 30 días",
+    "last90": "Últimos 90 días",
+    "thisYear": "Este año"
+  },
+  "pager": {
+    "prev": "Anterior",
+    "next": "Siguiente",
+    "pageOf": "Página {{page}} de {{count}}"
+  },
+  "sections": {
+    "collapse": "Contraer sección",
+    "expand": "Expandir sección"
+  },
+  "relative": {
+    "today": "hoy",
+    "tomorrow": "mañana",
+    "yesterday": "ayer",
+    "past_one": "hace {{count}} día",
+    "past_other": "hace {{count}} días",
+    "future_one": "en {{count}} día",
+    "future_other": "en {{count}} días"
+  },
+  "language": {
+    "sectionTitle": "Idioma",
+    "rowTitle": "Idioma de la aplicación",
+    "rowDescription": "Cambia el idioma de la interfaz. Los nombres que tú escribes (fincas, campos) no se traducen.",
+    "es": "Español",
+    "en": "English"
+  },
+  "legal": {
+    "termsLink": "Términos de Servicio",
+    "privacyLink": "Política de Privacidad"
+  }
+}

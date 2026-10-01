@@ -1,35 +1,192 @@
-import { useState } from 'react'
-import { X, Check, SkipForward, ChevronDown, ChevronUp, AlertCircle, Clock, CheckCircle2 } from 'lucide-react'
-import type { PlantingEvent, RecommendedOperation, OperationStatus } from '../types'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
+import { useTranslation } from 'react-i18next'
+import {
+  X, Check, SkipForward, ChevronDown, ChevronUp,
+  AlertCircle, Clock, CheckCircle2, ChevronRight,
+} from 'lucide-react'
+import type {
+  PlantingEvent, RecommendedOperation, OperationStatus, FieldRow, PlantInstance,
+} from '../types'
+import { todayISO } from '../types'
+import type { FarmOperation } from '../hooks/useOperationsApi'
 import { getCropById } from '../data/cropLibrary'
+import PriceInput from './priceInput'
+import { useHarvestHighlightStore } from '@/store/useHarvestHighlightStore'
+import { useMarkUnsavedWork } from '@/store/useUnsavedWorkStore'
+import { useIsPhone } from '@/hooks/useViewport'
+import { dateLocale, fmtNumber, localName, localOpLabel } from '@/i18n'
+
+// ──────────────────────────────────────────────────────────────────────────
+// Operations view — the calendar check-off drawer (SDD §6.2), docked left
+// with the map visible beside it, now with:
+//  - Undo:   completed/skipped items can be reopened ("Deshacer"/"Reactivar")
+//  - Edit:   completed items can be corrected without redoing them
+//  - Partial logs: harvests too big for one day are logged day by day
+//    ("Parcial") without closing the calendar item; progress accumulates
+//    under the row until the final check-off.
+// ──────────────────────────────────────────────────────────────────────────
+
+export type CheckOffFormData = {
+  completedDate: string
+  notes?: string
+  product?: string
+  quantity?: number
+  unit?: string
+  /** Total sale revenue in dollars (harvest check-offs, optional). */
+  revenue?: number
+  /** Fully covered rows (harvest selection). */
+  rowIds?: string[]
+  /** Individual plants outside those rows (partial rows, loose plants). */
+  plantIds?: string[]
+}
+
+type ModalMode = 'complete' | 'partial' | 'edit'
+
+// What a harvest can select from: the planting event's rows (kept with their
+// position in the field so labels read "Hilera 3") and its free-standing
+// plants. Exported so the map/farm drawers reuse the same wiring.
+export type HarvestTargets = {
+  rows: Array<{ row: FieldRow; index: number }>
+  freePlants: PlantInstance[]
+}
+
+export function harvestTargetsForOperation(
+  operation: RecommendedOperation,
+  plantingEvents: PlantingEvent[],
+  field: { rows: FieldRow[]; freePlants: PlantInstance[] }
+): HarvestTargets {
+  const event = plantingEvents.find(e => e.id === operation.plantingEventId)
+  if (!event) return { rows: [], freePlants: [] }
+
+  // Primary source: the event's explicit row/plant membership. Fallback for
+  // fields saved before the backend linked plants to events (empty arrays):
+  // match by the grouping invariant — same crop, same planting date.
+  const belongsByGrouping = (cropTypeId: string, plantingDate: string) =>
+    cropTypeId === event.cropTypeId && plantingDate === event.plantingDate
+
+  const rows = field.rows
+    .map((row, index) => ({ row, index }))
+    .filter(({ row }) =>
+      event.rowIds.length > 0
+        ? event.rowIds.includes(row.id)
+        : (row.primaryCropTypeId === event.cropTypeId ||
+           row.companionCropTypeId === event.cropTypeId) &&
+          row.plantingDate === event.plantingDate
+    )
+    // Companion rows hold two crops — offer only the event's own plants so
+    // "Hilera 2 · Maíz · 0/12" counts just the maíz plants in that row.
+    .map(({ row, index }) => ({
+      index,
+      row: { ...row, plants: row.plants.filter(p => p.cropTypeId === event.cropTypeId) },
+    }))
+    .filter(({ row }) => row.plants.length > 0)
+
+  const freePlants = field.freePlants.filter(p =>
+    event.freePlantIds.length > 0
+      ? event.freePlantIds.includes(p.id)
+      : belongsByGrouping(p.cropTypeId, p.plantingDate)
+  )
+
+  return { rows, freePlants }
+}
+
+// Expand a stored selection (rowIds = whole rows, plantIds = loose plants)
+// back into the canonical plant-id set the selector edits. Exported for the
+// scouting update flow, which preloads a finding's current scope.
+export function selectionToPlantSet(
+  targets: HarvestTargets,
+  rowIds: string[] | undefined,
+  plantIds: string[] | undefined
+): Set<string> {
+  const set = new Set<string>(plantIds ?? [])
+  for (const { row } of targets.rows) {
+    if (rowIds?.includes(row.id)) row.plants.forEach(p => set.add(p.id))
+  }
+  return set
+}
+
+// Compress a plant-id set into { rowIds, plantIds }: rows where every plant
+// is selected become rowIds; everything else stays as individual plantIds.
+// Exported for the scouting finding modal, which stores the same shape.
+export function plantSetToSelection(
+  targets: HarvestTargets,
+  selected: Set<string>
+): { rowIds?: string[]; plantIds?: string[] } {
+  if (selected.size === 0) return {}
+  const fullRows = targets.rows.filter(({ row }) =>
+    row.plants.length > 0 && row.plants.every(p => selected.has(p.id))
+  )
+  const coveredByRows = new Set(fullRows.flatMap(({ row }) => row.plants.map(p => p.id)))
+  const rowIds = fullRows.map(({ row }) => row.id)
+  const plantIds = [...selected].filter(id => !coveredByRows.has(id))
+  return {
+    rowIds: rowIds.length > 0 ? rowIds : undefined,
+    plantIds: plantIds.length > 0 ? plantIds : undefined,
+  }
+}
 
 type Props = {
   plantingEvents: PlantingEvent[]
   fieldName: string
+  /** The field's id — scopes the check-off modal's map toggles. */
+  fieldId: string
+  /** The field's rows — feeds the harvest selector in the modal. */
+  fieldRows: FieldRow[]
+  /** The field's free-standing plants — also selectable in harvests. */
+  freePlants: PlantInstance[]
+  /** Farm operations log — used to show partial-log progress per row. */
+  farmOperations: FarmOperation[]
+  /** Scouting findings card, rendered above the calendar. Passed as a node
+      by the container (not imported) to keep operationsView ↔ scouting
+      import-cycle free — the finding modal reuses HarvestSelector. */
+  findingsSection?: React.ReactNode
   onClose: () => void
-  onCompleteOperation: (
-    eventId: string,
-    operationId: string,
-    data: {
-      completedDate: string
-      notes?: string
-      product?: string
-      quantity?: number
-      unit?: string
-    }
-  ) => void
+  /** May return a promise — the check-off modal awaits it and only closes
+      on success, so a failed save keeps the farmer's input on screen. */
+  onCompleteOperation: (eventId: string, operationId: string, data: CheckOffFormData) => void | Promise<unknown>
   onSkipOperation: (eventId: string, operationId: string) => void
+  /** Reopen a completed or skipped operation. */
+  onUndoOperation: (eventId: string, operationId: string) => void
+  /** Correct the values of a completed operation (logId = operations-log entry). */
+  onEditOperation: (eventId: string, operationId: string, logId: string, data: CheckOffFormData) => void | Promise<unknown>
+  /** Log a day's progress without completing the operation. */
+  onPartialLog: (eventId: string, operationId: string, data: CheckOffFormData) => void | Promise<unknown>
 }
 
 export default function OperationsView({
-  plantingEvents, fieldName, onClose,
-  onCompleteOperation, onSkipOperation,
+  plantingEvents, fieldName, fieldId, fieldRows, freePlants, farmOperations,
+  findingsSection, onClose, onCompleteOperation, onSkipOperation,
+  onUndoOperation, onEditOperation, onPartialLog,
 }: Props) {
-  const [checkingOff, setCheckingOff] = useState<{
+  const { t } = useTranslation('field')
+  const isPhone = useIsPhone()
+  const [modal, setModal] = useState<{
+    mode: ModalMode
     eventId: string
     operationId: string
     operation: RecommendedOperation
   } | null>(null)
+
+  // Partial logs grouped by recommended-operation id. A "partial" is any log
+  // entry linked to a recommendation that is NOT the entry that completed it
+  // (the completing entry is already shown by the row's completed state).
+  const partialsByRecOp = useMemo(() => {
+    const completedIds = new Set(
+      plantingEvents
+        .flatMap(e => e.operations)
+        .map(op => op.completedOperationId)
+        .filter(Boolean) as string[]
+    )
+    const map = new Map<string, FarmOperation[]>()
+    for (const fo of farmOperations) {
+      if (!fo.recommendedOperationId || completedIds.has(fo.id)) continue
+      const list = map.get(fo.recommendedOperationId) ?? []
+      list.push(fo)
+      map.set(fo.recommendedOperationId, list)
+    }
+    return map
+  }, [farmOperations, plantingEvents])
 
   // Sort events by planting date, newest first
   const sortedEvents = [...plantingEvents].sort(
@@ -44,19 +201,33 @@ export default function OperationsView({
     o => o.status === 'pending'
   ).length
 
-  return (
-    <div className="fixed inset-0 z-[2100] flex flex-col bg-[#f5f8f0]">
+  // Portaled to <body>: hosts can render this from inside the farm
+  // drawer, whose slide transform would otherwise hijack position:fixed.
+  // Rendered as a left-docked drawer — the map stays visible beside it so
+  // the check-off modal's row/plant map toggles remain usable. On a phone
+  // there's no "beside": it takes the full frame below the top nav.
+  return createPortal(
+    <div
+      className="fixed bottom-0 z-[2100] flex flex-col bg-[#f5f8f0] shadow-2xl border-r border-[#e0e8d8]"
+      // Docked inside the app frame: right of the 64px side menu and
+      // below the 64px top nav — those are never covered (desktop).
+      style={
+        isPhone
+          ? { left: 0, top: 64, width: '100%' }
+          : { left: 64, top: 64, width: 420, maxWidth: 'calc(100vw - 64px)' }
+      }
+    >
 
       {/* Header */}
       <div className="h-12 bg-[#2d4a1e] flex items-center justify-between px-4 shrink-0">
         <div className="flex items-center gap-3">
           <button onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center rounded-lg text-[#8fba4e] hover:bg-white/10 transition-colors"
+            className="w-8 h-8 pointer-coarse:w-11 pointer-coarse:h-11 flex items-center justify-center rounded-lg text-[#a3c96c] hover:bg-white/10 transition-colors"
           >
             <X size={16} />
           </button>
           <span className="text-[#d4e8b0] font-semibold text-sm">
-            Operaciones — {fieldName}
+            {t('view.header', { name: fieldName })}
           </span>
         </div>
         <div className="flex items-center gap-3">
@@ -64,15 +235,15 @@ export default function OperationsView({
             <div className="flex items-center gap-1.5 px-2.5 py-1 bg-red-500/20 rounded-lg">
               <AlertCircle size={12} className="text-red-300" />
               <span className="text-xs text-red-300 font-medium">
-                {totalDue} vencidas
+                {t('count.overdue', { count: totalDue })}
               </span>
             </div>
           )}
           {totalPending > 0 && (
             <div className="flex items-center gap-1.5 px-2.5 py-1 bg-white/10 rounded-lg">
-              <Clock size={12} className="text-[#8fba4e]" />
-              <span className="text-xs text-[#8fba4e] font-medium">
-                {totalPending} pendientes
+              <Clock size={12} className="text-[#a3c96c]" />
+              <span className="text-xs text-[#a3c96c] font-medium">
+                {t('count.pending', { count: totalPending })}
               </span>
             </div>
           )}
@@ -80,13 +251,16 @@ export default function OperationsView({
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-4 max-w-2xl mx-auto w-full">
+      <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-4 w-full">
+
+        {/* Scouting findings — what the farmer SAW, above what's to DO */}
+        {findingsSection}
 
         {sortedEvents.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-64 gap-3">
             <CheckCircle2 size={40} className="text-[#c0d8a0]" strokeWidth={1.5} />
-            <p className="text-sm text-[#9aab8a] text-center">
-              No hay operaciones todavía. Añade cultivos al campo para generar un calendario de operaciones.
+            <p className="text-sm text-[#66755a] text-center">
+              {t('view.empty')}
             </p>
           </div>
         ) : (
@@ -94,55 +268,112 @@ export default function OperationsView({
             <PlantingEventCard
               key={event.id}
               event={event}
+              partialsByRecOp={partialsByRecOp}
               onCheckOff={(operationId, operation) =>
-                setCheckingOff({ eventId: event.id, operationId, operation })
+                setModal({ mode: 'complete', eventId: event.id, operationId, operation })
               }
               onSkip={(operationId) => onSkipOperation(event.id, operationId)}
+              onUndo={(operationId) => onUndoOperation(event.id, operationId)}
+              onEdit={(operationId, operation) =>
+                setModal({ mode: 'edit', eventId: event.id, operationId, operation })
+              }
+              onPartial={(operationId, operation) =>
+                setModal({ mode: 'partial', eventId: event.id, operationId, operation })
+              }
             />
           ))
         )}
       </div>
 
-      {/* Check-off modal */}
-      {checkingOff && (
+      {/* Check-off / partial / edit modal — the map is visible beside
+          this drawer, so rows/plants can be toggled right on it */}
+      {modal && (
         <CheckOffModal
-          operation={checkingOff.operation}
-          onConfirm={(data) => {
-            onCompleteOperation(
-              checkingOff.eventId,
-              checkingOff.operationId,
-              data
-            )
-            setCheckingOff(null)
+          mode={modal.mode}
+          operation={modal.operation}
+          mapInteractive
+          fieldId={fieldId}
+          harvestTargets={harvestTargetsForOperation(
+            modal.operation, plantingEvents, { rows: fieldRows, freePlants }
+          )}
+          // When editing, preselect what the original log entry covered.
+          initialSelection={(() => {
+            if (modal.mode !== 'edit' || !modal.operation.completedOperationId) return undefined
+            const fo = farmOperations.find(f => f.id === modal.operation.completedOperationId)
+            return fo ? { rowIds: fo.rowIds, plantIds: fo.plantIds } : undefined
+          })()}
+          onConfirm={async (data) => {
+            // Close only on success — a failed save (validation, network)
+            // keeps the modal and the farmer's input alive for a retry.
+            // The API client already toasts the reason.
+            try {
+              if (modal.mode === 'complete') {
+                await onCompleteOperation(modal.eventId, modal.operationId, data)
+              } else if (modal.mode === 'partial') {
+                await onPartialLog(modal.eventId, modal.operationId, data)
+              } else if (modal.operation.completedOperationId) {
+                await onEditOperation(
+                  modal.eventId, modal.operationId,
+                  modal.operation.completedOperationId, data
+                )
+              }
+              setModal(null)
+            } catch {
+              /* modal stays open */
+            }
           }}
-          onCancel={() => setCheckingOff(null)}
+          onCancel={() => setModal(null)}
         />
       )}
-    </div>
+    </div>,
+    document.body
   )
 }
 
 // ── Planting Event Card ───────────────────────────────────────────────
 function PlantingEventCard({
-  event, onCheckOff, onSkip,
+  event, partialsByRecOp, onCheckOff, onSkip, onUndo, onEdit, onPartial,
 }: {
   event: PlantingEvent
+  partialsByRecOp: Map<string, FarmOperation[]>
   onCheckOff: (operationId: string, operation: RecommendedOperation) => void
   onSkip: (operationId: string) => void
+  onUndo: (operationId: string) => void
+  onEdit: (operationId: string, operation: RecommendedOperation) => void
+  onPartial: (operationId: string, operation: RecommendedOperation) => void
 }) {
+  const { t } = useTranslation('field')
   const [expanded, setExpanded] = useState(true)
   const crop = getCropById(event.cropTypeId)
 
-  const due = event.operations.filter(o => o.status === 'due')
-  const pending = event.operations.filter(o => o.status === 'pending')
-  const completed = event.operations.filter(o => o.status === 'completed')
-  const skipped = event.operations.filter(o => o.status === 'skipped')
+  // Each group ordered by due date — a reopened operation slots back into
+  // its date position instead of staying where the server left it.
+  const byDueDate = (a: RecommendedOperation, b: RecommendedOperation) =>
+    a.recommendedDate.localeCompare(b.recommendedDate)
+  const due = event.operations.filter(o => o.status === 'due').sort(byDueDate)
+  const pending = event.operations.filter(o => o.status === 'pending').sort(byDueDate)
+  const completed = event.operations.filter(o => o.status === 'completed').sort(byDueDate)
+  const skipped = event.operations.filter(o => o.status === 'skipped').sort(byDueDate)
 
   const plantingDateFormatted = new Date(event.plantingDate + 'T12:00:00')
-    .toLocaleDateString('es-PR', { day: 'numeric', month: 'long', year: 'numeric' })
+    .toLocaleDateString(dateLocale(), { day: 'numeric', month: 'long', year: 'numeric' })
+
+  const renderRow = (op: RecommendedOperation, status: OperationStatus) => (
+    <OperationRow
+      key={op.id} operation={op} status={status}
+      partials={partialsByRecOp.get(op.id) ?? []}
+      onCheckOff={() => onCheckOff(op.id, op)}
+      onSkip={() => onSkip(op.id)}
+      onUndo={() => onUndo(op.id)}
+      onEdit={() => onEdit(op.id, op)}
+      onPartial={() => onPartial(op.id, op)}
+    />
+  )
 
   return (
-    <div className="bg-white rounded-xl border border-[#e0e8d8] overflow-hidden">
+    // shrink-0: overflow-hidden would otherwise let the flex column crush
+    // the cards to fit instead of letting the list scroll
+    <div className="bg-white rounded-xl border border-[#e0e8d8] overflow-hidden shrink-0">
 
       {/* Event header */}
       <button
@@ -152,24 +383,24 @@ function PlantingEventCard({
         <span className="text-2xl">{crop?.emoji ?? '🌱'}</span>
         <div className="flex-1">
           <p className="text-sm font-semibold text-[#2d4a1e]">
-            {crop?.nameEs ?? event.cropTypeId}
+            {localName(crop, event.cropTypeId)}
           </p>
-          <p className="text-[10px] text-[#9aab8a]">
-            {event.plantCount} plantas · Sembradas el {plantingDateFormatted}
+          <p className="text-[10px] text-[#66755a]">
+            {t('event.plantedSummary', { count: event.plantCount, date: plantingDateFormatted })}
           </p>
         </div>
         <div className="flex items-center gap-2">
           {due.length > 0 && (
-            <span className="text-[10px] font-semibold text-red-500 bg-red-50 px-2 py-0.5 rounded-full">
-              {due.length} vencidas
+            <span className="text-[10px] font-semibold text-red-600 bg-red-50 px-2 py-0.5 rounded-full">
+              {t('count.overdue', { count: due.length })}
             </span>
           )}
-          <span className="text-[10px] text-[#9aab8a]">
+          <span className="text-[10px] text-[#66755a]">
             {completed.length}/{event.operations.length}
           </span>
           {expanded
-            ? <ChevronUp size={14} className="text-[#9aab8a]" />
-            : <ChevronDown size={14} className="text-[#9aab8a]" />
+            ? <ChevronUp size={14} className="text-[#66755a]" />
+            : <ChevronDown size={14} className="text-[#66755a]" />
           }
         </div>
       </button>
@@ -186,46 +417,13 @@ function PlantingEventCard({
         />
       </div>
 
-      {/* Operations list */}
+      {/* Operations list: due first, then pending, completed, skipped */}
       {expanded && (
         <div className="divide-y divide-[#f5f8f0]">
-
-          {/* Due operations first */}
-          {due.map(op => (
-            <OperationRow
-              key={op.id} operation={op} status="due"
-              onCheckOff={() => onCheckOff(op.id, op)}
-              onSkip={() => onSkip(op.id)}
-            />
-          ))}
-
-          {/* Pending */}
-          {pending.map(op => (
-            <OperationRow
-              key={op.id} operation={op} status="pending"
-              onCheckOff={() => onCheckOff(op.id, op)}
-              onSkip={() => onSkip(op.id)}
-            />
-          ))}
-
-          {/* Completed */}
-          {completed.map(op => (
-            <OperationRow
-              key={op.id} operation={op} status="completed"
-              onCheckOff={() => {}}
-              onSkip={() => {}}
-            />
-          ))}
-
-          {/* Skipped */}
-          {skipped.map(op => (
-            <OperationRow
-              key={op.id} operation={op} status="skipped"
-              onCheckOff={() => {}}
-              onSkip={() => {}}
-            />
-          ))}
-
+          {due.map(op => renderRow(op, 'due'))}
+          {pending.map(op => renderRow(op, 'pending'))}
+          {completed.map(op => renderRow(op, 'completed'))}
+          {skipped.map(op => renderRow(op, 'skipped'))}
         </div>
       )}
     </div>
@@ -234,15 +432,20 @@ function PlantingEventCard({
 
 // ── Single operation row ──────────────────────────────────────────────
 function OperationRow({
-  operation, status, onCheckOff, onSkip,
+  operation, status, partials, onCheckOff, onSkip, onUndo, onEdit, onPartial,
 }: {
   operation: RecommendedOperation
   status: OperationStatus
+  partials: FarmOperation[]
   onCheckOff: () => void
   onSkip: () => void
+  onUndo: () => void
+  onEdit: () => void
+  onPartial: () => void
 }) {
+  const { t } = useTranslation('field')
   const dateFormatted = new Date(operation.recommendedDate + 'T12:00:00')
-    .toLocaleDateString('es-PR', { day: 'numeric', month: 'short', year: 'numeric' })
+    .toLocaleDateString(dateLocale(), { day: 'numeric', month: 'short', year: 'numeric' })
 
   const operationTypeEmoji: Record<string, string> = {
     fertilization: '🌿',
@@ -260,62 +463,132 @@ function OperationRow({
     skipped: 'border-l-4 border-l-gray-300 opacity-50',
   }
 
+  // Partial progress summary, e.g. "2 registros parciales · 150 lb + 3 cajas"
+  const partialSummary = (() => {
+    if (partials.length === 0) return null
+    const totals: Record<string, number> = {}
+    for (const p of partials) {
+      if (p.quantity && p.quantity > 0) {
+        const u = p.unit?.trim() || 'lb'
+        totals[u] = (totals[u] ?? 0) + p.quantity
+      }
+    }
+    const qty = Object.entries(totals)
+      .map(([u, q]) => `${fmtNumber(q)} ${u}`)
+      .join(' + ')
+    return `${t('count.partialLogs', { count: partials.length })}${qty ? ` · ${qty}` : ''}`
+  })()
+
+  const isOpen = status === 'pending' || status === 'due'
+  const smallBtn = 'text-[10px] shrink-0 transition-colors pointer-coarse:text-[11px] pointer-coarse:p-2'
+
   return (
     <div className={`flex items-center gap-3 px-4 py-3 ${statusStyles[status]}`}>
 
-      {/* Status indicator / check button */}
-      {status === 'completed' ? (
+      {/* Status indicator — open items complete via the "Completa" button */}
+      {status === 'completed' && (
         <div className="w-7 h-7 rounded-full bg-[#eaf3de] flex items-center justify-center shrink-0">
-          <Check size={14} className="text-[#639922]" />
+          <Check size={14} className="text-[#4d7a1b]" />
         </div>
-      ) : status === 'skipped' ? (
+      )}
+      {status === 'skipped' && (
         <div className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center shrink-0">
           <SkipForward size={14} className="text-gray-400" />
         </div>
-      ) : (
-        <button
-          onClick={onCheckOff}
-          className={`w-7 h-7 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors hover:bg-[#eaf3de] ${
-            status === 'due'
-              ? 'border-red-400 hover:border-[#639922]'
-              : 'border-[#c0d8a0] hover:border-[#639922]'
-          }`}
-        />
       )}
 
       {/* Operation details */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5">
           <span className="text-sm">{operationTypeEmoji[operation.type] ?? '📋'}</span>
-          <p className={`text-xs font-medium truncate ${
+          <p className={`text-xs font-medium ${
             status === 'completed' || status === 'skipped'
-              ? 'text-[#9aab8a] line-through'
+              ? 'text-[#66755a] line-through'
               : 'text-[#2d4a1e]'
           }`}>
-            {operation.labelEs}
+            {localOpLabel(operation.labelEs)}
           </p>
         </div>
         <div className="flex items-center gap-2 mt-0.5">
-          <p className={`text-[10px] ${status === 'due' ? 'text-red-500 font-medium' : 'text-[#9aab8a]'}`}>
-            {status === 'due' ? '⚠️ Vencida — ' : ''}
+          <p className={`text-[10px] ${status === 'due' ? 'text-red-600 font-medium' : 'text-[#66755a]'}`}>
+            {status === 'due' ? t('status.overdueWarnPrefix') : ''}
             {status === 'completed' && operation.completedDate
-              ? `Completada el ${new Date(operation.completedDate + 'T12:00:00').toLocaleDateString('es-PR', { day: 'numeric', month: 'short' })}`
+              ? t('status.completedOn', {
+                  date: new Date(operation.completedDate + 'T12:00:00')
+                    .toLocaleDateString(dateLocale(), { day: 'numeric', month: 'short' }),
+                })
               : dateFormatted
             }
           </p>
           {operation.product && status === 'completed' && (
-            <p className="text-[10px] text-[#9aab8a]">· {operation.product}</p>
+            <p className="text-[10px] text-[#66755a]">· {operation.product}</p>
+          )}
+          {operation.quantity != null && status === 'completed' && (
+            <p className="text-[10px] text-[#66755a]">
+              · {fmtNumber(operation.quantity)} {operation.unit ?? ''}
+            </p>
           )}
         </div>
+        {/* Accumulated partial-log progress (multi-day work) */}
+        {partialSummary && (
+          <p className="text-[10px] text-[#4d7a1b] font-medium mt-0.5">
+            {operationTypeEmoji[operation.type] ?? '📋'} {partialSummary}
+          </p>
+        )}
       </div>
 
-      {/* Skip button — only for pending/due */}
-      {(status === 'pending' || status === 'due') && (
-        <button
-          onClick={onSkip}
-          className="text-[10px] text-[#c0d0b0] hover:text-[#9aab8a] transition-colors shrink-0"
+      {/* Row actions by status */}
+      {isOpen && (
+        <>
+          <button onClick={onCheckOff}
+            className={`${smallBtn} text-[#2d4a1e] font-semibold hover:text-[#4d7a1b]`}
+            title={t('actions.completeTitle')}
+          >
+            {t('actions.complete')}
+          </button>
+          {/* Partial logging works for every type: "fertilized rows 1–3
+              today, the rest tomorrow" — the item stays open until done */}
+          <button onClick={onPartial}
+            className={`${smallBtn} text-[#4d7a1b] hover:text-[#2d4a1e] font-medium`}
+            title={t('actions.partialTitle')}
+          >
+            {t('actions.partial')}
+          </button>
+          <button onClick={onSkip}
+            className={`${smallBtn} text-[#66755a] hover:text-[#66755a]`}
+          >
+            {t('actions.skip')}
+          </button>
+        </>
+      )}
+
+      {status === 'completed' && (
+        <>
+          {/* Editing needs the linked log entry; legacy check-offs made
+              before the API wiring don't have one */}
+          {operation.completedOperationId && (
+            <button onClick={onEdit}
+              className={`${smallBtn} text-[#5a6a4a] hover:text-[#2d4a1e]`}
+              title={t('actions.editTitle')}
+            >
+              {t('actions.edit')}
+            </button>
+          )}
+          <button onClick={onUndo}
+            className={`${smallBtn} text-[#66755a] hover:text-red-400`}
+            title={t('actions.undoTitle')}
+          >
+            {t('actions.undo')}
+          </button>
+        </>
+      )}
+
+      {status === 'skipped' && (
+        <button onClick={onUndo}
+          className={`${smallBtn} text-[#66755a] hover:text-[#4d7a1b]`}
+          title={t('actions.reactivateTitle')}
         >
-          Omitir
+          {t('actions.reactivate')}
         </button>
       )}
 
@@ -323,54 +596,134 @@ function OperationRow({
   )
 }
 
-// ── Check-off modal ───────────────────────────────────────────────────
-function CheckOffModal({
-  operation,
-  onConfirm,
-  onCancel,
+// ── Check-off / partial / edit modal ──────────────────────────────────
+// One form, three modes:
+//  - complete: original check-off (empty form, today's date)
+//  - partial:  same fields, but confirms a progress log, not a completion
+//  - edit:     prefilled with the completed values for correction
+// For harvests with rows, a row selector records WHICH rows were harvested
+// (multi-day harvests: rows 1–3 today, 4–6 tomorrow). Exported so the map
+// view's field drawer can open the same UI. Copy per mode lives in the
+// `modal.{complete|partial|edit}` i18n keys.
+
+export function CheckOffModal({
+  mode, operation, harvestTargets, initialSelection, mapInteractive = false,
+  fieldId, onConfirm, onCancel,
 }: {
+  mode: ModalMode
   operation: RecommendedOperation
-  onConfirm: (data: {
-    completedDate: string
-    notes?: string
-    product?: string
-    quantity?: number
-    unit?: string
-  }) => void
+  /** What a harvest can select from; empty/omitted = no selector shown. */
+  harvestTargets?: HarvestTargets
+  /** Previously stored selection (edit mode). */
+  initialSelection?: { rowIds?: string[]; plantIds?: string[] }
+  /** True when the farm map is visible behind the modal: the backdrop then
+      lets clicks through so rows/plants can be toggled right on the map.
+      Leave false in fullscreen contexts (clicks would hit the list). */
+  mapInteractive?: boolean
+  /** The field the operation belongs to — scopes map toggles so only that
+      field's rows/plants become clickable while the selector is open. */
+  fieldId?: string
+  onConfirm: (data: CheckOffFormData) => void
   onCancel: () => void
 }) {
-  const today = new Date().toISOString().split('T')[0]
-  const [completedDate, setCompletedDate] = useState(today)
-  const [notes, setNotes] = useState('')
-  const [product, setProduct] = useState(operation.product ?? '')
-  const [quantity, setQuantity] = useState('')
-  const [unit, setUnit] = useState('kg')
+  const { t } = useTranslation('field')
+  const isPhone = useIsPhone()
+  // The farm-switch guard warns before discarding this form's input.
+  useMarkUnsavedWork()
+  const today = todayISO()
+  const isEdit = mode === 'edit'
+  const targets = harvestTargets ?? { rows: [], freePlants: [] }
 
+  const [completedDate, setCompletedDate] = useState(
+    isEdit ? (operation.completedDate ?? today) : today
+  )
+  const [notes, setNotes] = useState(isEdit ? (operation.notes ?? '') : '')
+  const [product, setProduct] = useState(operation.product ?? '')
+  const [quantity, setQuantity] = useState(
+    isEdit && operation.quantity != null ? String(operation.quantity) : ''
+  )
+  const [unit, setUnit] = useState(isEdit ? (operation.unit ?? 'kg') : 'kg')
+  // Sale revenue (harvests only) — always stored as the TOTAL; the
+  // PriceInput handles the total vs price-per-unit entry modes.
+  const [revenue, setRevenue] = useState<number | null>(null)
+  // Canonical harvest selection: a set of plant ids. Rows are derived views
+  // over it — a fully selected row compresses back to a rowId on confirm.
+  const [selectedPlants, setSelectedPlants] = useState<Set<string>>(
+    () => selectionToPlantSet(targets, initialSelection?.rowIds, initialSelection?.plantIds)
+  )
+
+  const copy = {
+    title: t(`modal.${mode}.title`),
+    confirm: t(`modal.${mode}.confirm`),
+    dateLabel: t(`modal.${mode}.dateLabel`),
+  }
   const needsProduct = ['fertilization', 'spray'].includes(operation.type)
-  const needsQuantity = ['fertilization', 'spray', 'harvest'].includes(operation.type)
+  // Revenue applies to harvests when logging (complete/partial). Editing a
+  // logged sale price happens in the Producción ledger instead.
+  const showPrice = operation.type === 'harvest' && !isEdit
+  const needsQuantity = mode === 'partial'
+    || ['fertilization', 'spray', 'harvest'].includes(operation.type)
+  // The scope selector (rows / plants / whole field) applies to EVERY
+  // operation type — "fertilized rows 1–3", "sprayed just these plants",
+  // not only harvests. Hidden when completing: "Completa" means the whole
+  // field (empty selection = whole field); a subset goes through "Parcial".
+  const showScopeSelector = mode !== 'complete'
+    && (targets.rows.length > 0 || targets.freePlants.length > 0)
+  // Backdrop goes transparent to clicks only when the map is behind AND
+  // there is something to select on it.
+  const clickThrough = showScopeSelector && mapInteractive
 
   const units = operation.type === 'harvest'
     ? ['kg', 'lb', 'unidades', 'cajas', 'sacos']
     : ['kg', 'lb', 'L', 'gal', 'oz']
 
-  return (
+  // Portaled to <body>: the farm drawer's slide transform would otherwise
+  // hijack position:fixed and clamp the modal (and its backdrop) to the
+  // 300px drawer panel when opened from a field card.
+  return createPortal(
     <>
-      {/* Backdrop */}
+      {/* Backdrop — kept light and unblurred when a scope selector is
+          shown so the map stays visible; over the map it also goes
+          transparent to clicks so clicking rows/plants there toggles them
+          in the selector (cancel via the button instead) */}
       <div
-        className="fixed inset-0 bg-black/40 z-[2200] backdrop-blur-sm"
-        onClick={onCancel}
+        aria-hidden="true"
+        className={`fixed inset-0 z-[2200] ${
+          clickThrough ? 'bg-black/10 pointer-events-none'
+          : showScopeSelector ? 'bg-black/10'
+          : 'bg-black/40 backdrop-blur-sm'
+        }`}
+        onClick={clickThrough ? undefined : onCancel}
       />
 
-      {/* Modal */}
-      <div className="fixed inset-0 z-[2300] flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden">
+      {/* Modal — docked right when selecting scope so the field isn't
+          covered; the wrapper never captures clicks, only the card does.
+          On a phone every mode is a full-width bottom sheet instead. */}
+      <div className={`fixed inset-0 z-[2300] flex pointer-events-none ${
+        isPhone ? 'items-end justify-center'
+        : showScopeSelector ? 'items-center p-4 justify-end pr-6'
+        : 'items-center p-4 justify-center'
+      }`}>
+        {/* Parcial/Editar: fixed 300px card (the farm drawer's width);
+            Completa keeps the compact centered card */}
+        <div
+          className={`bg-white shadow-xl overflow-hidden overflow-y-auto pointer-events-auto ${
+            isPhone ? 'w-full rounded-t-2xl max-h-[85dvh]' : 'rounded-2xl max-h-[92vh]'
+          } ${mode === 'complete' && !isPhone ? 'w-full max-w-sm' : ''}`}
+          style={!isPhone && mode !== 'complete' ? { width: 300, maxWidth: '100%' } : undefined}
+        >
 
           {/* Header */}
           <div className="px-5 py-4 border-b border-[#e0e8d8] bg-[#f5f8f0]">
             <p className="text-sm font-semibold text-[#2d4a1e]">
-              Confirmar operación
+              {copy.title}
             </p>
-            <p className="text-xs text-[#7a8a6a] mt-0.5">{operation.labelEs}</p>
+            <p className="text-xs text-[#5a6a4a] mt-0.5">{localOpLabel(operation.labelEs)}</p>
+            {mode === 'partial' && (
+              <p className="text-[10px] text-[#66755a] mt-1">
+                {t('modal.partialHint')}
+              </p>
+            )}
           </div>
 
           <div className="px-5 py-4 flex flex-col gap-4">
@@ -378,7 +731,7 @@ function CheckOffModal({
             {/* Date */}
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-[#5a6a4a]">
-                Fecha de realización
+                {copy.dateLabel}
               </label>
               <input
                 type="date"
@@ -393,14 +746,14 @@ function CheckOffModal({
             {needsProduct && (
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-medium text-[#5a6a4a]">
-                  Producto utilizado
-                  <span className="text-[#9aab8a] font-normal ml-1">(opcional)</span>
+                  {t('form.productUsed')}
+                  <span className="text-[#66755a] font-normal ml-1">{t('form.optional')}</span>
                 </label>
                 <input
                   type="text"
                   value={product}
                   onChange={e => setProduct(e.target.value)}
-                  placeholder="Ej. Nitrato de amonio 21-0-0"
+                  placeholder={t('form.productPlaceholder')}
                   className="w-full px-3 py-2 rounded-lg border border-[#d0dcc0] text-sm text-[#2d4a1e] placeholder:text-[#b0bea0] focus:outline-none focus:border-[#639922] transition-colors"
                 />
               </div>
@@ -410,8 +763,8 @@ function CheckOffModal({
             {needsQuantity && (
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-medium text-[#5a6a4a]">
-                  Cantidad
-                  <span className="text-[#9aab8a] font-normal ml-1">(opcional)</span>
+                  {t('form.quantity')}
+                  <span className="text-[#66755a] font-normal ml-1">{t('form.optional')}</span>
                 </label>
                 <div className="flex gap-2">
                   <input
@@ -435,16 +788,38 @@ function CheckOffModal({
               </div>
             )}
 
+            {/* Sale price — harvests only, right below what was picked */}
+            {showPrice && (
+              <PriceInput
+                quantity={quantity && Number.isFinite(Number(quantity)) ? Number(quantity) : null}
+                value={revenue}
+                onChange={setRevenue}
+                unitLabel={quantity ? unit : undefined}
+              />
+            )}
+
+            {/* Scope selector — rows, partial rows, or individual plants */}
+            {showScopeSelector && (
+              <HarvestSelector
+                title={operation.type === 'harvest' ? t('selector.harvestTitle') : t('selector.scopeTitle')}
+                targets={targets}
+                selected={selectedPlants}
+                onChange={setSelectedPlants}
+                mapToggles={clickThrough}
+                fieldId={fieldId}
+              />
+            )}
+
             {/* Notes */}
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-[#5a6a4a]">
-                Notas
-                <span className="text-[#9aab8a] font-normal ml-1">(opcional)</span>
+                {t('form.notes')}
+                <span className="text-[#66755a] font-normal ml-1">{t('form.optional')}</span>
               </label>
               <textarea
                 value={notes}
                 onChange={e => setNotes(e.target.value)}
-                placeholder="Observaciones, condiciones del campo..."
+                placeholder={t('form.notesPlaceholder')}
                 rows={2}
                 className="w-full px-3 py-2 rounded-lg border border-[#d0dcc0] text-sm text-[#2d4a1e] placeholder:text-[#b0bea0] focus:outline-none focus:border-[#639922] transition-colors resize-none"
               />
@@ -457,7 +832,7 @@ function CheckOffModal({
             <button onClick={onCancel}
               className="flex-1 py-2 text-sm text-[#5a6a4a] hover:bg-[#f0f5e8] rounded-lg transition-colors"
             >
-              Cancelar
+              {t('actions.cancel')}
             </button>
             <button
               onClick={() => onConfirm({
@@ -466,16 +841,270 @@ function CheckOffModal({
                 product: product || undefined,
                 quantity: quantity ? Number(quantity) : undefined,
                 unit: quantity ? unit : undefined,
+                revenue: showPrice && revenue != null ? revenue : undefined,
+                // Compress the plant set: full rows → rowIds, rest → plantIds
+                ...(showScopeSelector
+                  ? plantSetToSelection(targets, selectedPlants)
+                  : {}),
               })}
               className="flex-1 flex items-center justify-center gap-2 py-2 bg-[#2d4a1e] text-[#d4e8b0] rounded-lg text-sm font-medium hover:bg-[#3d6128] transition-colors"
             >
               <Check size={14} />
-              Confirmar
+              {copy.confirm}
             </button>
           </div>
 
         </div>
       </div>
-    </>
+    </>,
+    document.body
+  )
+}
+
+// ── Harvest selector ──────────────────────────────────────────────────
+// Fully flexible: whole rows (tri-state checkbox), individual plants inside
+// a row (expand it), "the first N plants of a row" (quick input), and
+// free-standing plants. The canonical state is a set of plant ids owned by
+// the modal; this component is a controlled view over it. Exported for the
+// scouting finding modal, which selects scope the exact same way.
+export function HarvestSelector({ title, targets, selected, onChange, mapToggles = false, fieldId }: {
+  /** Type-aware heading, e.g. "¿Qué cosechaste?" / "¿Qué alcanzó esta labor?" */
+  title: string
+  targets: HarvestTargets
+  selected: Set<string>
+  onChange: (next: Set<string>) => void
+  /** Accept clicks from the map (only when the map is actually behind). */
+  mapToggles?: boolean
+  /** Scopes the map toggles to this field's rows/plants. */
+  fieldId?: string
+}) {
+  const { t } = useTranslation('field')
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
+  const rowRefs = useRef<Record<string, HTMLDivElement | null>>({})
+
+  // Publish the live selection so the map highlights the chosen rows and
+  // plants while this modal is open (cleared on unmount).
+  const setHighlight = useHarvestHighlightStore(s => s.setHighlight)
+  const clearHighlight = useHarvestHighlightStore(s => s.clearHighlight)
+  const setToggles = useHarvestHighlightStore(s => s.setToggles)
+  const clearToggles = useHarvestHighlightStore(s => s.clearToggles)
+  useEffect(() => {
+    const sel = plantSetToSelection(targets, selected)
+    setHighlight({ rowIds: sel.rowIds ?? [], plantIds: [...selected] })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected, targets])
+
+  // Register map-click toggles: clicking a row line or plant dot on the
+  // map toggles it here, exactly like ticking its checkbox. A plant click
+  // also expands its row so the checked plant is visible. Re-registered on
+  // every selection change to keep the closures fresh.
+  useEffect(() => {
+    if (!mapToggles) return
+    setToggles({
+      fieldId,
+      toggleRow: (rowId) => {
+        const target = targets.rows.find(({ row }) => row.id === rowId)
+        if (target) toggleRow(target.row)
+      },
+      togglePlant: (plantId) => {
+        const target = targets.rows.find(({ row }) => row.plants.some(p => p.id === plantId))
+        if (target) {
+          setExpandedRows(prev => new Set(prev).add(target.row.id))
+          requestAnimationFrame(() => {
+            rowRefs.current[target.row.id]?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+          })
+          togglePlant(plantId)
+        } else if (targets.freePlants.some(p => p.id === plantId)) {
+          togglePlant(plantId)
+        }
+      },
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected, targets, mapToggles])
+
+  useEffect(() => () => { clearHighlight(); clearToggles() }, [clearHighlight, clearToggles])
+
+  const allPlantIds = useMemo(
+    () => [
+      ...targets.rows.flatMap(({ row }) => row.plants.map(p => p.id)),
+      ...targets.freePlants.map(p => p.id),
+    ],
+    [targets]
+  )
+  const allSelected = allPlantIds.length > 0 && allPlantIds.every(id => selected.has(id))
+
+  function mutate(fn: (next: Set<string>) => void) {
+    const next = new Set(selected)
+    fn(next)
+    onChange(next)
+  }
+
+  function togglePlant(id: string) {
+    mutate(next => {
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+    })
+  }
+
+  function toggleRow(row: FieldRow) {
+    const all = row.plants.every(p => selected.has(p.id))
+    mutate(next => {
+      row.plants.forEach(p => {
+        if (all) next.delete(p.id)
+        else next.add(p.id)
+      })
+    })
+  }
+
+  // "Primeras N" — select exactly the first N plants of a row.
+  function selectFirstN(row: FieldRow, n: number) {
+    mutate(next => {
+      row.plants.forEach((p, i) => {
+        if (i < n) next.add(p.id)
+        else next.delete(p.id)
+      })
+    })
+  }
+
+  function toggleExpand(rowId: string) {
+    setExpandedRows(prev => {
+      const next = new Set(prev)
+      if (next.has(rowId)) next.delete(rowId)
+      else next.add(rowId)
+      return next
+    })
+  }
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="flex items-center justify-between">
+        <label className="text-xs font-medium text-[#5a6a4a]">
+          {title}
+          <span className="text-[#66755a] font-normal ml-1">{t('form.optional')}</span>
+        </label>
+        <button
+          type="button"
+          onClick={() => onChange(allSelected ? new Set() : new Set(allPlantIds))}
+          className="text-[10px] text-[#4d7a1b] hover:text-[#2d4a1e] transition-colors"
+        >
+          {allSelected ? t('selector.none') : t('selector.wholeField')}
+        </button>
+      </div>
+
+      <div className="max-h-52 overflow-y-auto rounded-lg border border-[#d0dcc0] divide-y divide-[#f0f5e8]">
+
+        {/* Rows — tri-state header, expandable to plants */}
+        {targets.rows.map(({ row, index }) => {
+          const crop = getCropById(row.primaryCropTypeId)
+          const selCount = row.plants.filter(p => selected.has(p.id)).length
+          const all = row.plants.length > 0 && selCount === row.plants.length
+          const some = selCount > 0 && !all
+          const expanded = expandedRows.has(row.id)
+
+          return (
+            <div key={row.id} ref={el => { rowRefs.current[row.id] = el }}>
+              {/* Row header */}
+              <div className="flex items-center gap-2 px-3 py-2 hover:bg-[#fafcf8] transition-colors">
+                <input
+                  type="checkbox"
+                  checked={all}
+                  ref={el => { if (el) el.indeterminate = some }}
+                  onChange={() => toggleRow(row)}
+                  className="accent-[#639922] shrink-0 w-4 h-4 pointer-coarse:w-5 pointer-coarse:h-5"
+                />
+                <button
+                  type="button"
+                  onClick={() => toggleExpand(row.id)}
+                  className="flex-1 flex items-center gap-1.5 text-left min-w-0"
+                >
+                  {expanded
+                    ? <ChevronDown size={11} className="text-[#66755a] shrink-0" />
+                    : <ChevronRight size={11} className="text-[#66755a] shrink-0" />}
+                  <span className="text-xs text-[#2d4a1e] truncate">
+                    {t('selector.rowLabel', { num: index + 1 })} · {crop?.emoji ?? '🌱'} {localName(crop, row.primaryCropTypeId)}
+                  </span>
+                  <span className={`text-[10px] shrink-0 ml-auto ${
+                    some ? 'text-[#4d7a1b] font-medium' : 'text-[#66755a]'
+                  }`}>
+                    {selCount}/{row.plants.length}
+                  </span>
+                </button>
+              </div>
+
+              {/* Expanded: quick "first N" input + individual plants */}
+              {expanded && (
+                <div className="px-3 pb-2 pl-8 flex flex-col gap-1.5 bg-[#fafcf8]">
+                  <div className="flex items-center gap-1.5 pt-1">
+                    <span className="text-[10px] text-[#5a6a4a]">{t('selector.firstN')}</span>
+                    <input
+                      type="number"
+                      min={0}
+                      max={row.plants.length}
+                      value={selCount}
+                      onChange={e => selectFirstN(
+                        row,
+                        Math.max(0, Math.min(row.plants.length, parseInt(e.target.value) || 0))
+                      )}
+                      className="w-14 px-1.5 py-0.5 rounded border border-[#d0dcc0] text-[10px] text-[#2d4a1e] focus:outline-none focus:border-[#639922]"
+                    />
+                    <span className="text-[10px] text-[#5a6a4a]">
+                      {t('selector.ofPlants', { count: row.plants.length })}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-x-2 gap-y-0.5">
+                    {row.plants.map((plant, i) => (
+                      <label
+                        key={plant.id}
+                        className="flex items-center gap-1 text-[10px] text-[#5a6a4a] cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selected.has(plant.id)}
+                          onChange={() => togglePlant(plant.id)}
+                          className="accent-[#639922]"
+                        />
+                        {t('selector.plantLabel', { num: i + 1 })}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )
+        })}
+
+        {/* Free-standing plants */}
+        {targets.freePlants.length > 0 && (
+          <div className="px-3 py-2">
+            <p className="text-[10px] font-medium text-[#5a6a4a] mb-1">{t('selector.freePlants')}</p>
+            <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
+              {targets.freePlants.map((plant, i) => {
+                const crop = getCropById(plant.cropTypeId)
+                return (
+                  <label
+                    key={plant.id}
+                    className="flex items-center gap-1 text-[10px] text-[#5a6a4a] cursor-pointer"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selected.has(plant.id)}
+                      onChange={() => togglePlant(plant.id)}
+                      className="accent-[#639922]"
+                    />
+                    {crop?.emoji ?? '🌱'} {t('selector.plantLabel', { num: i + 1 })}
+                  </label>
+                )
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <p className="text-[10px] text-[#66755a]">
+        {selected.size > 0
+          ? t('selector.selectedSummary', { count: selected.size, total: allPlantIds.length })
+          : t('selector.hint')}
+      </p>
+    </div>
   )
 }

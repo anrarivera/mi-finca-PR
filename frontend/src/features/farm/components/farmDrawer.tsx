@@ -1,41 +1,76 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   ChevronRight, ChevronLeft, Star, Plus,
-  MapPin, Layers, Pencil, Trash2,
-  ToggleLeft, ToggleRight, AlertCircle, Clock,
+  MapPin, Layers, Trash2, Users,
+  AlertCircle, Clock,
 } from 'lucide-react'
 import { useDeleteField } from '@/features/field/hooks/useFieldsApi'
-import { useFarmStore } from '@/store/useFarmStore'
+import { useDeleteFarm } from '../hooks/useFarmsApi'
+import { useIsPhone } from '@/hooks/useViewport'
+import TeamModal from './teamModal'
+import JoinFarmModal from './joinFarmModal'
+import { useFarmStore, canManageStructure, isFarmOwner } from '@/store/useFarmStore'
 import { useFieldStore } from '@/store/useFieldStore'
-import { computeCropSummary } from '@/features/field/utils/rowCalculator'
 import { getFieldOperationHealth } from '@/features/field/utils/operationStatus'
-import { getCropById } from '@/features/field/data/cropLibrary'
+import FieldSummaryCard from '@/features/field/components/fieldSummaryCard'
+import CorralCard from '@/features/livestock/components/corralCard'
 import type { Farm } from '@/store/useFarmStore'
 import type { PlacedField } from '@/features/field/types'
-import { areaFt2, ft2ToAcres, getCanvasScale, latlngToCanvas, farmBoundaryToBBox } from '@/features/field/utils/canvasGeo'
 import { toast } from '@/store/useToastStore'
+import { fmtNumber } from '@/i18n'
 
 type Props = {
+  /** Open state lives in the host so it survives the drawer unmounting
+      while the on-map field editor is active. */
+  isOpen: boolean
+  onOpenChange: (open: boolean) => void
   onAddFarm: () => void
+  /** Open the field editor editing this specific field. */
   onEditField: (fieldId: string) => void
   onDeleteField: (fieldId: string) => void
-  onFlyToFarm: (farm: Farm) => void
+  /** Switch to + fly to this farm. The host owns the unsaved-work guard
+      and returns false when the user declines the switch. */
+  onFlyToFarm: (farm: Farm) => boolean | void
   onOpenFieldEditor: (farmId: string) => void
+  /** Set on a map field click: opens the drawer focused on that field.
+      The nonce lets the same field re-trigger after the drawer closes. */
+  focusRequest?: { fieldId: string; nonce: number } | null
+  /** Card click → select that field on the map (two-way selection). */
+  onSelectField: (fieldId: string) => void
+  /** Card double-click → zoom the map to that field (no editor). */
+  onZoomToField: (fieldId: string) => void
 }
 
 export default function FarmDrawer({
-  onAddFarm, onEditField, onDeleteField,
-  onFlyToFarm, onOpenFieldEditor,
+  isOpen, onOpenChange, onAddFarm, onEditField, onDeleteField,
+  onFlyToFarm, onOpenFieldEditor, focusRequest, onSelectField, onZoomToField,
 }: Props) {
-  const [isOpen, setIsOpen] = useState(false)
+  const { t } = useTranslation('farm')
   const [level, setLevel] = useState<'farms' | 'fields'>('farms')
+  // "Equipo" roster/management modal — per farm
+  const [teamFarm, setTeamFarm] = useState<Farm | null>(null)
+  // "Unirme a una finca" — redeem a join code
+  const [showJoin, setShowJoin] = useState(false)
+  // On a phone the drawer takes the full map width, so the side toggle tab
+  // would land off-screen while open — hide it and close via the header.
+  const isPhone = useIsPhone()
+
+  // A field was clicked on the map — open the drawer at the fields level;
+  // the matching card highlights and scrolls into view.
+  useEffect(() => {
+    if (!focusRequest) return
+    onOpenChange(true)
+    setLevel('fields')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusRequest?.nonce])
 
   const {
     farms, activeFarm, activeFarmId, favoriteFarmId,
-    setActiveFarm, setFavoriteFarm, deleteFarm,
+    setActiveFarm, setFavoriteFarm,
   } = useFarmStore()
-  const { getFieldsByFarmId, updateField, removeField, removeFieldsByFarmId } = useFieldStore()
-  const { removeFieldIdFromFarm } = useFarmStore()
+  const deleteFarmApi = useDeleteFarm()
+  const { getFieldsByFarmId, updateField, removeFieldsByFarmId } = useFieldStore()
 
   // Auto-navigate to fields level when only one farm
   useEffect(() => {
@@ -51,8 +86,9 @@ export default function FarmDrawer({
   }, [activeFarmId])
 
   function handleSelectFarm(farm: Farm) {
-    setActiveFarm(farm)
-    onFlyToFarm(farm)
+    // The host activates the farm (after its unsaved-work guard) — a
+    // false return means the user chose to stay put.
+    if (onFlyToFarm(farm) === false) return
     setLevel('fields')
   }
 
@@ -60,11 +96,18 @@ export default function FarmDrawer({
     setLevel('farms')
   }
 
-  function handleDeleteFarm(farm: Farm) {
-    if (!window.confirm(`¿Eliminar la finca "${farm.name}" y todos sus campos?`)) return
-    removeFieldsByFarmId(farm.id)
-    deleteFarm(farm.id)
-    if (farms.length <= 1) setLevel('farms')
+  // Delete on the server first — the mutation's onSuccess removes the
+  // farm from the store. A store-only delete came back on every refetch.
+  async function handleDeleteFarm(farm: Farm) {
+    if (!window.confirm(t('confirmDeleteFarm', { name: farm.name }))) return
+    try {
+      await deleteFarmApi.mutateAsync(farm.id)
+      removeFieldsByFarmId(farm.id)
+      if (farms.length <= 1) setLevel('farms')
+    } catch (err) {
+      console.error('Failed to delete farm:', err)
+      // toast.error already fired by api.ts handleResponse
+    }
   }
 
   const fields = activeFarm ? getFieldsByFarmId(activeFarm.id) : []
@@ -77,9 +120,11 @@ export default function FarmDrawer({
 
   return (
     <>
-      {/* ── Drawer toggle tab ─────────────────────────────────────── */}
+      {/* ── Drawer toggle tab (hidden while a full-width drawer is open) ── */}
+      {!(isPhone && isOpen) && (
       <button
-        onClick={() => setIsOpen(p => !p)}
+        data-tour="drawer-tab"
+        onClick={() => onOpenChange(!isOpen)}
         className="absolute left-0 top-1/2 -translate-y-1/2 z-[1001] bg-white border border-[#e0e8d8] border-l-0 rounded-r-lg px-1.5 py-4 flex flex-col items-center gap-1.5 shadow-md hover:bg-[#f5f8f0] transition-all"
         style={{
           marginLeft: isOpen ? 300 : 0,
@@ -87,14 +132,14 @@ export default function FarmDrawer({
         }}
       >
         {isOpen
-          ? <ChevronLeft size={14} className="text-[#639922]" />
-          : <ChevronRight size={14} className="text-[#639922]" />
+          ? <ChevronLeft size={14} className="text-[#4d7a1b]" />
+          : <ChevronRight size={14} className="text-[#4d7a1b]" />
         }
         <span
           className="text-[9px] font-semibold text-[#5a6a4a] uppercase tracking-wide"
           style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
         >
-          {level === 'fields' && activeFarm ? activeFarm.name : 'Fincas'}
+          {level === 'fields' && activeFarm ? activeFarm.name : t('drawer.farmsTab')}
         </span>
         {/* Badge — total overdue operations */}
         {totalOverdue > 0 && (
@@ -108,12 +153,13 @@ export default function FarmDrawer({
           </div>
         )}
       </button>
+      )}
 
       {/* ── Drawer panel ─────────────────────────────────────────── */}
       <div
         className="absolute left-0 top-0 h-full z-[1000] bg-white border-r border-[#e0e8d8] shadow-xl flex flex-col overflow-hidden"
         style={{
-          width: 300,
+          width: isPhone ? '100%' : 300,
           transform: isOpen ? 'translateX(0)' : 'translateX(-100%)',
           transition: 'transform 0.3s ease',
         }}
@@ -125,16 +171,23 @@ export default function FarmDrawer({
               onSelect={handleSelectFarm}
               onSetFavorite={setFavoriteFarm}
               onDelete={handleDeleteFarm}
+              onTeam={setTeamFarm}
+              onJoin={() => setShowJoin(true)}
               onAddFarm={onAddFarm}
-              onClose={() => setIsOpen(false)}
+              onClose={() => onOpenChange(false)}
             />
           : activeFarm
           ? <FieldList
               farm={activeFarm}
               fields={fields}
-              showBackButton={farms.length > 1}
+              focusFieldId={focusRequest?.fieldId ?? null}
+              focusNonce={focusRequest?.nonce ?? 0}
+              onSelectField={onSelectField}
+              onZoomToField={onZoomToField}
+              showBackButton
               onBack={handleBackToFarms}
-              onClose={() => setIsOpen(false)}
+              onTeam={() => setTeamFarm(activeFarm)}
+              onClose={() => onOpenChange(false)}
               onEditField={onEditField}
               onDeleteField={(fieldId) => {
                 onDeleteField(fieldId)
@@ -149,6 +202,12 @@ export default function FarmDrawer({
           : null
         }
       </div>
+
+      {/* Equipo — roster + membership management (portaled) */}
+      {teamFarm && (
+        <TeamModal farm={teamFarm} onClose={() => setTeamFarm(null)} />
+      )}
+      {showJoin && <JoinFarmModal onClose={() => setShowJoin(false)} />}
     </>
   )
 }
@@ -156,16 +215,19 @@ export default function FarmDrawer({
 // ── Level 1: Farm list ────────────────────────────────────────────────
 function FarmList({
   farms, favoriteFarmId, onSelect, onSetFavorite,
-  onDelete, onAddFarm, onClose,
+  onDelete, onTeam, onJoin, onAddFarm, onClose,
 }: {
   farms: Farm[]
   favoriteFarmId: string | null
   onSelect: (farm: Farm) => void
   onSetFavorite: (id: string) => void
   onDelete: (farm: Farm) => void
+  onTeam: (farm: Farm) => void
+  onJoin: () => void
   onAddFarm: () => void
   onClose: () => void
 }) {
+  const { t } = useTranslation('farm')
   const { getFieldsByFarmId } = useFieldStore()
 
   // Sort farms — favorite first
@@ -181,14 +243,15 @@ function FarmList({
       <div className="px-4 py-3 border-b border-[#e0e8d8] bg-[#f5f8f0] flex items-center justify-between shrink-0">
         <div>
           <p className="text-xs font-semibold text-[#2d4a1e] uppercase tracking-wide">
-            Mis fincas
+            {t('drawer.myFarms')}
           </p>
-          <p className="text-[10px] text-[#9aab8a] mt-0.5">
-            {farms.length} {farms.length === 1 ? 'finca' : 'fincas'}
+          <p className="text-[10px] text-[#66755a] mt-0.5">
+            {t('drawer.farmCount', { count: farms.length })}
           </p>
         </div>
         <button onClick={onClose}
-          className="w-6 h-6 flex items-center justify-center rounded-md text-[#9aab8a] hover:bg-[#e8f0e0] transition-colors"
+          aria-label={t('common:actions.close')}
+          className="w-6 h-6 pointer-coarse:w-11 pointer-coarse:h-11 flex items-center justify-center rounded-md text-[#66755a] hover:bg-[#e8f0e0] transition-colors"
         >
           <ChevronLeft size={14} />
         </button>
@@ -199,8 +262,8 @@ function FarmList({
         {farms.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-40 gap-2 px-4 text-center">
             <MapPin size={24} className="text-[#c0d8a0]" strokeWidth={1.5} />
-            <p className="text-xs text-[#9aab8a]">
-              No tienes fincas todavía. Añade tu primera finca.
+            <p className="text-xs text-[#66755a]">
+              {t('drawer.noFarmsYet')}
             </p>
           </div>
         ) : (
@@ -234,19 +297,19 @@ function FarmList({
                           </span>
                         </div>
                         <div className="flex items-center gap-1.5 mb-2">
-                          <MapPin size={10} className="text-[#9aab8a] shrink-0" />
-                          <span className="text-[10px] text-[#9aab8a] truncate">
+                          <MapPin size={10} className="text-[#66755a] shrink-0" />
+                          <span className="text-[10px] text-[#66755a] truncate">
                             {farm.location}
                           </span>
                         </div>
                         <div className="flex items-center gap-3">
-                          <span className="text-[10px] text-[#7a8a6a]">
+                          <span className="text-[10px] text-[#5a6a4a]">
                             <Layers size={9} className="inline mr-1" />
-                            {farmFields.length} {farmFields.length === 1 ? 'campo' : 'campos'}
+                            {t('drawer.fieldCount', { count: farmFields.length })}
                           </span>
                           {farm.boundary?.length > 0 && (
-                            <span className="text-[10px] text-[#7a8a6a]">
-                              {farm.totalAreaAcres > 0 ? `${farm.totalAreaAcres} ac` : ''}
+                            <span className="text-[10px] text-[#5a6a4a]">
+                              {farm.totalAreaAcres > 0 ? t('acresShort', { value: fmtNumber(farm.totalAreaAcres) }) : ''}
                             </span>
                           )}
                         </div>
@@ -256,7 +319,7 @@ function FarmList({
                       <div className="flex flex-col items-end gap-1 shrink-0">
                         {totalOverdue > 0 && (
                           <div className="flex items-center gap-1 px-1.5 py-0.5 bg-red-50 rounded-full">
-                            <AlertCircle size={9} className="text-red-500" />
+                            <AlertCircle size={9} className="text-red-600" />
                             <span className="text-[9px] text-red-600 font-bold">{totalOverdue}</span>
                           </div>
                         )}
@@ -266,31 +329,42 @@ function FarmList({
                             <span className="text-[9px] text-amber-600 font-bold">{totalDueSoon}</span>
                           </div>
                         )}
-                        <ChevronRight size={14} className="text-[#c0d0b0] mt-1" />
+                        <ChevronRight size={14} className="text-[#66755a] mt-1" />
                       </div>
                     </div>
                   </button>
 
-                  {/* Farm actions — visible on hover */}
-                  <div className="hidden group-hover:flex items-center gap-1 px-4 pb-2">
+                  {/* Farm actions — on hover; always shown on touch, where
+                      hover doesn't exist */}
+                  <div className="hidden group-hover:flex pointer-coarse:flex items-center gap-1 px-4 pb-2">
                     <button
                       onClick={(e) => { e.stopPropagation(); onSetFavorite(farm.id) }}
-                      className={`flex items-center gap-1 px-2 py-1 rounded text-[10px] transition-colors ${
+                      className={`flex items-center gap-1 px-2 py-1 pointer-coarse:px-3 pointer-coarse:py-2 rounded text-[10px] transition-colors ${
                         isFavorite
                           ? 'text-amber-500 bg-amber-50'
-                          : 'text-[#9aab8a] hover:text-amber-500 hover:bg-amber-50'
+                          : 'text-[#66755a] hover:text-amber-500 hover:bg-amber-50'
                       }`}
-                      title={isFavorite ? 'Finca favorita' : 'Marcar como favorita'}
+                      title={isFavorite ? t('drawer.favoriteTitle') : t('drawer.markFavoriteTitle')}
                     >
                       <Star size={10} className={isFavorite ? 'fill-amber-400' : ''} />
-                      {isFavorite ? 'Favorita' : 'Favorita'}
+                      {t('drawer.favorite')}
                     </button>
                     <button
-                      onClick={(e) => { e.stopPropagation(); onDelete(farm) }}
-                      className="flex items-center gap-1 px-2 py-1 rounded text-[10px] text-[#9aab8a] hover:text-red-500 hover:bg-red-50 transition-colors"
+                      onClick={(e) => { e.stopPropagation(); onTeam(farm) }}
+                      className="flex items-center gap-1 px-2 py-1 pointer-coarse:px-3 pointer-coarse:py-2 rounded text-[10px] text-[#66755a] hover:text-[#2d4a1e] hover:bg-[#f0f5e8] transition-colors"
+                      title={t('drawer.teamTitle')}
                     >
-                      <Trash2 size={10} /> Eliminar
+                      <Users size={10} /> {t('drawer.team')}
                     </button>
+                    {/* Deleting a farm is owner-only — hide what the server rejects */}
+                    {isFarmOwner(farm) && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onDelete(farm) }}
+                      className="flex items-center gap-1 px-2 py-1 pointer-coarse:px-3 pointer-coarse:py-2 rounded text-[10px] text-[#66755a] hover:text-red-600 hover:bg-red-50 transition-colors"
+                    >
+                      <Trash2 size={10} /> {t('drawer.delete')}
+                    </button>
+                    )}
                   </div>
                 </div>
               )
@@ -299,13 +373,19 @@ function FarmList({
         )}
       </div>
 
-      {/* Fixed bottom — Add farm button */}
-      <div className="px-4 py-3 border-t border-[#e0e8d8] bg-white shrink-0">
+      {/* Fixed bottom — Add farm + join-by-code */}
+      <div className="px-4 py-3 border-t border-[#e0e8d8] bg-white shrink-0 flex flex-col gap-1.5">
         <button
           onClick={onAddFarm}
           className="w-full flex items-center justify-center gap-2 py-2.5 bg-[#2d4a1e] text-[#d4e8b0] rounded-lg text-xs font-medium hover:bg-[#3d6128] transition-colors"
         >
-          <Plus size={13} /> Añadir finca
+          <Plus size={13} /> {t('drawer.addFarm')}
+        </button>
+        <button
+          onClick={onJoin}
+          className="w-full py-1.5 pointer-coarse:py-2.5 text-[10px] text-[#5a6a4a] hover:text-[#2d4a1e] transition-colors"
+        >
+          {t('drawer.joinPrompt')}
         </button>
       </div>
     </div>
@@ -313,22 +393,32 @@ function FarmList({
 }
 
 // ── Level 2: Field list for a farm ────────────────────────────────────
+// Cards are the shared FieldSummaryCard (same one the field editor uses):
+// single click selects on the map, double click zooms the map to the
+// field, Editar opens the editor for that field, and the card owns
+// check-off + the full operations UI.
 function FieldList({
-  farm, fields, showBackButton,
-  onBack, onClose, onEditField, onDeleteField,
+  farm, fields, focusFieldId, focusNonce, onSelectField, onZoomToField,
+  showBackButton, onBack, onTeam, onClose, onEditField, onDeleteField,
   onToggleDisplay, onOpenFieldEditor,
 }: {
   farm: Farm
   fields: PlacedField[]
+  focusFieldId: string | null
+  focusNonce: number
+  onSelectField: (fieldId: string) => void
+  onZoomToField: (fieldId: string) => void
   showBackButton: boolean
   onBack: () => void
+  onTeam: () => void
   onClose: () => void
   onEditField: (id: string) => void
   onDeleteField: (id: string) => void
   onToggleDisplay: (field: PlacedField) => void
   onOpenFieldEditor: () => void
   }) {
-  
+
+  const { t } = useTranslation('farm')
   const deleteField = useDeleteField(farm.id)
   const { removeFieldIdFromFarm } = useFarmStore()
 
@@ -337,7 +427,7 @@ function FieldList({
       onSuccess: () => {
         removeFieldIdFromFarm(farm.id, fieldId)
         onDeleteField(fieldId) // notify parent if needed
-        toast.success('Campo eliminado')
+        toast.success(t('drawer.fieldDeleted'))
       },
     })
   }
@@ -350,8 +440,6 @@ function FieldList({
     return sum + h.dueSoon
   }, 0)
 
-  
-
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
@@ -360,7 +448,8 @@ function FieldList({
           <div className="flex items-center gap-2 min-w-0">
             {showBackButton && (
               <button onClick={onBack}
-                className="text-[#9aab8a] hover:text-[#2d4a1e] transition-colors shrink-0"
+                aria-label={t('drawer.myFarms')}
+                className="pointer-coarse:p-2.5 text-[#66755a] hover:text-[#2d4a1e] transition-colors shrink-0"
               >
                 <ChevronLeft size={16} />
               </button>
@@ -368,29 +457,38 @@ function FieldList({
             <div className="min-w-0">
               <p className="text-xs font-semibold text-[#2d4a1e] truncate">{farm.name}</p>
               <div className="flex items-center gap-2 mt-0.5">
-                <p className="text-[10px] text-[#9aab8a]">
-                  {fields.length} {fields.length === 1 ? 'campo' : 'campos'}
+                <p className="text-[10px] text-[#66755a]">
+                  {t('drawer.fieldCount', { count: fields.length })}
                 </p>
                 {totalOverdue > 0 && (
                   <div className="flex items-center gap-0.5 px-1.5 py-0.5 bg-red-50 rounded-full">
-                    <AlertCircle size={8} className="text-red-500" />
-                    <span className="text-[9px] text-red-600 font-bold">{totalOverdue} vencidas</span>
+                    <AlertCircle size={8} className="text-red-600" />
+                    <span className="text-[9px] text-red-600 font-bold">{t('drawer.overdueBadge', { count: totalOverdue })}</span>
                   </div>
                 )}
                 {totalDueSoon > 0 && totalOverdue === 0 && (
                   <div className="flex items-center gap-0.5 px-1.5 py-0.5 bg-amber-50 rounded-full">
                     <Clock size={8} className="text-amber-500" />
-                    <span className="text-[9px] text-amber-600 font-bold">{totalDueSoon} próximas</span>
+                    <span className="text-[9px] text-amber-600 font-bold">{t('drawer.dueSoonBadge', { count: totalDueSoon })}</span>
                   </div>
                 )}
               </div>
             </div>
           </div>
-          <button onClick={onClose}
-            className="w-6 h-6 flex items-center justify-center rounded-md text-[#9aab8a] hover:bg-[#e8f0e0] transition-colors shrink-0"
-          >
-            <ChevronLeft size={14} />
-          </button>
+          <div className="flex items-center gap-1 shrink-0">
+            <button onClick={onTeam}
+              title={t('drawer.teamTitle')}
+              className="w-6 h-6 pointer-coarse:w-11 pointer-coarse:h-11 flex items-center justify-center rounded-md text-[#66755a] hover:bg-[#e8f0e0] transition-colors"
+            >
+              <Users size={13} />
+            </button>
+            <button onClick={onClose}
+              aria-label={t('common:actions.close')}
+              className="w-6 h-6 pointer-coarse:w-11 pointer-coarse:h-11 flex items-center justify-center rounded-md text-[#66755a] hover:bg-[#e8f0e0] transition-colors"
+            >
+              <ChevronLeft size={14} />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -399,157 +497,55 @@ function FieldList({
         {fields.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-40 gap-2 px-4 text-center">
             <Layers size={24} className="text-[#c0d8a0]" strokeWidth={1.5} />
-            <p className="text-xs text-[#9aab8a]">
-              No hay campos todavía. Usa el editor de campos para añadir.
+            <p className="text-xs text-[#66755a]">
+              {t('drawer.noFieldsYet')}
             </p>
           </div>
         ) : (
           <div className="flex flex-col divide-y divide-[#f0f5e8]">
             {fields.map(field => (
-              <FieldCard
-                key={field.id}
-                field={field}
-                onEdit={() => onEditField(field.id)}
-                onDelete={() => handleDeleteField(field.id)}  // ← use this
-                onToggleDisplay={() => onToggleDisplay(field)}
-              />
+              // Livestock fields (corrales) get the compact herd card — no
+              // crop rows or operations calendar apply to them.
+              field.kind === 'livestock' ? (
+                <CorralCard
+                  key={field.id}
+                  field={field}
+                  focused={field.id === focusFieldId}
+                  focusNonce={focusNonce}
+                  onSelect={() => onSelectField(field.id)}
+                  onZoomToField={() => onZoomToField(field.id)}
+                  onOpenEditor={() => onEditField(field.id)}
+                  onDelete={() => handleDeleteField(field.id)}
+                />
+              ) : (
+                <FieldSummaryCard
+                  key={field.id}
+                  field={field}
+                  focused={field.id === focusFieldId}
+                  focusNonce={focusNonce}
+                  onSelect={() => onSelectField(field.id)}
+                  onOpenEditor={() => onEditField(field.id)}
+                  onCardDoubleClick={() => onZoomToField(field.id)}
+                  onDelete={() => handleDeleteField(field.id)}
+                  onToggleDisplay={() => onToggleDisplay(field)}
+                />
+              )
             ))}
           </div>
         )}
       </div>
 
-      {/* Fixed bottom — Manage fields button */}
+      {/* Fixed bottom — start drawing a new field on the map.
+          Field structure is admin+ work; operators don't get the button. */}
+      {canManageStructure(farm) && (
       <div className="px-4 py-3 border-t border-[#e0e8d8] bg-white shrink-0">
         <button
           onClick={onOpenFieldEditor}
           className="w-full flex items-center justify-center gap-2 py-2.5 bg-[#2d4a1e] text-[#d4e8b0] rounded-lg text-xs font-medium hover:bg-[#3d6128] transition-colors"
         >
-          <Pencil size={13} /> Gestionar campos
+          <Plus size={13} /> {t('drawer.newField')}
         </button>
       </div>
-    </div>
-  )
-}
-
-// ── Individual field card ─────────────────────────────────────────────
-function FieldCard({
-  field, onEdit, onDelete, onToggleDisplay,
-}: {
-  field: PlacedField
-  onEdit: () => void
-  onDelete: () => void
-  onToggleDisplay: () => void
-}) {
-  const [confirmDelete, setConfirmDelete] = useState(false)
-  const summary = computeCropSummary(field.rows ?? [], field.freePlants ?? [], getCropById)
-  const health = getFieldOperationHealth(field.plantingEvents ?? [])
-
-  return (
-    <div className="px-4 py-3 hover:bg-[#fafcf8] transition-colors">
-
-      {/* Field name + color + operation badges */}
-      <div className="flex items-center justify-between mb-1">
-        <div className="flex items-center gap-2 min-w-0">
-          <div className="w-3 h-3 rounded-full shrink-0"
-            style={{ backgroundColor: field.color }}
-          />
-          <span className="text-sm font-medium text-[#2d4a1e] truncate">{field.name}</span>
-        </div>
-        <div className="flex items-center gap-1 shrink-0">
-          {health.overdue > 0 && (
-            <div className="flex items-center gap-0.5 px-1.5 py-0.5 bg-red-50 rounded-full">
-              <AlertCircle size={8} className="text-red-500" />
-              <span className="text-[9px] text-red-600 font-bold">{health.overdue}</span>
-            </div>
-          )}
-          {health.dueSoon > 0 && (
-            <div className="flex items-center gap-0.5 px-1.5 py-0.5 bg-amber-50 rounded-full">
-              <Clock size={8} className="text-amber-500" />
-              <span className="text-[9px] text-amber-600 font-bold">{health.dueSoon}</span>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Area */}
-      {field.boundary && field.boundary.length >= 3 && (() => {
-        const bbox = farmBoundaryToBBox(field.boundary)
-        const scale = getCanvasScale(bbox)
-        const pts = field.boundary.map(p => latlngToCanvas(p.lat, p.lng, bbox))
-        const acres = ft2ToAcres(areaFt2(pts, scale))
-        return (
-          <p className="text-[10px] text-[#9aab8a] mb-1.5">
-            {acres.toFixed(3)} ac
-          </p>
-        )
-      })()}
-
-      {/* Crop summary */}
-      {summary.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 mb-2.5">
-          {summary.map(c => (
-            <div key={c.cropTypeId}
-              className="flex items-center gap-1 px-1.5 py-0.5 bg-[#f5f8f0] rounded"
-            >
-              <span className="text-xs">{c.emoji}</span>
-              <span className="text-[10px] text-[#5a6a4a] font-medium">{c.count}</span>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Pin / shape toggle */}
-      <button
-        onClick={onToggleDisplay}
-        className="flex items-center gap-1.5 mb-2.5 text-[10px] text-[#5a6a4a] hover:text-[#2d4a1e] transition-colors w-full"
-      >
-        {field.displayMode === 'pin' ? (
-          <>
-            <MapPin size={10} className="text-[#639922]" />
-            <span>Mostrar como pin</span>
-            <ToggleLeft size={13} className="text-[#c0d0b0] ml-auto" />
-          </>
-        ) : (
-          <>
-            <Layers size={10} className="text-[#639922]" />
-            <span>Mostrar como forma</span>
-            <ToggleRight size={13} className="text-[#639922] ml-auto" />
-          </>
-        )}
-      </button>
-
-      {/* Actions */}
-      {!confirmDelete ? (
-        <div className="flex items-center gap-2">
-          <button onClick={onEdit}
-            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-[10px] text-[#639922] border border-[#c8dca8] rounded-lg hover:bg-[#eaf3de] transition-colors"
-          >
-            <Pencil size={10} /> Editar
-          </button>
-          <button onClick={() => setConfirmDelete(true)}
-            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 text-[10px] text-[#9aab8a] border border-[#e0e8d8] rounded-lg hover:text-red-500 hover:border-red-200 hover:bg-red-50 transition-colors"
-          >
-            <Trash2 size={10} /> Eliminar
-          </button>
-        </div>
-      ) : (
-        <div className="flex flex-col gap-1.5">
-          <p className="text-[10px] text-red-500 text-center">
-            ¿Eliminar "{field.name}"?
-          </p>
-          <div className="flex items-center gap-2">
-            <button onClick={onDelete}
-              className="flex-1 py-1.5 text-[10px] text-white bg-red-500 rounded-lg hover:bg-red-600 transition-colors"
-            >
-              Sí, eliminar
-            </button>
-            <button onClick={() => setConfirmDelete(false)}
-              className="flex-1 py-1.5 text-[10px] text-[#5a6a4a] border border-[#e0e8d8] rounded-lg hover:bg-[#f5f8f0] transition-colors"
-            >
-              Cancelar
-            </button>
-          </div>
-        </div>
       )}
     </div>
   )

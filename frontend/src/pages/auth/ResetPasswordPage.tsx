@@ -1,12 +1,13 @@
 import { useState } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useResetPassword } from '@/features/auth/hooks/useAuth'
 import { Eye, EyeOff, Loader2, CheckCircle } from 'lucide-react'
 
 export default function ResetPasswordPage() {
+  const { t } = useTranslation('auth')
   const [searchParams] = useSearchParams()
   const token = searchParams.get('token') || ''
-  const navigate = useNavigate()
   const resetPassword = useResetPassword()
 
   const [password, setPassword] = useState('')
@@ -20,15 +21,15 @@ export default function ResetPasswordPage() {
     setError('')
 
     if (password !== confirm) {
-      setError('Las contraseñas no coinciden')
+      setError(t('reset.errorMismatch'))
       return
     }
     if (password.length < 8) {
-      setError('La contraseña debe tener al menos 8 caracteres')
+      setError(t('reset.errorMin'))
       return
     }
     if (!token) {
-      setError('Token inválido. Por favor solicita un nuevo enlace.')
+      setError(t('reset.errorToken'))
       return
     }
 
@@ -36,12 +37,12 @@ export default function ResetPasswordPage() {
       await resetPassword.mutateAsync({ token, password })
       setSuccess(true)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al restablecer la contraseña')
+      setError(err instanceof Error ? err.message : t('reset.errorGeneric'))
     }
   }
 
   return (
-    <div className="min-h-screen bg-[#f5f8f0] flex items-center justify-center p-4">
+    <div className="min-h-dvh bg-[#f5f8f0] flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <div className="text-5xl mb-3">🌱</div>
@@ -51,22 +52,22 @@ export default function ResetPasswordPage() {
         <div className="bg-white rounded-2xl shadow-sm border border-[#e0e8d8] overflow-hidden">
           <div className="bg-[#2d4a1e] px-8 py-6">
             <h2 className="text-lg font-semibold text-[#d4e8b0]">
-              Nueva contraseña
+              {t('reset.title')}
             </h2>
-            <p className="text-sm text-[#8fba4e] mt-0.5">
-              Elige una contraseña segura
+            <p className="text-sm text-[#4d7a1b] mt-0.5">
+              {t('reset.subtitle')}
             </p>
           </div>
 
           <div className="px-8 py-6">
             {success ? (
               <div className="text-center py-4">
-                <CheckCircle size={40} className="text-[#639922] mx-auto mb-3" />
+                <CheckCircle size={40} className="text-[#4d7a1b] mx-auto mb-3" />
                 <p className="text-sm text-[#2d4a1e] font-medium mb-2">
-                  ¡Contraseña actualizada!
+                  {t('reset.successTitle')}
                 </p>
-                <p className="text-sm text-[#7a8a6a]">
-                  Redirigiendo al inicio de sesión...
+                <p className="text-sm text-[#5a6a4a]">
+                  {t('reset.successBody')}
                 </p>
               </div>
             ) : (
@@ -79,21 +80,21 @@ export default function ResetPasswordPage() {
 
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-medium text-[#5a6a4a]">
-                    Nueva contraseña
+                    {t('reset.passwordLabel')}
                   </label>
                   <div className="relative">
                     <input
                       type={showPassword ? 'text' : 'password'}
                       value={password}
                       onChange={e => setPassword(e.target.value)}
-                      placeholder="Mínimo 8 caracteres"
+                      placeholder={t('reset.passwordPlaceholder')}
                       required
                       className="w-full px-3 py-2.5 pr-10 rounded-lg border border-[#d0dcc0] text-sm text-[#2d4a1e] placeholder:text-[#b0bea0] focus:outline-none focus:border-[#639922] focus:ring-1 focus:ring-[#639922] transition-colors"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(p => !p)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9aab8a]"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-[#66755a]"
                     >
                       {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
                     </button>
@@ -102,13 +103,13 @@ export default function ResetPasswordPage() {
 
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-medium text-[#5a6a4a]">
-                    Confirmar contraseña
+                    {t('reset.confirmLabel')}
                   </label>
                   <input
                     type={showPassword ? 'text' : 'password'}
                     value={confirm}
                     onChange={e => setConfirm(e.target.value)}
-                    placeholder="Repite tu contraseña"
+                    placeholder={t('reset.confirmPlaceholder')}
                     required
                     className="w-full px-3 py-2.5 rounded-lg border border-[#d0dcc0] text-sm text-[#2d4a1e] placeholder:text-[#b0bea0] focus:outline-none focus:border-[#639922] focus:ring-1 focus:ring-[#639922] transition-colors"
                   />
@@ -120,9 +121,9 @@ export default function ResetPasswordPage() {
                   className="w-full flex items-center justify-center gap-2 py-2.5 bg-[#2d4a1e] text-[#d4e8b0] rounded-lg text-sm font-medium hover:bg-[#3d6128] transition-colors disabled:opacity-60 mt-2"
                 >
                   {resetPassword.isPending ? (
-                    <><Loader2 size={15} className="animate-spin" /> Guardando...</>
+                    <><Loader2 size={15} className="animate-spin" /> {t('reset.saving')}</>
                   ) : (
-                    'Guardar nueva contraseña'
+                    t('reset.submit')
                   )}
                 </button>
               </form>
@@ -131,8 +132,8 @@ export default function ResetPasswordPage() {
 
           {!success && (
             <div className="px-8 pb-6 text-center">
-              <Link to="/login" className="text-sm text-[#639922] hover:text-[#2d4a1e] transition-colors">
-                Volver a iniciar sesión
+              <Link to="/login" className="text-sm text-[#4d7a1b] hover:text-[#2d4a1e] transition-colors">
+                {t('reset.backToLogin')}
               </Link>
             </div>
           )}

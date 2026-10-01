@@ -1,7 +1,11 @@
 import { useState, useRef, useEffect } from 'react'
-import { Search, ChevronDown, X } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
+import { Search, ChevronDown, X, Plus } from 'lucide-react'
 import { CROP_LIBRARY } from '../data/cropLibrary'
 import type { CropType } from '../data/cropLibrary'
+import { useCropStore } from '@/store/useCropStore'
+import { localName, localCategory } from '@/i18n'
+import CustomCropModal from './customCropModal'
 
 type Props = {
   value: string | null
@@ -11,22 +15,29 @@ type Props = {
 }
 
 export default function CropSelector({
-  value, onChange, placeholder = 'Seleccionar cultivo', allowClear = false
+  value, onChange, placeholder, allowClear = false
 }: Props) {
+  const { t } = useTranslation('editor')
   const [isOpen, setIsOpen] = useState(false)
+  const [showCreate, setShowCreate] = useState(false)
   const [search, setSearch] = useState('')
   const containerRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  const selectedCrop = value ? CROP_LIBRARY.find(c => c.id === value) : null
+  // Server crops (built-ins + own custom crops) once loaded; the static
+  // library covers anonymous/offline states.
+  const storeCrops = useCropStore(s => s.crops)
+  const crops: CropType[] = storeCrops.length > 0 ? storeCrops : CROP_LIBRARY
+
+  const selectedCrop = value ? crops.find(c => c.id === value) ?? CROP_LIBRARY.find(c => c.id === value) : null
 
   const filtered = search.trim()
-    ? CROP_LIBRARY.filter(c =>
+    ? crops.filter(c =>
         c.nameEs.toLowerCase().includes(search.toLowerCase()) ||
         c.name.toLowerCase().includes(search.toLowerCase()) ||
         c.category.toLowerCase().includes(search.toLowerCase())
       )
-    : CROP_LIBRARY
+    : crops
 
   // Group filtered results by category
   const grouped = filtered.reduce((acc, crop) => {
@@ -71,21 +82,21 @@ export default function CropSelector({
           <>
             <span className="text-base leading-none">{selectedCrop.emoji}</span>
             <span className="flex-1 text-[#2d4a1e] font-medium truncate">
-              {selectedCrop.nameEs}
+              {localName(selectedCrop)}
             </span>
           </>
         ) : (
-          <span className="flex-1 text-[#b0bea0]">{placeholder}</span>
+          <span className="flex-1 text-[#b0bea0]">{placeholder ?? t('common.selectCrop')}</span>
         )}
         {allowClear && selectedCrop ? (
           <button
             onClick={(e) => { e.stopPropagation(); onChange('') }}
-            className="text-[#9aab8a] hover:text-red-400 transition-colors"
+            className="text-[#66755a] hover:text-red-400 transition-colors"
           >
             <X size={12} />
           </button>
         ) : (
-          <ChevronDown size={14} className="text-[#9aab8a] shrink-0" />
+          <ChevronDown size={14} className="text-[#66755a] shrink-0" />
         )}
       </button>
 
@@ -95,13 +106,13 @@ export default function CropSelector({
 
           {/* Search input */}
           <div className="flex items-center gap-2 px-3 py-2 border-b border-[#f0f5e8]">
-            <Search size={13} className="text-[#9aab8a] shrink-0" />
+            <Search size={13} className="text-[#66755a] shrink-0" />
             <input
               ref={inputRef}
               type="text"
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder="Buscar cultivo..."
+              placeholder={t('selector.searchPlaceholder')}
               className="flex-1 text-xs text-[#2d4a1e] placeholder:text-[#b0bea0] outline-none bg-transparent"
             />
           </div>
@@ -109,16 +120,16 @@ export default function CropSelector({
           {/* Results */}
           <div className="max-h-52 overflow-y-auto">
             {Object.keys(grouped).length === 0 ? (
-              <div className="px-3 py-4 text-xs text-[#9aab8a] text-center">
-                No se encontraron resultados
+              <div className="px-3 py-4 text-xs text-[#66755a] text-center">
+                {t('selector.noResults')}
               </div>
             ) : (
-              Object.entries(grouped).map(([category, crops]) => (
+              Object.entries(grouped).map(([category, categoryCrops]) => (
                 <div key={category}>
-                  <div className="px-3 py-1.5 text-[9px] font-semibold text-[#9aab8a] uppercase tracking-wider bg-[#fafcf8] border-b border-[#f0f5e8]">
-                    {category}
+                  <div className="px-3 py-1.5 text-[9px] font-semibold text-[#66755a] uppercase tracking-wider bg-[#fafcf8] border-b border-[#f0f5e8]">
+                    {localCategory(category)}
                   </div>
-                  {crops.map(crop => (
+                  {categoryCrops.map(crop => (
                     <button
                       key={crop.id}
                       onClick={() => handleSelect(crop)}
@@ -130,7 +141,7 @@ export default function CropSelector({
                         {crop.emoji}
                       </span>
                       <span className={`${value === crop.id ? 'text-[#2d4a1e] font-medium' : 'text-[#3d5a2a]'}`}>
-                        {crop.nameEs}
+                        {localName(crop)}
                       </span>
                     </button>
                   ))}
@@ -139,7 +150,22 @@ export default function CropSelector({
             )}
           </div>
 
+          {/* New custom crop — the avocado gap's front door */}
+          <button
+            onClick={() => { setIsOpen(false); setSearch(''); setShowCreate(true) }}
+            className="w-full flex items-center gap-2 px-3 py-2.5 text-xs font-medium text-[#4d7a1b] border-t border-[#f0f5e8] hover:bg-[#f5f8f0] transition-colors"
+          >
+            <Plus size={13} /> {t('selector.newCrop')}
+          </button>
+
         </div>
+      )}
+
+      {showCreate && (
+        <CustomCropModal
+          onClose={() => setShowCreate(false)}
+          onCreated={(cropId) => { setShowCreate(false); onChange(cropId) }}
+        />
       )}
     </div>
   )

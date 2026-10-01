@@ -1,5 +1,9 @@
 import type { RecommendedOperationType } from './data/cropSchedules'
 
+// Re-exported: consumers of RecommendedOperation naturally want its type
+// union from the same module (plantingEventManager does).
+export type { RecommendedOperationType }
+
 export type FieldShape = 'rectangle' | 'polygon'
 
 // All boundary points are now geographic coordinates
@@ -47,11 +51,17 @@ export type RecommendedOperation = {
   labelEs: string
   recommendedDate: string
   status: OperationStatus
-  completedDate?: string
-  notes?: string
-  product?: string
-  quantity?: number
-  unit?: string
+  // The wire carries explicit nulls for open operations (see the field
+  // API contract in backend/src/contracts/fieldContract.ts — the contract
+  // test asserts these types stay assignable).
+  completedDate?: string | null
+  // Set by the backend when a check-off creates an operations-log entry
+  // (SDD §6.2). Round-tripped on field saves so the link survives edits.
+  completedOperationId?: string | null
+  notes?: string | null
+  product?: string | null
+  quantity?: number | null
+  unit?: string | null
 }
 
 export type PlantingEvent = {
@@ -60,6 +70,10 @@ export type PlantingEvent = {
   cropTypeId: string
   plantingDate: string
   plantCount: number
+  // Which recipe version this planting followed (Recetas de Cultivo R3).
+  // The stamped operations are a copy; this reference is for proof.
+  // Round-tripped on field saves like completedOperationId.
+  recipeVersionId?: string | null
   rowIds: string[]
   freePlantIds: string[]
   operations: RecommendedOperation[]
@@ -77,6 +91,8 @@ export type PlacedField = {
   id: string
   farmId: string
   name: string
+  /** 'crops' (rows/plants) or 'livestock' (a corral — herds assigned). */
+  kind?: 'crops' | 'livestock'
   color: string
   shape: FieldShape
   // Boundary stored as lat/lng — the source of truth
@@ -85,6 +101,8 @@ export type PlacedField = {
   farmLat: number
   farmLng: number
   displayMode: 'pin' | 'shape'
+  // True while the field is being placed on the map (backend column).
+  isPositioning?: boolean
   rows: FieldRow[]
   freePlants: PlantInstance[]
   plantingEvents: PlantingEvent[]
@@ -100,6 +118,14 @@ export function randomFieldColor(): string {
   return FIELD_COLORS[Math.floor(Math.random() * FIELD_COLORS.length)]
 }
 
-export function todayISO(): string {
-  return new Date().toISOString().split('T')[0]
+// Calendar dates follow the farmer's device clock, never UTC: Puerto Rico
+// is UTC−4, so from 8 PM on toISOString() already answers with tomorrow.
+export function toLocalISODate(date: Date): string {
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${date.getFullYear()}-${month}-${day}`
+}
+
+export function todayISO(now: Date = new Date()): string {
+  return toLocalISODate(now)
 }

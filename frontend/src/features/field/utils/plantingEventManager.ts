@@ -1,8 +1,8 @@
 import type {
-  PlantingEvent, RecommendedOperation, FieldRow, PlantInstance
+  PlantingEvent, RecommendedOperation, RecommendedOperationType, FieldRow, PlantInstance
 } from '../types'
 import { todayISO } from '../types'
-import { getScheduleForCrop } from '../data/cropSchedules'
+import { resolveStampSource } from './recipeResolver'
 
 // Pure calendar-date arithmetic in UTC. Mixing UTC parsing with local
 // setDate/toISOString (the previous version) drifted a day around DST
@@ -12,30 +12,37 @@ function addDays(dateStr: string, days: number): string {
   return new Date(Date.UTC(y, m - 1, d + days)).toISOString().split('T')[0]
 }
 
-function generateOperations(
+// Stamp a planting's calendar from the recipe governing (field, crop):
+// a COPY of the operations plus the honest reference to the version they
+// came from. Falls back to the static schedules (no reference) when no
+// resolved recipe is loaded.
+function stampFromRecipe(
   plantingEventId: string,
+  fieldId: string,
   cropTypeId: string,
   plantingDate: string
-): RecommendedOperation[] {
-  const schedule = getScheduleForCrop(cropTypeId)
-  if (!schedule) return []
+): { operations: RecommendedOperation[]; recipeVersionId: string | null } {
+  const source = resolveStampSource(fieldId, cropTypeId)
+  if (!source) return { operations: [], recipeVersionId: null }
 
   const today = todayISO()
-
-  return schedule.operations.map(template => {
+  const operations = source.operations.map(template => {
     const recommendedDate = addDays(plantingDate, template.offsetDays)
-    const status = recommendedDate < today ? 'due' : 'pending'
+    const status: RecommendedOperation['status'] = recommendedDate < today ? 'due' : 'pending'
     return {
       id: `op_${plantingEventId}_${template.id}`,
       plantingEventId,
       templateId: template.id,
-      type: template.type,
+      // Server recipes ship type as string (custom operation labels);
+      // the built-in union is what the calendar UI renders.
+      type: template.type as RecommendedOperationType,
       labelEs: template.labelEs,
       recommendedDate,
       status,
       product: template.product,
     }
   })
+  return { operations, recipeVersionId: source.recipeVersionId }
 }
 
 // Find existing planting event for this crop + date combination
@@ -59,13 +66,14 @@ export function createPlantingEvent(
   freePlantIds: string[]
 ): PlantingEvent {
   const id = `pe_${fieldId}_${cropTypeId}_${plantingDate}_${Date.now()}`
-  const operations = generateOperations(id, cropTypeId, plantingDate)
+  const { operations, recipeVersionId } = stampFromRecipe(id, fieldId, cropTypeId, plantingDate)
   return {
     id,
     fieldId,
     cropTypeId,
     plantingDate,
     plantCount,
+    recipeVersionId,
     rowIds,
     freePlantIds,
     operations,
@@ -135,7 +143,19 @@ function healEventOperations(event: PlantingEvent): {
   event: PlantingEvent
   wasHistory: boolean
 } {
-  const schedule = generateOperations(event.id, event.cropTypeId, event.plantingDate)
+  // Only a history-only event (completed/skipped work and nothing else)
+  // is a replant candidate. A LIVE calendar is never healed: its stamped
+  // copy must not absorb templates from a recipe that changed since
+  // planting (Recetas de Cultivo R1).
+  const done = event.operations.filter(
+    op => op.status === 'completed' || op.status === 'skipped'
+  )
+  const isHistoryOnly = done.length > 0 && done.length === event.operations.length
+  if (!isHistoryOnly) return { event, wasHistory: false }
+
+  const { operations: schedule, recipeVersionId } = stampFromRecipe(
+    event.id, event.fieldId, event.cropTypeId, event.plantingDate
+  )
   const missing = schedule.filter(
     op => !event.operations.some(o => o.templateId === op.templateId)
   )
@@ -144,6 +164,9 @@ function healEventOperations(event: PlantingEvent): {
     wasHistory: true,
     event: {
       ...event,
+      // A replant is a new planting following the CURRENT recipe — the
+      // reference moves with the restored calendar.
+      recipeVersionId,
       operations: [...event.operations, ...missing].sort((a, b) =>
         a.recommendedDate.localeCompare(b.recommendedDate)
       ),
@@ -266,34 +289,27 @@ export function rebuildPlantingEvents(
     g.freePlantIds.push(p.id)
   }
 
-  const events: PlantingEvent[] = [...groups.values()].map(g =>
-    createPlantingEvent(fieldId, g.cropTypeId, g.plantingDate, g.count, g.rowIds, g.freePlantIds)
-  )
-
-  // Carry over completion status from the previous events where the
-  // crop + date grouping still exists.
-  const rebuilt = events.map(ev => {
+  // A group whose (crop, date) survives the edit is the SAME planting —
+  // it keeps its id, its stamped calendar, and its recipe reference
+  // (Recetas de Cultivo R1: the stamped copy is never rewritten, so a
+  // rebuild must not silently re-stamp from a recipe that changed since
+  // planting). Only the plant bookkeeping is recomputed. New groups get
+  // a fresh stamp from the currently-governing recipe.
+  const rebuilt: PlantingEvent[] = [...groups.values()].map(g => {
     const old = previousEvents.find(
-      e => e.cropTypeId === ev.cropTypeId && e.plantingDate === ev.plantingDate
+      e => e.cropTypeId === g.cropTypeId && e.plantingDate === g.plantingDate
     )
-    if (!old) return ev
+    if (!old) {
+      return createPlantingEvent(fieldId, g.cropTypeId, g.plantingDate, g.count, g.rowIds, g.freePlantIds)
+    }
+    // A preserved history-only event whose plants came back is a replant —
+    // heal restores its pending calendar (live events pass through as-is).
+    const { event: healed } = healEventOperations(old)
     return {
-      ...ev,
-      operations: ev.operations.map(op => {
-        const oldOp = old.operations.find(o => o.templateId === op.templateId)
-        if (oldOp && (oldOp.status === 'completed' || oldOp.status === 'skipped')) {
-          return {
-            ...op,
-            status: oldOp.status,
-            completedDate: oldOp.completedDate,
-            notes: oldOp.notes,
-            product: oldOp.product,
-            quantity: oldOp.quantity,
-            unit: oldOp.unit,
-          }
-        }
-        return op
-      }),
+      ...healed,
+      plantCount: g.count,
+      rowIds: g.rowIds,
+      freePlantIds: g.freePlantIds,
     }
   })
 

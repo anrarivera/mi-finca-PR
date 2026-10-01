@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useMemo } from 'react'
 import * as L from 'leaflet'
 
 export type DrawingMode = 'idle' | 'drawing' | 'complete' | 'editing'
@@ -74,18 +74,39 @@ export function findNearestEdgeIndex(
 export function useDrawing() {
   const [mode, setMode] = useState<DrawingMode>('idle')
   const [points, setPoints] = useState<L.LatLng[]>([])
-  const [areaAcres, setAreaAcres] = useState<number | null>(null)
   const [selectedPointIndex, setSelectedPointIndex] = useState<number | null>(null)
 
-  // ── Keyboard handler for delete/escape during editing ──────────────
+  // Derived, not stored: the area is a pure function of the polygon, shown
+  // once a shape exists (complete/editing) and cleared with the points.
+  const areaAcres = useMemo(
+    () =>
+      (mode === 'complete' || mode === 'editing') && points.length >= 3
+        ? parseFloat(calculateAcres(points).toFixed(2))
+        : null,
+    [mode, points]
+  )
+
+  // Remove the last placed point while drawing (Backspace / panel button)
+  const undoLastPoint = useCallback(() => {
+    setPoints(prev => (prev.length === 0 ? prev : prev.slice(0, -1)))
+  }, [])
+
+  // Delete the selected point while editing (Delete / panel button)
+  const deleteSelectedPoint = useCallback(() => {
+    if (selectedPointIndex === null) return
+    setPoints(prev => {
+      // Need at least 3 points to remain a valid polygon
+      if (prev.length <= 3) return prev
+      return prev.filter((_, i) => i !== selectedPointIndex)
+    })
+    setSelectedPointIndex(null)
+  }, [selectedPointIndex])
+
+  // ── Keyboard shortcuts — same actions the panel buttons expose ─────
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if (mode === 'drawing' && e.key === 'Backspace') {
-        // Remove last placed point during drawing
-        setPoints(prev => {
-          if (prev.length === 0) return prev
-          return prev.slice(0, -1)
-        })
+        undoLastPoint()
         return
       }
 
@@ -96,14 +117,8 @@ export function useDrawing() {
           return
         }
 
-        if (e.key === 'Delete' && selectedPointIndex !== null) {
-          setPoints(prev => {
-            // Need at least 3 points to remain a valid polygon
-            if (prev.length <= 3) return prev
-            const newPoints = prev.filter((_, i) => i !== selectedPointIndex)
-            return newPoints
-          })
-          setSelectedPointIndex(null)
+        if (e.key === 'Delete') {
+          deleteSelectedPoint()
           return
         }
       }
@@ -111,31 +126,17 @@ export function useDrawing() {
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [mode, selectedPointIndex])
-
-  // Recalculate area whenever points change in complete/editing mode
-  useEffect(() => {
-    if ((mode === 'complete' || mode === 'editing') && points.length >= 3) {
-      const acres = calculateAcres(points)
-      setAreaAcres(parseFloat(acres.toFixed(2)))
-    }
-  }, [points, mode])
+  }, [mode, undoLastPoint, deleteSelectedPoint])
 
   const loadBoundary = useCallback((points: L.LatLng[]) => {
     setPoints(points)
     setMode('complete')
     setSelectedPointIndex(null)
-    // Calculate area from loaded points
-    if (points.length >= 3) {
-      const area = calculateGeodesicArea(points)
-      setAreaAcres(area)
-    }
   }, [])
-  
+
   const startDrawing = useCallback(() => {
     setMode('drawing')
     setPoints([])
-    setAreaAcres(null)
     setSelectedPointIndex(null)
   }, [])
 
@@ -145,8 +146,6 @@ export function useDrawing() {
 
   const completeDrawing = useCallback((currentPoints: L.LatLng[]) => {
     if (currentPoints.length < 3) return
-    const acres = calculateAcres(currentPoints)
-    setAreaAcres(parseFloat(acres.toFixed(2)))
     setMode('complete')
     setSelectedPointIndex(null)
   }, [])
@@ -164,7 +163,6 @@ export function useDrawing() {
   const clearDrawing = useCallback(() => {
     setMode('idle')
     setPoints([])
-    setAreaAcres(null)
     setSelectedPointIndex(null)
   }, [])
 
@@ -215,5 +213,7 @@ export function useDrawing() {
     insertPointAfter,
     moveAllPoints,
     loadBoundary,
+    undoLastPoint,
+    deleteSelectedPoint,
   }
 }
