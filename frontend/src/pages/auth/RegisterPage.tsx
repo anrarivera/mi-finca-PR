@@ -65,7 +65,11 @@ export default function RegisterPage() {
       // keeps its original optional farm-invite meaning. A bad join never
       // blocks registration — the account already exists.
       const shouldJoin = gated ? result.accessKind === 'farmInvite' : !!code
-      if (code && shouldJoin) {
+      if (result.joinedFarm) {
+        // The server created the account already inside the farm —
+        // redeeming the code again from here would only earn a 409.
+        toast.success(t('register.joinSuccess', { farmName: result.joinedFarm.farmName }))
+      } else if (code && shouldJoin) {
         try {
           const joined = await joinFarm.mutateAsync(code)
           toast.success(t('register.joinSuccess', { farmName: joined.farmName }))

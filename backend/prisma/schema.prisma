@@ -13,6 +13,12 @@ model User {
   // Ephemeral try-before-signup accounts ("Probar la demo") — seeded with
   // a sample farm, excluded from digests, purged by cron after a few days.
   isDemo            Boolean   @default(false)
+  // How the account got past the signup gate: 'open' (registered while
+  // the gate was down) | 'signup_code' | 'farm_invite' | 'demo'. NULL =
+  // the account predates this column and counts as admitted by the app's
+  // owner. Decides whose farm invite codes may create NEW accounts
+  // (lib/betaAccess).
+  admittedVia       String?
   passwordHash      String?
   fullName          String
   profilePhotoUrl   String?

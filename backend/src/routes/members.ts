@@ -4,6 +4,7 @@ import { requireAuth } from '../middleware/auth'
 import { Errors } from '../lib/errors'
 import { requireFields } from '../lib/validate'
 import { requireFarmRole } from '../lib/farmAccess'
+import { requireRealAccount } from '../lib/betaAccess'
 import { sendMail } from '../lib/mailer'
 import {
   generateInviteCode, hashInviteCode, INVITE_TTL_DAYS,
@@ -67,6 +68,11 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
 // ─────────────────────────────────────────────────────────────────────
 router.post('/', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    // Before anything looks at the email: a demo visitor must get the same
+    // answer for registered and unregistered addresses, add nobody to the
+    // demo farm without their consent, and trigger no mail.
+    await requireRealAccount(req.user!.userId)
+
     const farmId = req.params.farmId as string
     requireFields(req.body, ['email', 'role'])
     const { email, role } = req.body
@@ -133,6 +139,10 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
 // ─────────────────────────────────────────────────────────────────────
 router.post('/invites', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    // A join code doubles as app access while the signup gate is up —
+    // the demo needs no code, so it must not be able to mint one.
+    await requireRealAccount(req.user!.userId)
+
     const farmId = req.params.farmId as string
     requireFields(req.body, ['role'])
     const { role } = req.body

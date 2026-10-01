@@ -65,7 +65,11 @@ export function useRegister() {
       /** Required while the signup gate (SIGNUP_MODE=invite) is up. */
       accessCode?: string
     }) => {
-      return api.post<AuthResponse & { accessKind: 'signup' | 'farmInvite' | null }>(
+      return api.post<AuthResponse & {
+        accessKind: 'signup' | 'farmInvite' | null
+        /** Set when a farm-invite access code already joined its farm. */
+        joinedFarm: { farmId: string; farmName: string; role: string } | null
+      }>(
         '/api/v1/auth/register', data
       )
     },

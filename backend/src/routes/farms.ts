@@ -2,6 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express'
 import { prisma } from '../lib/prisma'
 import { requireAuth } from '../middleware/auth'
 import { Errors } from '../lib/errors'
+import { requireRealAccount } from '../lib/betaAccess'
 import { requireFields, requireValidId, requireBoundaryBounds, requireNameLength, parseBody } from '../lib/validate'
 import {
   createFarmRequestSchema, updateFarmRequestSchema, joinFarmRequestSchema,
@@ -121,6 +122,10 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
 // ─────────────────────────────────────────────────────────────────────
 router.post('/join', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    // Demo visitors stay on their demo farm — and get this answer before
+    // the code is looked at, so the demo can't be used to test codes.
+    await requireRealAccount(req.user!.userId)
+
     requireFields(req.body, ['code'])
     parseBody(joinFarmRequestSchema, req.body)
     const userId = req.user!.userId
