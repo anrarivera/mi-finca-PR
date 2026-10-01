@@ -9,6 +9,7 @@ import LivestockFormModal from './livestockFormModal'
 import LivestockUnitRow from './livestockUnitRow'
 import { toast } from '@/store/useToastStore'
 import { downloadCsv } from '@/lib/csv'
+import { liveFilter } from '@/lib/liveFilter'
 import { todayISO } from '@/features/field/types'
 import { getAnimalById } from '../data/animalLibrary'
 import { localName } from '@/i18n'
@@ -27,12 +28,16 @@ export default function LivestockSection() {
   const [adding, setAdding] = useState(false)
 
   // ── Filters — farm (when there are several) and animal type. ────────
-  const [farmFilter, setFarmFilter] = useState('all')
-  const [typeFilter, setTypeFilter] = useState('all')
+  //    Read through liveFilter: a choice only applies while its value
+  //    still exists (see lib/liveFilter).
+  const [farmChoice, setFarmFilter] = useState('all')
+  const [typeChoice, setTypeFilter] = useState('all')
   const presentTypes = useMemo(
     () => [...new Set(units.map(u => u.animalType))],
     [units]
   )
+  const farmFilter = liveFilter(farmChoice, farms.map(f => f.id))
+  const typeFilter = liveFilter(typeChoice, presentTypes)
   const shown = units.filter(u =>
     (farmFilter === 'all' || u.farmId === farmFilter) &&
     (typeFilter === 'all' || u.animalType === typeFilter)

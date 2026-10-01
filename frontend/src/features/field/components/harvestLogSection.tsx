@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { Check, Pencil, Download } from 'lucide-react'
 import { api } from '@/lib/api'
 import { downloadCsv } from '@/lib/csv'
+import { liveFilter } from '@/lib/liveFilter'
 import { DateRangeSelect, filterSelectClass, Pager } from '@/components/shared/logFilters'
 import { minDateFor, type DateRange } from '@/lib/dateRange'
 import { useFieldStore } from '@/store/useFieldStore'
@@ -82,9 +83,9 @@ export default function HarvestLogSection({ limit = 6 }: Props) {
 
   // ── Filters — farm, product/crop, origin (field or herd), dates.
   //    The ledger spans every farm, so the farm filter defaults to all. ─
-  const [farmFilter, setFarmFilter] = useState('all')
-  const [productFilter, setProductFilter] = useState('all')
-  const [originFilter, setOriginFilter] = useState('all')
+  const [farmChoice, setFarmFilter] = useState('all')
+  const [productChoice, setProductFilter] = useState('all')
+  const [originChoice, setOriginFilter] = useState('all')
   const [dateRange, setDateRange] = useState<DateRange>('all')
   const [page, setPage] = useState(1)
   // Every filter change returns to page 1 in its own handler.
@@ -98,6 +99,30 @@ export default function HarvestLogSection({ limit = 6 }: Props) {
     row.cropTypeId ? `crop:${row.cropTypeId}` : row.productId ? `prod:${row.productId}` : 'other'
   const originKey = (row: ApiHarvestRow) =>
     row.fieldId ? `field:${row.fieldId}` : row.livestockUnitId ? `unit:${row.livestockUnitId}` : 'other'
+
+  // Filter options — only what actually appears in the ledger.
+  const productOptions = useMemo(() => {
+    const seen = new Map<string, string>()
+    for (const row of entries) seen.set(productKey(row), rowLabel(row))
+    return [...seen.entries()].sort((a, b) => a[1].localeCompare(b[1]))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entries, tEditor])
+  const originOptions = useMemo(() => {
+    const seen = new Map<string, string>()
+    for (const row of entries) {
+      const label = row.fieldId
+        ? fields.find(f => f.id === row.fieldId)?.name
+        : livestockUnits.find(u => u.id === row.livestockUnitId)?.name
+      if (label) seen.set(originKey(row), label)
+    }
+    return [...seen.entries()].sort((a, b) => a[1].localeCompare(b[1]))
+  }, [entries, fields, livestockUnits])
+
+  // A choice only applies while it is still one of those options (see
+  // lib/liveFilter).
+  const farmFilter = liveFilter(farmChoice, farms.map(f => f.id))
+  const productFilter = liveFilter(productChoice, productOptions.map(([key]) => key))
+  const originFilter = liveFilter(originChoice, originOptions.map(([key]) => key))
 
   const filtered = useMemo(() => {
     const minDate = minDateFor(dateRange)
@@ -193,24 +218,6 @@ export default function HarvestLogSection({ limit = 6 }: Props) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filtered, livestockUnits, tEditor])
-
-  // Filter options — only what actually appears in the ledger.
-  const productOptions = useMemo(() => {
-    const seen = new Map<string, string>()
-    for (const row of entries) seen.set(productKey(row), rowLabel(row))
-    return [...seen.entries()].sort((a, b) => a[1].localeCompare(b[1]))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [entries, tEditor])
-  const originOptions = useMemo(() => {
-    const seen = new Map<string, string>()
-    for (const row of entries) {
-      const label = row.fieldId
-        ? fields.find(f => f.id === row.fieldId)?.name
-        : livestockUnits.find(u => u.id === row.livestockUnitId)?.name
-      if (label) seen.set(originKey(row), label)
-    }
-    return [...seen.entries()].sort((a, b) => a[1].localeCompare(b[1]))
-  }, [entries, fields, livestockUnits])
 
   return (
     <section className="bg-white rounded-2xl border border-[#e0e8d8] overflow-hidden">

@@ -14,6 +14,7 @@ import {
 } from '@/features/inventory/inventoryBuilder'
 import { dateLocale, fmtNumber, formatRelativeDays, localName, localOpLabel } from '@/i18n'
 import { downloadCsv } from '@/lib/csv'
+import { liveFilter } from '@/lib/liveFilter'
 import { SortableTh, type SortDir } from '@/components/shared/logFilters'
 import OperationsLogSection from '@/features/field/components/operationsLogSection'
 import OperationsCalendar from '@/features/field/components/operationsCalendar'
@@ -70,8 +71,8 @@ export default function InventoryPage() {
   const fields = useFieldsInScope()
 
   const [tab, setTab] = useState<CuadernoTab>('siembras')
-  const [farmFilter, setFarmFilter] = useState('all')
-  const [cropFilter, setCropFilter] = useState('all')
+  const [farmChoice, setFarmFilter] = useState('all')
+  const [cropChoice, setCropFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState<'all' | InventoryStatus>('all')
   const [sortKey, setSortKey] = useState<SortKey>('nextOp')
   const [sortDir, setSortDir] = useState<SortDir>('asc')
@@ -94,6 +95,11 @@ export default function InventoryPage() {
       .sort((a, b) => localName(a.crop, a.id).localeCompare(localName(b.crop, b.id))),
     [allRows]
   )
+
+  // The farm and crop choices only apply while their value still exists
+  // (see lib/liveFilter).
+  const farmFilter = liveFilter(farmChoice, farms.map(f => f.id))
+  const cropFilter = liveFilter(cropChoice, presentCrops.map(c => c.id))
 
   const rows = useMemo(() => {
     const filtered = allRows.filter(r =>
