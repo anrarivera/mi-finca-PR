@@ -7,6 +7,7 @@ import { runDailyDigest } from '../lib/dailyDigest'
 import { signAccessToken } from '../lib/jwt'
 import * as demoSeed from '../lib/demoSeed'
 import { resetStaleSampleFarms, SAMPLE_FARM_TTL_DAYS } from '../lib/sampleFarm'
+import { todayInAppTz } from '../lib/today'
 
 const BASE = '/api/v1/users/me/sample-farm'
 const DAY_MS = 24 * 60 * 60 * 1000
@@ -619,9 +620,11 @@ describe('team features', () => {
 })
 
 describe('kept out of the farmer\'s records', () => {
-  // A labor that became overdue yesterday is a digest trigger.
-  const yesterday = (now: Date) =>
-    new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 1))
+  // A labor that became overdue yesterday is a digest trigger. Yesterday
+  // on the FARM's calendar, like the digest itself: from 8 PM to midnight
+  // in Puerto Rico the UTC date is already tomorrow, and "UTC yesterday"
+  // is the farm's today — due, not overdue.
+  const yesterday = (now: Date) => new Date(todayInAppTz(now).getTime() - DAY_MS)
 
   const verify = (userId: string) =>
     prisma.user.update({ where: { id: userId }, data: { emailVerified: true } })
