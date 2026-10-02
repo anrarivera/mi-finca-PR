@@ -37,6 +37,7 @@ export function formatFarm(farm: any, myRole?: string) {
     boundary: farm.boundary ?? [],
     totalAreaAcres: parseFloat(farm.totalAreaAcres?.toString() ?? '0'),
     isFavorite: farm.isFavorite,
+    isSample: farm.isSample,
     description: farm.description ?? null,
     fieldIds: farm.fields?.map((f: any) => f.id) ?? [],
     createdAt: farm.createdAt,

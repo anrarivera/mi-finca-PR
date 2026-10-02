@@ -1,6 +1,7 @@
 {
   "confirmDeleteFarm": "¿Eliminar la finca \"{{name}}\" y todos sus campos?",
   "acresShort": "{{value}} ac",
+  "sampleBadge": "Ejemplo",
   "drawer": {
     "farmsTab": "Fincas",
     "myFarms": "Mis fincas",

@@ -1,6 +1,7 @@
 {
   "confirmDeleteFarm": "Delete the farm \"{{name}}\" and all its fields?",
   "acresShort": "{{value}} ac",
+  "sampleBadge": "Sample",
   "drawer": {
     "farmsTab": "Farms",
     "myFarms": "My farms",

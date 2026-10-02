@@ -1,7 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
+import { useAuthStore } from '@/store/useAuthStore'
 import { useFarmStore } from '@/store/useFarmStore'
 import type { Farm } from '@/store/useFarmStore'
+import { farmToReselect } from '../utils/sampleFarm'
 
 type ApiFarm = {
   id: string
@@ -16,6 +18,7 @@ type ApiFarm = {
   createdAt: string
   updatedAt: string
   myRole?: 'owner' | 'admin' | 'operator'
+  isSample?: boolean
 }
 
 // ── Fetch all farms ───────────────────────────────────────────────────
@@ -28,10 +31,20 @@ export function useFarms() {
       const data = await api.get<ApiFarm[]>('/api/v1/farms')
       console.log('Farms from API:', data)
       // Sync API response into Zustand store
-      const { clearFarms, activeFarmId: prevActiveId } = useFarmStore.getState()
+      const { clearFarms, activeFarm: prevActive } = useFarmStore.getState()
       clearFarms();
 
-       data.forEach(apiFarm => {
+      // The farmer's own farms go in first: the store stars the first farm
+      // it receives and the fallback below takes the front of the list —
+      // neither may land on the sample farm while there are real ones.
+      // A demo account is left as it was: its seeded farm IS its farm.
+      const isDemo = !!useAuthStore.getState().user?.isDemo
+      const isSandbox = (f: ApiFarm) => !isDemo && !!f.isSample
+      const ordered = [...data].sort(
+        (a, b) => Number(isSandbox(a)) - Number(isSandbox(b))
+      )
+
+       ordered.forEach(apiFarm => {
           addFarm({
             id: apiFarm.id,
             name: apiFarm.name,
@@ -44,6 +57,7 @@ export function useFarms() {
             fieldIds: apiFarm.fieldIds,
             createdAt: apiFarm.createdAt,
             myRole: apiFarm.myRole ?? 'owner',
+            isSample: apiFarm.isSample ?? false,
           })
       })
 
@@ -52,10 +66,8 @@ export function useFarms() {
       // Fall back to favorite or first (initial load).
       if (data.length > 0) {
         const farmsInStore = useFarmStore.getState().farms
-        const favId = (data.find(f => f.isFavorite) ?? data[0]).id
-        const target =
-          farmsInStore.find(f => f.id === prevActiveId) ??
-          farmsInStore.find(f => f.id === favId)
+        const favId = (ordered.find(f => f.isFavorite && !isSandbox(f)) ?? ordered[0]).id
+        const target = farmToReselect(farmsInStore, prevActive, favId)
         if (target) setActiveFarm(target)
       }
 
@@ -92,6 +104,7 @@ export function useCreateFarm() {
         fieldIds: apiFarm.fieldIds,
         createdAt: apiFarm.createdAt,
         myRole: 'owner', // the creator owns the farm
+        isSample: apiFarm.isSample ?? false,
       }
       addFarm(farm)
       setActiveFarm(farm)
@@ -130,6 +143,7 @@ export function useUpdateFarm() {
         isFavorite: apiFarm.isFavorite,
         name: apiFarm.name,
         location: apiFarm.location,
+        isSample: apiFarm.isSample ?? false,
       })
       queryClient.invalidateQueries({ queryKey: ['farms'] })
     },
@@ -148,6 +162,9 @@ export function useDeleteFarm() {
     onSuccess: (_, id) => {
       deleteFarm(id)
       queryClient.invalidateQueries({ queryKey: ['farms'] })
+      // Deleting the sample farm like any other farm switches it off —
+      // the switch in Settings has to hear about it.
+      queryClient.invalidateQueries({ queryKey: ['sample-farm'] })
     },
   })
 }

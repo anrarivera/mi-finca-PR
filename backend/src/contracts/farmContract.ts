@@ -9,6 +9,8 @@ export const farmResponseSchema = z.object({
   boundary: z.array(latLng),
   totalAreaAcres: z.number(),
   isFavorite: z.boolean(),
+  // The sample farm ("finca de ejemplo") — never the farmer's own records.
+  isSample: z.boolean(),
   description: z.string().nullable(),
   fieldIds: z.array(z.string()),
   createdAt: isoDate,

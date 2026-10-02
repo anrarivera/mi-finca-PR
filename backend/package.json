@@ -13,7 +13,8 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "seed": "tsx prisma/seed.ts",
-    "signup:code": "ts-node --project tsconfig.json scripts/createSignupCode.ts"
+    "signup:code": "ts-node --project tsconfig.json scripts/createSignupCode.ts",
+    "access:requests": "ts-node --project tsconfig.json scripts/listAccessRequests.ts"
   },
   "keywords": [],
   "author": "",

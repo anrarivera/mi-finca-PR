@@ -6,8 +6,7 @@ import {
   ChevronDown, ChevronRight, Wheat,
   CalendarDays, Bug, PawPrint, Download, BookOpen, BookmarkPlus,
 } from 'lucide-react'
-import { useFarmStore } from '@/store/useFarmStore'
-import { useFieldStore } from '@/store/useFieldStore'
+import { useFarmsInScope, useFieldsInScope } from '@/store/farmScope'
 import { getCropById } from '@/features/field/data/cropLibrary'
 import {
   buildInventoryRows, summarizeInventory,
@@ -67,8 +66,8 @@ function formatDateEs(iso: string): string {
 
 export default function InventoryPage() {
   const { t } = useTranslation('pages')
-  const farms = useFarmStore(s => s.farms)
-  const fields = useFieldStore(s => s.fields)
+  const farms = useFarmsInScope()
+  const fields = useFieldsInScope()
 
   const [tab, setTab] = useState<CuadernoTab>('siembras')
   const [farmFilter, setFarmFilter] = useState('all')

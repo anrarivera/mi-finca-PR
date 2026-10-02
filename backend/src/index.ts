@@ -20,12 +20,14 @@ import recommendedOperationRoutes from './routes/recommendedOperations'
 import cropRoutes from './routes/crops'
 import recipeRoutes from './routes/recipes'
 import userRoutes from './routes/users'
+import sampleFarmRoutes from './routes/sampleFarm'
 import clientErrorRoutes from './routes/clientErrors'
 import findingRoutes from './routes/findings'
 import memberRoutes from './routes/members'
 import cron from 'node-cron'
 import { setMailer } from './lib/mailer'
 import { createResendMailer } from './lib/resendMailer'
+import { resetStaleSampleFarms } from './lib/sampleFarm'
 import { runDailyDigest } from './lib/dailyDigest'
 
 const IS_PRODUCTION = process.env.NODE_ENV === 'production'
@@ -154,6 +156,8 @@ app.use('/api/v1/farms/:farmId/findings', findingRoutes)
 app.use('/api/v1/farms/:farmId/members', memberRoutes)
 app.use('/api/v1/crops', cropRoutes)
 app.use('/api/v1/recipes', recipeRoutes)
+// The sample farm inside a real account (Settings switch)
+app.use('/api/v1/users/me/sample-farm', sampleFarmRoutes)
 app.use('/api/v1/users', userRoutes)
 app.use('/api/v1/client-errors', clientErrorRoutes)
 
@@ -214,7 +218,7 @@ if (process.env.NODE_ENV !== 'test') {
 
   // Demo accounts are ephemeral by contract ("nada aquí es permanente") —
   // purge them after 7 days; cascades take the seeded farm with them.
-  cron.schedule('30 4 * * *', async () => {
+  const purgeDemoAccounts = async () => {
     const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
     const stale = await prisma.user.findMany({
       where: { isDemo: true, createdAt: { lt: cutoff } },
@@ -227,6 +231,25 @@ if (process.env.NODE_ENV !== 'test') {
       ])
     }
     if (stale.length > 0) logger.info({ purged: stale.length }, 'demo accounts purged')
+  }
+
+  // 4:30 AM island time: the demo purge, then the sample farms inside real
+  // accounts, which expire on the same clock. Each half has its own
+  // try/catch: one failing never skips the other.
+  cron.schedule('30 4 * * *', async () => {
+    try {
+      await purgeDemoAccounts()
+    } catch (err) {
+      logger.error({ err }, 'demo purge failed')
+    }
+    try {
+      const result = await resetStaleSampleFarms()
+      if (result.reset + result.purged + result.failed > 0) {
+        logger.info(result, 'sample farms reset')
+      }
+    } catch (err) {
+      logger.error({ err }, 'sample farm reset failed')
+    }
   }, { timezone: 'America/Puerto_Rico' })
 
   app.listen(PORT, () => {

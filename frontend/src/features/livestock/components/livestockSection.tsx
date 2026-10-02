@@ -2,9 +2,8 @@ import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Plus, PawPrint, Download } from 'lucide-react'
 import { filterSelectClass } from '@/components/shared/logFilters'
-import { useLivestockStore } from '@/store/useLivestockStore'
 import { useCreateLivestock } from '../hooks/useLivestockApi'
-import { useFarmStore } from '@/store/useFarmStore'
+import { useFarmsInScope, useLivestockInScope } from '@/store/farmScope'
 import { useFieldStore } from '@/store/useFieldStore'
 import LivestockFormModal from './livestockFormModal'
 import LivestockUnitRow from './livestockUnitRow'
@@ -22,8 +21,8 @@ import { localName } from '@/i18n'
 
 export default function LivestockSection() {
   const { t } = useTranslation('editor')
-  const units = useLivestockStore(s => s.units)
-  const farms = useFarmStore(s => s.farms)
+  const units = useLivestockInScope()
+  const farms = useFarmsInScope()
   const fields = useFieldStore(s => s.fields)
   const [adding, setAdding] = useState(false)
 

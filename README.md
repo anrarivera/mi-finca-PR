@@ -129,7 +129,9 @@ The **backend** requires a `.env` in `backend/`:
 | `DATABASE_URL` | PostgreSQL connection string |
 | `JWT_ACCESS_SECRET` / `JWT_REFRESH_SECRET` | Token signing secrets |
 | `FRONTEND_URL` | CORS origin + base URL for emailed links (default `http://localhost:5173`) |
+| `SIGNUP_MODE` | `invite` = registration requires an access code; unset = open to anyone. Beta codes are issued with `npm run signup:code` (e.g. `-- --uses 5 --days 60 --note "beta"`). A farm invite code also counts as access and creates the account inside that farm — unless the farm's owner is a demo account or was admitted by a farm invite, in which case the code only joins existing accounts |
 | `RESEND_API_KEY` | Transactional email (verification / reset / change-email) |
+| `BETA_CONTACT_EMAIL` | Where requests for beta access are sent (the app's owner). Unset = requests are stored and logged, nobody is emailed |
 | `PORT` | API port (default `3001`) |
 | `APP_TIMEZONE` | IANA zone whose calendar decides what "today" is for due/overdue labores (default `America/Puerto_Rico`) |
 
@@ -158,6 +160,8 @@ The **frontend** optionally takes `VITE_API_URL` (defaults to `http://localhost:
 | `npm run dev` | Start the API with hot reload at localhost:3001 |
 | `npm run build` / `npm start` | Compile and run for production |
 | `npm run seed` | Upsert built-in crops from `prisma/crops.json` |
+| `npm run access:requests` | List the beta access requests waiting for an answer, oldest first. `-- --handled <email>` marks that address's requests as answered |
+| `npm run signup:code` | Issue a beta access code to send to someone who asked, e.g. `-- --note "ana@example.com"` (one use, 30 days; `--uses` / `--days` change that) |
 | `npm test` | Run the Jest + Supertest API suite. Requires `TEST_DATABASE_URL` in `.env` pointing at a dedicated test database — triple-guarded setup refuses to run otherwise (the suite wipes its target DB between tests). |
 
 ---

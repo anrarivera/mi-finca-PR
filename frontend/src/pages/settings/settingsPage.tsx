@@ -1,14 +1,21 @@
 import { api } from '@/lib/api'
 import { useRef, useState } from 'react'
-import { Download, Upload, Trash2, Database, Info, Bell, Globe } from 'lucide-react'
+import { Download, Upload, Trash2, Database, Info, Bell, Globe, GraduationCap, RotateCcw } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { createPortal } from 'react-dom'
+import { dateLocale } from '@/i18n'
 import { useAuthStore } from '@/store/useAuthStore'
+import { useFarmStore } from '@/store/useFarmStore'
 import { useSettingsStore } from '@/store/useSettingsStore'
 import { useConfirm } from '@/components/shared/confirmDialog'
 import { toast } from '@/store/useToastStore'
 import { todayISO } from '@/features/field/types'
+import {
+  useSampleFarmStatus, useSampleFarmBusy, useResetSampleFarm,
+} from '@/features/farm/hooks/useSampleFarmApi'
+import { useSampleFarmSwitch } from '@/features/farm/hooks/useSampleFarmSwitch'
+import { formatResetDate } from '@/features/farm/utils/sampleFarm'
 
 // ──────────────────────────────────────────────────────────────────────────
 // Settings — backup/restore/clear are SERVER-side (v2): export downloads
@@ -162,6 +169,8 @@ export default function SettingsPage() {
       <LanguageSettings />
 
       <NotificationSettings />
+
+      <SampleFarmSettings />
 
       <AccountSettings />
 
@@ -451,6 +460,120 @@ function NotificationSettings() {
       <p className="px-5 py-3 text-[10px] text-[#66755a] bg-[#fafcf8] border-t border-[#f0f5e8]">
         {t('settings.notifications.footer')}
       </p>
+    </section>
+  )
+}
+
+// ── Finca de ejemplo — a sandbox farm inside the real account ─────────
+// The switch seeds it (on) or deletes it (off) on the server. While it is
+// on, whatever the farmer changed in it goes back to the default data
+// every ttlDays days — or right now, with "Restablecer ahora". Not offered
+// to demo accounts: their whole account already is the sample, and the
+// server refuses them the switch.
+
+// Shown until the status loads; the server's ttlDays is what counts.
+const DEFAULT_TTL_DAYS = 7
+
+function SampleFarmSettings() {
+  const { t } = useTranslation('pages')
+  const navigate = useNavigate()
+  const isDemo = useAuthStore(s => !!s.user?.isDemo)
+  const sampleFarm = useFarmStore(s => s.farms.find(f => f.isSample))
+  const setActiveFarm = useFarmStore(s => s.setActiveFarm)
+  const { data: status } = useSampleFarmStatus(!isDemo)
+  const { setEnabled, confirmDialog: switchDialog } = useSampleFarmSwitch()
+  const reset = useResetSampleFarm()
+  const busy = useSampleFarmBusy()
+  const { confirm, confirmDialog } = useConfirm()
+
+  if (isDemo) return null
+
+  const enabled = status?.enabled ?? false
+  const resetDate = formatResetDate(status?.resetsAt, dateLocale())
+
+  async function handleReset() {
+    const ok = await confirm({
+      title: t('sampleFarm.resetConfirm.title'),
+      message: t('sampleFarm.resetConfirm.message'),
+      confirmLabel: t('sampleFarm.resetConfirm.confirm'),
+      danger: true,
+    })
+    if (!ok) return
+    try {
+      await reset.mutateAsync()
+      toast.success(t('sampleFarm.toasts.reset'))
+    } catch {
+      /* the api client already toasted the reason */
+    }
+  }
+
+  // The tour describes the sample farm, so it has to be the one on screen;
+  // from the map on, the tour walks the routes by itself.
+  function handleTour() {
+    if (!sampleFarm) return
+    setActiveFarm(sampleFarm)
+    navigate('/')
+    window.dispatchEvent(new Event('demo-tour:start'))
+  }
+
+  return (
+    <section className="bg-white rounded-2xl border border-[#e0e8d8] overflow-hidden">
+      <div className="flex items-center gap-2 px-5 py-4 border-b border-[#e0e8d8]">
+        <GraduationCap size={16} className="text-[#4d7a1b]" />
+        <h2 className="text-sm font-semibold text-[#2d4a1e]">{t('sampleFarm.sectionTitle')}</h2>
+      </div>
+
+      <div className="divide-y divide-[#f0f5e8]">
+        <SettingsRow
+          title={t('sampleFarm.toggle.title')}
+          description={t('sampleFarm.toggle.description', { count: status?.ttlDays ?? DEFAULT_TTL_DAYS })}
+          action={
+            <ToggleSwitch
+              label={t('sampleFarm.toggle.title')}
+              checked={enabled}
+              // Off until the status arrives — a blind click could send
+              // the opposite of what the farmer sees.
+              disabled={!status || busy}
+              onChange={setEnabled}
+            />
+          }
+        />
+        {enabled && (
+          <>
+            <SettingsRow
+              title={resetDate
+                ? t('sampleFarm.reset.title', { date: resetDate })
+                : t('sampleFarm.reset.titleNoDate')}
+              description={t('sampleFarm.reset.description')}
+              action={
+                <button
+                  onClick={handleReset}
+                  disabled={busy}
+                  className="flex items-center gap-1.5 px-3 py-2 text-xs text-[#2d4a1e] border border-[#c8dca8] rounded-lg hover:bg-[#eaf3de] transition-colors shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <RotateCcw size={12} /> {t('sampleFarm.reset.button')}
+                </button>
+              }
+            />
+            <SettingsRow
+              title={t('sampleFarm.tour.title')}
+              description={t('sampleFarm.tour.description')}
+              action={
+                <button
+                  onClick={handleTour}
+                  disabled={busy || !sampleFarm}
+                  className="flex items-center gap-1.5 px-3 py-2 text-xs text-[#2d4a1e] border border-[#c8dca8] rounded-lg hover:bg-[#eaf3de] transition-colors shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <GraduationCap size={12} /> {t('sampleFarm.tour.button')}
+                </button>
+              }
+            />
+          </>
+        )}
+      </div>
+
+      {switchDialog}
+      {confirmDialog}
     </section>
   )
 }

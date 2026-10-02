@@ -236,6 +236,8 @@ export async function sendUserDigest(
   const farms = await prisma.farm.findMany({
     where: {
       deletedAt: { equals: null },
+      // The sample farm's overdue labor is scenery, not a reminder.
+      isSample: false,
       OR: [{ userId: user.id }, { members: { some: { userId: user.id } } }],
     },
     select: { id: true, name: true },
