@@ -6,6 +6,7 @@ import { z } from 'zod'
 import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
 import { useLogin } from '@/features/auth/hooks/useAuth'
+import { useAuthConfig } from '@/features/auth/hooks/useAuthConfig'
 import AuthLayout, { authInputClass, FieldError } from './authLayout'
 
 // Schema is built with t() so validation messages follow the UI language.
@@ -20,6 +21,7 @@ export default function LoginPage() {
   const { t } = useTranslation('auth')
   const navigate = useNavigate()
   const login = useLogin()
+  const { gated } = useAuthConfig()
   const [serverError, setServerError] = useState<string | null>(null)
 
   const { register, handleSubmit, formState: { errors, isSubmitting } } =
@@ -104,6 +106,16 @@ export default function LoginPage() {
             {t('login.createAccount')}
           </Link>
         </p>
+
+        {/* Closed beta: "Crear cuenta" asks for a code — say where to get one. */}
+        {gated && (
+          <p className="text-xs text-[#5a6a4a] text-center">
+            {t('login.noCode')}{' '}
+            <Link to="/request-access" className="text-[#4d7a1b] font-medium hover:underline">
+              {t('login.requestAccess')}
+            </Link>
+          </p>
+        )}
 
         <p className="text-xs text-center">
           <Link to="/forgot-password" className="text-[#4d7a1b] hover:underline">

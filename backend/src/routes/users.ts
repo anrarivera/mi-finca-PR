@@ -1,6 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express'
 import { z } from 'zod'
 import bcrypt from 'bcryptjs'
+import { isDemoAccount } from '../lib/betaAccess'
 import { prisma } from '../lib/prisma'
 import { parseBody } from '../lib/validate'
 import { requireAuth } from '../middleware/auth'
@@ -117,6 +118,12 @@ router.post('/me/restore', async (req: Request, res: Response, next: NextFunctio
       throw Errors.validation('Este respaldo es de una versión más nueva de la app.')
     }
     parseBody(restoreBackupRequestSchema, body)
+    // Demo accounts have no team features (lib/betaAccess) — a backup file
+    // that names other people's accounts as members is one more way to
+    // put them on the demo farm without their consent.
+    if (await isDemoAccount(req.user!.userId)) {
+      for (const farm of body.farms) delete farm.members
+    }
     const result = await restoreFromBackup(req.user!.userId, body)
     res.json({ success: true, data: result })
   } catch (err) {

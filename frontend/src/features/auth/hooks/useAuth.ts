@@ -1,8 +1,9 @@
+import { useEffect, useRef } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { api } from '@/lib/api'
 import { useAuthStore } from '@/store/useAuthStore'
-import { clearAccountData } from '@/store/farmActions'
+import { clearAccountData, wipeAccount } from '@/store/farmActions'
 
 type User = {
   id: string
@@ -35,10 +36,26 @@ export function useInitAuth() {
   })
 }
 
-// ── Login ─────────────────────────────────────────────────────────────
-export function useLogin() {
+// ── Starting a session ────────────────────────────────────────────────
+// Every way in — login, register, demo — stores its session through
+// here, and starts from a clean slate. Logout wipes on the way out, but a
+// session also ends by expiring (lib/api), with the account's deletion or
+// with an email change, and those clear the auth state and nothing else:
+// the next account to sign in on this browser would find the previous
+// one's farm on the map and its labores behind the bell.
+function useStartSession() {
   const { setAuth } = useAuthStore()
   const queryClient = useQueryClient()
+
+  return (session: AuthResponse) => {
+    wipeAccount(queryClient)
+    setAuth(session.accessToken, session.user)
+  }
+}
+
+// ── Login ─────────────────────────────────────────────────────────────
+export function useLogin() {
+  const startSession = useStartSession()
   const navigate = useNavigate()
 
   return useMutation({
@@ -46,8 +63,7 @@ export function useLogin() {
       return api.post<AuthResponse>('/api/v1/auth/login', credentials)
     },
     onSuccess: (data) => {
-      setAuth(data.accessToken, data.user)
-      queryClient.invalidateQueries({ queryKey: ['farms'] })
+      startSession(data)
       navigate('/');
     },
   })
@@ -55,7 +71,7 @@ export function useLogin() {
 
 // ── Register ──────────────────────────────────────────────────────────
 export function useRegister() {
-  const { setAuth } = useAuthStore()
+  const startSession = useStartSession()
 
   return useMutation({
     mutationFn: async (data: {
@@ -65,7 +81,11 @@ export function useRegister() {
       /** Required while the signup gate (SIGNUP_MODE=invite) is up. */
       accessCode?: string
     }) => {
-      return api.post<AuthResponse & { accessKind: 'signup' | 'farmInvite' | null }>(
+      return api.post<AuthResponse & {
+        accessKind: 'signup' | 'farmInvite' | null
+        /** Set when a farm-invite access code already joined its farm. */
+        joinedFarm: { farmId: string; farmName: string; role: string } | null
+      }>(
         '/api/v1/auth/register', data
       )
     },
@@ -74,7 +94,25 @@ export function useRegister() {
     // here used to yank every new user back to the login screen 2.5s
     // after they were already inside the app.
     onSuccess: (data) => {
-      setAuth(data.accessToken, data.user)
+      startSession(data)
+    },
+  })
+}
+
+// ── Request access ────────────────────────────────────────────────────
+// For whoever has no access code while the signup gate is up. The server
+// stores the request, tells the app's owner, and answers every request
+// the same way — whether or not it already knew the address.
+export function useRequestAccess() {
+  return useMutation({
+    mutationFn: async (data: {
+      fullName: string
+      email: string
+      location?: string
+      message?: string
+      language: 'es' | 'en'
+    }) => {
+      return api.post<{ received: boolean }>('/api/v1/auth/access-requests', data)
     },
   })
 }
@@ -83,7 +121,7 @@ export function useRegister() {
 // "Probar la demo": the server creates an ephemeral account seeded with a
 // sample farm and signs the visitor straight in.
 export function useDemoLogin() {
-  const { setAuth } = useAuthStore()
+  const startSession = useStartSession()
   const navigate = useNavigate()
 
   return useMutation({
@@ -91,10 +129,39 @@ export function useDemoLogin() {
       return api.post<AuthResponse>('/api/v1/auth/demo')
     },
     onSuccess: (data) => {
-      setAuth(data.accessToken, data.user)
+      startSession(data)
       navigate('/')
     },
   })
+}
+
+// ── Leaving the demo ──────────────────────────────────────────────────
+// The demo banner's way out, to a public page. The demo session ends like
+// a logout — closed on the server, wiped from this browser — but only
+// once that page is on screen, which is when the banner unmounts. Ending
+// it on the click made ProtectedRoute redirect to /login, and its
+// redirect landed after the banner's own: "Crear mi cuenta" opened the
+// login page.
+export function useLeaveDemo() {
+  const queryClient = useQueryClient()
+  const navigate = useNavigate()
+  const leaving = useRef(false)
+
+  useEffect(() => {
+    return () => {
+      if (!leaving.current) return
+      // Best effort — the visitor has moved on, and an unreachable server
+      // leaves nothing worse than a demo session that expires on its own.
+      api.post('/api/v1/auth/logout').catch(() => {})
+      useAuthStore.getState().clearAuth()
+      wipeAccount(queryClient)
+    }
+  }, [queryClient])
+
+  return (to: string) => {
+    leaving.current = true
+    navigate(to)
+  }
 }
 
 // ── Logout ────────────────────────────────────────────────────────────

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/store/useAuthStore'
+import { useFarmStore } from '@/store/useFarmStore'
 
 // ──────────────────────────────────────────────────────────────────────────
 // Guided tour for demo accounts — hand-rolled coach marks (no library):
@@ -11,7 +12,9 @@ import { useAuthStore } from '@/store/useAuthStore'
 // navigation and the card falls back to centered when one never appears
 // (a resized layout must degrade the tour, never break the app).
 // Auto-starts once per demo account; relaunchable via the demo banner's
-// "Ver tutorial" (window event 'demo-tour:start').
+// "Ver tutorial" (window event 'demo-tour:start'). A real account gets it
+// only on request, and only while its sample farm is the active farm —
+// the steps describe that farm's fields.
 // ──────────────────────────────────────────────────────────────────────────
 
 type Step = {
@@ -43,6 +46,8 @@ export default function DemoTour() {
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const isDemo = !!user?.isDemo
+  const onSampleFarm = useFarmStore(s => !!s.activeFarm?.isSample)
+  const canTour = isDemo || onSampleFarm
 
   // Auto-start once per demo account (after the map has a moment to mount).
   useEffect(() => {
@@ -52,14 +57,27 @@ export default function DemoTour() {
     return () => clearTimeout(timer)
   }, [isDemo, user])
 
-  // Relaunch from the banner.
+  // Relaunch from the banner, or from Settings. Checked against the stores
+  // at event time: Settings activates the sample farm and fires the event
+  // in the same tick, before this component has rendered again.
   useEffect(() => {
-    function onStart() { setStepIndex(0) }
+    function onStart() {
+      const forDemo = !!useAuthStore.getState().user?.isDemo
+      const forSampleFarm = !!useFarmStore.getState().activeFarm?.isSample
+      if (forDemo || forSampleFarm) setStepIndex(0)
+    }
     window.addEventListener('demo-tour:start', onStart)
     return () => window.removeEventListener('demo-tour:start', onStart)
   }, [])
 
-  const step = stepIndex !== null ? STEPS[stepIndex] : null
+  // A real account's tour ends with its ground: if the sample farm stops
+  // being the active farm mid-tour (switched off from another device, …)
+  // a tour left running out of sight would keep steering the routes.
+  useEffect(() => {
+    if (!canTour) setStepIndex(null)
+  }, [canTour])
+
+  const step = canTour && stepIndex !== null ? STEPS[stepIndex] : null
 
   // Navigate to the step's route, then poll for its target.
   useEffect(() => {
@@ -87,15 +105,21 @@ export default function DemoTour() {
   }, [stepIndex, location.pathname])
 
   const end = useCallback(() => {
-    if (user) localStorage.setItem(seenKey(user.id), '1')
+    // The mark only holds back the auto-start, which real accounts don't
+    // have — nothing to leave behind in their browser.
+    if (user?.isDemo) localStorage.setItem(seenKey(user.id), '1')
     setStepIndex(null)
     if (location.pathname !== '/') navigate('/')
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, location.pathname])
 
-  if (!isDemo || stepIndex === null || !step) return null
+  if (stepIndex === null || !step) return null
 
   const isLast = stepIndex === STEPS.length - 1
+  // The closing step sends demo visitors off to register. Someone touring
+  // the sample farm from their own account already has one — they are
+  // told how to get back to their farms instead.
+  const bodyKey = step.id === 'finish' && !isDemo ? 'bodyOwnAccount' : 'body'
 
   // Card position: under the target (or above when there's no room),
   // clamped to the viewport; centered when no target resolved.
@@ -145,7 +169,7 @@ export default function DemoTour() {
         </div>
         <div className="p-4 flex flex-col gap-3">
           <p className="text-xs text-[#5a6a4a] leading-relaxed">
-            {t(`demoTour.steps.${step.id}.body`)}
+            {t(`demoTour.steps.${step.id}.${bodyKey}`)}
           </p>
           <div className="flex items-center gap-2">
             {stepIndex > 0 && (

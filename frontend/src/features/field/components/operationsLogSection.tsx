@@ -4,7 +4,7 @@ import {
   ClipboardList, AlertCircle, Clock, Download, Loader2,
   Pencil, Trash2, Check,
 } from 'lucide-react'
-import { useFarmStore } from '@/store/useFarmStore'
+import { useFarmsInScope, useFieldsInScope } from '@/store/farmScope'
 import { useFieldStore } from '@/store/useFieldStore'
 import { useLivestockStore } from '@/store/useLivestockStore'
 import { CollapseToggle, DateRangeSelect, filterSelectClass, Pager } from '@/components/shared/logFilters'
@@ -55,7 +55,7 @@ const PAGE_SIZE = 8 // rows per page
 
 export default function OperationsLogSection() {
   const { t } = useTranslation('field')
-  const farms = useFarmStore(s => s.farms)
+  const farms = useFarmsInScope()
 
   // Farm scope — "Todas las fincas" by default, like the Siembras grid.
   const [farmFilter, setFarmFilter] = useState('all')
@@ -79,7 +79,7 @@ export default function OperationsLogSection() {
 
   // Resolve fieldId / livestockUnitId to display names from the stores.
   const getField = useFieldStore(s => s.getField)
-  const allFields = useFieldStore(s => s.fields)
+  const allFields = useFieldsInScope()
   const livestockUnits = useLivestockStore(s => s.units)
   const unitName = (id: string | null) =>
     id ? livestockUnits.find(u => u.id === id)?.name ?? null : null

@@ -1,4 +1,5 @@
 import { Router, Request, Response, NextFunction } from 'express'
+import { Prisma } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 import rateLimit from 'express-rate-limit'
 import { seedDemoFarm } from '../lib/demoSeed'
@@ -15,6 +16,8 @@ import { requireAuth } from '../middleware/auth'
 import { sendMail } from '../lib/mailer'
 import { createActionToken, consumeActionToken } from '../lib/actionTokens'
 import { hashInviteCode } from '../lib/farmInvites'
+import { ownerCanAdmit, type AdmittedVia } from '../lib/betaAccess'
+import { notifyAccessRequest } from '../lib/accessRequests'
 
 const router = Router()
 
@@ -89,17 +92,26 @@ async function saveRefreshToken(userId: string, token: string) {
 // a beta signup code (scripts/createSignupCode) or a valid farm invite
 // code — an invited worker's join code doubles as app access. Flip the
 // env var to open the doors; no code changes needed.
+// A farm invite admits INTO its farm — account and membership are created
+// together — and only if the farm's owner may admit (lib/betaAccess).
 function signupGated(): boolean {
   return process.env.SIGNUP_MODE === 'invite'
 }
 
-type AccessKind = 'signup' | 'farmInvite'
+// What a valid code turned out to be. A signup code carries its id so its
+// use is claimed in the same transaction that creates the account; a farm
+// invite carries the farm the new account joins, and whether that farm's
+// owner may admit new accounts at all (lib/betaAccess).
+type Access =
+  | { kind: 'signup'; signupCodeId: string }
+  | {
+      kind: 'farmInvite'
+      opensGate: boolean
+      joinedFarm: { farmId: string; farmName: string; role: string }
+    }
 
-// Validates without consuming; returns the kind (and the signup-code id
-// so its use can be counted after the account actually exists).
-async function checkAccessCode(raw: string): Promise<
-  { kind: AccessKind; signupCodeId?: string } | null
-> {
+// Validates without consuming.
+async function checkAccessCode(raw: string): Promise<Access | null> {
   const codeHash = hashInviteCode(raw)
   const now = new Date()
 
@@ -111,11 +123,27 @@ async function checkAccessCode(raw: string): Promise<
 
   const farmInvite = await prisma.farmInvite.findUnique({
     where: { codeHash },
-    include: { farm: { select: { deletedAt: true } } },
+    include: {
+      farm: {
+        select: {
+          deletedAt: true,
+          name: true,
+          user: { select: { isDemo: true, admittedVia: true } },
+        },
+      },
+    },
   })
   if (farmInvite && farmInvite.revokedAt === null && farmInvite.expiresAt > now &&
       farmInvite.farm.deletedAt === null) {
-    return { kind: 'farmInvite' }
+    return {
+      kind: 'farmInvite',
+      opensGate: ownerCanAdmit(farmInvite.farm.user),
+      joinedFarm: {
+        farmId: farmInvite.farmId,
+        farmName: farmInvite.farm.name,
+        role: farmInvite.role,
+      },
+    }
   }
 
   return null
@@ -140,7 +168,7 @@ router.post('/register', authLimiter, async (req: Request, res: Response, next: 
     const { email, password, fullName } = parseBody(registerSchema, req.body)
 
     // The signup gate — a valid access code admits, nothing else does.
-    let access: { kind: AccessKind; signupCodeId?: string } | null = null
+    let access: Access | null = null
     if (signupGated()) {
       const accessCode = typeof req.body?.accessCode === 'string' ? req.body.accessCode.trim() : ''
       if (!accessCode) {
@@ -149,6 +177,12 @@ router.post('/register', authLimiter, async (req: Request, res: Response, next: 
       access = await checkAccessCode(accessCode)
       if (!access) {
         throw Errors.validation('Código de acceso inválido o vencido')
+      }
+      // A good code, just not for this — no secret in saying so.
+      if (access.kind === 'farmInvite' && !access.opensGate) {
+        throw Errors.validation(
+          'Este código sirve para unirse a una finca desde una cuenta existente, pero no para crear una cuenta nueva. Pide un código de acceso.'
+        )
       }
     }
 
@@ -163,16 +197,66 @@ router.post('/register', authLimiter, async (req: Request, res: Response, next: 
     // Hash password
     const passwordHash = await bcrypt.hash(password, 12)
 
-    // Create user
-    const user = await prisma.user.create({
-      data: {
-        email: email.toLowerCase(),
-        passwordHash,
-        fullName,
-        emailVerified: false,
-        language: 'es',
-        unitSystem: 'imperial',
+    const admittedVia: AdmittedVia =
+      !access ? 'open' : access.kind === 'signup' ? 'signup_code' : 'farm_invite'
+
+    // Create user — together with what the access code stands for. One
+    // transaction, so a signup-code use is never spent on an account that
+    // doesn't exist, and a farm invite never admits without joining.
+    const user = await prisma.$transaction(async (tx) => {
+      if (access?.kind === 'signup') {
+        // Checked and counted in ONE statement: of two registrations
+        // racing for the last use, the second waits on the row lock,
+        // re-reads the counter, and matches nothing.
+        const claimed = await tx.signupCode.updateMany({
+          where: {
+            id: access.signupCodeId,
+            revokedAt: null,
+            expiresAt: { gt: new Date() },
+            OR: [
+              { maxUses: null },
+              { usedCount: { lt: prisma.signupCode.fields.maxUses } },
+            ],
+          },
+          data: { usedCount: { increment: 1 } },
+        })
+        if (claimed.count === 0) {
+          throw Errors.validation('Código de acceso inválido o vencido')
+        }
       }
+
+      const created = await tx.user.create({
+        data: {
+          email: email.toLowerCase(),
+          passwordHash,
+          fullName,
+          emailVerified: false,
+          language: 'es',
+          unitSystem: 'imperial',
+          admittedVia,
+        }
+      })
+
+      // Farm invite codes stay multi-use — nothing to count, but the
+      // account they admit belongs to that farm from its first moment.
+      if (access?.kind === 'farmInvite') {
+        await tx.farmMember.create({
+          data: {
+            farmId: access.joinedFarm.farmId,
+            userId: created.id,
+            role: access.joinedFarm.role,
+          },
+        })
+      }
+
+      return created
+    }).catch((err: unknown) => {
+      // The email check above can lose a race against a simultaneous
+      // registration — the unique index is what actually decides.
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+        throw Errors.conflict('An account with this email already exists')
+      }
+      throw err
     })
 
     // Generate tokens
@@ -183,15 +267,6 @@ router.post('/register', authLimiter, async (req: Request, res: Response, next: 
     // Save refresh token to DB
     await saveRefreshToken(user.id, refreshToken)
 
-    // Count the signup-code use now that the account actually exists.
-    // Farm invite codes are multi-use and consumed by /farms/join instead.
-    if (access?.signupCodeId) {
-      await prisma.signupCode.update({
-        where: { id: access.signupCodeId },
-        data: { usedCount: { increment: 1 } },
-      })
-    }
-
     // Set refresh token as HttpOnly cookie
     setRefreshCookie(res, refreshToken)
 
@@ -199,9 +274,10 @@ router.post('/register', authLimiter, async (req: Request, res: Response, next: 
       success: true,
       data: {
         accessToken,
-        // Lets the register page reuse a farm-invite access code for the
-        // actual farm join right after signup.
         accessKind: access?.kind ?? null,
+        // Set when a farm-invite access code already joined its farm — the
+        // register page must not redeem the code again (it would 409).
+        joinedFarm: access?.kind === 'farmInvite' ? access.joinedFarm : null,
         user: {
           id: user.id,
           email: user.email,
@@ -248,6 +324,7 @@ router.post('/demo', demoLimiter, async (req: Request, res: Response, next: Next
         passwordHash: null,
         fullName: 'Visitante de Demostración',
         isDemo: true,
+        admittedVia: 'demo',
       },
     })
     await seedDemoFarm(user.id)
@@ -597,6 +674,86 @@ router.post('/change-email/confirm', authLimiter, async (req: Request, res: Resp
 
     res.json({ success: true, data: { message: 'Email updated. Please log in again.', email: record.newEmail } })
   } catch (err) { next(err) }
+})
+
+// ─────────────────────────────────────────────────────────────────────
+// POST /api/v1/auth/access-requests
+// Public. While the signup gate is up, a visitor without a code — usually
+// straight out of the demo — asks for one here. The request is stored and
+// the app's owner is told (lib/accessRequests), who answers with a signup
+// code. One answer for every well-formed request: it must not give away
+// whether the address has an account, or has already asked.
+// Rate-limited on its own: each call can create a row and send an email.
+// ─────────────────────────────────────────────────────────────────────
+const accessRequestLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: () => process.env.NODE_ENV === 'test',
+  handler: (_req, res) => {
+    res.status(429).json({
+      success: false,
+      error: { code: 'RATE_LIMITED', message: 'Too many attempts. Please try again later.' },
+    })
+  },
+})
+
+const accessRequestSchema = z.object({
+  fullName: z.string().trim()
+    .min(1, 'Full name is required')
+    .max(100, 'Full name must be at most 100 characters'),
+  email: z.email('Invalid email address')
+    .max(254, 'Email must be at most 254 characters'),
+  location: z.string().trim()
+    .max(120, 'Location must be at most 120 characters')
+    .optional(),
+  message: z.string().trim()
+    .max(1000, 'Message must be at most 1000 characters')
+    .optional(),
+  language: z.enum(['es', 'en']).optional(),
+})
+
+router.post('/access-requests', accessRequestLimiter, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const body = parseBody(accessRequestSchema, req.body)
+    const email = body.email.toLowerCase()
+
+    // Both lookups run every time, whatever the first one finds — the
+    // answer should not take longer for some addresses than for others.
+    const [account, waiting] = await Promise.all([
+      prisma.user.findUnique({ where: { email }, select: { id: true } }),
+      prisma.accessRequest.findFirst({
+        where: {
+          email,
+          handledAt: null,
+          createdAt: { gt: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+        },
+        select: { id: true },
+      }),
+    ])
+
+    // Already in, or asked within the last day and still waiting: nothing
+    // to store, no one to tell.
+    if (!account && !waiting) {
+      const saved = await prisma.accessRequest.create({
+        data: {
+          fullName: body.fullName,
+          email,
+          location: body.location || null,
+          message: body.message || null,
+          language: body.language ?? 'es',
+        },
+      })
+      // Not awaited: the request is stored, and a slow mail provider must
+      // not delay the answer — nor mark it as the one for a new address.
+      void notifyAccessRequest(saved)
+    }
+
+    res.json({ success: true, data: { received: true } })
+  } catch (err) {
+    next(err)
+  }
 })
 
 // ─────────────────────────────────────────────────────────────────────

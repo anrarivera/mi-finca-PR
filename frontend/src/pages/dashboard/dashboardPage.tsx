@@ -5,9 +5,7 @@ import {
   MapPin, Layers, Sprout, PawPrint, Ruler, Lightbulb,
 } from 'lucide-react'
 import { fmtNumber } from '@/i18n'
-import { useFarmStore } from '@/store/useFarmStore'
-import { useFieldStore } from '@/store/useFieldStore'
-import { useLivestockStore } from '@/store/useLivestockStore'
+import { useFarmsInScope, useFieldsInScope, useLivestockInScope } from '@/store/farmScope'
 import { computeCropSummary } from '@/features/field/utils/rowCalculator'
 import { getCropById } from '@/features/field/data/cropLibrary'
 import { geodesicAreaAcres } from '@/lib/geo'
@@ -26,9 +24,11 @@ import type { Recommendation } from '@/features/recommendations/types'
 
 export default function DashboardPage() {
   const { t } = useTranslation('pages')
-  const farms = useFarmStore(s => s.farms)
-  const fields = useFieldStore(s => s.fields)
-  const livestock = useLivestockStore(s => s.units)
+  // Everything here counts the farms in scope: the farmer's own, or the
+  // sample farm alone while that is the one being explored.
+  const farms = useFarmsInScope()
+  const fields = useFieldsInScope()
+  const livestock = useLivestockInScope()
 
   const stats = useMemo(() => {
     const totalAcres = farms.reduce((sum, farm) => {

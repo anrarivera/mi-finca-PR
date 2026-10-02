@@ -9,9 +9,11 @@ import { useDeleteField } from '@/features/field/hooks/useFieldsApi'
 import { useDeleteFarm } from '../hooks/useFarmsApi'
 import { useIsPhone } from '@/hooks/useViewport'
 import TeamModal from './teamModal'
+import SampleBadge from './sampleBadge'
 import JoinFarmModal from './joinFarmModal'
 import { useFarmStore, canManageStructure, isFarmOwner } from '@/store/useFarmStore'
 import { useFieldStore } from '@/store/useFieldStore'
+import { useAuthStore } from '@/store/useAuthStore'
 import { getFieldOperationHealth } from '@/features/field/utils/operationStatus'
 import FieldSummaryCard from '@/features/field/components/fieldSummaryCard'
 import CorralCard from '@/features/livestock/components/corralCard'
@@ -229,6 +231,8 @@ function FarmList({
 }) {
   const { t } = useTranslation('farm')
   const { getFieldsByFarmId } = useFieldStore()
+  // Demo accounts have no team features — hide what the server rejects
+  const isDemo = useAuthStore(s => s.user?.isDemo)
 
   // Sort farms — favorite first
   const sorted = [...farms].sort((a, b) => {
@@ -295,6 +299,7 @@ function FarmList({
                           <span className="text-sm font-semibold text-[#2d4a1e] truncate">
                             {farm.name}
                           </span>
+                          {farm.isSample && <SampleBadge />}
                         </div>
                         <div className="flex items-center gap-1.5 mb-2">
                           <MapPin size={10} className="text-[#66755a] shrink-0" />
@@ -349,6 +354,8 @@ function FarmList({
                       <Star size={10} className={isFavorite ? 'fill-amber-400' : ''} />
                       {t('drawer.favorite')}
                     </button>
+                    {/* No team for demo accounts, nor on the sample farm — the server rejects both */}
+                    {!isDemo && !farm.isSample && (
                     <button
                       onClick={(e) => { e.stopPropagation(); onTeam(farm) }}
                       className="flex items-center gap-1 px-2 py-1 pointer-coarse:px-3 pointer-coarse:py-2 rounded text-[10px] text-[#66755a] hover:text-[#2d4a1e] hover:bg-[#f0f5e8] transition-colors"
@@ -356,6 +363,7 @@ function FarmList({
                     >
                       <Users size={10} /> {t('drawer.team')}
                     </button>
+                    )}
                     {/* Deleting a farm is owner-only — hide what the server rejects */}
                     {isFarmOwner(farm) && (
                     <button
@@ -381,12 +389,14 @@ function FarmList({
         >
           <Plus size={13} /> {t('drawer.addFarm')}
         </button>
+        {!isDemo && (
         <button
           onClick={onJoin}
           className="w-full py-1.5 pointer-coarse:py-2.5 text-[10px] text-[#5a6a4a] hover:text-[#2d4a1e] transition-colors"
         >
           {t('drawer.joinPrompt')}
         </button>
+        )}
       </div>
     </div>
   )
@@ -421,6 +431,8 @@ function FieldList({
   const { t } = useTranslation('farm')
   const deleteField = useDeleteField(farm.id)
   const { removeFieldIdFromFarm } = useFarmStore()
+  // Demo accounts have no team features — hide what the server rejects
+  const isDemo = useAuthStore(s => s.user?.isDemo)
 
   function handleDeleteField(fieldId: string) {
     deleteField.mutate(fieldId, {
@@ -460,6 +472,7 @@ function FieldList({
                 <p className="text-[10px] text-[#66755a]">
                   {t('drawer.fieldCount', { count: fields.length })}
                 </p>
+                {farm.isSample && <SampleBadge />}
                 {totalOverdue > 0 && (
                   <div className="flex items-center gap-0.5 px-1.5 py-0.5 bg-red-50 rounded-full">
                     <AlertCircle size={8} className="text-red-600" />
@@ -476,12 +489,14 @@ function FieldList({
             </div>
           </div>
           <div className="flex items-center gap-1 shrink-0">
+            {!isDemo && !farm.isSample && (
             <button onClick={onTeam}
               title={t('drawer.teamTitle')}
               className="w-6 h-6 pointer-coarse:w-11 pointer-coarse:h-11 flex items-center justify-center rounded-md text-[#66755a] hover:bg-[#e8f0e0] transition-colors"
             >
               <Users size={13} />
             </button>
+            )}
             <button onClick={onClose}
               aria-label={t('common:actions.close')}
               className="w-6 h-6 pointer-coarse:w-11 pointer-coarse:h-11 flex items-center justify-center rounded-md text-[#66755a] hover:bg-[#e8f0e0] transition-colors"

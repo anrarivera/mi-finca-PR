@@ -16,6 +16,9 @@ export type Farm = {
   description?: string | null
   /** The requesting user's role on this farm (roles phase 3). */
   myRole?: FarmRole
+  /** A sandbox seeded with sample data: the one switched on from Settings,
+      or a demo account's farm. A farm without the key is an ordinary farm. */
+  isSample?: boolean
 }
 
 // Role gates for hiding UI the server would reject anyway. Farms loaded

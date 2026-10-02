@@ -505,6 +505,26 @@ export default function FarmMap({ center = PR_CENTER, zoom = DEFAULT_ZOOM }: Pro
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeFarm?.id])
 
+  // A field-editing session belongs to the farm it was opened on. Every
+  // guarded way of changing farms discards it first; this catches the
+  // ones that change the farm from outside the map (the sample farm
+  // switched off or reset under the editor), so a session can never save
+  // what was drawn on one farm into another. Only a DIFFERENT farm ends
+  // the session — a refetch that leaves no farm active for a moment must
+  // not cost the farmer their drawing.
+  const editingFarmId = useRef<string | null>(null)
+  useEffect(() => {
+    const current = activeFarm?.id ?? null
+    if (!fieldEditing.active) {
+      editingFarmId.current = null
+    } else if (editingFarmId.current === null) {
+      editingFarmId.current = current
+    } else if (current !== null && current !== editingFarmId.current) {
+      fieldEditing.discard()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fieldEditing.active, activeFarm?.id])
+
   async function handleSaveFarm() {
   if (!activeFarm) {
     toast.error(t('map.noActiveFarm'))
@@ -710,7 +730,7 @@ async function handleDeleteFarm() {
             <Marker
               key={farm.id}
               position={farmPinPosition(farm.boundary)}
-              icon={createFarmPinIcon(farm.name)}
+              icon={createFarmPinIcon(farm.isSample ? `${farm.name} · ${t('sampleBadge')}` : farm.name)}
               eventHandlers={{ click: () => handleSwitchFarmFromMap(farm) }}
             />
           ))}

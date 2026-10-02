@@ -17,8 +17,12 @@ import { serializeField, fieldInclude } from '../routes/fields'
 export const BACKUP_VERSION = 2
 
 export async function buildExport(userId: string) {
+  // The sample farm is not the farmer's records and stays out of the
+  // backup — except in a demo account, where it is the whole account.
+  const ownRecords = { OR: [{ isSample: false }, { user: { isDemo: true } }] }
+
   const farms = await prisma.farm.findMany({
-    where: { userId, deletedAt: { equals: null } },
+    where: { userId, deletedAt: { equals: null }, ...ownRecords },
     include: {
       fields: {
         where: { deletedAt: { equals: null } },
@@ -50,7 +54,7 @@ export async function buildExport(userId: string) {
     include: { versions: { orderBy: { number: 'asc' } } },
   })
   const recipeDefaults = await prisma.recipeDefault.findMany({
-    where: { OR: [{ userId }, { farm: { userId } }] },
+    where: { OR: [{ userId }, { farm: { userId, ...ownRecords } }] },
   })
 
   return {

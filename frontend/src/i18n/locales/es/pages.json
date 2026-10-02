@@ -279,7 +279,8 @@
   "demoBanner": {
     "text": "Modo demostración — explora con datos de ejemplo. Esta finca se borra en unos días.",
     "tour": "Ver tutorial",
-    "register": "Crear mi cuenta"
+    "register": "Crear mi cuenta",
+    "requestAccess": "Solicitar acceso"
   },
   "demoTour": {
     "back": "Atrás",
@@ -313,8 +314,49 @@
       },
       "finish": {
         "title": "¡Explora!",
-        "body": "Marca la fertilización vencida, reporta un hallazgo, registra huevos del gallinero… Cuando quieras tu propia finca, crea tu cuenta gratis desde la barra de arriba."
+        "body": "Marca la fertilización vencida, reporta un hallazgo, registra huevos del gallinero… Cuando quieras tu propia finca, crea tu cuenta gratis desde la barra de arriba.",
+        "bodyOwnAccount": "Marca la fertilización vencida, reporta un hallazgo, registra huevos del gallinero… Para volver a tus fincas, cambia de finca en la lista del mapa. La finca de ejemplo se oculta cuando quieras desde Configuración."
       }
+    }
+  },
+  "sampleFarm": {
+    "sectionTitle": "Finca de ejemplo",
+    "toggle": {
+      "title": "Mostrar la finca de ejemplo",
+      "description_one": "Una finca con datos de ejemplo, junto a las tuyas, para practicar sin tocar tus datos. Lo que cambies en ella vuelve a los datos originales cada día.",
+      "description_other": "Una finca con datos de ejemplo, junto a las tuyas, para practicar sin tocar tus datos. Lo que cambies en ella vuelve a los datos originales cada {{count}} días."
+    },
+    "reset": {
+      "title": "Próximo restablecimiento: {{date}}",
+      "titleNoDate": "Restablecer la finca de ejemplo",
+      "description": "Devuelve la finca de ejemplo a sus datos originales y descarta lo que cambiaste en ella.",
+      "button": "Restablecer ahora"
+    },
+    "tour": {
+      "title": "Tutorial guiado",
+      "description": "Un recorrido por la finca de ejemplo: el mapa, las labores y el Cuaderno de campo.",
+      "button": "Ver tutorial"
+    },
+    "resetConfirm": {
+      "title": "¿Restablecer la finca de ejemplo?",
+      "message": "Se descartará todo lo que cambiaste en la finca de ejemplo y volverá a sus datos originales. Tus fincas no se tocan.",
+      "confirm": "Sí, restablecer"
+    },
+    "disableConfirm": {
+      "title": "¿Ocultar la finca de ejemplo?",
+      "message": "La finca de ejemplo se eliminará de tu cuenta junto con lo que cambiaste en ella. Tus fincas no se tocan, y puedes volver a mostrarla cuando quieras desde Configuración.",
+      "confirm": "Sí, ocultar"
+    },
+    "toasts": {
+      "enabled": "Finca de ejemplo lista — ya estás en ella",
+      "disabled": "Finca de ejemplo oculta",
+      "reset": "Finca de ejemplo restablecida"
+    },
+    "banner": {
+      "text": "Finca de ejemplo — lo que cambies aquí vuelve a los datos originales el {{date}}.",
+      "textNoDate": "Finca de ejemplo — lo que cambies aquí vuelve a los datos originales cada pocos días.",
+      "tour": "Ver tutorial",
+      "hide": "Ocultar"
     }
   }
 }

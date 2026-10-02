@@ -2,6 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express'
 import { prisma } from '../lib/prisma'
 import { requireAuth } from '../middleware/auth'
 import { Errors } from '../lib/errors'
+import { requireRealAccount } from '../lib/betaAccess'
 import { requireFields, requireValidId, requireBoundaryBounds, requireNameLength, parseBody } from '../lib/validate'
 import {
   createFarmRequestSchema, updateFarmRequestSchema, joinFarmRequestSchema,
@@ -78,13 +79,20 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
       )
     }
 
-    // Check if this will be the user's first farm
-    // If so, automatically set it as favorite
+    // Check if this will be the user's first farm OF THEIR OWN — the
+    // sample farm does not count. If so, automatically set it as favorite,
+    // taking the favorite over from the sample farm if that was holding it.
     const existingCount = await prisma.farm.count({
       // POST / — count existing farms
-      where: { userId: req.user!.userId, deletedAt: { equals: null } } 
+      where: { userId: req.user!.userId, deletedAt: { equals: null }, isSample: false }
     })
     const shouldBeFavorite = existingCount === 0
+    if (shouldBeFavorite) {
+      await prisma.farm.updateMany({
+        where: { userId: req.user!.userId, isSample: true, isFavorite: true },
+        data: { isFavorite: false },
+      })
+    }
 
     const farm = await prisma.farm.create({
       data: {
@@ -121,6 +129,10 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
 // ─────────────────────────────────────────────────────────────────────
 router.post('/join', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    // Demo visitors stay on their demo farm — and get this answer before
+    // the code is looked at, so the demo can't be used to test codes.
+    await requireRealAccount(req.user!.userId)
+
     requireFields(req.body, ['code'])
     parseBody(joinFarmRequestSchema, req.body)
     const userId = req.user!.userId

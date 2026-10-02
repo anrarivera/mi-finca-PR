@@ -3,7 +3,7 @@ import { localOpLabel, formatRelativeDays } from '@/i18n'
 import { useTranslation } from 'react-i18next'
 import { useGuardedNavigate } from '@/hooks/useGuardedNavigate'
 import { Bell, AlertCircle, Clock, Wheat, CheckCheck, Settings } from 'lucide-react'
-import { useFieldStore } from '@/store/useFieldStore'
+import { useFieldsInScope } from '@/store/farmScope'
 import { useSettingsStore } from '@/store/useSettingsStore'
 import {
   buildNotifications,
@@ -29,7 +29,8 @@ export default function NotificationBell() {
   const panelRef = useRef<HTMLDivElement>(null)
   const { guardedNavigate } = useGuardedNavigate()
 
-  const fields = useFieldStore(s => s.fields)
+  // Sample-farm labores only ring while the sample farm is being explored.
+  const fields = useFieldsInScope()
   const prefs = useSettingsStore(s => s.notificationPrefs)
   const seenIds = useSettingsStore(s => s.seenNotificationIds)
   const markSeen = useSettingsStore(s => s.markNotificationsSeen)

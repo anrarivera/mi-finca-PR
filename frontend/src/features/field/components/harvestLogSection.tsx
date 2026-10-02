@@ -7,7 +7,7 @@ import { downloadCsv } from '@/lib/csv'
 import { DateRangeSelect, filterSelectClass, Pager } from '@/components/shared/logFilters'
 import { minDateFor, type DateRange } from '@/lib/dateRange'
 import { useFieldStore } from '@/store/useFieldStore'
-import { useFarmStore } from '@/store/useFarmStore'
+import { useFarmsInScope } from '@/store/farmScope'
 import { useLivestockStore } from '@/store/useLivestockStore'
 import { getAnimalById } from '@/features/livestock/data/animalLibrary'
 import { getCropById } from '../data/cropLibrary'
@@ -42,9 +42,9 @@ export type ApiHarvestRow = {
   notes: string | null
 }
 
-// The whole ledger across every farm, newest first.
+// The whole ledger across every farm in scope, newest first.
 function useHarvestLedger(): ApiHarvestRow[] {
-  const farms = useFarmStore(s => s.farms)
+  const farms = useFarmsInScope()
   const farmIds = farms.map(f => f.id)
 
   const { data } = useQuery({
@@ -78,7 +78,7 @@ export default function HarvestLogSection({ limit = 6 }: Props) {
   const fields = useFieldStore(s => s.fields)
   const livestockUnits = useLivestockStore(s => s.units)
   const entries = useHarvestLedger()
-  const farms = useFarmStore(s => s.farms)
+  const farms = useFarmsInScope()
 
   // ── Filters — farm, product/crop, origin (field or herd), dates.
   //    The ledger spans every farm, so the farm filter defaults to all. ─
