@@ -10,6 +10,7 @@ import {
 } from '@/features/farm/hooks/useFarmsApi'
 import { useDrawing, findNearestEdgeIndex } from '../hooks/useDrawing'
 import { attachPointerDrag } from '../utils/pointerDrag'
+import { farmPinHtml } from '../utils/pinIcons'
 import { municipioLatLng } from '../utils/prMunicipios'
 import { useIsCoarsePointer } from '@/hooks/useViewport'
 import DrawingPanel from './drawingPanel'
@@ -154,19 +155,7 @@ function createFarmPinIcon(name: string): L.DivIcon {
   return L.divIcon({
     className: '',
     iconAnchor: [14, 36],
-    html: `
-      <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
-        <div style="background:#2d4a1e;border:1.5px solid #d4e8b0;color:#d4e8b0;font-size:10px;
-          font-weight:600;padding:2px 7px;border-radius:4px;white-space:nowrap;
-          box-shadow:0 1px 4px rgba(0,0,0,0.25);font-family:system-ui,sans-serif;
-          max-width:140px;overflow:hidden;text-overflow:ellipsis;">${name}</div>
-        <svg width="28" height="36" viewBox="0 0 24 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M12 0C5.373 0 0 5.373 0 12c0 9 12 20 12 20S24 21 24 12C24 5.373 18.627 0 12 0z"
-            fill="#2d4a1e" stroke="white" stroke-width="1.5"/>
-          <circle cx="12" cy="12" r="4" fill="#d4e8b0"/>
-        </svg>
-      </div>
-    `,
+    html: farmPinHtml(name),
   })
 }
 
