@@ -19,6 +19,7 @@ import {
   type FarmOperation,
 } from '../hooks/useOperationsApi'
 import { downloadCsv } from '@/lib/csv'
+import { liveFilter } from '@/lib/liveFilter'
 import { todayISO } from '../types'
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -58,7 +59,10 @@ export default function OperationsLogSection() {
   const farms = useFarmsInScope()
 
   // Farm scope — "Todas las fincas" by default, like the Siembras grid.
-  const [farmFilter, setFarmFilter] = useState('all')
+  //    Every data-built filter is read through liveFilter: the choice only
+  //    applies while its value still exists (see lib/liveFilter).
+  const [farmChoice, setFarmFilter] = useState('all')
+  const farmFilter = liveFilter(farmChoice, farms.map(f => f.id))
   const farmIds = useMemo(
     () => (farmFilter === 'all' ? farms.map(f => f.id) : [farmFilter]),
     [farmFilter, farms]
@@ -87,8 +91,8 @@ export default function OperationsLogSection() {
   // ── Filters — field, labor type, date range; applied BEFORE paging so
   //    a filtered view never silently hides matches. Every filter change
   //    returns to page 1 in its own handler. ────────────────────────────
-  const [fieldFilter, setFieldFilter] = useState('all')
-  const [typeFilter, setTypeFilter] = useState('all')
+  const [fieldChoice, setFieldFilter] = useState('all')
+  const [typeChoice, setTypeFilter] = useState('all')
   const [dateRange, setDateRange] = useState<DateRange>('all')
   const [page, setPage] = useState(1)
 
@@ -110,6 +114,8 @@ export default function OperationsLogSection() {
     () => [...new Set((operations ?? []).map(o => o.type))],
     [operations]
   )
+  const fieldFilter = liveFilter(fieldChoice, scopedFields.map(f => f.id))
+  const typeFilter = liveFilter(typeChoice, presentTypes)
   const filtered = useMemo(() => {
     const minDate = minDateFor(dateRange)
     return (operations ?? []).filter(op =>

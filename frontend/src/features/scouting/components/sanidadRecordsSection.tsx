@@ -8,6 +8,7 @@ import {
 import { minDateFor, type DateRange } from '@/lib/dateRange'
 import { useFindingsLedger } from '../hooks/useFindingsApi'
 import { downloadCsv } from '@/lib/csv'
+import { liveFilter } from '@/lib/liveFilter'
 import { todayISO } from '@/features/field/types'
 import { getPestById } from '../data/pestLibrary'
 import { SEVERITY_COLORS, SEVERITY_TEXT_COLORS, type Finding, type FindingStatus } from '../types'
@@ -37,7 +38,10 @@ export default function SanidadRecordsSection() {
   const allFields = useFieldsInScope()
 
   // Farm scope — "Todas las fincas" by default, like the Siembras grid.
-  const [farmFilter, setFarmFilter] = useState('all')
+  // Every data-built filter is read through liveFilter: the choice only
+  // applies while its value still exists (see lib/liveFilter).
+  const [farmChoice, setFarmFilter] = useState('all')
+  const farmFilter = liveFilter(farmChoice, farms.map(f => f.id))
   const farmIds = useMemo(
     () => (farmFilter === 'all' ? farms.map(f => f.id) : [farmFilter]),
     [farmFilter, farms]
@@ -47,8 +51,8 @@ export default function SanidadRecordsSection() {
 
   // ── Filters + column sort ────────────────────────────────────────────
   const [statusFilter, setStatusFilter] = useState<'all' | FindingStatus>('all')
-  const [pestFilter, setPestFilter] = useState('all')
-  const [fieldFilter, setFieldFilter] = useState('all')
+  const [pestChoice, setPestFilter] = useState('all')
+  const [fieldChoice, setFieldFilter] = useState('all')
   const [dateRange, setDateRange] = useState<DateRange>('all')
   const [sortKey, setSortKey] = useState<SortKey>('date')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
@@ -90,6 +94,9 @@ export default function SanidadRecordsSection() {
       .sort((a, b) => localName(a.pest, a.id).localeCompare(localName(b.pest, b.id))),
     [all]
   )
+
+  const pestFilter = liveFilter(pestChoice, presentPests.map(p => p.id))
+  const fieldFilter = liveFilter(fieldChoice, scopedFields.map(f => f.id))
 
   const filtered = useMemo(() => {
     const minDate = minDateFor(dateRange)
