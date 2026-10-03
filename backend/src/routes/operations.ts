@@ -4,6 +4,7 @@ import { requireAuth } from '../middleware/auth'
 import { Errors } from '../lib/errors'
 import { requireFields, requireValidId, requireRevenue, requireQuantity, parseBody } from '../lib/validate'
 import { requireFarmRole } from '../lib/farmAccess'
+import { csvCell } from '../lib/csv'
 import { todayInAppTz } from '../lib/today'
 import { enforceContract } from '../contracts/enforce'
 import {
@@ -178,13 +179,6 @@ router.get('/export', async (req: Request, res: Response, next: NextFunction) =>
       orderBy: { actualDate: 'desc' },
     })
 
-    // Minimal CSV escaping: wrap in quotes, double any embedded quotes.
-    const esc = (v: unknown) => {
-      if (v === null || v === undefined) return ''
-      const s = String(v)
-      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
-    }
-
     const header = 'date,type,field,livestock_unit,performed_by,product,quantity,unit,quality_rating,rows_covered,plants_covered,notes'
     const rows = operations.map(op =>
       [
@@ -200,7 +194,7 @@ router.get('/export', async (req: Request, res: Response, next: NextFunction) =>
         Array.isArray(op.rowIds) ? (op.rowIds as unknown[]).length || '' : '',
         Array.isArray(op.plantIds) ? (op.plantIds as unknown[]).length || '' : '',
         op.notes ?? '',
-      ].map(esc).join(',')
+      ].map(csvCell).join(',')
     )
 
     const filename = `operaciones-${farm.name.replace(/[^\w\-]+/g, '_')}.csv`

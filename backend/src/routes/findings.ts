@@ -4,6 +4,7 @@ import { requireAuth } from '../middleware/auth'
 import { Errors } from '../lib/errors'
 import { requireFields, requireValidId, parseBody } from '../lib/validate'
 import { requireFarmRole } from '../lib/farmAccess'
+import { csvCell } from '../lib/csv'
 import { todayInAppTz } from '../lib/today'
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -145,13 +146,6 @@ router.get('/export', async (req: Request, res: Response, next: NextFunction) =>
       orderBy: [{ foundDate: 'desc' }, { createdAt: 'desc' }],
     })
 
-    // Minimal CSV escaping: wrap in quotes, double any embedded quotes.
-    const esc = (v: unknown) => {
-      if (v === null || v === undefined) return ''
-      const s = String(v)
-      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
-    }
-
     const header = 'finding_date,observation_date,field,pest,severity,status,rows_affected,plants_affected,has_treatment,notes'
     const rows = findings.flatMap(f =>
       f.observations.map(obs =>
@@ -166,7 +160,7 @@ router.get('/export', async (req: Request, res: Response, next: NextFunction) =>
           Array.isArray(obs.plantIds) ? (obs.plantIds as unknown[]).length || '' : '',
           f.treatmentRecommendedOperationId ? 'yes' : '',
           obs.notes ?? '',
-        ].map(esc).join(',')
+        ].map(csvCell).join(',')
       )
     )
 
