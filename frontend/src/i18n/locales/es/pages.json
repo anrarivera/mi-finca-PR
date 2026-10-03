@@ -357,6 +357,12 @@
       "textNoDate": "Finca de ejemplo — lo que cambies aquí vuelve a los datos originales cada pocos días.",
       "tour": "Ver tutorial",
       "hide": "Ocultar"
+    },
+    "welcome": {
+      "title": "¿Quieres conocer la app con una finca de ejemplo?",
+      "message": "Es una finca con datos de ejemplo y un tutorial guiado, para practicar sin tocar tus datos. Cuando termines puedes ocultarla, desde su barra o en Configuración, y empezar con tu propia finca.",
+      "confirm": "Sí, mostrármela",
+      "cancel": "No, empezar con mi finca"
     }
   }
 }

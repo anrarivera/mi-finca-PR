@@ -357,6 +357,12 @@
       "textNoDate": "Sample farm — what you change here goes back to the original data every few days.",
       "tour": "View tutorial",
       "hide": "Turn off"
+    },
+    "welcome": {
+      "title": "Want to get to know the app with a sample farm?",
+      "message": "It is a farm with sample data and a guided tutorial, to practice without touching your data. When you are done you can turn it off, from its bar or in Settings, and start on your own farm.",
+      "confirm": "Yes, show me",
+      "cancel": "No, start with my farm"
     }
   }
 }

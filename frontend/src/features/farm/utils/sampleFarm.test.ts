@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { farmToReselect, formatResetDate } from './sampleFarm'
+import { farmToReselect, formatResetDate, shouldOfferSampleFarm } from './sampleFarm'
 import type { Farm } from '@/store/useFarmStore'
 
 // resetsAt is shown as a day in the device's time. Pinning the farm's
@@ -86,5 +86,29 @@ describe('farmToReselect', () => {
   it('selects nothing when not even the fallback is in the list', () => {
     expect(farmToReselect([], null, null)).toBeUndefined()
     expect(farmToReselect([rivera], null, 'altura')).toBeUndefined()
+  })
+})
+
+describe('shouldOfferSampleFarm', () => {
+  const newcomer = { isDemo: false, farmCount: 0, seen: false }
+
+  it('asks a real account that has no farm yet', () => {
+    expect(shouldOfferSampleFarm(newcomer)).toBe(true)
+  })
+
+  it('waits for the farm list — not loaded is not "no farms"', () => {
+    expect(shouldOfferSampleFarm({ ...newcomer, farmCount: undefined })).toBe(false)
+  })
+
+  it('leaves alone whoever already has a farm, the sample one included', () => {
+    expect(shouldOfferSampleFarm({ ...newcomer, farmCount: 1 })).toBe(false)
+  })
+
+  it('asks only once', () => {
+    expect(shouldOfferSampleFarm({ ...newcomer, seen: true })).toBe(false)
+  })
+
+  it('never asks a demo account', () => {
+    expect(shouldOfferSampleFarm({ ...newcomer, isDemo: true })).toBe(false)
   })
 })
