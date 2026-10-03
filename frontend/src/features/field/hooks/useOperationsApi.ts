@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { useFieldStore } from '@/store/useFieldStore'
+import { invalidateLogViews } from '../utils/logCache'
 
 // ──────────────────────────────────────────────────────────────────────────
 // Operations API hooks — the persistence layer for the check-off flow
@@ -126,7 +127,9 @@ export function useCreateOperation(farmId: string) {
       return api.post<FarmOperation>(`/api/v1/farms/${farmId}/operations`, data)
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['operations', farmId] })
+      // A standalone harvest entry with a quantity is mirrored into the
+      // production ledger too.
+      invalidateLogViews(queryClient)
     },
   })
 }
@@ -225,7 +228,7 @@ export function useCompleteRecommendedOp(farmId: string) {
       // The server also created an operations-log row (and possibly a
       // harvest yield) — refresh everything derived from them.
       queryClient.invalidateQueries({ queryKey: ['fields', farmId] })
-      queryClient.invalidateQueries({ queryKey: ['operations'] })
+      invalidateLogViews(queryClient)
       queryClient.invalidateQueries({ queryKey: ['recommended-operations'] })
     },
     onError: (_err, vars) => {
@@ -295,7 +298,7 @@ export function useUndoRecommendedOp(farmId: string) {
         completedOperationId: null,
       })
       queryClient.invalidateQueries({ queryKey: ['fields', farmId] })
-      queryClient.invalidateQueries({ queryKey: ['operations'] })
+      invalidateLogViews(queryClient)
       queryClient.invalidateQueries({ queryKey: ['recommended-operations'] })
     },
   })
@@ -329,7 +332,7 @@ export function useLogPartialRecommendedOp(farmId: string) {
       )
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['operations'] })
+      invalidateLogViews(queryClient)
       queryClient.invalidateQueries({ queryKey: ['recommended-operations'] })
     },
   })
@@ -356,7 +359,7 @@ export function useUpdateOperation() {
       )
     },
     onSuccess: (_data, vars) => {
-      queryClient.invalidateQueries({ queryKey: ['operations'] })
+      invalidateLogViews(queryClient)
       queryClient.invalidateQueries({ queryKey: ['fields', vars.farmId] })
       queryClient.invalidateQueries({ queryKey: ['recommended-operations'] })
     },
@@ -375,7 +378,7 @@ export function useDeleteOperation() {
       return vars.id
     },
     onSuccess: (_id, vars) => {
-      queryClient.invalidateQueries({ queryKey: ['operations'] })
+      invalidateLogViews(queryClient)
       queryClient.invalidateQueries({ queryKey: ['fields', vars.farmId] })
       queryClient.invalidateQueries({ queryKey: ['recommended-operations'] })
     },
