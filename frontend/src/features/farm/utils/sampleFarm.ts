@@ -31,3 +31,15 @@ export function formatResetDate(
   if (Number.isNaN(instant.getTime())) return null
   return instant.toLocaleDateString(locale, { day: 'numeric', month: 'long' })
 }
+
+// Whether a first visit gets the "start with the sample farm?" question.
+// Only a real account with no farm at all, and only until it answers.
+// `farmCount` is undefined while the farm list has not arrived: no answer
+// yet is never "no farms".
+export function shouldOfferSampleFarm(account: {
+  isDemo: boolean
+  farmCount: number | undefined
+  seen: boolean
+}): boolean {
+  return !account.isDemo && !account.seen && account.farmCount === 0
+}

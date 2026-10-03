@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import TopNav from './topNav'
 import DemoBanner from '@/features/demo/demoBanner'
 import SampleFarmBanner from '@/features/demo/sampleFarmBanner'
+import SampleFarmWelcome from '@/features/demo/sampleFarmWelcome'
 import DemoTour from '@/features/demo/demoTour'
 import SideMenu from './sideMenu'
 import BottomNav from './bottomNav'
@@ -44,6 +45,7 @@ export default function Layout({ children }: Props) {
       <BottomNav />
       <ToastContainer />
       <DemoTour />
+      <SampleFarmWelcome />
     </div>
   )
 }
